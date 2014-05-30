@@ -299,6 +299,8 @@ def create_dynamics_constraints(controller_dict, gain_symbols,
     # Compute the symbolic Jacobian matrix with respect to the free
     # parameters, shape(6, 18) or shape(18, 6).
     # TODO : Check whether Jacobian is computed across rows or columns.
+    # TODO : It might be good to replace the x' terms with (x - xp) / h so
+    # that these Jacobians reflect change of x' due to x.
     constraint_jacobian = constraint_eq.jacobian(state_symbols + gain_symbols)
 
     # Create a numerical functions that can be evaluated for any given xdot,
@@ -370,6 +372,10 @@ def create_dynamics_constraints(controller_dict, gain_symbols,
 
         values = np.hstack((xdot, state_trajectory[i], lateral_force_trajectory[i],
                             gains))  # shape(6 + 6 + 1 + 12)
+
+        # TODO : The full Jacobian should be 6 x (6 * n + 12), but most
+        # entries are zeros, i.e. all of the entries not associated with the
+        # ith state or the gains.
 
         return jac(*values)
 
