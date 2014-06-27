@@ -47,6 +47,14 @@ def state_derivatives(states):
     return [state.diff() for state in states]
 
 
+def build_constraint(mass_matrix, forcing_vector, states):
+    """Returns Fr + Fr* from the mass_matrix and forcing vector."""
+
+    xdot = state_derivatives(states)
+
+    return mass_matrix * xdot - forcing_vector
+
+
 def compute_controller_gains():
     """Returns a numerical gain matrix that can be multiplied by the error
     in the states to generate the joint torques needed to stabilize the
@@ -420,13 +428,27 @@ def create_dynamics_constraints(controller_dict, gain_symbols,
 
 def objective_function(free, y_measured):
     """Create and objective function which minimizes the error in the
-    outputs with respect to the measured values and minimizes jouint
-    torque
+    outputs with respect to the measured values.
 
     The arguments to the objective function should be a vector with the
     states at each time point, x, lateral force at each time point, u, and
     the controller gains.
 
+    Parameters
+    ----------
+    free : ndarray, shape(N x M + 2 x 6,)
+        The flattened state array with M states at N time points and the 2
+        x 6 controller gains: [x11, ..., x1N, ..., xM1, xMN, k1, ..., k12]
+    y_measured : ndarray, shape(N, 3)
+        The measured trajectories of the output variables (generalized
+        coordinates for now) at each time instance (this should current
+        correspond to the time steps in the direct collocation but
+        interpolation should eventually be used to separate the two).
+
+    Returns
+    -------
+    cost : float
+        The cost value.
 
     """
     n = len(y_measured)
@@ -479,13 +501,15 @@ def animate_pendulum(t, states, length, filename=None):
     length: float
         The length of the pendulum links.
     filename: string or None, optional
-        If true a movie file will be saved of the animation. This may take some time.
+        If true a movie file will be saved of the animation. This may take
+        some time.
 
     """
     # the number of pendulum bobs
     numpoints = states.shape[1] / 2
 
-    # first set up the figure, the axis, and the plot elements we want to animate
+    # first set up the figure, the axis, and the plot elements we want to
+    # animate
     fig = plt.figure()
 
     # some dimesions
@@ -541,6 +565,246 @@ def animate_pendulum(t, states, length, filename=None):
     if filename is not None:
         anim.save(filename, fps=30, codec='libx264')
 
+
+def discrete_symbols(states, specified, interval='h'):
+    """Returns discrete symbols for each state and specified input along
+    with an interval symbol.
+
+    Parameters
+    ----------
+    states : list of sympy.Functions
+        The n functions of time representing the system's states.
+    specified : list of sympy.Functions
+        The m functions of time representing the system's specified inputs.
+    interval : string, optional
+        The string to use for the discrete time interval symbol.
+
+    Returns
+    -------
+    current_states : list of sympy.Symbols
+        The n symbols representing the system's ith states.
+    previous_states : list of sympy.Symbols
+        The n symbols representing the system's (ith - 1) states.
+    current_specified : list of sympy.Symbols
+        The m symbols representing the system's ith specified inputs.
+    interval : sympy.Symbol
+        The symbol for the time interval.
+
+    """
+
+    xi = [sym.Symbol(f.__class__.__name__ + 'i') for f in states]
+    xp = [sym.Symbol(f.__class__.__name__ + 'p') for f in states]
+    si = [sym.Symbol(f.__class__.__name__ + 'i') for f in specified]
+    h = sym.Symbol('h')
+
+    return xi, xp, si, h
+
+
+def discretize(eoms, states, specified, interval='h'):
+    """Returns the constraint equations in a discretized form. Backward
+    Euler discretization is used.
+
+    Parameters
+    ----------
+    states : list of sympy.Functions
+        The n functions of time representing the system's states.
+    specified : list of sympy.Functions
+        The m functions of time representing the system's specified inputs.
+    interval : string, optional
+        The string to use for the discrete time interval symbol.
+
+    Returns
+    -------
+    discrete_eoms : sympy.Matrix
+        The column vector of the constraint expressions.
+
+    """
+    xi, xp, si, h = discrete_symbols(states, specified, interval=interval)
+
+    euler = [(i - p) / h for i, p in zip(xi, xp)]
+
+    eoms = eoms.subs(dict(zip([s.diff() for s in states], euler)))
+
+    eoms = eoms.subs(dict(zip(states + specified, xi + si)))
+
+    return eoms
+
+
+def general_constraint(eom_vector, state_syms, specified_syms,
+                       constant_syms):
+    """Returns a function that evaluates the constraints.
+
+    Parameters
+    ----------
+    discrete_eom_vec : sympy.Matrix, shape(n, 1)
+        A column vector containing the discrete symbolic expressions of the
+        n constraints.
+    state_syms : list of sympy.Functions
+        The n functions of time representing the system's states.
+    specified_syms : list of sympy.Functions
+        The m functions of time representing the system's specified inputs.
+    constant_syms : list of sympy.Symbols
+        The b symbols representing the system's specified inputs.
+
+    Returns
+    -------
+    constraints : function
+        A function which returns the numerical values of the constraints at
+        time points 2,...,N.
+
+    Notes
+    -----
+    args:
+        all current states (x1i, ..., xni)
+        all previous states (x1p, ... xnp)
+        all current specifieds (s1i, ..., smi)
+        constants (c1, ..., cb)
+        time interval (h)
+
+        args: (x1i, ..., xni, x1p, ... xnp, s1i, ..., smi, c1, ..., cb, h)
+        n: num states
+        m: num specified
+        b: num constants
+
+    The function should evaluate and return an array:
+
+        [con_1_2, ..., con_1_N, con_2_2, ..., con_2_N, ..., con_n_2, ..., con_n_N]
+
+    for n states and N-1 constraints at the time points.
+
+    """
+    xi_syms, xp_syms, si_syms, h = discrete_symbols(state_syms, specified_syms)
+
+    args = [x for x in xi_syms] + [x for x in xp_syms]
+    args += [s for s in si_syms] + constant_syms + [h]
+
+    modules = ({'ImmutableMatrix': np.array}, 'numpy')
+    f = sym.lambdify(args, eom_vector, modules=modules)
+
+    def constraints(state_values, specified_values, constant_values,
+                    interval_value):
+        """Returns a vector of constraint values give all of the
+        unknowns in the equations of motion over the 2, ..., N time
+        steps.
+
+        Parameters
+        ----------
+        states : ndarray, shape(n, N)
+            The array of n states through N time steps.
+        specified_values : ndarray, shape(m, N) or shape(N,)
+            The array of m specifieds through N time steps.
+        constant_values : ndarray, shape(b,)
+            The array of b constants.
+        interval_value : float
+            The value of the dicretization time interval.
+
+        Returns
+        -------
+        constraints : ndarray, shape(N-1,)
+            The array of constraints from t = 2, ..., N.
+            [con_1_2, ..., con_1_N, con_2_2, ..., con_2_N, ..., con_n_2, ..., con_n_N]
+
+        """
+
+        if state_values.shape[0] < 2:
+            raise ValueError('There should always be at least two states.')
+
+        x_current = state_values[:, 1:]
+        x_previous = state_values[:, :-1]
+
+        args = [x for x in x_current] + [x for x in x_previous]
+
+        if len(specified_values.shape) == 2:
+            si = specified_values[:, 1:]
+            args += [s for s in si]
+        else:
+            si = specified_values[1:]
+            args += [si]
+
+        args += list(constant_values)
+        args += [interval_value]
+
+        lam_eval = np.squeeze(f(*args))
+
+        return lam_eval.reshape(x_current.shape[0] * x_current.shape[1])
+
+    return constraints
+
+
+def constraint_func(gen_con_func, num_time_steps, num_states,
+                    interval_value, constant_syms, specified_syms, fixed_constants,
+                    fixed_specified):
+
+    num_free_specified = len(specified_syms) - len(fixed_specified)
+
+    len_states = num_states * num_time_steps
+    len_specified = num_free_specified * num_time_steps
+
+    def build_fixed_free(syms, fixed, free):
+
+        all = []
+        n = 0
+        for i, s in enumerate(syms):
+            if s in fixed.keys():
+                all.append(fixed[s])
+            else:
+                all.append(free[n])
+                n += 1
+        return np.array(all)
+
+    def constraints(free):
+        """
+
+        Parameters
+        ----------
+        free : ndarray
+
+        Returns
+        -------
+        constraints : ndarray, shape(N-1,)
+            The array of constraints from t = 2, ..., N.
+            [con_1_2, ..., con_1_N, con_2_2, ..., con_2_N, ..., con_n_2, ..., con_n_N]
+        """
+
+        free_states = free[:len_states].reshape((num_states, num_time_steps))
+
+        free_specified = free[len_states:len_states + len_specified].reshape((num_free_specified, num_time_steps))
+        all_specified = build_fixed_free(specified_syms, fixed_specified, free_specified)
+
+        free_constants = free[len_states + len_specified:]
+
+        all_constants = build_fixed_free(constant_syms, fixed_constants, free_constants)
+
+        return gen_con_func(free_states, all_specified, all_constants, interval_value)
+
+    return constraints
+
+
+
+
+###def dkkd():
+###
+    ###all_symbols = set.union(*[i.free_symbols for i in discrete_eom_vector])
+    ###jac = discrete_eom_vector.jacobian(all_symbols)
+###
+    ###xi_syms, xp_syms, si_syms, h = discrete_symbols(state_syms, specified_syms)
+###
+    ###args = [x for x in xi_syms] + [x for x in xp_syms]
+    ###args += [s for s in si_syms] + constant_syms + [h]
+###
+    ###modules = ({'ImmutableMatrix': np.array}, 'numpy')
+    ###f = sym.lambdify(args, jac, modules=modules)
+###
+    ###gradient = np.zeros(N - 1, N + par)
+###
+    ###for each constraint: # N - 1 constraints
+        ###values = np.hstack()
+        ###res = f(*values)
+###
+        #### stick result into big matrix of zeros
+        ###gradient[...] = res[...]
+###
+        #### or stick into a scipy sparse matrix
 
 if __name__ == "__main__":
 
