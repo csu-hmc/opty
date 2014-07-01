@@ -163,17 +163,25 @@ def output_equations(x):
 
     Parameters
     ----------
-    x : ndarray, shape(n, 6)
+    x : ndarray, shape(N, n)
         The trajectories of the system states.
 
     Returns
     -------
-    y : ndarray, shape(n, 3)
+    y : ndarray, shape(N, o)
         The trajectories of the generalized coordinates.
+
+    Notes
+    -----
+    The order of the states is assumed to be:
+
+    [coord1, ..., coordn, speed1, ..., speedn, ]
+
+    As this is what generate_ode_function creates.
 
     """
 
-    return x[:, :3]
+    return x[:, :x.shape[1] / 2]
 
 
 def simulate_system(system, duration, num_steps, controller_gain_matrix):
@@ -242,46 +250,100 @@ def simulate_system(system, duration, num_steps, controller_gain_matrix):
     return y, x, lateral_force
 
 
-def objective_function(free, y_measured):
-    """Create and objective function which minimizes the error in the
-    outputs with respect to the measured values.
-
-    The arguments to the objective function should be a vector with the
-    states at each time point, x, lateral force at each time point, u, and
-    the controller gains.
+def objective_function(free, num_dis_points, num_states, dis_period,
+                       time_measured, y_measured):
+    """Create and objective function which minimizes the error in the model
+    outputs with respect to the measured values of those outputs.
 
     Parameters
     ----------
-    free : ndarray, shape(N x M + 2 x 6,)
-        The flattened state array with M states at N time points and the 2
-        x 6 controller gains: [x11, ..., x1N, ..., xM1, xMN, k1, ..., k12]
-    y_measured : ndarray, shape(N, 3)
-        The measured trajectories of the output variables (generalized
-        coordinates for now) at each time instance (this should current
-        correspond to the time steps in the direct collocation but
-        interpolation should eventually be used to separate the two).
+    free : ndarray, shape(N * n + q,)
+        The flattened state array with n states at N time points and the q
+        free model constants.
+    num_dis_points : integer
+        The number of model discretization points.
+    num_states : integer
+        The number of system states.
+    dis_period : float
+        The discretization time interval.
+    y_measured : ndarray, shape(M, o)
+        The measured trajectories of the o output variables at each sampled
+        time instance.
 
     Returns
     -------
     cost : float
         The cost value.
 
+    Notes
+    -----
+    This assumes that the states are ordered:
+
+    [speed1, ..., speedn, coord1, ..., coordn]
+
+    y_measured is interpolated at the discretization time points and
+    compared to the model output at the discretization time points.
+
     """
-    n = len(y_measured)
-    # TODO : Make sure this reshape does the right thing.
-    state_trajectory = free[:n * 6].reshape((n, 6))  # shape(n, 6)
+    M, o = y_measured.shape
+    N, n = num_dis_points, num_states
 
-    return np.sum(((output_equations(state_trajectory) - y_measured)**2))
+    model_time = np.linspace(0.0, dis_period * (N - 1), num=N)
+
+    model_state_trajectory = free[:N * n].reshape((N, n))
+    model_outputs = output_equations(model_state_trajectory)
+
+    func = interp1d(time_measured, y_measured, axis=0)
+
+    return np.linalg.norm(func(time_model) - model_outputs)
 
 
-def objective_function_jacobian(free, y_measured):
+def objective_function_jacobian(free, num_dis_points, num_states,
+                                dis_period, time_measured, y_measured):
+    """
+    Parameters
+    ----------
+    free : ndarray, shape(N * n + q,)
+        The flattened state array with n states at N time points and the q
+        free model constants.
+    num_dis_points : integer
+        The number of model discretization points.
+    num_states : integer
+        The number of system states.
+    dis_period : float
+        The discretization time interval.
+    y_measured : ndarray, shape(M, o)
+        The measured trajectories of the o output variables at each sampled
+        time instance.
 
-    n = len(y_measured)
-    state_trajectory = free[:n * 6].reshape((n, 6))  # shape(n, 6)
+    Returns
+    -------
+    gradient : ndarray, shape(N * n + q,)
+        The gradient of the cost function with respect to the free
+        parameters.
 
-    dobj_dfree = np.zeros(len(free))
-    dobj_dfree[:n*6] = 2.0 * (state_trajectory[:, :3] -
-                              y_measured).reshape(n * 6)
+    Warning
+    -------
+    This is currently only valid if the model outputs (and measurements) are
+    simply the states. The chain rule will be needed if the function
+    output_equations() is more than a simple selection.
+
+    """
+
+    M, o = y_measured.shape
+    N, n = num_dis_points, num_states
+
+    model_time = np.linspace(0.0, dis_period * (N - 1), num=N)
+
+    model_state_trajectory = free[:N * n].reshape((N, n))
+    model_outputs = output_equations(model_state_trajectory)
+
+    func = interp1d(time_measured, y_measured, axis=0)
+
+    dobj_dfree = np.zeros_like(free)
+    # Set the derivatives with respect to the coordinates, all else are
+    # zero.
+    dobj_dfree[:N * o] = 2.0 * (func(time_model) - model_outputs).flatten()
 
     return dobj_dfree
 

@@ -1,8 +1,28 @@
+#!/usr/bin/env python
+
 import numpy as np
 from scipy import sparse
 from sympy import symbols, Function, Matrix, simplify
 
 import pendulum
+
+
+def test_objective_function():
+
+    M = 5
+    o = 2
+    n = 2 * o
+    q = 3
+    h = 0.01
+
+    time = np.linspace(0.0, (M - 1) * h, num=M)
+    y_measured = np.random.random((M, o))  # measured coordinates
+    x_model = np.hstack((y_measured, np.random.random((M, o))))
+    free = np.hstack((x_model.flatten(), np.random.random(q)))
+
+    cost = pendulum.objective_function(free, M, n, h, time, y_measured)
+
+    np.testing.assert_allclose(cost, 0.0, atol=1e-15)
 
 
 def test_substitute_matrix():
