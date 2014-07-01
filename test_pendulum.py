@@ -1,7 +1,29 @@
 import numpy as np
+from scipy import sparse
 from sympy import symbols, Function, Matrix, simplify
 
 import pendulum
+
+
+def test_substitute_matrix():
+
+    A = np.arange(1, 13, dtype=float).reshape(3, 4)
+    sub = np.array([[21, 22], [23, 24]])
+    new_A = pendulum.substitute_matrix(A, [1, 2], [0, 2], sub)
+    expected = np.array([[1, 2, 3, 4],
+                         [21, 6, 22, 8],
+                         [23, 10, 24, 12]], dtype=float)
+
+    np.testing.assert_allclose(new_A, expected)
+
+    A = sparse.lil_matrix(np.zeros((3, 4)))
+    sub = np.array([[21, 22], [23, 24]])
+    new_A = pendulum.substitute_matrix(A, [1, 2], [0, 2], sub)
+    expected = np.array([[0, 0, 0, 0],
+                         [21, 0, 22, 0],
+                         [23, 0, 24, 0]], dtype=float)
+
+    np.testing.assert_allclose(new_A.todense(), expected)
 
 
 def test_discrete_symbols():
@@ -80,7 +102,7 @@ def test_discretize():
     assert simplify(discrete_eoms - expected) == Matrix([0, 0])
 
 
-def test_general_constraint_function():
+def test_general_constraint():
 
     t, h = symbols('t, h')
     v, x = symbols('v, x', cls=Function)
@@ -99,7 +121,7 @@ def test_general_constraint_function():
     eom_vector = Matrix([m * (vi - vp) / h + c * vi + k * xi + fi,
                          (xi - xp) / h - vi])
 
-    constrain = pendulum.general_constraint_function(eom_vector, states, specified,
+    constrain = pendulum.general_constraint(eom_vector, states, specified,
                                              [m, c, k])
 
     state_values = np.array([[1, 2, 3, 4],
@@ -141,6 +163,8 @@ def test_constraint_function():
 
     states = [v, x]
     specified = [f]
+    constants = [m, c, k]
+    free_constants = [k]
 
     xi, vi, xp, vp, fi = symbols('xi, vi, xp, vp, fi')
 
@@ -148,18 +172,23 @@ def test_constraint_function():
                          (xi - xp) / h - vi])
 
     general_constrain = pendulum.general_constraint(eom_vector, states, specified,
-                                                     [m, c, k])
+                                                    constants)
 
+    gradient = pendulum.general_gradient(eom_vector, states, specified,
+                                         constants, free_constants)
     num_time_steps = 4
     num_states = 2
     interval_value = 0.01
     fixed_constants = {m: 1.0, c: 2.0}
     fixed_specified = {fi: np.array([2, 2, 2, 2])}
 
+    specified_syms = [fi]
+
     # you pass in the general constraint function with all the fixed values
-    constrain = pendulum.constraint_func(general_constrain,
-            num_time_steps, num_states, interval_value, [m, c, k], [fi], fixed_constants,
-            fixed_specified)
+    constrain = pendulum.constraint_func(general_constrain, num_time_steps,
+                                         num_states, interval_value, constants,
+                                         specified_syms, fixed_constants,
+                                         fixed_specified)
 
     free = np.array([1, 2, 3, 4, 5, 6, 7, 8, 3.0])
 
@@ -188,6 +217,74 @@ def test_constraint_function():
 
     np.testing.assert_allclose(result, expected)
 
+    constrain = pendulum.constraint_func(gradient, num_time_steps,
+            num_states, interval_value, constants, specified_syms, fixed_constants,
+            fixed_specified)
+
+    result = constrain(free)
+
+    x = state_values[1]
+
+    expected_gradient = np.array(
+        [[-m / h, c + m / h, 0, 0, 0, k, 0, 0, x[1]],
+         [0, -m / h, c + m / h, 0, 0, 0, k, 0, x[2]],
+         [0, 0, -m / h, c + m / h, 0, 0, 0, k, x[3]],
+         [0, -1, 0, 0, -1 / h, 1 / h, 0, 0, 0],
+         [0, 0, -1, 0, 0, -1 / h, 1 / h, 0, 0],
+         [0, 0, 0, -1, 0, 0, -1 / h, 1 / h, 0]])
+
+    np.testing.assert_allclose(result.todense(), expected_gradient)
+
+
+def test_general_gradient():
+
+    t, h = symbols('t, h')
+    v, x = symbols('v, x', cls=Function)
+    m, c, k = symbols('m, c, k')
+    f = symbols('f', cls=Function)
+
+    v = v(t)
+    x = x(t)
+    f = f(t)
+
+    states = [v, x]
+    specified = [f]
+    constants = [m, c, k]
+    free_constants = [k]
+
+    xi, vi, xp, vp, fi = symbols('xi, vi, xp, vp, fi')
+
+    eom_vector = Matrix([m * (vi - vp) / h + c * vi + k * xi + fi,
+                         (xi - xp) / h - vi])
+
+    gradient = pendulum.general_gradient(eom_vector, states, specified,
+                                         constants, free_constants)
+
+    state_values = np.array([[1, 2, 3, 4],   # v
+                             [5, 6, 7, 8]])  # x
+    specified_values = np.array([2, 2, 2, 2])
+    constant_values = np.array([1.0, 2.0, 3.0])
+
+    x = state_values[1]
+    m, c, k = constant_values
+    h = 0.01
+
+    result = gradient(state_values, specified_values, constant_values, h)
+
+    # jacobian of eom_vector wrt vi, xi, xp, vp, k
+    # [     vi,  xi,   vp,   xp,  k]
+    # [c + m/h,   k, -m/h,    0, xi]
+    # [     -1, 1/h,    0, -1/h,  0]
+
+    expected_gradient = np.array(
+        [[-m / h, c + m / h, 0, 0, 0, k, 0, 0, x[1]],
+         [0, -m / h, c + m / h, 0, 0, 0, k, 0, x[2]],
+         [0, 0, -m / h, c + m / h, 0, 0, 0, k, x[3]],
+         [0, -1, 0, 0, -1 / h, 1 / h, 0, 0, 0],
+         [0, 0, -1, 0, 0, -1 / h, 1 / h, 0, 0],
+         [0, 0, 0, -1, 0, 0, -1 / h, 1 / h, 0]])
+
+    np.testing.assert_allclose(result.todense(), expected_gradient)
 
 
 def test_constraint_gradient():
