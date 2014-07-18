@@ -7,6 +7,28 @@ from sympy import symbols, Function, Matrix, simplify
 import pendulum
 
 
+def test_parse_free():
+
+    q = 2  # two free model constants
+    n = 4  # four states
+    r = 2  # two free specified inputs
+    N = 10  # ten time steps
+
+    expected_constants = np.random.random(q)
+    expected_state_traj = np.random.random((n, N))
+    expected_input_traj = np.random.random((r, N))
+
+    free = np.hstack((expected_state_traj.flatten(),
+                      expected_input_traj.flatten(),
+                      expected_constants))
+
+    state_traj, input_traj, constants = pendulum.parse_free(free, n, r, N)
+
+    np.testing.assert_allclose(expected_constants, constants)
+    np.testing.assert_allclose(expected_state_traj, state_traj)
+    np.testing.assert_allclose(expected_input_traj, input_traj)
+
+
 def test_output_equations():
 
     # four states (cols), and 5 time steps (rows)

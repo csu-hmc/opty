@@ -824,18 +824,6 @@ def wrap_constraint(func, num_time_steps, num_states,
     len_states = num_states * num_time_steps
     len_specified = num_free_specified * num_time_steps
 
-    def build_fixed_free(syms, fixed, free):
-
-        all = []
-        n = 0
-        for i, s in enumerate(syms):
-            if s in fixed.keys():
-                all.append(fixed[s])
-            else:
-                all.append(free[n])
-                n += 1
-        return np.array(all)
-
     def constraints(free):
         """
 
@@ -850,22 +838,76 @@ def wrap_constraint(func, num_time_steps, num_states,
             [con_1_2, ..., con_1_N, con_2_2, ..., con_2_N, ..., con_n_2, ..., con_n_N]
         """
 
-        free_states = free[:len_states].reshape((num_states, num_time_steps))
+        free_states, free_specified, free_constants = \
+            parse_free(free, num_states, num_free_specified, num_time_steps)
 
-        free_specified = free[len_states:len_states + len_specified]
-        free_specified = free_specified.reshape((num_free_specified,
-                                                 num_time_steps))
-        all_specified = build_fixed_free(specified_syms, fixed_specified,
+        all_specified = merge_fixed_free(specified_syms, fixed_specified,
                                          free_specified)
 
-        free_constants = free[len_states + len_specified:]
-
-        all_constants = build_fixed_free(constant_syms, fixed_constants,
+        all_constants = merge_fixed_free(constant_syms, fixed_constants,
                                          free_constants)
 
         return func(free_states, all_specified, all_constants, interval_value)
 
     return constraints
+
+
+def merge_fixed_free(syms, fixed, free):
+    """Returns an array with the fixed and free
+
+    This assumes that you have the free constants in the correct order.
+
+    """
+
+    merged = []
+    n = 0
+    for i, s in enumerate(syms):
+        if s in fixed.keys():
+            merged.append(fixed[s])
+        else:
+            merged.append(free[n])
+            n += 1
+    return np.array(merged)
+
+
+def parse_free(free, n, r, N):
+    """Parses the free parameters vector and returns it's components.
+
+    free : ndarray, shape(n * N + m * M + q)
+        The free parameters of the system.
+    n : integer
+        The number of states.
+    r : integer
+        The number of free specified inputs.
+    N : integer
+        The number of time steps.
+
+    Returns
+    -------
+    states : ndarray, shape(n, N)
+        The array of n states through N time steps.
+    specified_values : ndarray, shape(r, N) or shape(N,), or None
+        The array of r specified inputs through N time steps.
+    constant_values : ndarray, shape(q,)
+        The array of q constants.
+
+    """
+
+    len_states = n * N
+    len_specified = r * N
+
+    free_states = free[:len_states].reshape((n, N))
+
+    if r == 0:
+        free_specified = None
+    else:
+        free_specified = free[len_states:len_states + len_specified]
+        if r > 1:
+            free_specified = free_specified.reshape((r, N))
+
+    free_constants = free[len_states + len_specified:]
+
+    return free_states, free_specified, free_constants
 
 
 def substitute_matrix(matrix, row_idxs, col_idxs, sub_matrix):
@@ -1075,10 +1117,12 @@ if __name__ == "__main__":
                                    time,
                                    y)
 
+
     prob = Problem(num_time_steps, num_states, num_gains, obj_func,
                    obj_grad_func, con_func, con_jac_func)
 
-    initial_guess = np.hstack((x.flatten(), gains.flatten()))
+
+    initial_guess = np.hstack((x.T.flatten(), gains.flatten()))
 
     solution, info = prob.solve(initial_guess)
 
