@@ -16,7 +16,7 @@ Dependencies this runs with:
     sympy 0.7.5
     matplotlib 1.3.1
     pydy 0.2.1
-    cyipopt
+    cyipopt 0.1.4
 
 N : number of discretization points
 M : number of measured time samples

@@ -7,6 +7,19 @@ from sympy import symbols, Function, Matrix, simplify
 import pendulum
 
 
+def test_state_derivatives():
+
+    t = symbols('t')
+    x, v = symbols('x, v', cls=Function)
+
+    x = x(t)
+    v = v(t)
+
+    derivs = pendulum.state_derivatives([x, v])
+
+    assert derivs == [x.diff(t), v.diff(t)]
+
+
 def test_parse_free():
 
     q = 2  # two free model constants
