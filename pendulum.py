@@ -69,7 +69,7 @@ def f_minus_ma(mass_matrix, forcing_vector, states):
     return mass_matrix * xdot - forcing_vector
 
 
-def compute_controller_gains():
+def compute_controller_gains(num_links):
     """Returns a numerical gain matrix that can be multiplied by the error
     in the states to generate the joint torques needed to stabilize the
     pendulum.
@@ -83,7 +83,7 @@ def compute_controller_gains():
 
     """
 
-    res = n_link_pendulum_on_cart(2, cart_force=False, joint_torques=True)
+    res = n_link_pendulum_on_cart(num_links, cart_force=False, joint_torques=True)
 
     mass_matrix = res[0]
     forcing_vector = res[1]
@@ -1040,6 +1040,8 @@ class Problem(ipopt.problem):
 
 if __name__ == "__main__":
 
+    num_links = 1
+
     # Specify the number of time steps and duration of the measurements.
     sample_rate = 100.0  # hz
     duration = 0.5  # seconds
@@ -1049,7 +1051,7 @@ if __name__ == "__main__":
 
     # Generate the symbolic equations of motion for the two link pendulum on
     # a cart.
-    system = n_link_pendulum_on_cart(2, cart_force=True, joint_torques=True)
+    system = n_link_pendulum_on_cart(num_links, cart_force=True, joint_torques=True)
 
     mass_matrix = system[0]
     forcing_vector = system[1]
@@ -1063,7 +1065,7 @@ if __name__ == "__main__":
     num_states = len(states_syms)
 
     # Find some optimal gains for stablizing the pendulum on the cart.
-    gains = compute_controller_gains()
+    gains = compute_controller_gains(num_links)
 
     # Generate some "measured" data from the simulation.
     y, x, u = simulate_system(system, duration, num_time_steps, gains)
@@ -1137,11 +1139,11 @@ if __name__ == "__main__":
 
 
     initial_guess = np.hstack((x.T.flatten(), gains.flatten()))
-    initial_guess = np.hstack((x.T.flatten(), np.ones_like(gains)))
+    #initial_guess = np.hstack((x.T.flatten(), np.ones_like(gains.flatten())))
 
     solution, info = prob.solve(initial_guess)
 
     print("Known gains: {}".format(gains))
-    print("Identified gains: {}".format(solution[-12:].reshape(2, 6)))
+    print("Identified gains: {}".format(solution[-len(gains.flatten()):].reshape(gains.shape)))
 
     # animate_pendulum(np.linspace(0.0, duration, num_time_steps), x, 1.0)
