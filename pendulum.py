@@ -460,7 +460,7 @@ def objective_function(free, num_dis_points, num_states, dis_period,
     -----
     This assumes that the states are ordered:
 
-    [speed1, ..., speedn, coord1, ..., coordn]
+    [coord1, ..., coordn, speed1, ..., speedn]
 
     y_measured is interpolated at the discretization time points and
     compared to the model output at the discretization time points.
@@ -469,14 +469,19 @@ def objective_function(free, num_dis_points, num_states, dis_period,
     M, o = y_measured.shape
     N, n = num_dis_points, num_states
 
-    model_time = np.linspace(0.0, dis_period * (N - 1), num=N)
+    sample_rate = 1.0 / dis_period
+    duration = (N - 1) / sample_rate
 
-    model_state_trajectory = free[:N * n].reshape((N, n))
+    model_time = np.linspace(0.0, duration, num=N)
+
+    states, specified, constants = parse_free(free, n, 0, N)
+
+    model_state_trajectory = states.T  # states is shape(n, N) so transpose
     model_outputs = output_equations(model_state_trajectory)
 
     func = interp1d(time_measured, y_measured, axis=0)
 
-    return np.linalg.norm(func(model_time) - model_outputs)
+    return np.sum((func(model_time).flatten() - model_outputs.flatten())**2)
 
 
 def objective_function_gradient(free, num_dis_points, num_states,
@@ -516,17 +521,25 @@ def objective_function_gradient(free, num_dis_points, num_states,
     M, o = y_measured.shape
     N, n = num_dis_points, num_states
 
-    model_time = np.linspace(0.0, dis_period * (N - 1), num=N)
+    sample_rate = 1.0 / dis_period
+    duration = (N - 1) / sample_rate
 
-    model_state_trajectory = free[:N * n].reshape((N, n))
-    model_outputs = output_equations(model_state_trajectory)
+    model_time = np.linspace(0.0, duration, num=N)
+
+    states, specified, constants = parse_free(free, n, 0, N)
+
+    model_state_trajectory = states.T  # states is shape(n, N)
+
+    # coordinates
+    model_outputs = output_equations(model_state_trajectory) # shape(N, o)
 
     func = interp1d(time_measured, y_measured, axis=0)
 
     dobj_dfree = np.zeros_like(free)
     # Set the derivatives with respect to the coordinates, all else are
     # zero.
-    dobj_dfree[:N * o] = 2.0 * (func(model_time) - model_outputs).flatten()
+    # 2 * (xi - xim)
+    dobj_dfree[:N * o] = 2.0 * (model_outputs - func(model_time)).T.flatten()
 
     return dobj_dfree
 
@@ -1000,7 +1013,8 @@ class Problem(ipopt.problem):
                                       cl=con_bounds,
                                       cu=con_bounds)
 
-        #self.addOption('derivative_test', 'first-order')
+        self.addOption('derivative_test', 'first-order')
+        #self.addOption('check_derivatives_for_naninf')
 
     def objective(self, free):
         return self.obj(free)
@@ -1123,6 +1137,7 @@ if __name__ == "__main__":
 
 
     initial_guess = np.hstack((x.T.flatten(), gains.flatten()))
+    initial_guess = np.hstack((x.T.flatten(), np.ones_like(gains)))
 
     solution, info = prob.solve(initial_guess)
 
