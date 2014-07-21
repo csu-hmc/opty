@@ -257,9 +257,12 @@ def simulate_system(system, duration, num_steps, controller_gain_matrix):
 
     # TODO : It will likely be useful to allow more inputs: noise on the
     # equilibrium point (i.e. sensor noise) and noise on the joint torques.
+    # 10 cycles /sec * 2 pi rad / cycle
 
-    lateral_force = 8.0 * np.random.random(len(time))
-    lateral_force -= lateral_force.mean()
+    lateral_force = 8.0 * np.sin(3.0 * 2.0 * np.pi * time)
+
+    #lateral_force = 8.0 * np.random.random(len(time))
+    #lateral_force -= lateral_force.mean()
     interp_func = interp1d(time, lateral_force)
 
     equilibrium_point = np.hstack((0.0,
@@ -834,9 +837,6 @@ def wrap_constraint(func, num_time_steps, num_states,
 
     num_free_specified = len(specified_syms) - len(fixed_specified)
 
-    len_states = num_states * num_time_steps
-    len_specified = num_free_specified * num_time_steps
-
     def constraints(free):
         """
 
@@ -1014,7 +1014,8 @@ class Problem(ipopt.problem):
                                       cu=con_bounds)
 
         self.addOption('derivative_test', 'first-order')
-        #self.addOption('check_derivatives_for_naninf')
+
+        self.obj_value = []
 
     def objective(self, free):
         return self.obj(free)
@@ -1036,6 +1037,14 @@ class Problem(ipopt.problem):
 
     def intermediate(self, *args):
         print "Objective value at iteration #%d is - %g" % (args[1], args[2])
+        self.obj_value.append(args[2])
+
+
+def plot_constraints(constraints, n, N, state_syms):
+    cons = constraints.reshape(n, N - 1).T
+    plt.plot(range(2, cons.shape[0] + 2), cons)
+    plt.legend([str(s) for s in state_syms])
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -1044,7 +1053,7 @@ if __name__ == "__main__":
 
     # Specify the number of time steps and duration of the measurements.
     sample_rate = 100.0  # hz
-    duration = 0.5  # seconds
+    duration = 3.0  # seconds
     num_time_steps = int(duration * sample_rate) + 1
     discretization_interval = 1.0 / sample_rate
     time = np.linspace(0.0, duration, num=num_time_steps)
@@ -1146,4 +1155,4 @@ if __name__ == "__main__":
     print("Known gains: {}".format(gains))
     print("Identified gains: {}".format(solution[-len(gains.flatten()):].reshape(gains.shape)))
 
-    # animate_pendulum(np.linspace(0.0, duration, num_time_steps), x, 1.0)
+    #animate_pendulum(np.linspace(0.0, duration, num_time_steps), x, 1.0)
