@@ -78,7 +78,7 @@ def compute_controller_gains(num_links):
 
     Returns
     -------
-    K : ndarray, shape(2, 6)
+    K : ndarray, shape(2, n)
         The gains needed to compute joint torques.
 
     """
@@ -96,7 +96,7 @@ def compute_controller_gains(num_links):
 
     # all angles at pi/2 for the pendulum to be inverted
     equilibrium_point = np.hstack((0.0,
-                                   np.pi / 2.0*np.ones(len(coordinates) - 1),
+                                   np.pi/2.0*np.ones(len(coordinates) - 1),
                                    np.zeros(len(speeds))))
     equilibrium_dict = dict(zip(states, equilibrium_point))
 
@@ -163,7 +163,9 @@ def create_symbolic_controller(states, inputs):
 
     gain_symbols = [k for k in K]
 
-    controller_dict = sym.solve(T + K * (xeq - x), inputs)
+    # T = K * (xeq - x) -> 0 = T - K * (xeq - x)
+
+    controller_dict = sym.solve(T - K * (xeq - x), inputs)
 
     return controller_dict, gain_symbols, xeq
 
@@ -185,6 +187,7 @@ def symbolic_closed_loop(mass_matrix, forcing_vector, states,
         for k, v in controller_dict.items():
             controller_dict[k] = v.subs(equilibrium_dict)
 
+    # M * x' = F -> M * x' - F = 0
     system = mass_matrix * xdot - forcing_vector.subs(controller_dict)
 
     return system
@@ -263,10 +266,12 @@ def simulate_system(system, duration, num_steps, controller_gain_matrix):
 
     #lateral_force = 8.0 * np.random.random(len(time))
     #lateral_force -= lateral_force.mean()
+
+    lateral_force = np.zeros_like(time)
     interp_func = interp1d(time, lateral_force)
 
     equilibrium_point = np.hstack((0.0,
-                                   np.pi / 2.0 * np.ones(len(coordinates) - 1),
+                                   np.pi / 2.0 * np.ones(len(coordinates) - 1) + 0.02,
                                    np.zeros(len(speeds))))
 
     def specified(x, t):
@@ -283,7 +288,7 @@ def simulate_system(system, duration, num_steps, controller_gain_matrix):
             'specified': specified}
 
     initial_conditions = np.zeros(len(states))
-    initial_conditions[1:len(states) / 2] = np.pi / 2.0
+    initial_conditions[1:len(states) / 2] = np.pi / 2.0 + np.deg2rad(5.0)
 
     x = odeint(rhs, initial_conditions, time, args=(args,))
     y = output_equations(x)
@@ -973,8 +978,13 @@ def plot_sim_results(y, u):
     # Plot the simulation results and animate the pendulum.
     fig, axes = plt.subplots(3, 1)
     axes[0].plot(u)
+    axes[0].set_ylabel('Lateral Force [N]')
     axes[1].plot(y[:, 0])
+    axes[1].set_ylabel('Cart Displacement [M]')
     axes[2].plot(np.rad2deg(y[:, 1:]))
+    axes[2].set_ylabel('Link Angles [Deg]')
+    axes[2].set_xlabel('Time [s]')
+    plt.tight_layout()
 
     plt.show()
 
@@ -1150,9 +1160,9 @@ if __name__ == "__main__":
     initial_guess = np.hstack((x.T.flatten(), gains.flatten()))
     #initial_guess = np.hstack((x.T.flatten(), np.ones_like(gains.flatten())))
 
-    solution, info = prob.solve(initial_guess)
-
-    print("Known gains: {}".format(gains))
-    print("Identified gains: {}".format(solution[-len(gains.flatten()):].reshape(gains.shape)))
+    #solution, info = prob.solve(initial_guess)
+#
+    #print("Known gains: {}".format(gains))
+    #print("Identified gains: {}".format(solution[-len(gains.flatten()):].reshape(gains.shape)))
 
     #animate_pendulum(np.linspace(0.0, duration, num_time_steps), x, 1.0)
