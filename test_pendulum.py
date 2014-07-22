@@ -42,6 +42,128 @@ def test_parse_free():
     np.testing.assert_allclose(expected_input_traj, input_traj)
 
 
+def test_create_symbolic_controller():
+
+    states = symbols('q1, q2, u1, u2', cls=Function)
+    inputs = symbols('T1, T2', cls=Function)
+    t = symbols('t')
+
+    states = [s(t) for s in states]
+    inputs = [i(t) for i in inputs]
+
+    q1, q2, u1, u2 = states
+    T1, T2 = inputs
+
+    k00, k01, k02, k03 = symbols('k_0(:4)')
+    k10, k11, k12, k13 = symbols('k_1(:4)')
+
+    eq = symbols('q1_eq, q2_eq, u1_eq, u2_eq')
+    q1_eq, q2_eq, u1_eq, u2_eq = eq
+
+    # T = K * (x_eq - x)
+    # [T1] = [k00 k01 k02 k03] * [q1_eq - q1]
+    # [T2]   [k10 k11 k12 k13]   [q2_eq - q2]
+    #                            [u1_eq - u1]
+    #                            [u2_eq - u2]
+
+    expected_controller_dict = \
+        {T1: k00 * (q1_eq - q1) + k01 * (q2_eq - q2) +
+             k02 * (u1_eq - u1) + k03 * (u2_eq - u2),
+         T2: k10 * (q1_eq - q1) + k11 * (q2_eq - q2) +
+             k12 * (u1_eq - u1) + k13 * (u2_eq - u2)}
+
+    expected_gain_syms = [k00, k01, k02, k03, k10, k11, k12, k13]
+
+    expected_xeq = Matrix([q1_eq, q2_eq, u1_eq, u2_eq])
+
+    controller_dict, gain_syms, xeq = pendulum.create_symbolic_controller(states, inputs)
+
+    for k, v in controller_dict.items():
+        assert simplify(v - expected_controller_dict[k]) == 0
+    assert gain_syms == expected_gain_syms
+    assert xeq == expected_xeq
+
+
+def test_symbolic_closed_loop():
+
+    states = symbols('q0, q1, u0, u1', cls=Function)
+    inputs = symbols('T0, T1', cls=Function)
+    t = symbols('t')
+
+    states = [s(t) for s in states]
+    inputs = [i(t) for i in inputs]
+
+    q0, q1, u0, u1 = states
+    T0, T1 = inputs
+
+    k00, k01, k02, k03 = symbols('k_0(:4)')
+    k10, k11, k12, k13 = symbols('k_1(:4)')
+
+    eq = symbols('q0_eq, q1_eq, u0_eq, u1_eq')
+    q0_eq, q1_eq, u0_eq, u1_eq = eq
+
+    # T = K * (x_eq - x)
+    # [T1] = [k00 k01 k02 k03] * [q1_eq - q1]
+    # [T2]   [k10 k11 k12 k13]   [q2_eq - q2]
+    #                            [u1_eq - u1]
+    #                            [u2_eq - u2]
+
+    control_dict = \
+        {T0: k00 * (q0_eq - q0) + k01 * (q1_eq - q1) +
+             k02 * (u0_eq - u0) + k03 * (u1_eq - u1),
+         T1: k10 * (q0_eq - q0) + k11 * (q1_eq - q1) +
+             k12 * (u0_eq - u0) + k13 * (u1_eq - u1)}
+
+    m20, m21, m22, m23 = symbols('m_2(:4)')
+    m30, m31, m32, m33 = symbols('m_3(:4)')
+    f2, f3 = symbols('f2, f3')
+
+    mass_matrix = Matrix([[1, 0, 0, 0],
+                          [0, 1, 0, 0],
+                          [0, 0, m22, m23],
+                          [0, 0, m32, m33]])
+
+    forcing_vector = Matrix([u0,
+                             u1,
+                             f2 + T0,
+                             f3 + T1])
+
+    expected_closed = \
+        Matrix([q0.diff(t) - u0,
+                q1.diff(t) - u1,
+                m22 * u0.diff(t) + m23 * u1.diff(t) - f2 - control_dict[T0],
+                m32 * u0.diff(t) + m33 * u1.diff(t) - f3 - control_dict[T1]])
+
+    closed = pendulum.symbolic_closed_loop(mass_matrix,
+                                           forcing_vector,
+                                           states,
+                                           control_dict)
+
+    assert simplify(expected_closed - closed) == Matrix([0, 0, 0, 0])
+
+    eq_dict = {k: 0 for k in eq}
+
+    eq_control_dict = \
+        {T0: -k00 * q0 - k01 * q1 +
+             -k02 * u0 - k03 * u1,
+         T1: -k10 * q0 - k11 * q1 +
+             -k12 * u0 - k13 * u1}
+
+    expected_closed = \
+        Matrix([q0.diff(t) - u0,
+                q1.diff(t) - u1,
+                m22 * u0.diff(t) + m23 * u1.diff(t) - f2 - eq_control_dict[T0],
+                m32 * u0.diff(t) + m33 * u1.diff(t) - f3 - eq_control_dict[T1]])
+
+    closed = pendulum.symbolic_closed_loop(mass_matrix,
+                                           forcing_vector,
+                                           states,
+                                           control_dict,
+                                           eq_dict)
+
+    assert simplify(expected_closed - closed) == Matrix([0, 0, 0, 0])
+
+
 def test_output_equations():
 
     # four states (cols), and 5 time steps (rows)
