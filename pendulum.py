@@ -69,6 +69,32 @@ def f_minus_ma(mass_matrix, forcing_vector, states):
     return mass_matrix * xdot - forcing_vector
 
 
+def controllable(a, b):
+    """Returns true if the system is controllable and false if not.
+
+    Parameters
+    ----------
+    a : array_like, shape(n,n)
+        The state matrix.
+    b : array_like, shape(n,r)
+        The input matrix.
+
+    Returns
+    -------
+    controllable : boolean
+
+    """
+    a = np.asmatrix(a)
+    b = np.asmatrix(b)
+    n = a.shape[0]
+    controllability_matrix = []
+    for i in range(n):
+        controllability_matrix.append(a ** i * b)
+    controllability_matrix = np.hstack(controllability_matrix)
+
+    return np.linalg.matrix_rank(controllability_matrix) == n
+
+
 def compute_controller_gains(num_links):
     """Returns a numerical gain matrix that can be multiplied by the error
     in the states to generate the joint torques needed to stabilize the
@@ -114,6 +140,10 @@ def compute_controller_gains(num_links):
     invM = np.linalg.inv(M)
     A = np.dot(invM, F_A)
     B = np.dot(invM, F_B)
+
+    # NOTE : This system is not controllable because the joint torque
+    # control cannot drive the lateral position to zero.
+    #assert controllable(A, B)
 
     Q = np.eye(len(states))
     R = np.eye(len(specified))
@@ -262,16 +292,17 @@ def simulate_system(system, duration, num_steps, controller_gain_matrix):
     # equilibrium point (i.e. sensor noise) and noise on the joint torques.
     # 10 cycles /sec * 2 pi rad / cycle
 
-    lateral_force = 8.0 * np.sin(3.0 * 2.0 * np.pi * time)
+    #lateral_force = 8.0 * np.sin(3.0 * 2.0 * np.pi * time)
 
     #lateral_force = 8.0 * np.random.random(len(time))
     #lateral_force -= lateral_force.mean()
 
     lateral_force = np.zeros_like(time)
+
     interp_func = interp1d(time, lateral_force)
 
     equilibrium_point = np.hstack((0.0,
-                                   np.pi / 2.0 * np.ones(len(coordinates) - 1) + 0.02,
+                                   np.pi / 2.0 * np.ones(len(coordinates) - 1),
                                    np.zeros(len(speeds))))
 
     def specified(x, t):
@@ -288,7 +319,7 @@ def simulate_system(system, duration, num_steps, controller_gain_matrix):
             'specified': specified}
 
     initial_conditions = np.zeros(len(states))
-    initial_conditions[1:len(states) / 2] = np.pi / 2.0 + np.deg2rad(5.0)
+    initial_conditions[1:len(states) / 2] = np.pi / 2.0 + np.deg2rad(1.0)
 
     x = odeint(rhs, initial_conditions, time, args=(args,))
     y = output_equations(x)
@@ -1059,11 +1090,11 @@ def plot_constraints(constraints, n, N, state_syms):
 
 if __name__ == "__main__":
 
-    num_links = 1
+    num_links = 2
 
     # Specify the number of time steps and duration of the measurements.
-    sample_rate = 100.0  # hz
-    duration = 3.0  # seconds
+    sample_rate = 1000.0  # hz
+    duration = 5.0  # seconds
     num_time_steps = int(duration * sample_rate) + 1
     discretization_interval = 1.0 / sample_rate
     time = np.linspace(0.0, duration, num=num_time_steps)
@@ -1121,7 +1152,6 @@ if __name__ == "__main__":
                                [specified_inputs_syms[-1]],
                                constants_dict(constants_syms),
                                {specified_inputs_syms[-1]: u})
-
     gen_con_jac_func = general_constraint_jacobian(dclosed,
                                                    states_syms,
                                                    [specified_inputs_syms[-1]],

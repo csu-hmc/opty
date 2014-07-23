@@ -2,9 +2,103 @@
 
 import numpy as np
 from scipy import sparse
+import sympy as sym
 from sympy import symbols, Function, Matrix, simplify
 
 import pendulum
+
+
+def test_sim_discrete_equate():
+    """This ensures that the rhs function evaluates the same as the symbolic
+    closed loop form."""
+
+    num_links = 1
+
+    system = pendulum.n_link_pendulum_on_cart(num_links,
+                                              cart_force=True,
+                                              joint_torques=True)
+
+    mass_matrix = system[0]
+    forcing_vector = system[1]
+    constants_syms = system[2]
+    coordinates_syms = system[3]
+    speeds_syms = system[4]
+    specified_inputs_syms = system[5]  # last entry is lateral force
+    states_syms = coordinates_syms + speeds_syms
+    state_derivs_syms = pendulum.state_derivatives(states_syms)
+
+    gains = pendulum.compute_controller_gains(num_links)
+
+    equilibrium_point = np.hstack((0.0,
+                                   np.pi / 2.0 * np.ones(len(coordinates_syms) - 1),
+                                   np.zeros(len(speeds_syms))))
+
+    lateral_force = np.random.random(1)
+
+    def specified(x, t):
+        joint_torques = np.dot(gains, equilibrium_point - x)
+        return np.hstack((joint_torques, lateral_force))
+
+    rhs = pendulum.generate_ode_function(*system)
+
+    args = {'constants': pendulum.constants_dict(constants_syms).values(),
+            'specified': specified}
+
+    state_values = np.random.random(len(states_syms))
+
+    state_deriv_values = rhs(state_values, 0.0, args)
+
+    control_dict, gain_syms, equil_syms = \
+        pendulum.create_symbolic_controller(states_syms,
+                                            specified_inputs_syms[:-1])
+
+    eq_values = [0] + [sym.pi / 2] * (len(coordinates_syms) - 1) + [0] * len(speeds_syms)
+
+    eq_dict = dict(zip(equil_syms, eq_values))
+
+    closed = pendulum.symbolic_closed_loop(mass_matrix,
+                                           forcing_vector,
+                                           states_syms,
+                                           control_dict,
+                                           eq_dict)
+
+    xdot_expr = sym.solve(closed, state_derivs_syms)
+    xdot_expr = sym.Matrix([xdot_expr[xd] for xd in state_derivs_syms])
+
+    val_map = dict(zip(states_syms, state_values))
+    val_map.update(pendulum.constants_dict(constants_syms))
+    val_map.update(dict(zip(gain_syms, gains.flatten())))
+    val_map[specified_inputs_syms[-1]] = lateral_force
+
+    sym_sol = np.array([x for x in xdot_expr.subs(val_map).evalf()], dtype=float)
+
+    np.testing.assert_allclose(state_deriv_values, sym_sol)
+
+    # Now let's see if the discretized version gives a simliar answer if h
+    # is small enough.
+    dclosed = pendulum.discretize(closed, states_syms, specified_inputs_syms)
+
+    xi, xp, si, h = pendulum.discrete_symbols(states_syms,
+                                              specified_inputs_syms)
+
+    euler_formula = [(i - p) / h for i, p in zip(xi, xp)]
+
+    xdot_expr = sym.solve(dclosed, euler_formula)
+    xdot_expr = sym.Matrix([xdot_expr[xd] for xd in euler_formula])
+
+    val_map = dict(zip(xi, state_values))
+    #val_map[h] = 0.001
+    #state_values_previous = state_values - val_map[h]
+    #val_map.update(dict(zip(xp, state_values_previous)))
+    val_map.update(pendulum.constants_dict(constants_syms))
+    val_map.update(dict(zip(gain_syms, gains.flatten())))
+    val_map[si[1]] = lateral_force
+
+    sym_sol = np.array([x for x in xdot_expr.subs(val_map).evalf()], dtype=float)
+
+    np.testing.assert_allclose(state_deriv_values, sym_sol)
+
+    # now how do i check that (xi - xp) / h equals sym_sol?
 
 
 def test_state_derivatives():
