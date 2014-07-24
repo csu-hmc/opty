@@ -252,79 +252,65 @@ def output_equations(x):
     return x[:, :x.shape[1] / 2]
 
 
-def simulate_system(system, duration, num_steps, controller_gain_matrix):
-    """This simulates the closed loop system under lateral force
-    perturbations.
+def closed_loop_ode_func(system, time, set_point, gain_matrix, lateral_force):
+    """Returns a function that evaluates the continous closed loop system
+    first order ODEs.
 
     Parameters
     ----------
     system : tuple, len(6)
         The output of the symbolic EoM generator.
-    duration : float
-        The duration of the simulation.
-    num_steps : integer
-        The number of time steps.
-    controller_gain_matrix : ndarray, shape(2, 6)
+    time : ndarray, shape(M,)
+        The monotonically increasing time values that
+    set_point : ndarray, shape(n,)
+        The set point for the controller.
+    gain_matrix : ndarray, shape((n - 1) / 2, n)
         The gain matrix that computes the optimal joint torques given the
         system state.
+    lateral_force : ndarray, shape(M,)
+        The applied lateral force at each time point. This will be linearly
+        interpolated for time points other than those in time.
 
     Returns
     -------
-    y : ndarray, shape(n, 3)
-        The trajectories of the generalized coordinates.
-    x : ndarray, shape(n, 6)
-        The trajectories of the states.
-    lateral_force : ndarray, shape(n,)
-        The applied lateral force.
+    rhs : function
+        A function that evaluates the right hand side of the first order
+        ODEs in a form easily used with odeint.
+    args : dictionary
+        A dictionary containing the model constant values and the controller
+        function.
 
     """
-
-    time = np.linspace(0.0, duration, num=num_steps)
-
-    constants = system[2]
-    coordinates = system[3]
-    speeds = system[4]
-    specified = system[5]
-
-    states = coordinates + speeds
 
     # TODO : It will likely be useful to allow more inputs: noise on the
     # equilibrium point (i.e. sensor noise) and noise on the joint torques.
     # 10 cycles /sec * 2 pi rad / cycle
 
-    #lateral_force = 8.0 * np.sin(3.0 * 2.0 * np.pi * time)
-
-    #lateral_force = 8.0 * np.random.random(len(time))
-    #lateral_force -= lateral_force.mean()
-
-    lateral_force = np.zeros_like(time)
-
     interp_func = interp1d(time, lateral_force)
 
-    equilibrium_point = np.hstack((0.0,
-                                   np.pi / 2.0 * np.ones(len(coordinates) - 1),
-                                   np.zeros(len(speeds))))
-
-    def specified(x, t):
-        joint_torques = np.dot(controller_gain_matrix, equilibrium_point - x)
+    def controller(x, t):
+        joint_torques = np.dot(gain_matrix, set_point - x)
         if t > time[-1]:
             lateral_force = interp_func(time[-1])
         else:
             lateral_force = interp_func(t)
         return np.hstack((joint_torques, lateral_force))
 
-    rhs = generate_ode_function(*system)
+    rhs = generate_ode_function(*system, generator='cython')
 
-    args = {'constants': constants_dict(constants).values(),
-            'specified': specified}
+    args = {'constants': np.array(constants_dict(system[2]).values()),
+            'specified': controller}
 
-    initial_conditions = np.zeros(len(states))
-    initial_conditions[1:len(states) / 2] = np.pi / 2.0 + np.deg2rad(1.0)
+    return rhs, args
 
-    x = odeint(rhs, initial_conditions, time, args=(args,))
-    y = output_equations(x)
 
-    return y, x, lateral_force
+def sum_of_sines(magnitudes, frequencies, time):
+    for m, w in zip(magnitudes, frequencies):
+        try:
+            sines += m * np.sin(w * time)
+        except:
+            sines = m * np.sin(w * time)
+    return sines
 
 
 def animate_pendulum(t, states, length, filename=None):
@@ -1054,7 +1040,7 @@ class Problem(ipopt.problem):
                                       cl=con_bounds,
                                       cu=con_bounds)
 
-        self.addOption('derivative_test', 'first-order')
+        #self.addOption('derivative_test', 'first-order')
 
         self.obj_value = []
 
@@ -1090,11 +1076,11 @@ def plot_constraints(constraints, n, N, state_syms):
 
 if __name__ == "__main__":
 
-    num_links = 2
+    num_links = 1
 
     # Specify the number of time steps and duration of the measurements.
-    sample_rate = 1000.0  # hz
-    duration = 5.0  # seconds
+    sample_rate = 100  # hz
+    duration = 30.  # seconds
     num_time_steps = int(duration * sample_rate) + 1
     discretization_interval = 1.0 / sample_rate
     time = np.linspace(0.0, duration, num=num_time_steps)
@@ -1115,11 +1101,37 @@ if __name__ == "__main__":
     num_states = len(states_syms)
 
     # Find some optimal gains for stablizing the pendulum on the cart.
+    print('Finding the optimal gains.')
     gains = compute_controller_gains(num_links)
 
     # Generate some "measured" data from the simulation.
-    y, x, u = simulate_system(system, duration, num_time_steps, gains)
+    print('Simulating the system.')
 
+    #lateral_force = 8.0 * np.sin(3.0 * 2.0 * np.pi * time)
+
+    lateral_force = 8.0 * np.random.random(len(time))
+    lateral_force -= lateral_force.mean()
+
+    mags = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    freq = np.logspace(10e-1, 10e-2, len(mags))
+
+    lateral_force = sum_of_sines(mags, freq, time)
+
+    #lateral_force = np.zeros_like(time)
+
+    set_point = np.hstack((0.0, np.pi / 2.0 * np.ones(len(coordinates_syms) - 1),
+                           np.zeros(len(speeds_syms))))
+
+    initial_conditions = np.zeros(num_states)
+    initial_conditions[1:num_states / 2] = np.pi / 2.0 + np.deg2rad(1.0)
+
+    rhs, args = closed_loop_ode_func(system, time, set_point, gains, lateral_force)
+
+    x = odeint(rhs, initial_conditions, time, args=(args,))
+    y = output_equations(x)
+    u = lateral_force
+
+    print('Forming the constraint function.')
     # Generate the expressions for creating the closed loop equations of
     # motion.
     control_dict, gain_syms, equil_syms = \
@@ -1168,6 +1180,7 @@ if __name__ == "__main__":
                                    {specified_inputs_syms[-1]: u})
 
 
+    print('Forming the objective function.')
     obj_func = wrap_objective(objective_function,
                               len(time),
                               num_states,
@@ -1183,6 +1196,7 @@ if __name__ == "__main__":
                                    y)
 
 
+    print('Solving optimization problem.')
     prob = Problem(num_time_steps, num_states, num_gains, obj_func,
                    obj_grad_func, con_func, con_jac_func)
 
@@ -1190,9 +1204,9 @@ if __name__ == "__main__":
     initial_guess = np.hstack((x.T.flatten(), gains.flatten()))
     #initial_guess = np.hstack((x.T.flatten(), np.ones_like(gains.flatten())))
 
-    #solution, info = prob.solve(initial_guess)
+    solution, info = prob.solve(initial_guess)
 #
-    #print("Known gains: {}".format(gains))
-    #print("Identified gains: {}".format(solution[-len(gains.flatten()):].reshape(gains.shape)))
+    print("Known gains: {}".format(gains))
+    print("Identified gains: {}".format(solution[-len(gains.flatten()):].reshape(gains.shape)))
 
     #animate_pendulum(np.linspace(0.0, duration, num_time_steps), x, 1.0)

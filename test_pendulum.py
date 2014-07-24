@@ -99,6 +99,8 @@ def test_sim_discrete_equate():
     np.testing.assert_allclose(state_deriv_values, sym_sol)
 
     # now how do i check that (xi - xp) / h equals sym_sol?
+    # If I integrate the continous eoms and get a state trajectory, x, then
+    # compute x' by backward euler given some h
 
 
 def test_state_derivatives():
