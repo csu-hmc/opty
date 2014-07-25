@@ -8,6 +8,86 @@ from sympy import symbols, Function, Matrix, simplify
 import pendulum
 
 
+def test_num_diff(sample_rate=100):
+
+    num_links = 2
+
+    # Generate the symbolic equations of motion for the two link pendulum on
+    # a cart.
+    system = pendulum.n_link_pendulum_on_cart(num_links, cart_force=True,
+                                              joint_torques=True,
+                                              spring_damper=True)
+
+    mass_matrix = system[0]
+    forcing_vector = system[1]
+    constants_syms = system[2]
+    coordinates_syms = system[3]
+    speeds_syms = system[4]
+    specified_inputs_syms = system[5]  # last entry is lateral force
+
+    states_syms = coordinates_syms + speeds_syms
+
+    num_states = len(states_syms)
+
+    gains = pendulum.compute_controller_gains(num_links)
+
+    # Specify the number of time steps and duration of the measurements.
+    num_time_steps = 51
+    duration = (num_time_steps - 1) / sample_rate
+    discretization_interval = 1.0 / sample_rate
+
+    print('Integrating over {} seconds with {} time steps spaced at {} seconds apart.'.format(duration, num_time_steps, discretization_interval))
+
+    # Integrate the equations of motion.
+    time = np.linspace(0.0, duration, num=num_time_steps)
+
+    lateral_force = pendulum.input_force('sumsines', time)
+
+    set_point = np.zeros(num_states)
+
+    initial_conditions = np.zeros(num_states)
+    offset = 10.0 * np.random.random((num_states / 2) - 1)
+    initial_conditions[1:num_states / 2] = np.deg2rad(offset)
+
+    rhs, args = pendulum.closed_loop_ode_func(system, time, set_point,
+                                              gains, lateral_force)
+
+    x = pendulum.odeint(rhs, initial_conditions, time, args=(args,))
+
+    # Numerically differentiate the states with x2' = (x2 - x1) / h
+    xdot = np.vstack((np.zeros(num_states),
+                      np.diff(x, axis=0) / discretization_interval))
+
+    # Create a symbolic function for the continious constraints.
+    control_dict, gain_syms, equil_syms = \
+        pendulum.create_symbolic_controller(states_syms,
+                                            specified_inputs_syms[:-1])
+    eq_dict = dict(zip(equil_syms, num_states * [0]))
+    closed = pendulum.symbolic_closed_loop(mass_matrix, forcing_vector,
+                                           states_syms, control_dict, eq_dict)
+
+    # Evaluate the contraint equation for each of the time steps.
+    closed_eval = np.zeros_like(x)
+
+    for i in range(len(time) - 1):
+        print('Eval {}'.format(i))
+        current_x = x[i + 1, :]
+        current_xdot = xdot[i + 1, :]
+
+        val_map = dict(zip(pendulum.state_derivatives(states_syms), current_xdot))
+        val_map.update(dict(zip(states_syms, current_x)))
+        val_map.update(pendulum.constants_dict(constants_syms))
+        val_map.update(dict(zip(gain_syms, gains.flatten())))
+        val_map[specified_inputs_syms[-1]] = lateral_force[i + 1]
+        evald_closed = closed.subs(val_map).evalf()
+        closed_eval[i] = np.array(evald_closed).squeeze().astype(float)
+
+    fig = pendulum.plt.figure()
+    pendulum.plt.plot(closed_eval)
+    pendulum.plt.legend([str(s) for s in states_syms])
+    fig.savefig('constraint_violations_{}hz.png'.format(sample_rate))
+
+
 def test_sim_discrete_equate():
     """This ensures that the rhs function evaluates the same as the symbolic
     closed loop form."""
@@ -59,6 +139,8 @@ def test_sim_discrete_equate():
                                            control_dict,
                                            eq_dict)
 
+
+
     xdot_expr = sym.solve(closed, state_derivs_syms)
     xdot_expr = sym.Matrix([xdot_expr[xd] for xd in state_derivs_syms])
 
@@ -81,6 +163,7 @@ def test_sim_discrete_equate():
     euler_formula = [(i - p) / h for i, p in zip(xi, xp)]
 
     xdot_expr = sym.solve(dclosed, euler_formula)
+    boog
     xdot_expr = sym.Matrix([xdot_expr[xd] for xd in euler_formula])
 
     val_map = dict(zip(xi, state_values))
