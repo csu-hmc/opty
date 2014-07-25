@@ -16,7 +16,8 @@ def test_sim_discrete_equate():
 
     system = pendulum.n_link_pendulum_on_cart(num_links,
                                               cart_force=True,
-                                              joint_torques=True)
+                                              joint_torques=True,
+                                              spring_damper=True)
 
     mass_matrix = system[0]
     forcing_vector = system[1]
@@ -29,9 +30,7 @@ def test_sim_discrete_equate():
 
     gains = pendulum.compute_controller_gains(num_links)
 
-    equilibrium_point = np.hstack((0.0,
-                                   np.pi / 2.0 * np.ones(len(coordinates_syms) - 1),
-                                   np.zeros(len(speeds_syms))))
+    equilibrium_point = np.zeros(len(states_syms))
 
     lateral_force = np.random.random(1)
 
@@ -52,9 +51,7 @@ def test_sim_discrete_equate():
         pendulum.create_symbolic_controller(states_syms,
                                             specified_inputs_syms[:-1])
 
-    eq_values = [0] + [sym.pi / 2] * (len(coordinates_syms) - 1) + [0] * len(speeds_syms)
-
-    eq_dict = dict(zip(equil_syms, eq_values))
+    eq_dict = dict(zip(equil_syms, len(states_syms) * [0]))
 
     closed = pendulum.symbolic_closed_loop(mass_matrix,
                                            forcing_vector,
@@ -87,9 +84,6 @@ def test_sim_discrete_equate():
     xdot_expr = sym.Matrix([xdot_expr[xd] for xd in euler_formula])
 
     val_map = dict(zip(xi, state_values))
-    #val_map[h] = 0.001
-    #state_values_previous = state_values - val_map[h]
-    #val_map.update(dict(zip(xp, state_values_previous)))
     val_map.update(pendulum.constants_dict(constants_syms))
     val_map.update(dict(zip(gain_syms, gains.flatten())))
     val_map[si[1]] = lateral_force

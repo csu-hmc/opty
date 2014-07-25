@@ -42,17 +42,16 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 from matplotlib.patches import Rectangle
 from pydy.codegen.code import generate_ode_function
-from pydy.codegen.tests.models import \
-    generate_n_link_pendulum_on_cart_equations_of_motion as n_link_pendulum_on_cart
+from model import n_link_pendulum_on_cart
 import ipopt
 
 
 def constants_dict(constants):
     """Returns an ordered dictionary which maps the system constant symbols
-    to numerical values. Gravity is set to 9.81 m/s and the masses and
-    lengths of the pendulums are all set to 1.0 kg and meter,
-    respectively."""
-    return OrderedDict(zip(constants, [9.81] + (len(constants) - 1) * [1.0]))
+    to numerical values. The cart sping is set to 10.0 N/m, the cart damper
+    to 5.0 Ns/m and gravity is set to 9.81 m/s and the masses and lengths of
+    the pendulums are all set to 1.0 kg and meter, respectively."""
+    return OrderedDict(zip(constants, [10.0, 5.0, 9.81] + (len(constants) - 1) * [1.0]))
 
 
 def state_derivatives(states):
@@ -109,7 +108,8 @@ def compute_controller_gains(num_links):
 
     """
 
-    res = n_link_pendulum_on_cart(num_links, cart_force=False, joint_torques=True)
+    res = n_link_pendulum_on_cart(num_links, cart_force=False,
+                                  joint_torques=True, spring_damper=True)
 
     mass_matrix = res[0]
     forcing_vector = res[1]
@@ -121,9 +121,7 @@ def compute_controller_gains(num_links):
     states = coordinates + speeds
 
     # all angles at pi/2 for the pendulum to be inverted
-    equilibrium_point = np.hstack((0.0,
-                                   np.pi/2.0*np.ones(len(coordinates) - 1),
-                                   np.zeros(len(speeds))))
+    equilibrium_point = np.zeros(len(coordinates) + len(speeds))
     equilibrium_dict = dict(zip(states, equilibrium_point))
 
     F_A = forcing_vector.jacobian(states)
@@ -141,9 +139,7 @@ def compute_controller_gains(num_links):
     A = np.dot(invM, F_A)
     B = np.dot(invM, F_B)
 
-    # NOTE : This system is not controllable because the joint torque
-    # control cannot drive the lateral position to zero.
-    #assert controllable(A, B)
+    assert controllable(A, B)
 
     Q = np.eye(len(states))
     R = np.eye(len(specified))
@@ -305,11 +301,9 @@ def closed_loop_ode_func(system, time, set_point, gain_matrix, lateral_force):
 
 
 def sum_of_sines(magnitudes, frequencies, time):
+    sines = np.zeros_like(time)
     for m, w in zip(magnitudes, frequencies):
-        try:
-            sines += m * np.sin(w * time)
-        except:
-            sines = m * np.sin(w * time)
+        sines += m * np.sin(w * time)
     return sines
 
 
@@ -345,7 +339,9 @@ def animate_pendulum(t, states, length, filename=None):
     xmax = np.around(states[:, 0].max() + cart_width / 2.0, 1)
 
     # create the axes
-    ax = plt.axes(xlim=(xmin, xmax), ylim=(-1.1, 2.1), aspect='equal')
+    ymin = -length * (numpoints - 1) - 0.1
+    ymax = length * (numpoints - 1) + 0.1
+    ax = plt.axes(xlim=(xmin, xmax), ylim=(ymin, ymax), aspect='equal')
 
     # display the current time
     time_text = ax.text(0.04, 0.9, '', transform=ax.transAxes)
@@ -374,8 +370,8 @@ def animate_pendulum(t, states, length, filename=None):
         x = np.hstack((states[i, 0], np.zeros((numpoints - 1))))
         y = np.zeros((numpoints))
         for j in np.arange(1, numpoints):
-            x[j] = x[j - 1] + length * np.cos(states[i, j])
-            y[j] = y[j - 1] + length * np.sin(states[i, j])
+            x[j] = x[j - 1] - length * np.sin(states[i, j])
+            y[j] = y[j - 1] + length * np.cos(states[i, j])
         line.set_data(x, y)
         return time_text, rect, line,
 
@@ -506,7 +502,7 @@ def objective_function(free, num_dis_points, num_states, dis_period,
 
     func = interp1d(time_measured, y_measured, axis=0)
 
-    return np.sum((func(model_time).flatten() - model_outputs.flatten())**2)
+    return dis_period * np.sum((func(model_time).flatten() - model_outputs.flatten())**2)
 
 
 def objective_function_gradient(free, num_dis_points, num_states,
@@ -564,7 +560,7 @@ def objective_function_gradient(free, num_dis_points, num_states,
     # Set the derivatives with respect to the coordinates, all else are
     # zero.
     # 2 * (xi - xim)
-    dobj_dfree[:N * o] = 2.0 * (model_outputs - func(model_time)).T.flatten()
+    dobj_dfree[:N * o] = 2.0 * dis_period * (model_outputs - func(model_time)).T.flatten()
 
     return dobj_dfree
 
@@ -1041,6 +1037,7 @@ class Problem(ipopt.problem):
                                       cu=con_bounds)
 
         #self.addOption('derivative_test', 'first-order')
+        self.addOption('linear_solver', 'ma57')
 
         self.obj_value = []
 
@@ -1063,7 +1060,7 @@ class Problem(ipopt.problem):
         return sparse.find(jac)[2]
 
     def intermediate(self, *args):
-        print "Objective value at iteration #%d is - %g" % (args[1], args[2])
+        #print "Objective value at iteration #%d is - %g" % (args[1], args[2])
         self.obj_value.append(args[2])
 
 
@@ -1076,18 +1073,40 @@ def plot_constraints(constraints, n, N, state_syms):
 
 if __name__ == "__main__":
 
-    num_links = 1
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Find Gains")
+
+    parser.add_argument('-m', '--mocapfile', type=str,
+        help="The path to a D-Flow mocap module output file.", default=None)
+
+    parser.add_argument('-r', '--recordfile', type=str,
+        help="The path to a D-Flow record module output file.", default=None)
+
+    parser.add_argument('-y', '--metadatafile', type=str,
+        help="The path to a meta data yaml file.", default=None)
+
+    parser.add_argument('-i', '--interpolate', type=bool,
+        help="Interpolate the marker data.", default=False)
+
+    #parser.add_argument('outputfile', type=str,
+                        #help="The path to the output file.")
+
+    args = parser.parse_args()
+
+    num_links = 2
 
     # Specify the number of time steps and duration of the measurements.
-    sample_rate = 100  # hz
-    duration = 30.  # seconds
+    sample_rate = 500  # hz
+    duration = 5.0  # seconds
     num_time_steps = int(duration * sample_rate) + 1
     discretization_interval = 1.0 / sample_rate
     time = np.linspace(0.0, duration, num=num_time_steps)
 
     # Generate the symbolic equations of motion for the two link pendulum on
     # a cart.
-    system = n_link_pendulum_on_cart(num_links, cart_force=True, joint_torques=True)
+    system = n_link_pendulum_on_cart(num_links, cart_force=True,
+                                     joint_torques=True, spring_damper=True)
 
     mass_matrix = system[0]
     forcing_vector = system[1]
@@ -1109,21 +1128,22 @@ if __name__ == "__main__":
 
     #lateral_force = 8.0 * np.sin(3.0 * 2.0 * np.pi * time)
 
-    lateral_force = 8.0 * np.random.random(len(time))
-    lateral_force -= lateral_force.mean()
-
-    mags = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-    freq = np.logspace(10e-1, 10e-2, len(mags))
-
-    lateral_force = sum_of_sines(mags, freq, time)
+    #lateral_force = 8.0 * np.random.random(len(time))
+    #lateral_force -= lateral_force.mean()
 
     #lateral_force = np.zeros_like(time)
 
-    set_point = np.hstack((0.0, np.pi / 2.0 * np.ones(len(coordinates_syms) - 1),
-                           np.zeros(len(speeds_syms))))
+    freq = 2 * np.pi * np.array([7, 11, 16, 25, 38, 61, 103, 131, 151, 181, 313, 523]) / 240
+    mags = 2.0 * np.ones(len(freq))
+
+    lateral_force = sum_of_sines(mags, freq, time)
+    #lateral_force[len(time) / 4:] = 0.0
+
+    set_point = np.zeros(num_states)
 
     initial_conditions = np.zeros(num_states)
-    initial_conditions[1:num_states / 2] = np.pi / 2.0 + np.deg2rad(1.0)
+    offset = 10 * np.random.random(1)
+    initial_conditions[1:num_states / 2] = np.deg2rad(offset)
 
     rhs, args = closed_loop_ode_func(system, time, set_point, gains, lateral_force)
 
@@ -1139,9 +1159,7 @@ if __name__ == "__main__":
 
     num_gains = len(gain_syms)
 
-    eq_values = [0] + [sym.pi / 2] * (len(coordinates_syms) - 1) + [0] * len(speeds_syms)
-
-    eq_dict = dict(zip(equil_syms, eq_values))
+    eq_dict = dict(zip(equil_syms, num_states * [0]))
 
     # This is the symbolic closed loop continuous system.
     closed = symbolic_closed_loop(mass_matrix, forcing_vector, states_syms,
@@ -1164,6 +1182,7 @@ if __name__ == "__main__":
                                [specified_inputs_syms[-1]],
                                constants_dict(constants_syms),
                                {specified_inputs_syms[-1]: u})
+
     gen_con_jac_func = general_constraint_jacobian(dclosed,
                                                    states_syms,
                                                    [specified_inputs_syms[-1]],
@@ -1179,8 +1198,8 @@ if __name__ == "__main__":
                                    constants_dict(constants_syms),
                                    {specified_inputs_syms[-1]: u})
 
-
     print('Forming the objective function.')
+
     obj_func = wrap_objective(objective_function,
                               len(time),
                               num_states,
@@ -1197,16 +1216,22 @@ if __name__ == "__main__":
 
 
     print('Solving optimization problem.')
+
     prob = Problem(num_time_steps, num_states, num_gains, obj_func,
                    obj_grad_func, con_func, con_jac_func)
 
 
-    initial_guess = np.hstack((x.T.flatten(), gains.flatten()))
+    #initial_guess = np.hstack((x.T.flatten(), gains.flatten()))
     #initial_guess = np.hstack((x.T.flatten(), np.ones_like(gains.flatten())))
+    initial_guess = np.hstack((x.T.flatten(), np.random.random(len(gains.flatten()))))
 
     solution, info = prob.solve(initial_guess)
-#
+
     print("Known gains: {}".format(gains))
-    print("Identified gains: {}".format(solution[-len(gains.flatten()):].reshape(gains.shape)))
+
+    sol_states, sol_specified, sol_constants = parse_free(solution, num_states, 0, num_time_steps)
+    sol_gains = sol_constants.reshape(gains.shape)
+
+    print("Identified gains: {}".format(sol_gains))
 
     #animate_pendulum(np.linspace(0.0, duration, num_time_steps), x, 1.0)
