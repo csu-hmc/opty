@@ -96,10 +96,15 @@ def controllable(a, b):
 
 def compute_controller_gains(num_links):
     """Returns a numerical gain matrix that can be multiplied by the error
-    in the states to generate the joint torques needed to stabilize the
-    pendulum.
+    in the states of the n link pendulum on a cart to generate the joint
+    torques needed to stabilize the pendulum. The controller follows this
+    pattern:
 
-    u(t) = K * [x_eq - x(t)]
+        u(t) = K * [x_eq - x(t)]
+
+    Parameters
+    ----------
+    n
 
     Returns
     -------
@@ -120,7 +125,6 @@ def compute_controller_gains(num_links):
 
     states = coordinates + speeds
 
-    # all angles at pi/2 for the pendulum to be inverted
     equilibrium_point = np.zeros(len(coordinates) + len(speeds))
     equilibrium_dict = dict(zip(states, equilibrium_point))
 
@@ -416,7 +420,7 @@ def discrete_symbols(states, specified, interval='h'):
     xi = [sym.Symbol(f.__class__.__name__ + 'i') for f in states]
     xp = [sym.Symbol(f.__class__.__name__ + 'p') for f in states]
     si = [sym.Symbol(f.__class__.__name__ + 'i') for f in specified]
-    h = sym.Symbol('h')
+    h = sym.Symbol(interval)
 
     return xi, xp, si, h
 
@@ -1060,34 +1064,58 @@ class Problem(ipopt.problem):
         return sparse.find(jac)[2]
 
     def intermediate(self, *args):
-        #print "Objective value at iteration #%d is - %g" % (args[1], args[2])
         self.obj_value.append(args[2])
 
 
 def plot_constraints(constraints, n, N, state_syms):
+    """Plots the constrain violations for each state."""
     cons = constraints.reshape(n, N - 1).T
     plt.plot(range(2, cons.shape[0] + 2), cons)
+    plt.ylabel('Constraint Violation')
+    plt.xlabel('Discretization Point')
     plt.legend([str(s) for s in state_syms])
     plt.show()
+
+
+def input_force(typ, time):
+
+    if typ == 'sine':
+        lateral_force = 8.0 * np.sin(3.0 * 2.0 * np.pi * time)
+    elif typ == 'random':
+        lateral_force = 8.0 * np.random.random(len(time))
+        lateral_force -= lateral_force.mean()
+    elif typ == 'zero':
+        lateral_force = np.zeros_like(time)
+    elif typ == 'sumsines':
+        # I took these frequencies from a sum of sines Ron designed for a
+        # pilot control problem.
+        nums = [7, 11, 16, 25, 38, 61, 103, 131, 151, 181, 313, 523]
+        freq = 2 * np.pi * np.array(nums) / 240
+        mags = 2.0 * np.ones(len(freq))
+        lateral_force = sum_of_sines(mags, freq, time)
+    else:
+        raise ValueError('{} is not a valid force type.'.format(typ))
+
+    return lateral_force
 
 
 if __name__ == "__main__":
 
     import argparse
 
-    parser = argparse.ArgumentParser(description="Find Gains")
+    parser = argparse.ArgumentParser(description="Run ")
 
-    parser.add_argument('-m', '--mocapfile', type=str,
+    parser.add_argument('-', '--mocapfile', type=str,
         help="The path to a D-Flow mocap module output file.", default=None)
 
-    parser.add_argument('-r', '--recordfile', type=str,
-        help="The path to a D-Flow record module output file.", default=None)
+    parser.add_argument('-d', '--duration', type=float,
+        help="The duration of the simulation in seconds.", default=1.0)
 
-    parser.add_argument('-y', '--metadatafile', type=str,
-        help="The path to a meta data yaml file.", default=None)
+    parser.add_argument('-s', '--samplerate', type=float,
+        help="The sample rate of the discretization.", default=500.0)
 
-    parser.add_argument('-i', '--interpolate', type=bool,
-        help="Interpolate the marker data.", default=False)
+    parser.add_argument('-a', '--animate', type=bool,
+        help="The sample rate of the discretization.", default=500.0)
 
     #parser.add_argument('outputfile', type=str,
                         #help="The path to the output file.")
@@ -1097,8 +1125,8 @@ if __name__ == "__main__":
     num_links = 2
 
     # Specify the number of time steps and duration of the measurements.
-    sample_rate = 500  # hz
-    duration = 5.0  # seconds
+    sample_rate = 50  # hz
+    duration = 30.0  # seconds
     num_time_steps = int(duration * sample_rate) + 1
     discretization_interval = 1.0 / sample_rate
     time = np.linspace(0.0, duration, num=num_time_steps)
@@ -1126,23 +1154,12 @@ if __name__ == "__main__":
     # Generate some "measured" data from the simulation.
     print('Simulating the system.')
 
-    #lateral_force = 8.0 * np.sin(3.0 * 2.0 * np.pi * time)
-
-    #lateral_force = 8.0 * np.random.random(len(time))
-    #lateral_force -= lateral_force.mean()
-
-    #lateral_force = np.zeros_like(time)
-
-    freq = 2 * np.pi * np.array([7, 11, 16, 25, 38, 61, 103, 131, 151, 181, 313, 523]) / 240
-    mags = 2.0 * np.ones(len(freq))
-
-    lateral_force = sum_of_sines(mags, freq, time)
-    #lateral_force[len(time) / 4:] = 0.0
+    lateral_force = input_force('sumsines', time)
 
     set_point = np.zeros(num_states)
 
     initial_conditions = np.zeros(num_states)
-    offset = 10 * np.random.random(1)
+    offset = 10.0 * np.random.random((num_states / 2) - 1)
     initial_conditions[1:num_states / 2] = np.deg2rad(offset)
 
     rhs, args = closed_loop_ode_func(system, time, set_point, gains, lateral_force)
@@ -1221,17 +1238,17 @@ if __name__ == "__main__":
                    obj_grad_func, con_func, con_jac_func)
 
 
-    #initial_guess = np.hstack((x.T.flatten(), gains.flatten()))
-    #initial_guess = np.hstack((x.T.flatten(), np.ones_like(gains.flatten())))
+    initial_guess = np.hstack((x.T.flatten(), gains.flatten()))
+    initial_guess = np.hstack((x.T.flatten(), np.ones_like(gains.flatten())))
     initial_guess = np.hstack((x.T.flatten(), np.random.random(len(gains.flatten()))))
 
-    solution, info = prob.solve(initial_guess)
+    #solution, info = prob.solve(initial_guess)
 
     print("Known gains: {}".format(gains))
 
-    sol_states, sol_specified, sol_constants = parse_free(solution, num_states, 0, num_time_steps)
-    sol_gains = sol_constants.reshape(gains.shape)
-
-    print("Identified gains: {}".format(sol_gains))
+    #sol_states, sol_specified, sol_constants = parse_free(solution, num_states, 0, num_time_steps)
+    #sol_gains = sol_constants.reshape(gains.shape)
+#
+    #print("Identified gains: {}".format(sol_gains))
 
     #animate_pendulum(np.linspace(0.0, duration, num_time_steps), x, 1.0)
