@@ -200,14 +200,29 @@ def create_symbolic_controller(states, inputs):
     return controller_dict, gain_symbols, xeq
 
 
-def symbolic_closed_loop(mass_matrix, forcing_vector, states,
-                         controller_dict, equilibrium_dict=None):
-    """Returns the equation of motion expressions in closed loop form.
+def symbolic_constraints(mass_matrix, forcing_vector, states,
+                        controller_dict, equilibrium_dict=None):
+    """Returns a vector expression of the zero valued closed loop system
+    equations of motion: M * x' - F.
 
     Parameters
     ----------
-    equilbrium_dict
+    mass_matrix : sympy.Matrix, shape(n, n)
+        The system mass matrix, M.
+    forcing_vector : sympy.Matrix, shape(n, 1)
+        The system forcing vector, F.
+    states : iterable of sympy.Function, len(n)
+        The functions of time representing the states.
+    controll_dict : dictionary
+        Maps any input forces in the forcing vector to the symbolic
+        controller expressions.
+    equilibrium_dit : dictionary
+        A dictionary of equilibrium values to substitute.
 
+    Returns
+    -------
+    constraints : sympy.Matrix, shape(n, 1)
+        The closed loop constraint expressions.
 
     """
 
@@ -221,6 +236,49 @@ def symbolic_closed_loop(mass_matrix, forcing_vector, states,
     system = mass_matrix * xdot - forcing_vector.subs(controller_dict)
 
     return system
+
+
+def symbolic_constraints_solved(mass_matrix, forcing_vector, states,
+                                controller_dict, equilibrium_dict=None):
+    """Returns a vector expression of the zero valued closed loop system
+    equations of motion: x' - M^-1 * F.
+
+    Parameters
+    ----------
+    mass_matrix : sympy.Matrix, shape(n, n)
+        The system mass matrix, M.
+    forcing_vector : sympy.Matrix, shape(n, 1)
+        The system forcing vector, F.
+    states : iterable of sympy.Function, len(n)
+        The functions of time representing the states.
+    controll_dict : dictionary
+        Maps any input forces in the forcing vector to the symbolic
+        controller expressions.
+    equilibrium_dit : dictionary
+        A dictionary of equilibrium values to substitute.
+
+    Returns
+    -------
+    constraints : sympy.Matrix, shape(n, 1)
+        The closed loop constraint expressions.
+
+    Notes
+    -----
+    The mass matrix is symbolically inverted, so this can be potentailly be
+    slow for large systems.
+
+    """
+
+    xdot = sym.Matrix(state_derivatives(states))
+
+    if equilibrium_dict is not None:
+        for k, v in controller_dict.items():
+            controller_dict[k] = v.subs(equilibrium_dict)
+
+    F = forcing_vector.subs(controller_dict)
+    constraints = xdot - mass_matrix.LUsolve(F)
+
+    return constraints
 
 
 def output_equations(x):
@@ -1179,7 +1237,7 @@ if __name__ == "__main__":
     eq_dict = dict(zip(equil_syms, num_states * [0]))
 
     # This is the symbolic closed loop continuous system.
-    closed = symbolic_closed_loop(mass_matrix, forcing_vector, states_syms,
+    closed = symbolic_constraints(mass_matrix, forcing_vector, states_syms,
                                   control_dict, eq_dict)
 
     # This is the discretized (backward euler) version of the closed loop

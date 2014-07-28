@@ -8,9 +8,9 @@ from sympy import symbols, Function, Matrix, simplify
 import pendulum
 
 
-def test_num_diff(sample_rate=100):
+def test_num_diff(sample_rate=100.0):
 
-    num_links = 2
+    num_links = 1
 
     # Generate the symbolic equations of motion for the two link pendulum on
     # a cart.
@@ -36,7 +36,8 @@ def test_num_diff(sample_rate=100):
     duration = (num_time_steps - 1) / sample_rate
     discretization_interval = 1.0 / sample_rate
 
-    print('Integrating over {} seconds with {} time steps spaced at {} seconds apart.'.format(duration, num_time_steps, discretization_interval))
+    msg = 'Integrating over {} seconds with {} time steps spaced at {} seconds apart.'
+    print(msg.format(duration, num_time_steps, discretization_interval))
 
     # Integrate the equations of motion.
     time = np.linspace(0.0, duration, num=num_time_steps)
@@ -63,8 +64,8 @@ def test_num_diff(sample_rate=100):
         pendulum.create_symbolic_controller(states_syms,
                                             specified_inputs_syms[:-1])
     eq_dict = dict(zip(equil_syms, num_states * [0]))
-    closed = pendulum.symbolic_closed_loop(mass_matrix, forcing_vector,
-                                           states_syms, control_dict, eq_dict)
+    closed = pendulum.symbolic_constraints_solved(mass_matrix, forcing_vector,
+                                            states_syms, control_dict, eq_dict)
 
     # Evaluate the contraint equation for each of the time steps.
     # This loop is really slow, could speed it up with lambdify or
@@ -135,7 +136,7 @@ def test_sim_discrete_equate():
 
     eq_dict = dict(zip(equil_syms, len(states_syms) * [0]))
 
-    closed = pendulum.symbolic_closed_loop(mass_matrix,
+    closed = pendulum.symbolic_constraints(mass_matrix,
                                            forcing_vector,
                                            states_syms,
                                            control_dict,
@@ -259,7 +260,7 @@ def test_create_symbolic_controller():
     assert xeq == expected_xeq
 
 
-def test_symbolic_closed_loop():
+def test_symbolic_constraints():
 
     states = symbols('q0, q1, u0, u1', cls=Function)
     inputs = symbols('T0, T1', cls=Function)
@@ -309,7 +310,7 @@ def test_symbolic_closed_loop():
                 m22 * u0.diff(t) + m23 * u1.diff(t) - f2 - control_dict[T0],
                 m32 * u0.diff(t) + m33 * u1.diff(t) - f3 - control_dict[T1]])
 
-    closed = pendulum.symbolic_closed_loop(mass_matrix,
+    closed = pendulum.symbolic_constraints(mass_matrix,
                                            forcing_vector,
                                            states,
                                            control_dict)
@@ -330,7 +331,7 @@ def test_symbolic_closed_loop():
                 m22 * u0.diff(t) + m23 * u1.diff(t) - f2 - eq_control_dict[T0],
                 m32 * u0.diff(t) + m33 * u1.diff(t) - f3 - eq_control_dict[T1]])
 
-    closed = pendulum.symbolic_closed_loop(mass_matrix,
+    closed = pendulum.symbolic_constraints(mass_matrix,
                                            forcing_vector,
                                            states,
                                            control_dict,
