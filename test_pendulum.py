@@ -67,6 +67,8 @@ def test_num_diff(sample_rate=100):
                                            states_syms, control_dict, eq_dict)
 
     # Evaluate the contraint equation for each of the time steps.
+    # This loop is really slow, could speed it up with lambdify or
+    # something.
     closed_eval = np.zeros_like(x)
 
     for i in range(len(time) - 1):
