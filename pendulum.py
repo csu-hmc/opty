@@ -991,13 +991,14 @@ def input_force(typ, time):
 
 class Identifier():
 
-    def __init__(self, num_links, duration, sample_rate, init_type, do_plot,
-                 do_animate):
+    def __init__(self, num_links, duration, sample_rate, init_type,
+                 sensor_noise, do_plot, do_animate):
 
         self.num_links = num_links
         self.duration = duration
         self.sample_rate = sample_rate
         self.init_type = init_type
+        self.sensor_noise = sensor_noise
         self.do_plot = do_plot
         self.do_animate = do_animate
 
@@ -1048,7 +1049,9 @@ class Identifier():
                                          self.gains, self.lateral_force)
 
         self.x = odeint(rhs, self.initial_conditions, self.time, args=(args,))
+        self.x_noise = self.x + np.deg2rad(0.25) * np.random.randn(*self.x.shape)
         self.y = output_equations(self.x)
+        self.y_noise = output_equations(self.x_noise)
         self.u = self.lateral_force
 
     def generate_constraint_funcs(self):
@@ -1077,13 +1080,13 @@ class Identifier():
                                           self.constants_syms + gain_syms)
 
         self.con_func = wrap_constraint(gen_con_func,
-                                   self.num_time_steps,
-                                   self.num_states,
-                                   self.discretization_interval,
-                                   self.constants_syms + gain_syms,
-                                   [self.specified_inputs_syms[-1]],
-                                   constants_dict(self.constants_syms),
-                                   {self.specified_inputs_syms[-1]: self.u})
+                                        self.num_time_steps,
+                                        self.num_states,
+                                        self.discretization_interval,
+                                        self.constants_syms + gain_syms,
+                                        [self.specified_inputs_syms[-1]],
+                                        constants_dict(self.constants_syms),
+                                        {self.specified_inputs_syms[-1]: self.u})
 
         gen_con_jac_func = general_constraint_jacobian(dclosed,
                                                        self.states_syms,
@@ -1092,13 +1095,13 @@ class Identifier():
                                                        gain_syms)
 
         self.con_jac_func = wrap_constraint(gen_con_jac_func,
-                                           self.num_time_steps,
-                                           self.num_states,
-                                           self.discretization_interval,
-                                           self.constants_syms + gain_syms,
-                                           [self.specified_inputs_syms[-1]],
-                                           constants_dict(self.constants_syms),
-                                           {self.specified_inputs_syms[-1]: self.u})
+                                            self.num_time_steps,
+                                            self.num_states,
+                                            self.discretization_interval,
+                                            self.constants_syms + gain_syms,
+                                            [self.specified_inputs_syms[-1]],
+                                            constants_dict(self.constants_syms),
+                                            {self.specified_inputs_syms[-1]: self.u})
 
     def generate_objective_funcs(self):
         print('Forming the objective function.')
@@ -1108,14 +1111,14 @@ class Identifier():
                                        self.num_states,
                                        self.discretization_interval,
                                        self.time,
-                                       self.y)
+                                       self.y_noise if self.sensor_noise else self.y)
 
         self.obj_grad_func = wrap_objective(objective_function_gradient,
                                             self.num_time_steps,
                                             self.num_states,
                                             self.discretization_interval,
                                             self.time,
-                                            self.y)
+                                            self.y_noise if self.sensor_noise else self.y)
 
     def optimize(self):
 
@@ -1130,7 +1133,7 @@ class Identifier():
                             self.con_jac_func)
 
         self.initial_guess = choose_initial_conditions(self.init_type,
-                                                       self.x,
+                                                       self.x_noise if self.sensor_noise else self.x,
                                                        self.gains)
 
         init_states, init_specified, init_constants = \
@@ -1139,18 +1142,17 @@ class Identifier():
 
         self.solution, info = self.prob.solve(self.initial_guess)
 
-        print("Initial gain guess: {}".format(init_gains))
-        print("Known gains: {}".format(self.gains))
-
         self.sol_states, sol_specified, sol_constants = \
             parse_free(self.solution, self.num_states, 0, self.num_time_steps)
         sol_gains = sol_constants.reshape(self.gains.shape)
 
+        print("Initial gain guess: {}".format(init_gains))
+        print("Known gains: {}".format(self.gains))
         print("Identified gains: {}".format(sol_gains))
 
     def plot(self):
 
-        plot_sim_results(self.y, self.u)
+        plot_sim_results(self.y_noise if self.sensor_noise else self.y, self.u)
         plot_constraints(self.con_func(self.initial_guess),
                          self.num_states,
                          self.num_time_steps,
@@ -1177,7 +1179,8 @@ class Identifier():
         results["num_links"] = self.num_links
         results["sim_duration"] = self.duration
         results["sample_rate"] = self.sample_rate
-        results["sensor_noise"] = False
+        results["sensor_noise"] = self.sensor_noise
+        results["init_type"] = self.init_type
 
         hasher = hashlib.sha1()
         string = ''.join([str(v) for v in results.values()])
@@ -1296,6 +1299,7 @@ def create_database(file_name):
 
     class RunTable(tables.IsDescription):
         run_id = tables.StringCol(40)  # sha1 hashes are 40 char long
+        init_type = tables.StringCol(10)
         datetime = tables.Time32Col()
         num_links = tables.Int32Col()
         sim_duration = tables.Float32Col()
@@ -1379,7 +1383,7 @@ if __name__ == "__main__":
 
     import argparse
 
-    parser = argparse.ArgumentParser(description="Run ")
+    parser = argparse.ArgumentParser(description="Run N-Line System ID")
 
     parser.add_argument('-n', '--numlinks', type=int,
         help="The number of links in the pendulum.", default=1)
@@ -1393,6 +1397,9 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--initialconditions', type=str,
         help="The type of initial conditions.", default='random')
 
+    parser.add_argument('-r', '--sensornoise', action="store_true",
+        help="Add noise to sensor data.",)
+
     parser.add_argument('-a', '--animate', action="store_true",
         help="Show the pendulum animation.",)
 
@@ -1403,5 +1410,5 @@ if __name__ == "__main__":
 
     identifier = Identifier(args.numlinks, args.duration,
                             args.samplerate, args.initialconditions,
-                            args.plot, args.animate)
+                            args.sensornoise, args.plot, args.animate)
     identifier.identify()
