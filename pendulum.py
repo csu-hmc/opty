@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-"""This script demonstrates an attempt at identifying the controller for a
-two link inverted pendulum on a cart by direct collocation. I collect
-"measured" data from the system by simulating it with a known optimal
-controller under the influence of random lateral force perturbations. I then
-form the optimization problem such that we minimize the error in the model's
+"""This script demonstrates an attempt at identifying the controller for a n
+link inverted pendulum on a cart by direct collocation. I collect "measured"
+data from the system by simulating it with a known optimal controller under
+the influence of random lateral force perturbations. I then form the
+optimization problem such that we minimize the error in the model's
 simulated outputs with respect to the measured outputs. The optimizer
 searches for the best set of controller gains (which are unknown) that
 reproduce the motion and ensure the dynamics are valid.
@@ -30,6 +30,9 @@ o : number of model outputs
 
 # standard lib
 from collections import OrderedDict
+import os
+import datetime
+import hashlib
 
 # external
 import numpy as np
@@ -38,12 +41,15 @@ from scipy.interpolate import interp1d
 from scipy.linalg import solve_continuous_are
 from scipy.integrate import odeint
 from scipy import sparse
-import matplotlib.pyplot as plt
-from matplotlib import animation
-from matplotlib.patches import Rectangle
 from pydy.codegen.code import generate_ode_function
 from model import n_link_pendulum_on_cart
 import ipopt
+import tables
+
+# local
+from utils import substitute_matrix, controllable
+from visualization import (plot_sim_results, plot_constraints,
+                           animate_pendulum, plot_identified_state_trajectory)
 
 
 def constants_dict(constants):
@@ -66,32 +72,6 @@ def f_minus_ma(mass_matrix, forcing_vector, states):
     xdot = sym.Matrix(state_derivatives(states))
 
     return mass_matrix * xdot - forcing_vector
-
-
-def controllable(a, b):
-    """Returns true if the system is controllable and false if not.
-
-    Parameters
-    ----------
-    a : array_like, shape(n,n)
-        The state matrix.
-    b : array_like, shape(n,r)
-        The input matrix.
-
-    Returns
-    -------
-    controllable : boolean
-
-    """
-    a = np.asmatrix(a)
-    b = np.asmatrix(b)
-    n = a.shape[0]
-    controllability_matrix = []
-    for i in range(n):
-        controllability_matrix.append(a ** i * b)
-    controllability_matrix = np.hstack(controllability_matrix)
-
-    return np.linalg.matrix_rank(controllability_matrix) == n
 
 
 def compute_controller_gains(num_links):
@@ -201,7 +181,7 @@ def create_symbolic_controller(states, inputs):
 
 
 def symbolic_constraints(mass_matrix, forcing_vector, states,
-                        controller_dict, equilibrium_dict=None):
+                         controller_dict, equilibrium_dict=None):
     """Returns a vector expression of the zero valued closed loop system
     equations of motion: M * x' - F.
 
@@ -369,86 +349,6 @@ def sum_of_sines(magnitudes, frequencies, time):
     return sines
 
 
-def animate_pendulum(t, states, length, filename=None):
-    """Animates the n-pendulum and optionally saves it to file.
-
-    Parameters
-    ----------
-    t : ndarray, shape(m)
-        Time array.
-    states: ndarray, shape(m,p)
-        State time history.
-    length: float
-        The length of the pendulum links.
-    filename: string or None, optional
-        If true a movie file will be saved of the animation. This may take
-        some time.
-
-    """
-    # the number of pendulum bobs
-    numpoints = states.shape[1] / 2
-
-    # first set up the figure, the axis, and the plot elements we want to
-    # animate
-    fig = plt.figure()
-
-    # some dimesions
-    cart_width = 0.4
-    cart_height = 0.2
-
-    # set the limits based on the motion
-    xmin = np.around(states[:, 0].min() - cart_width / 2.0, 1)
-    xmax = np.around(states[:, 0].max() + cart_width / 2.0, 1)
-
-    # create the axes
-    ymin = -length * (numpoints - 1) - 0.1
-    ymax = length * (numpoints - 1) + 0.1
-    ax = plt.axes(xlim=(xmin, xmax), ylim=(ymin, ymax), aspect='equal')
-
-    # display the current time
-    time_text = ax.text(0.04, 0.9, '', transform=ax.transAxes)
-
-    # create a rectangular cart
-    rect = Rectangle([states[0, 0] - cart_width / 2.0, -cart_height / 2],
-                     cart_width, cart_height,
-                     fill=True, color='red', ec='black')
-    ax.add_patch(rect)
-
-    # blank line for the pendulum
-    line, = ax.plot([], [], lw=2, marker='o', markersize=6)
-
-    # initialization function: plot the background of each frame
-    def init():
-        time_text.set_text('')
-        rect.set_xy((states[0, 0] - cart_width / 2.0,
-                     -cart_height / 2.0))
-        line.set_data([], [])
-        return time_text, rect, line,
-
-    # animation function: update the objects
-    def animate(i):
-        time_text.set_text('time = {:2.2f}'.format(t[i]))
-        rect.set_xy((states[i, 0] - cart_width / 2.0, -cart_height / 2))
-        x = np.hstack((states[i, 0], np.zeros((numpoints - 1))))
-        y = np.zeros((numpoints))
-        for j in np.arange(1, numpoints):
-            x[j] = x[j - 1] - length * np.sin(states[i, j])
-            y[j] = y[j - 1] + length * np.cos(states[i, j])
-        line.set_data(x, y)
-        return time_text, rect, line,
-
-    # call the animator function
-    anim = animation.FuncAnimation(fig, animate, frames=len(t),
-                                   init_func=init,
-                                   interval=t[-1] / len(t) * 1000,
-                                   blit=False, repeat=False)
-    plt.show()
-
-    # save the animation if a filename is given
-    if filename is not None:
-        anim.save(filename, fps=30, codec='libx264')
-
-
 def discrete_symbols(states, specified, interval='h'):
     """Returns discrete symbols for each state and specified input along
     with an interval symbol.
@@ -614,7 +514,7 @@ def objective_function_gradient(free, num_dis_points, num_states,
     model_state_trajectory = states.T  # states is shape(n, N)
 
     # coordinates
-    model_outputs = output_equations(model_state_trajectory) # shape(N, o)
+    model_outputs = output_equations(model_state_trajectory)  # shape(N, o)
 
     func = interp1d(time_measured, y_measured, axis=0)
 
@@ -1003,67 +903,6 @@ def parse_free(free, n, r, N):
     return free_states, free_specified, free_constants
 
 
-def substitute_matrix(matrix, row_idxs, col_idxs, sub_matrix):
-    """Returns the matrix with the values given by the row and column
-    indices with those in the sub-matrix.
-
-    Parameters
-    ----------
-    matrix : ndarray, shape(n, m)
-        A matrix (i.e. 2D array).
-    row_idxs : array_like, shape(p<=n,)
-        The row indices which designate which entries should be replaced by
-        the sub matrix entries.
-    col_idxs : array_like, shape(q<=m,)
-        The column indices which designate which entries should be replaced
-        by the sub matrix entries.
-    sub_matrix : ndarray, shape(p, q)
-        A matrix of values to substitute into the specified rows and
-        columns.
-
-    Notes
-    -----
-    This makes a copy of the sub_matrix, so if it is large it may be slower
-    than a more optimal implementation.
-
-    Examples
-    --------
-
-    >>> a = np.zeros((3, 4))
-    >>> sub = np.arange(4).reshape((2, 2))
-    >>> substitute_matrix(a, [1, 2], [0, 2], sub)
-    array([[ 0.,  0.,  0.,  0.],
-           [ 0.,  0.,  1.,  0.],
-           [ 2.,  0.,  3.,  0.]])
-
-    """
-
-    assert sub_matrix.shape == (len(row_idxs), len(col_idxs))
-
-    row_idx_permutations = np.repeat(row_idxs, len(col_idxs))
-    col_idx_permutations = np.array(list(col_idxs) * len(row_idxs))
-
-    matrix[row_idx_permutations, col_idx_permutations] = sub_matrix.flatten()
-
-    return matrix
-
-
-def plot_sim_results(y, u):
-
-    # Plot the simulation results and animate the pendulum.
-    fig, axes = plt.subplots(3, 1)
-    axes[0].plot(u)
-    axes[0].set_ylabel('Lateral Force [N]')
-    axes[1].plot(y[:, 0])
-    axes[1].set_ylabel('Cart Displacement [M]')
-    axes[2].plot(np.rad2deg(y[:, 1:]))
-    axes[2].set_ylabel('Link Angles [Deg]')
-    axes[2].set_xlabel('Time [s]')
-    plt.tight_layout()
-
-    plt.show()
-
-
 class Problem(ipopt.problem):
 
     def __init__(self, N, n, q, obj, obj_grad, con, con_jac):
@@ -1098,10 +937,13 @@ class Problem(ipopt.problem):
                                       cl=con_bounds,
                                       cu=con_bounds)
 
+        self.output_filename = 'ipopt_output.txt'
         #self.addOption('derivative_test', 'first-order')
+        self.addOption('output_file', self.output_filename)
         self.addOption('linear_solver', 'ma57')
 
         self.obj_value = []
+
 
     def objective(self, free):
         return self.obj(free)
@@ -1123,16 +965,6 @@ class Problem(ipopt.problem):
 
     def intermediate(self, *args):
         self.obj_value.append(args[2])
-
-
-def plot_constraints(constraints, n, N, state_syms):
-    """Plots the constrain violations for each state."""
-    cons = constraints.reshape(n, N - 1).T
-    plt.plot(range(2, cons.shape[0] + 2), cons)
-    plt.ylabel('Constraint Violation')
-    plt.xlabel('Discretization Point')
-    plt.legend([str(s) for s in state_syms])
-    plt.show()
 
 
 def input_force(typ, time):
@@ -1157,40 +989,261 @@ def input_force(typ, time):
     return lateral_force
 
 
-if __name__ == "__main__":
+class Identifier():
 
-    import argparse
+    def __init__(self, num_links, duration, sample_rate, init_type, do_plot,
+                 do_animate):
 
-    parser = argparse.ArgumentParser(description="Run ")
+        self.num_links = num_links
+        self.duration = duration
+        self.sample_rate = sample_rate
+        self.init_type = init_type
+        self.do_plot = do_plot
+        self.do_animate = do_animate
 
-    parser.add_argument('-', '--mocapfile', type=str,
-        help="The path to a D-Flow mocap module output file.", default=None)
+    def compute_discretization(self):
 
-    parser.add_argument('-d', '--duration', type=float,
-        help="The duration of the simulation in seconds.", default=1.0)
+        self.num_time_steps = int(self.duration * self.sample_rate) + 1
+        self.discretization_interval = 1.0 / self.sample_rate
+        self.time = np.linspace(0.0, self.duration, num=self.num_time_steps)
 
-    parser.add_argument('-s', '--samplerate', type=float,
-        help="The sample rate of the discretization.", default=500.0)
+    def generate_eoms(self):
+        # Generate the symbolic equations of motion for the two link pendulum on
+        # a cart.
+        print("Generating equations of motion.")
+        self.system = n_link_pendulum_on_cart(self.num_links,
+                                              cart_force=True,
+                                              joint_torques=True,
+                                              spring_damper=True)
 
-    parser.add_argument('-a', '--animate', type=bool,
-        help="The sample rate of the discretization.", default=500.0)
+        self.mass_matrix = self.system[0]
+        self.forcing_vector = self.system[1]
+        self.constants_syms = self.system[2]
+        self.coordinates_syms = self.system[3]
+        self.speeds_syms = self.system[4]
+        self.specified_inputs_syms = self.system[5]  # last entry is lateral force
 
-    #parser.add_argument('outputfile', type=str,
-                        #help="The path to the output file.")
+        self.states_syms = self.coordinates_syms + self.speeds_syms
 
-    args = parser.parse_args()
+        self.num_states = len(self.states_syms)
 
-    num_links = 2
+    def find_optimal_gains(self):
+        # Find some optimal gains for stablizing the pendulum on the cart.
+        print('Finding the optimal gains.')
+        self.gains = compute_controller_gains(self.num_links)
 
-    # Specify the number of time steps and duration of the measurements.
-    sample_rate = 50  # hz
-    duration = 30.0  # seconds
+    def simulate(self):
+        # Generate some "measured" data from the simulation.
+        print('Simulating the system.')
+
+        self.lateral_force = input_force('sumsines', self.time)
+
+        set_point = np.zeros(self.num_states)
+
+        self.initial_conditions = np.zeros(self.num_states)
+        offset = 10.0 * np.random.random((self.num_states / 2) - 1)
+        self.initial_conditions[1:self.num_states / 2] = np.deg2rad(offset)
+
+        rhs, args = closed_loop_ode_func(self.system, self.time, set_point,
+                                         self.gains, self.lateral_force)
+
+        self.x = odeint(rhs, self.initial_conditions, self.time, args=(args,))
+        self.y = output_equations(self.x)
+        self.u = self.lateral_force
+
+    def generate_constraint_funcs(self):
+
+        print('Forming the constraint function.')
+        # Generate the expressions for creating the closed loop equations of
+        # motion.
+        control_dict, gain_syms, equil_syms = \
+            create_symbolic_controller(self.states_syms, self.specified_inputs_syms[:-1])
+
+        self.num_gains = len(gain_syms)
+
+        eq_dict = dict(zip(equil_syms, self.num_states * [0]))
+
+        # This is the symbolic closed loop continuous system.
+        closed = symbolic_constraints(self.mass_matrix, self.forcing_vector,
+                                      self.states_syms, control_dict, eq_dict)
+
+        # This is the discretized (backward euler) version of the closed loop
+        # system.
+        dclosed = discretize(closed, self.states_syms, self.specified_inputs_syms)
+
+        # Now generate a function which evaluates the N-1 constraints.
+        gen_con_func = general_constraint(dclosed, self.states_syms,
+                                          [self.specified_inputs_syms[-1]],
+                                          self.constants_syms + gain_syms)
+
+        self.con_func = wrap_constraint(gen_con_func,
+                                   self.num_time_steps,
+                                   self.num_states,
+                                   self.discretization_interval,
+                                   self.constants_syms + gain_syms,
+                                   [self.specified_inputs_syms[-1]],
+                                   constants_dict(self.constants_syms),
+                                   {self.specified_inputs_syms[-1]: self.u})
+
+        gen_con_jac_func = general_constraint_jacobian(dclosed,
+                                                       self.states_syms,
+                                                       [self.specified_inputs_syms[-1]],
+                                                       self.constants_syms + gain_syms,
+                                                       gain_syms)
+
+        self.con_jac_func = wrap_constraint(gen_con_jac_func,
+                                           self.num_time_steps,
+                                           self.num_states,
+                                           self.discretization_interval,
+                                           self.constants_syms + gain_syms,
+                                           [self.specified_inputs_syms[-1]],
+                                           constants_dict(self.constants_syms),
+                                           {self.specified_inputs_syms[-1]: self.u})
+
+    def generate_objective_funcs(self):
+        print('Forming the objective function.')
+
+        self.obj_func = wrap_objective(objective_function,
+                                       self.num_time_steps,
+                                       self.num_states,
+                                       self.discretization_interval,
+                                       self.time,
+                                       self.y)
+
+        self.obj_grad_func = wrap_objective(objective_function_gradient,
+                                            self.num_time_steps,
+                                            self.num_states,
+                                            self.discretization_interval,
+                                            self.time,
+                                            self.y)
+
+    def optimize(self):
+
+        print('Solving optimization problem.')
+
+        self.prob = Problem(self.num_time_steps,
+                            self.num_states,
+                            self.num_gains,
+                            self.obj_func,
+                            self.obj_grad_func,
+                            self.con_func,
+                            self.con_jac_func)
+
+        self.initial_guess = choose_initial_conditions(self.init_type,
+                                                       self.x,
+                                                       self.gains)
+
+        init_states, init_specified, init_constants = \
+            parse_free(self.initial_guess, self.num_states, 0, self.num_time_steps)
+        init_gains = init_constants.reshape(self.gains.shape)
+
+        self.solution, info = self.prob.solve(self.initial_guess)
+
+        print("Initial gain guess: {}".format(init_gains))
+        print("Known gains: {}".format(self.gains))
+
+        self.sol_states, sol_specified, sol_constants = \
+            parse_free(self.solution, self.num_states, 0, self.num_time_steps)
+        sol_gains = sol_constants.reshape(self.gains.shape)
+
+        print("Identified gains: {}".format(sol_gains))
+
+    def plot(self):
+
+        plot_sim_results(self.y, self.u)
+        plot_constraints(self.con_func(self.initial_guess),
+                         self.num_states,
+                         self.num_time_steps,
+                         self.states_syms)
+        plot_constraints(self.con_func(self.solution),
+                         self.num_states,
+                         self.num_time_steps,
+                         self.states_syms)
+        plot_identified_state_trajectory(self.sol_states,
+                                         self.x.T,
+                                         self.states_syms)
+
+    def animate(self):
+
+        animate_pendulum(self.time, self.x, 1.0)
+
+    def store_results(self):
+
+        results = parse_ipopt_output(self.prob.output_filename)
+
+        results["datetime"] = int((datetime.datetime.now() -
+                                   datetime.datetime(1970, 1, 1)).total_seconds())
+
+        results["num_links"] = self.num_links
+        results["sim_duration"] = self.duration
+        results["sample_rate"] = self.sample_rate
+        results["sensor_noise"] = False
+
+        hasher = hashlib.sha1()
+        string = ''.join([str(v) for v in results.values()])
+        hasher.update(string)
+        results["run_id"] = hasher.hexdigest()
+
+        known_solution = choose_initial_conditions('known', self.x, self.gains)
+        results['initial_guess'] = self.initial_guess
+        results['known_solution'] = known_solution
+        results['optimal_solution'] = self.solution
+
+        results['initial_guess_constraints'] = self.con_func(self.initial_guess)
+        results['known_solution_constraints'] = self.con_func(known_solution)
+        results['optimal_solution_constraints'] = self.con_func(self.solution)
+
+        results['initial_conditions'] = self.initial_conditions
+        results['lateral_force'] = self.lateral_force
+
+        file_name = 'inverted_pendulum_direct_collocation_results.h5'
+
+        add_results(file_name, results)
+
+    def cleanup(self):
+
+        os.system('rm multibody_system*')
+
+    def identify(self):
+        msg = """Running an identification for a {} link inverted pendulum with a {} second simulation discretized at {} hz."""
+        msg = msg.format(self.num_links, self.duration, self.sample_rate)
+        print('+' * len(msg))
+        print(msg)
+        print('+' * len(msg))
+
+        self.compute_discretization()
+        self.generate_eoms()
+        self.find_optimal_gains()
+        self.simulate()
+        self.generate_constraint_funcs()
+        self.generate_objective_funcs()
+        self.optimize()
+        self.store_results()
+
+        if self.do_plot:
+            self.plot()
+
+        if self.do_animate:
+            self.animate()
+
+        self.cleanup()
+
+
+def run_identification(num_links, duration, sample_rate, init_typ, plot, animate):
+
+    msg = """Running an identification for a {} link inverted pendulum with a {} second simulation discretized at {} hz."""
+    msg = msg.format(num_links, duration, sample_rate)
+    print('+' * len(msg))
+    print(msg)
+    print('+' * len(msg))
+
     num_time_steps = int(duration * sample_rate) + 1
     discretization_interval = 1.0 / sample_rate
     time = np.linspace(0.0, duration, num=num_time_steps)
 
     # Generate the symbolic equations of motion for the two link pendulum on
     # a cart.
+    print("Generating equations of motion.")
     system = n_link_pendulum_on_cart(num_links, cart_force=True,
                                      joint_torques=True, spring_damper=True)
 
@@ -1289,24 +1342,240 @@ if __name__ == "__main__":
                                    time,
                                    y)
 
-
     print('Solving optimization problem.')
 
     prob = Problem(num_time_steps, num_states, num_gains, obj_func,
                    obj_grad_func, con_func, con_jac_func)
 
+    initial_guess = choose_initial_conditions(init_typ, x, gains)
 
-    initial_guess = np.hstack((x.T.flatten(), gains.flatten()))
-    initial_guess = np.hstack((x.T.flatten(), np.ones_like(gains.flatten())))
-    initial_guess = np.hstack((x.T.flatten(), np.random.random(len(gains.flatten()))))
+    init_states, init_specified, init_constants = \
+        parse_free(initial_guess, num_states, 0, num_time_steps)
+    init_gains = init_constants.reshape(gains.shape)
 
-    #solution, info = prob.solve(initial_guess)
+    solution, info = prob.solve(initial_guess)
 
+    print("Initial gain guess: {}".format(init_gains))
     print("Known gains: {}".format(gains))
 
-    #sol_states, sol_specified, sol_constants = parse_free(solution, num_states, 0, num_time_steps)
-    #sol_gains = sol_constants.reshape(gains.shape)
-#
-    #print("Identified gains: {}".format(sol_gains))
+    sol_states, sol_specified, sol_constants = \
+        parse_free(solution, num_states, 0, num_time_steps)
+    sol_gains = sol_constants.reshape(gains.shape)
 
-    #animate_pendulum(np.linspace(0.0, duration, num_time_steps), x, 1.0)
+    print("Identified gains: {}".format(sol_gains))
+
+    if plot:
+        plot_sim_results(y, u)
+        plot_constraints(con_func(initial_guess), num_states,
+                         num_time_steps, states_syms)
+        plot_constraints(con_func(solution), num_states,
+                         num_time_steps, states_syms)
+        plot_identified_state_trajectory(sol_states, x.T, states_syms)
+
+    if animate:
+        animate_pendulum(np.linspace(0.0, duration, num_time_steps), x, 1.0)
+
+    results = parse_ipopt_output(prob.output_filename)
+    results["datetime"] = int((datetime.datetime.now() -
+                               datetime.datetime(1970, 1, 1)).total_seconds())
+    results["num_links"] = num_links
+    results["sim_duration"] = duration
+    results["sample_rate"] = sample_rate
+    results["sensor_noise"] = False
+    hasher = hashlib.sha1()
+    string = ''.join([str(v) for v in results.values()])
+    hasher.update(string)
+    results["run_id"] = hasher.hexdigest()
+    results['initial_guess'] = initial_guess
+    results['known_solution'] = choose_initial_conditions('known', x, gains)
+    results['optimal_solution'] = solution
+    results['initial_conditions'] = initial_conditions
+    results['lateral_force'] = lateral_force
+
+    file_name = 'inverted_pendulum_direct_collocation_results.h5'
+
+    add_results(file_name, results)
+
+    os.system('rm multibody_system*')
+
+
+def parse_ipopt_output(file_name):
+    """Returns a dictionary with the IPOPT summary results.
+
+    Notes
+    -----
+
+    This is an example of the summary at the end of the file:
+
+    Number of Iterations....: 1013
+
+                                       (scaled)                 (unscaled)
+    Objective...............:   2.8983286604029537e-04    2.8983286604029537e-04
+    Dual infeasibility......:   4.7997817057236348e-09    4.7997817057236348e-09
+    Constraint violation....:   9.4542809291867735e-09    9.8205754639479892e-09
+    Complementarity.........:   0.0000000000000000e+00    0.0000000000000000e+00
+    Overall NLP error.......:   9.4542809291867735e-09    9.8205754639479892e-09
+
+
+    Number of objective function evaluations             = 6881
+    Number of objective gradient evaluations             = 1014
+    Number of equality constraint evaluations            = 6900
+    Number of inequality constraint evaluations          = 0
+    Number of equality constraint Jacobian evaluations   = 1014
+    Number of inequality constraint Jacobian evaluations = 0
+    Number of Lagrangian Hessian evaluations             = 0
+    Total CPU secs in IPOPT (w/o function evaluations)   =     89.023
+    Total CPU secs in NLP function evaluations           =    457.114
+
+    """
+
+    with open(file_name, 'r') as f:
+        output = f.readlines()
+
+    results = {}
+
+    lines_of_interest = output[-50:]
+    for line in lines_of_interest:
+        if 'Number of Iterations' in line and 'Maximum' not in line:
+            results['num_iterations'] = int(line.split(':')[1].strip())
+
+        elif 'Number of objective function evaluations' in line:
+            results['num_obj_evals'] = int(line.split('=')[1].strip())
+
+        elif 'Number of objective gradient evaluations' in line:
+            results['num_obj_grad_evals'] = int(line.split('=')[1].strip())
+
+        elif 'Number of equality constraint evaluations' in line:
+            results['num_con_evals'] = int(line.split('=')[1].strip())
+
+        elif 'Number of equality constraint Jacobian evaluations' in line:
+            results['num_con_jac_evals'] = int(line.split('=')[1].strip())
+
+        elif 'Total CPU secs in IPOPT (w/o function evaluations)' in line:
+            results['time_ipopt'] = float(line.split('=')[1].strip())
+
+        elif 'Total CPU secs in NLP function evaluations' in line:
+            results['time_func_evals'] = float(line.split('=')[1].strip())
+
+    return results
+
+
+def create_database(file_name):
+    """Creates an empty optimization results database on disk if it doesn't
+    exist."""
+
+    class RunTable(tables.IsDescription):
+        run_id = tables.StringCol(40)  # sha1 hashes are 40 char long
+        datetime = tables.Time32Col()
+        num_links = tables.Int32Col()
+        sim_duration = tables.Float32Col()
+        sample_rate = tables.Float32Col()
+        sensor_noise = tables.BoolCol()
+        num_iterations = tables.Int32Col()
+        num_obj_evals = tables.Int32Col()
+        num_obj_grad_evals = tables.Int32Col()
+        num_con_evals = tables.Int32Col()
+        num_con_jac_evals = tables.Int32Col()
+        time_ipopt = tables.Float32Col()
+        time_func_evals = tables.Float32Col()
+
+    if not os.path.isfile(file_name):
+        h5file = tables.open_file(file_name,
+                                  mode='w',
+                                  title='Inverted Pendulum Direct Collocation Results')
+        h5file.create_table('/', 'results', RunTable, 'Optimization Results Table')
+        h5file.create_group('/', 'arrays', 'Optimization Parameter Arrays')
+
+        h5file.close()
+
+
+def add_results(file_name, results):
+
+    if not os.path.isfile(file_name):
+        create_database(file_name)
+
+    h5file = tables.open_file(file_name, mode='a')
+
+    print('Adding run {} to the database.'.format(results['run_id']))
+
+    run_array_dir = h5file.create_group(h5file.root.arrays,
+                                        results['run_id'],
+                                        'Optimization Run #{}'.format(results['run_id']))
+    arrays = ['initial_guess',
+              'known_solution',
+              'optimal_solution',
+              'initial_guess_constraints',
+              'known_solution_constraints',
+              'optimal_solution_constraints',
+              'initial_conditions',
+              'lateral_force']
+
+    for k in arrays:
+        v = results.pop(k)
+        h5file.create_array(run_array_dir, k, v)
+
+    table = h5file.root.results
+    opt_row = table.row
+
+    for k, v in results.items():
+        opt_row[k] = v
+
+    opt_row.append()
+
+    table.flush()
+
+    h5file.close()
+
+
+def choose_initial_conditions(typ, x, gains):
+
+    free_states = x.T.flatten()
+    free_gains = gains.flatten()
+
+    if typ == 'known':
+        initial_guess = np.hstack((free_states, free_gains))
+    elif typ == 'ones':
+        initial_guess = np.hstack((free_states, np.ones_like(free_gains)))
+    elif typ == 'close':
+        gain_mod = 0.2 * np.abs(free_gains) * np.random.randn(len(free_gains))
+        initial_guess = np.hstack((free_states, free_gains + gain_mod))
+    elif typ == 'random':
+        initial_guess = np.hstack((x.T.flatten(),
+                                   100.0 * np.random.randn(len(free_gains))))
+
+    return initial_guess
+
+if __name__ == "__main__":
+
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run ")
+
+    parser.add_argument('-n', '--numlinks', type=int,
+        help="The number of links in the pendulum.", default=1)
+
+    parser.add_argument('-d', '--duration', type=float,
+        help="The duration of the simulation in seconds.", default=1.0)
+
+    parser.add_argument('-s', '--samplerate', type=float,
+        help="The sample rate of the discretization.", default=50.0)
+
+    parser.add_argument('-i', '--initialconditions', type=str,
+        help="The type of initial conditions.", default='random')
+
+    parser.add_argument('-a', '--animate', action="store_true",
+        help="Show the pendulum animation.",)
+
+    parser.add_argument('-p', '--plot', action="store_true",
+        help="Show result plots.")
+
+    args = parser.parse_args()
+
+    identifier = Identifier(args.numlinks, args.duration,
+                            args.samplerate, args.initialconditions,
+                            args.plot, args.animate)
+    identifier.identify()
+
+    #solution = run_identification(args.numlinks, args.duration,
+                                  #args.samplerate, args.initialconditions,
+                                  #args.plot, args.animate)
