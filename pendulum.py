@@ -1405,7 +1405,3 @@ if __name__ == "__main__":
                             args.samplerate, args.initialconditions,
                             args.plot, args.animate)
     identifier.identify()
-
-    #solution = run_identification(args.numlinks, args.duration,
-                                  #args.samplerate, args.initialconditions,
-                                  #args.plot, args.animate)
