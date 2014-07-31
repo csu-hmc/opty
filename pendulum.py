@@ -41,7 +41,7 @@ from scipy.interpolate import interp1d
 from scipy.linalg import solve_continuous_are
 from scipy.integrate import odeint
 from scipy import sparse
-from pydy.codegen.code import generate_ode_function
+from pydy.codegen.code import generate_ode_function, CythonGenerator
 from model import n_link_pendulum_on_cart
 import ipopt
 import tables
@@ -1152,7 +1152,8 @@ class Identifier():
 
     def plot(self):
 
-        plot_sim_results(self.y_noise if self.sensor_noise else self.y, self.u)
+        plot_sim_results(self.y_noise if self.sensor_noise else self.y,
+                         self.u)
         plot_constraints(self.con_func(self.initial_guess),
                          self.num_states,
                          self.num_time_steps,
@@ -1368,10 +1369,12 @@ def choose_initial_conditions(typ, x, gains):
 
     if typ == 'known':
         initial_guess = np.hstack((free_states, free_gains))
+    elif typ == 'zero':
+        initial_guess = np.hstack((free_states, 0.1 * np.ones_like(free_gains)))
     elif typ == 'ones':
         initial_guess = np.hstack((free_states, np.ones_like(free_gains)))
     elif typ == 'close':
-        gain_mod = 0.2 * np.abs(free_gains) * np.random.randn(len(free_gains))
+        gain_mod = 0.5 * np.abs(free_gains) * np.random.randn(len(free_gains))
         initial_guess = np.hstack((free_states, free_gains + gain_mod))
     elif typ == 'random':
         initial_guess = np.hstack((x.T.flatten(),
