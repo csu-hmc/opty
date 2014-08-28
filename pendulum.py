@@ -20,11 +20,12 @@ Dependencies this runs with:
 
 N : number of discretization points
 M : number of measured time samples
+
 n : number of states
+o : number of model outputs
 p : total number of model constants
 q : number of free model constants
 r : number of free specified inputs
-o : number of model outputs
 
 """
 
@@ -33,6 +34,7 @@ from collections import OrderedDict
 import os
 import datetime
 import hashlib
+import time
 
 # external
 import numpy as np
@@ -41,10 +43,11 @@ from scipy.interpolate import interp1d
 from scipy.linalg import solve_continuous_are
 from scipy.integrate import odeint
 from scipy import sparse
-from pydy.codegen.code import generate_ode_function, CythonGenerator
+from pydy.codegen.code import generate_ode_function
 from model import n_link_pendulum_on_cart
 import ipopt
 import tables
+import pandas
 
 # local
 from utils import substitute_matrix, controllable
@@ -464,7 +467,8 @@ def objective_function(free, num_dis_points, num_states, dis_period,
 
     func = interp1d(time_measured, y_measured, axis=0)
 
-    return dis_period * np.sum((func(model_time).flatten() - model_outputs.flatten())**2)
+    return dis_period * np.sum((func(model_time).flatten() -
+                                model_outputs.flatten())**2)
 
 
 def objective_function_gradient(free, num_dis_points, num_states,
@@ -586,7 +590,7 @@ def general_constraint(eom_vector, state_syms, specified_syms,
 
     def constraints(state_values, specified_values, constant_values,
                     interval_value):
-        """Returns a vector of constraint values give all of the
+        """Returns a vector of constraint values given all of the
         unknowns in the equations of motion over the 2, ..., N time
         steps.
 
@@ -940,6 +944,7 @@ class Problem(ipopt.problem):
         self.output_filename = 'ipopt_output.txt'
         #self.addOption('derivative_test', 'first-order')
         self.addOption('output_file', self.output_filename)
+        self.addOption('print_timing_statistics', 'yes')
         self.addOption('linear_solver', 'ma57')
 
         self.obj_value = []
@@ -1048,7 +1053,11 @@ class Identifier():
         rhs, args = closed_loop_ode_func(self.system, self.time, set_point,
                                          self.gains, self.lateral_force)
 
+        start = time.clock()
         self.x = odeint(rhs, self.initial_conditions, self.time, args=(args,))
+        msg = 'Simulation of {} real time seconds took {} CPU seconds to compute.'
+        print(msg.format(self.duration, time.clock() - start))
+
         self.x_noise = self.x + np.deg2rad(0.25) * np.random.randn(*self.x.shape)
         self.y = output_equations(self.x)
         self.y_noise = output_equations(self.x_noise)
@@ -1166,9 +1175,9 @@ class Identifier():
                                          self.x.T,
                                          self.states_syms)
 
-    def animate(self):
+    def animate(self, filename=None):
 
-        animate_pendulum(self.time, self.x, 1.0)
+        animate_pendulum(self.time, self.x, 1.0, filename)
 
     def store_results(self):
 
@@ -1381,6 +1390,43 @@ def choose_initial_conditions(typ, x, gains):
                                    100.0 * np.random.randn(len(free_gains))))
 
     return initial_guess
+
+
+def load_results_table(filename):
+
+    handle = tables.openFile(filename, 'r')
+    df = pandas.DataFrame.from_records(handle.root.results[:])
+    handle.close()
+    return df
+
+
+def load_run(filename, run_id):
+    handle = tables.openFile(filename, 'r')
+    group = getattr(handle.root.arrays, run_id)
+    d = {}
+    for array_name in group.__members__:
+        d[array_name] = getattr(group, array_name)[:]
+    handle.close()
+    return d
+
+def compute_gain_error(filename):
+    # root mean square of gain error
+    df = load_results_table(filename)
+    rms = []
+    for run_id, sim_dur, sample_rate in zip(df['run_id'],
+                                            df['sim_duration'],
+                                            df['sample_rate']):
+        run_dict = load_run(filename, run_id)
+        num_states = len(run_dict['initial_conditions'])
+        num_time_steps = int(sim_dur * sample_rate)
+        __, __, known_gains = parse_free(run_dict['known_solution'],
+                                         num_states, 0, num_time_steps)
+        __, __, optimal_gains = parse_free(run_dict['optimal_solution'],
+                                           num_states, 0, num_time_steps)
+        rms.append(np.sqrt(np.sum((known_gains - optimal_gains)**2)))
+    df['RMS of Gains'] = np.asarray(rms)
+    return df
+
 
 if __name__ == "__main__":
 
