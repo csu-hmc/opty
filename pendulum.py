@@ -589,7 +589,7 @@ def general_constraint(eom_vector, state_syms, specified_syms,
 
     funcs = []
     for expr in eom_vector:
-        funcs.append(ufuncify(args, expr))
+        funcs.append(ufuncify(args, expr, tempdir='ufuncjunk'))
 
     def f(*args):
         result = np.empty((num_constraints, len(eom_vector)))
@@ -1101,7 +1101,8 @@ class Identifier():
         # Now generate a function which evaluates the N-1 constraints.
         gen_con_func = general_constraint(dclosed, self.states_syms,
                                           [self.specified_inputs_syms[-1]],
-                                          self.constants_syms + gain_syms)
+                                          self.constants_syms + gain_syms,
+                                          self.num_time_steps - 1)
 
         self.con_func = wrap_constraint(gen_con_func,
                                         self.num_time_steps,
@@ -1155,10 +1156,6 @@ class Identifier():
                             self.obj_grad_func,
                             self.con_func,
                             self.con_jac_func)
-
-        self.initial_guess = choose_initial_conditions(self.init_type,
-                                                       self.x_noise if self.sensor_noise else self.x,
-                                                       self.gains)
 
         init_states, init_specified, init_constants = \
             parse_free(self.initial_guess, self.num_states, 0, self.num_time_steps)
@@ -1245,8 +1242,12 @@ class Identifier():
         self.simulate()
         self.generate_constraint_funcs()
         self.generate_objective_funcs()
-        self.optimize()
-        self.store_results()
+        self.initial_guess = \
+            choose_initial_conditions(self.init_type,
+                                      self.x_noise if self.sensor_noise else self.x,
+                                      self.gains)
+        #self.optimize()
+        #self.store_results()
 
         if self.do_plot:
             self.plot()
