@@ -525,7 +525,7 @@ def test_general_constraint():
                          m * (vi - vp) / h + c * vi + k * xi - fi])
 
     constrain = pendulum.general_constraint(eom_vector, states, specified,
-                                            [m, c, k])
+                                            [m, c, k], 3)
 
     state_values = np.array([[1, 2, 3, 4],
                              [5, 6, 7, 8]])

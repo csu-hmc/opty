@@ -50,7 +50,7 @@ import tables
 import pandas
 
 # local
-from utils import substitute_matrix, controllable
+from utils import substitute_matrix, controllable, ufuncify
 from visualization import (plot_sim_results, plot_constraints,
                            animate_pendulum, plot_identified_state_trajectory)
 
@@ -538,7 +538,7 @@ def wrap_objective(obj_func, *args):
 
 
 def general_constraint(eom_vector, state_syms, specified_syms,
-                       constant_syms):
+                       constant_syms, num_constraints):
     """Returns a function that evaluates the constraints.
 
     Parameters
@@ -552,6 +552,8 @@ def general_constraint(eom_vector, state_syms, specified_syms,
         The m functions of time representing the system's specified inputs.
     constant_syms : list of sympy.Symbols
         The b symbols representing the system's specified inputs.
+    num_constraints : integer
+        The number of EoM constraints.
 
     Returns
     -------
@@ -585,8 +587,16 @@ def general_constraint(eom_vector, state_syms, specified_syms,
     args = [x for x in xi_syms] + [x for x in xp_syms]
     args += [s for s in si_syms] + constant_syms + [h]
 
-    modules = ({'ImmutableMatrix': np.array}, 'numpy')
-    f = sym.lambdify(args, eom_vector, modules=modules)
+    funcs = []
+    for expr in eom_vector:
+        funcs.append(ufuncify(args, expr))
+
+    def f(*args):
+        result = np.empty((num_constraints, len(eom_vector)))
+        for i, func in enumerate(funcs):
+            result[:, i] = func(*args)
+        return result
+
 
     def constraints(state_values, specified_values, constant_values,
                     interval_value):
@@ -616,11 +626,13 @@ def general_constraint(eom_vector, state_syms, specified_syms,
         if state_values.shape[0] < 2:
             raise ValueError('There should always be at least two states.')
 
-        x_current = state_values[:, 1:]
-        x_previous = state_values[:, :-1]
+        x_current = state_values[:, 1:]  # n x N - 1
+        x_previous = state_values[:, :-1]  # n x N - 1
 
+        # 2n x N - 1
         args = [x for x in x_current] + [x for x in x_previous]
 
+        # 2n + m x N - 1
         if len(specified_values.shape) == 2:
             si = specified_values[:, 1:]
             args += [s for s in si]
@@ -628,12 +640,15 @@ def general_constraint(eom_vector, state_syms, specified_syms,
             si = specified_values[1:]
             args += [si]
 
-        args += list(constant_values)
-        args += [interval_value]
+        # These are scalars so, for now, we need to create arrays for these
+        # because my version of ufuncify only works with arrays for all
+        # arguments. These are generally very short arrays, so it shouldn't
+        # be that much overhead.
+        ones = np.ones(state_values.shape[1] - 1)
+        args += [c * ones for c in constant_values]
+        args += [interval_value * ones]
 
-        lam_eval = np.squeeze(f(*args))
-
-        return lam_eval.reshape(x_current.shape[0] * x_current.shape[1])
+        return f(*args).T.flatten()
 
     return constraints
 
