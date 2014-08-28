@@ -1141,10 +1141,6 @@ class Identifier():
                             self.con_func,
                             self.con_jac_func)
 
-        self.initial_guess = choose_initial_conditions(self.init_type,
-                                                       self.x_noise if self.sensor_noise else self.x,
-                                                       self.gains)
-
         init_states, init_specified, init_constants = \
             parse_free(self.initial_guess, self.num_states, 0, self.num_time_steps)
         init_gains = init_constants.reshape(self.gains.shape)
@@ -1230,6 +1226,10 @@ class Identifier():
         self.simulate()
         self.generate_constraint_funcs()
         self.generate_objective_funcs()
+        self.initial_guess = \
+            choose_initial_conditions(self.init_type,
+                                      self.x_noise if self.sensor_noise else self.x,
+                                      self.gains)
         self.optimize()
         self.store_results()
 
