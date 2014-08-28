@@ -125,4 +125,5 @@ def animate_pendulum(t, states, length, filename=None):
 
     # save the animation if a filename is given
     if filename is not None:
+        plt.rcParams['animation.writer'] = 'avconv'
         anim.save(filename, fps=30, codec='libx264')
