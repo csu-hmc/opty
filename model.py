@@ -131,8 +131,8 @@ def n_link_pendulum_on_cart(n, cart_force=True, joint_torques=False,
 
     mass_matrix = kane.mass_matrix_full
     forcing_vector = kane.forcing_full
-    coordinates = kane._q
-    speeds = kane._u
+    coordinates = [x for x in kane._q]
+    speeds = [x for x in kane._u]
 
     if spring_damper:
         constants = [k, c, g, m[0]]

@@ -4,6 +4,7 @@ import numpy as np
 from scipy import sparse
 import sympy as sym
 from sympy import symbols, Function, Matrix, simplify
+import matplotlib.pyplot as plt
 
 import pendulum
 
@@ -67,7 +68,7 @@ def test_num_diff(sample_rate=100.0):
     closed = pendulum.symbolic_constraints_solved(mass_matrix, forcing_vector,
                                             states_syms, control_dict, eq_dict)
 
-    # Evaluate the contraint equation for each of the time steps.
+    # Evaluate the constraint equation for each of the time steps.
     # This loop is really slow, could speed it up with lambdify or
     # something.
     closed_eval = np.zeros_like(x)
@@ -85,9 +86,9 @@ def test_num_diff(sample_rate=100.0):
         evald_closed = closed.subs(val_map).evalf()
         closed_eval[i] = np.array(evald_closed).squeeze().astype(float)
 
-    fig = pendulum.plt.figure()
-    pendulum.plt.plot(closed_eval)
-    pendulum.plt.legend([str(s) for s in states_syms])
+    fig = plt.figure()
+    plt.plot(closed_eval)
+    plt.legend([str(s) for s in states_syms])
     fig.savefig('constraint_violations_{}hz.png'.format(sample_rate))
 
 
@@ -166,7 +167,6 @@ def test_sim_discrete_equate():
     euler_formula = [(i - p) / h for i, p in zip(xi, xp)]
 
     xdot_expr = sym.solve(dclosed, euler_formula)
-    boog
     xdot_expr = sym.Matrix([xdot_expr[xd] for xd in euler_formula])
 
     val_map = dict(zip(xi, state_values))
@@ -495,7 +495,7 @@ def test_discretize():
     eoms = Matrix([x.diff() - v,
                    m * v.diff() + c * v + k * x - f])
 
-    discrete_eoms = pendulum.discretize(eoms, states, specified, h)
+    discrete_eoms = pendulum.discretize(eoms, states, specified)
 
     xi, vi, xp, vp, fi = symbols('xi, vi, xp, vp, fi')
 
@@ -589,6 +589,8 @@ def test_general_constraint_jacobian():
 
     result = jacobian(state_values, specified_values, constant_values, h)
 
+    jacobian_matrix = sparse.coo_matrix((result[2], (result[0], result[1])))
+
     # jacobian of eom_vector wrt vi, xi, xp, vp, k
     #    [     vi,  xi,   vp,   xp,  k]
     # x: [     -1, 1/h,    0, -1/h,  0]
@@ -603,7 +605,7 @@ def test_general_constraint_jacobian():
          [     0,      0,      k,     0,      0,    -m / h,  c + m / h,         0, x[2]],
          [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]])
 
-    np.testing.assert_allclose(result.todense(), expected_jacobian)
+    np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
 
 
 def test_wrap_constraint():
@@ -681,6 +683,8 @@ def test_wrap_constraint():
 
     result = jacobian(free)
 
+    jacobian_matrix = sparse.coo_matrix((result[2], (result[0], result[1])))
+
     x = state_values[0]
 
     expected_jacobian = np.array(
@@ -692,4 +696,4 @@ def test_wrap_constraint():
          [     0,      0,      k,     0,      0,    -m / h,  c + m / h,         0, x[2]],
          [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]])
 
-    np.testing.assert_allclose(result.todense(), expected_jacobian)
+    np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
