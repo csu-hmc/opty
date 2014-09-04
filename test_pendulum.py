@@ -4,6 +4,7 @@ import numpy as np
 from scipy import sparse
 import sympy as sym
 from sympy import symbols, Function, Matrix, simplify
+import matplotlib.pyplot as plt
 
 import pendulum
 
@@ -67,7 +68,7 @@ def test_num_diff(sample_rate=100.0):
     closed = pendulum.symbolic_constraints_solved(mass_matrix, forcing_vector,
                                             states_syms, control_dict, eq_dict)
 
-    # Evaluate the contraint equation for each of the time steps.
+    # Evaluate the constraint equation for each of the time steps.
     # This loop is really slow, could speed it up with lambdify or
     # something.
     closed_eval = np.zeros_like(x)
@@ -85,9 +86,9 @@ def test_num_diff(sample_rate=100.0):
         evald_closed = closed.subs(val_map).evalf()
         closed_eval[i] = np.array(evald_closed).squeeze().astype(float)
 
-    fig = pendulum.plt.figure()
-    pendulum.plt.plot(closed_eval)
-    pendulum.plt.legend([str(s) for s in states_syms])
+    fig = plt.figure()
+    plt.plot(closed_eval)
+    plt.legend([str(s) for s in states_syms])
     fig.savefig('constraint_violations_{}hz.png'.format(sample_rate))
 
 
@@ -166,7 +167,6 @@ def test_sim_discrete_equate():
     euler_formula = [(i - p) / h for i, p in zip(xi, xp)]
 
     xdot_expr = sym.solve(dclosed, euler_formula)
-    boog
     xdot_expr = sym.Matrix([xdot_expr[xd] for xd in euler_formula])
 
     val_map = dict(zip(xi, state_values))
@@ -495,7 +495,7 @@ def test_discretize():
     eoms = Matrix([x.diff() - v,
                    m * v.diff() + c * v + k * x - f])
 
-    discrete_eoms = pendulum.discretize(eoms, states, specified, h)
+    discrete_eoms = pendulum.discretize(eoms, states, specified)
 
     xi, vi, xp, vp, fi = symbols('xi, vi, xp, vp, fi')
 
@@ -525,7 +525,7 @@ def test_general_constraint():
                          m * (vi - vp) / h + c * vi + k * xi - fi])
 
     constrain = pendulum.general_constraint(eom_vector, states, specified,
-                                            [m, c, k], 3)
+                                            [m, c, k])
 
     state_values = np.array([[1, 2, 3, 4],
                              [5, 6, 7, 8]])

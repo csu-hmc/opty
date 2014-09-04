@@ -538,7 +538,7 @@ def wrap_objective(obj_func, *args):
 
 
 def general_constraint(eom_vector, state_syms, specified_syms,
-                       constant_syms, num_constraints):
+                       constant_syms):
     """Returns a function that evaluates the constraints.
 
     Parameters
@@ -552,8 +552,6 @@ def general_constraint(eom_vector, state_syms, specified_syms,
         The m functions of time representing the system's specified inputs.
     constant_syms : list of sympy.Symbols
         The b symbols representing the system's specified inputs.
-    num_constraints : integer
-        The number of EoM constraints.
 
     Returns
     -------
@@ -582,21 +580,29 @@ def general_constraint(eom_vector, state_syms, specified_syms,
     for n states and N-1 constraints at the time points.
 
     """
-    xi_syms, xp_syms, si_syms, h = discrete_symbols(state_syms, specified_syms)
+    xi_syms, xp_syms, si_syms, h_sym = \
+        discrete_symbols(state_syms, specified_syms)
 
     args = [x for x in xi_syms] + [x for x in xp_syms]
-    args += [s for s in si_syms] + constant_syms + [h]
+    args += [s for s in si_syms] + constant_syms + [h_sym]
 
     funcs = []
     for expr in eom_vector:
         funcs.append(ufuncify(args, expr, tempdir='ufuncjunk'))
 
-    def f(*args):
-        result = np.empty((num_constraints, len(eom_vector)))
+    def f(result, *args):
+        """
+        Parameters
+        ----------
+        result : ndarray, shape(N - 1, n)
+            An empty array that will be populated.
+        args : ndarrays, shape(N - 1,)
+            Arrays of all the args to the function.
+
+        """
         for i, func in enumerate(funcs):
             result[:, i] = func(*args)
         return result
-
 
     def constraints(state_values, specified_values, constant_values,
                     interval_value):
@@ -644,11 +650,14 @@ def general_constraint(eom_vector, state_syms, specified_syms,
         # because my version of ufuncify only works with arrays for all
         # arguments. These are generally very short arrays, so it shouldn't
         # be that much overhead.
-        ones = np.ones(state_values.shape[1] - 1)
+        num_constraints = state_values.shape[1] - 1
+        ones = np.ones(num_constraints)
         args += [c * ones for c in constant_values]
         args += [interval_value * ones]
 
-        return f(*args).T.flatten()
+        result = np.empty((num_constraints, state_values.shape[0]))
+
+        return f(result, *args).T.flatten()
 
     return constraints
 
@@ -662,6 +671,7 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
     discrete_eom_vec : sympy.Matrix, shape(n, 1)
         A column vector containing the discrete symbolic expressions of the
         n constraints based on the first order discrete equations of motion.
+        This vector should equate to the zero vector.
     state_syms : list of sympy.Functions
         The n functions of time representing the system's states.
     specified_syms : list of sympy.Functions
@@ -679,7 +689,8 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
         time points 2,...,N.
 
     """
-    xi_syms, xp_syms, si_syms, h = discrete_symbols(state_syms, specified_syms)
+    xi_syms, xp_syms, si_syms, h_sym = \
+        discrete_symbols(state_syms, specified_syms)
 
     # The free parameters are always the n * (N - 1) state values and the
     # user's specified unknown model constants, so the base Jacobian needs
@@ -690,13 +701,36 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
 
     # The arguments to the Jacobian function include all of the free
     # Symbols/Functions in the matrix expression.
-    args = xi_syms + xp_syms + si_syms + constant_syms + [h]
+    args = xi_syms + xp_syms + si_syms + constant_syms + [h_sym]
 
-    # This ensures that the NumPy array objects are used instead of the
-    # NumPy matrix objects.
-    modules = ({'ImmutableMatrix': np.array}, 'numpy')
+    symbolic_jacobian = eom_vector.jacobian(partials)
 
-    jac = sym.lambdify(args, eom_vector.jacobian(partials), modules=modules)
+    # Create a nested list of ufuncs that mimic the matrix structure.
+    funcs = []
+    for row in symbolic_jacobian.tolist():
+        row_funcs = []
+        for expr in row:
+            row_funcs.append(ufuncify(args, expr, tempdir='ufuncjunk'))
+        funcs.append(row_funcs)
+
+    def jac(result, *args):
+        """Takes N-1 length arrays as arguments.
+
+        Parameters
+        ----------
+        result : ndarray, shape(N - 1, n, num_partials)
+
+        """
+
+        # This could be parallelized or evaluated in one single low level
+        # loop.
+        # Also, some of these are zero and some are constant with respect to
+        # the collocation node. It would be good to identifiy those and only
+        # evaluate once.
+        for i, row in enumerate(funcs):
+            for j, func in enumerate(row):
+                result[:, i, j] = func(*args)
+        return result
 
     # jac is now a function that takes arguments that are made up of all the
     # variables in the discretized equations of motion. It will be used to
@@ -730,7 +764,6 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
             parameters are along the columns.
 
         """
-
         if state_values.shape[0] < 2:
             raise ValueError('There should always be at least two states.')
 
@@ -739,31 +772,46 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
 
         num_states = state_values.shape[0]  # n
         num_time_steps = state_values.shape[1]  # N
+        num_constraint_nodes = num_time_steps - 1  # N - 1
 
-        num_constraints = num_states * (num_time_steps - 1)
+        num_constraints = num_states * (num_constraint_nodes)
         num_free = num_states * num_time_steps + num_free_constants
+
+        # 2n x N - 1
+        args = [x for x in x_current] + [x for x in x_previous]
+
+        # 2n + m x N - 1
+        if len(specified_values.shape) == 2:
+            args += [s for s in specified_values[:, 1:]]
+        else:
+            args += [specified_values[1:]]
+
+        # These are scalars so, for now, we need to create arrays for these
+        # because my version of ufuncify only works with arrays for all
+        # arguments. These are generally very short lists of constants, so
+        # it shouldn't be that much overhead.
+
+        ones = np.ones(num_constraint_nodes)
+        args += [c * ones for c in constant_values]
+        args += [interval_value * ones]
+
+        result = np.empty((num_constraint_nodes,
+                           symbolic_jacobian.shape[0],
+                           symbolic_jacobian.shape[1]))
+
+        # shape(N - 1, n, 2*n+p) where p is len(free_constants)
+        non_zero_derivatives = jac(result, *args)
 
         jacobian_matrix = sparse.lil_matrix((num_constraints, num_free))
 
-        # Now loop through the N - 1 constraints to compute the non-zero
-        # entries to the gradient matrix (the partials for n states will be
-        # computed at each iteration).
+        # Now loop through the N - 1 constraint nodes to compute the
+        # non-zero entries to the gradient matrix (the partials for n states
+        # will be computed at each iteration).
 
         for i in range(num_time_steps - 1):
             # n: num_states
             # m: num_specified
             # p: num_free_constants
-
-            xi = x_current[:, i]  # len(n)
-            xp = x_previous[:, i]  # len(n)
-            if len(specified_values.shape) < 2:
-                si = specified_values[i]  # len(m)
-            else:
-                si = specified_values[:, i]  # len(m)
-
-            args = np.hstack((xi, xp, si, constant_values, interval_value))
-
-            non_zero_derivatives = jac(*args)  # n x (2*n+p), p is len(free_constants)
 
             # the states repeat every N - 1 constraints
             # row_idxs = [0 * (N - 1), 1 * (N - 1),  2 * (N - 1),  n * (N - 1)]
@@ -790,7 +838,7 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
                          for j in range(num_free_constants)]
 
             substitute_matrix(jacobian_matrix, row_idxs, col_idxs,
-                              non_zero_derivatives)
+                              non_zero_derivatives[i])
 
         return jacobian_matrix.tocsr()
 
@@ -1101,8 +1149,7 @@ class Identifier():
         # Now generate a function which evaluates the N-1 constraints.
         gen_con_func = general_constraint(dclosed, self.states_syms,
                                           [self.specified_inputs_syms[-1]],
-                                          self.constants_syms + gain_syms,
-                                          self.num_time_steps - 1)
+                                          self.constants_syms + gain_syms)
 
         self.con_func = wrap_constraint(gen_con_func,
                                         self.num_time_steps,
@@ -1246,8 +1293,8 @@ class Identifier():
             choose_initial_conditions(self.init_type,
                                       self.x_noise if self.sensor_noise else self.x,
                                       self.gains)
-        #self.optimize()
-        #self.store_results()
+        self.optimize()
+        self.store_results()
 
         if self.do_plot:
             self.plot()
