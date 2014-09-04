@@ -802,13 +802,16 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
         # shape(N - 1, n, 2*n+p) where p is len(free_constants)
         non_zero_derivatives = jac(result, *args)
 
-        jacobian_matrix = sparse.lil_matrix((num_constraints, num_free))
-
         # Now loop through the N - 1 constraint nodes to compute the
         # non-zero entries to the gradient matrix (the partials for n states
         # will be computed at each iteration).
+        num_partials = (non_zero_derivatives.shape[1] *
+                        non_zero_derivatives.shape[2])
+        jac_vals = np.empty(num_partials * num_constraint_nodes, dtype=float)
+        jac_row_idxs = np.empty(len(jac_vals), dtype=int)
+        jac_col_idxs = np.empty(len(jac_vals), dtype=int)
 
-        for i in range(num_time_steps - 1):
+        for i in range(num_constraint_nodes):
             # n: num_states
             # m: num_specified
             # p: num_free_constants
@@ -816,7 +819,7 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
             # the states repeat every N - 1 constraints
             # row_idxs = [0 * (N - 1), 1 * (N - 1),  2 * (N - 1),  n * (N - 1)]
 
-            row_idxs = [j * (num_time_steps - 1) + i
+            row_idxs = [j * (num_constraint_nodes) + i
                         for j in range(num_states)]
 
             # The derivative columns are in this order:
@@ -837,10 +840,17 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
             col_idxs += [num_states * num_time_steps + j
                          for j in range(num_free_constants)]
 
-            substitute_matrix(jacobian_matrix, row_idxs, col_idxs,
-                              non_zero_derivatives[i])
+            row_idx_permutations = np.repeat(row_idxs, len(col_idxs))
+            col_idx_permutations = np.array(list(col_idxs) * len(row_idxs),
+                                            dtype=int)
 
-        return jacobian_matrix.tocsr()
+            start = i * num_partials
+            stop = (i + 1) * num_partials
+            jac_row_idxs[start:stop] = row_idx_permutations
+            jac_col_idxs[start:stop] = col_idx_permutations
+            jac_vals[start:stop] = non_zero_derivatives[i].flatten()
+
+        return jac_row_idxs, jac_col_idxs, jac_vals
 
     return constraints_jacobian
 
@@ -995,7 +1005,7 @@ class Problem(ipopt.problem):
         self.con_jac = con_jac
 
         self.con_jac_rows, self.con_jac_cols, values = \
-            sparse.find(con_jac(np.random.random(num_free_variables)))
+            con_jac(np.random.random(num_free_variables))
 
         con_bounds = np.zeros(num_constraints)
 
@@ -1028,8 +1038,7 @@ class Problem(ipopt.problem):
         return (self.con_jac_rows, self.con_jac_cols)
 
     def jacobian(self, free):
-        jac = self.con_jac(free)
-        return sparse.find(jac)[2]
+        return self.con_jac(free)[2]
 
     def intermediate(self, *args):
         self.obj_value.append(args[2])

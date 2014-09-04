@@ -589,6 +589,8 @@ def test_general_constraint_jacobian():
 
     result = jacobian(state_values, specified_values, constant_values, h)
 
+    jacobian_matrix = sparse.coo_matrix((result[2], (result[0], result[1])))
+
     # jacobian of eom_vector wrt vi, xi, xp, vp, k
     #    [     vi,  xi,   vp,   xp,  k]
     # x: [     -1, 1/h,    0, -1/h,  0]
@@ -603,7 +605,7 @@ def test_general_constraint_jacobian():
          [     0,      0,      k,     0,      0,    -m / h,  c + m / h,         0, x[2]],
          [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]])
 
-    np.testing.assert_allclose(result.todense(), expected_jacobian)
+    np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
 
 
 def test_wrap_constraint():
@@ -681,6 +683,8 @@ def test_wrap_constraint():
 
     result = jacobian(free)
 
+    jacobian_matrix = sparse.coo_matrix((result[2], (result[0], result[1])))
+
     x = state_values[0]
 
     expected_jacobian = np.array(
@@ -692,4 +696,4 @@ def test_wrap_constraint():
          [     0,      0,      k,     0,      0,    -m / h,  c + m / h,         0, x[2]],
          [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]])
 
-    np.testing.assert_allclose(result.todense(), expected_jacobian)
+    np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
