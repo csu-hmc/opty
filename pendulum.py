@@ -807,9 +807,14 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
         # will be computed at each iteration).
         num_partials = (non_zero_derivatives.shape[1] *
                         non_zero_derivatives.shape[2])
+        # TODO : The ordered Jacobian values may be able to be gotten by
+        # simply flattening non_zero_derivatives.
         jac_vals = np.empty(num_partials * num_constraint_nodes, dtype=float)
         jac_row_idxs = np.empty(len(jac_vals), dtype=int)
         jac_col_idxs = np.empty(len(jac_vals), dtype=int)
+
+        # TODO : Move the computation of the indices out of this function as
+        # it only needs to happen one time per problem.
 
         for i in range(num_constraint_nodes):
             # n: num_states
@@ -1156,9 +1161,12 @@ class Identifier():
         dclosed = discretize(closed, self.states_syms, self.specified_inputs_syms)
 
         # Now generate a function which evaluates the N-1 constraints.
+        start = time.clock()
         gen_con_func = general_constraint(dclosed, self.states_syms,
                                           [self.specified_inputs_syms[-1]],
                                           self.constants_syms + gain_syms)
+        msg = 'Compilation of constraint function took {} CPU seconds.'
+        print(msg.format(time.clock() - start))
 
         self.con_func = wrap_constraint(gen_con_func,
                                         self.num_time_steps,
@@ -1169,11 +1177,14 @@ class Identifier():
                                         constants_dict(self.constants_syms),
                                         {self.specified_inputs_syms[-1]: self.u})
 
+        start = time.clock()
         gen_con_jac_func = general_constraint_jacobian(dclosed,
                                                        self.states_syms,
                                                        [self.specified_inputs_syms[-1]],
                                                        self.constants_syms + gain_syms,
                                                        gain_syms)
+        msg = 'Compilation of constraint Jacobian function took {} CPU seconds.'
+        print(msg.format(time.clock() - start))
 
         self.con_jac_func = wrap_constraint(gen_con_jac_func,
                                             self.num_time_steps,
