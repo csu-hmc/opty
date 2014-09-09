@@ -1,9 +1,114 @@
 #!/usr/bin/env python
 
+import subprocess
+import importlib
+
 import numpy as np
 import sympy as sy
 from sympy.utilities.lambdify import implemented_function
 from sympy.utilities.autowrap import autowrap
+
+_c_template = """\
+#include <math.h>
+#include "{file_prefix}_h.h"
+
+void {routine_name}({input_args}, double matrix[{matrix_output_size}])
+{{
+{eval_code}
+}}
+"""
+
+_h_template = """\
+void {routine_name}({input_args}, double matrix[{matrix_output_size}]);
+"""
+
+_cython_template = """\
+import numpy as np
+cimport numpy as np
+cimport cython
+
+cdef extern from "{file_prefix}_h.h":
+    void {routine_name}({input_args}, double matrix[{matrix_output_size}])
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def {routine_name}_loop({numpy_typed_input_args}, np.ndarray[np.double_t, ndim=2] matrix):
+
+    cdef int n = matrix.shape[0]
+
+    cdef int i
+
+    for i in range(n):
+        {routine_name}({indexed_input_args},
+                       &matrix[i, 0])
+
+    return matrix
+"""
+
+_setup_template = """\
+import numpy
+from distutils.core import setup
+from distutils.extension import Extension
+from Cython.Distutils import build_ext
+
+extension = Extension(name="{file_prefix}",
+                      sources=["{file_prefix}.pyx",
+                               "{file_prefix}_c.c"],
+                      include_dirs=[numpy.get_include()])
+
+setup(name="{routine_name}",
+      cmdclass={{'build_ext': build_ext}},
+      ext_modules=[extension])
+"""
+
+
+def ufuncify_matrix(args, expr, cse=True):
+
+    matrix_size = expr.shape[0] * expr.shape[1]
+
+    d = {'routine_name': 'eval_matrix',
+         'file_prefix': 'ufuncify_matrix',
+         'matrix_output_size': matrix_size}
+
+    matrix_sym = sy.MatrixSymbol('matrix', expr.shape[0], expr.shape[1])
+
+    sub_exprs, simple_mat = sy.cse(expr, sy.numbered_symbols('z_'))
+
+    sub_expr_code = '\n'.join(['double ' + sy.ccode(sub_expr[1], sub_expr[0])
+                               for sub_expr in sub_exprs])
+
+    matrix_code = sy.ccode(simple_mat[0], matrix_sym)
+
+    d['eval_code'] = '    ' + '\n    '.join((sub_expr_code + '\n' + matrix_code).split('\n'))
+
+    c_indent = len('void {routine_name}('.format(**d))
+    c_arg_spacer = ',\n' + ' ' * c_indent
+
+    d['input_args'] = c_arg_spacer.join(['double {}'.format(a) for a in args])
+
+    cython_indent = len('def {routine_name}_loop('.format(**d))
+    cython_arg_spacer = ',\n' + ' ' * cython_indent
+
+    d['numpy_typed_input_args'] = cython_arg_spacer.join(['np.ndarray[np.double_t, ndim=1] {}'.format(a) for a in args])
+
+    d['indexed_input_args'] = ',\n'.join(['{}[i]'.format(a) for a in args])
+
+    files = {}
+    files[d['file_prefix'] + '_c.c'] = _c_template.format(**d)
+    files[d['file_prefix'] + '_h.h'] = _h_template.format(**d)
+    files[d['file_prefix'] + '.pyx'] = _cython_template.format(**d)
+    files[d['file_prefix'] + '_setup.py'] = _setup_template.format(**d)
+
+    for filename, code in files.items():
+        with open(filename, 'w') as f:
+            f.write(code)
+
+    cmd = ['python', d['file_prefix'] + '_setup.py', 'build_ext', '--inplace']
+    subprocess.call(cmd, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+
+    cython_module = importlib.import_module(d['file_prefix'])
+    return getattr(cython_module, d['routine_name'] + '_loop')
+
 
 """This is a small rewrite of the ufuncify function in sympy so it supports
 array arguments for all values."""
