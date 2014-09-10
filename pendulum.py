@@ -50,7 +50,7 @@ import tables
 import pandas
 
 # local
-from utils import substitute_matrix, controllable, ufuncify
+from utils import substitute_matrix, controllable, ufuncify_matrix
 from visualization import (plot_sim_results, plot_constraints,
                            animate_pendulum, plot_identified_state_trajectory)
 
@@ -586,23 +586,7 @@ def general_constraint(eom_vector, state_syms, specified_syms,
     args = [x for x in xi_syms] + [x for x in xp_syms]
     args += [s for s in si_syms] + constant_syms + [h_sym]
 
-    funcs = []
-    for expr in eom_vector:
-        funcs.append(ufuncify(args, expr, tempdir='ufuncjunk'))
-
-    def f(result, *args):
-        """
-        Parameters
-        ----------
-        result : ndarray, shape(N - 1, n)
-            An empty array that will be populated.
-        args : ndarrays, shape(N - 1,)
-            Arrays of all the args to the function.
-
-        """
-        for i, func in enumerate(funcs):
-            result[:, i] = func(*args)
-        return result
+    f = ufuncify_matrix(args, eom_vector)
 
     def constraints(state_values, specified_values, constant_values,
                     interval_value):
@@ -705,32 +689,7 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
 
     symbolic_jacobian = eom_vector.jacobian(partials)
 
-    # Create a nested list of ufuncs that mimic the matrix structure.
-    funcs = []
-    for row in symbolic_jacobian.tolist():
-        row_funcs = []
-        for expr in row:
-            row_funcs.append(ufuncify(args, expr, tempdir='ufuncjunk'))
-        funcs.append(row_funcs)
-
-    def jac(result, *args):
-        """Takes N-1 length arrays as arguments.
-
-        Parameters
-        ----------
-        result : ndarray, shape(N - 1, n, num_partials)
-
-        """
-
-        # This could be parallelized or evaluated in one single low level
-        # loop.
-        # Also, some of these are zero and some are constant with respect to
-        # the collocation node. It would be good to identifiy those and only
-        # evaluate once.
-        for i, row in enumerate(funcs):
-            for j, func in enumerate(row):
-                result[:, i, j] = func(*args)
-        return result
+    jac = ufuncify_matrix(args, symbolic_jacobian)
 
     # jac is now a function that takes arguments that are made up of all the
     # variables in the discretized equations of motion. It will be used to
@@ -796,7 +755,7 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
         args += [interval_value * ones]
 
         result = np.empty((num_constraint_nodes,
-                           symbolic_jacobian.shape[0],
+                           symbolic_jacobian.shape[0] *
                            symbolic_jacobian.shape[1]))
 
         # shape(N - 1, n, 2*n+p) where p is len(free_constants)

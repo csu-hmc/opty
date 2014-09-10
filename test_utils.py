@@ -5,7 +5,7 @@ import sympy as sp
 from utils import ufuncify_matrix
 
 
-def test_ufuncify_iterable():
+def test_ufuncify_matrix():
 
     a, b, c = sp.symbols('a, b, c')
 
@@ -46,7 +46,7 @@ def test_ufuncify_iterable():
 
     result = np.empty((n, 4))
 
-    testing.assert_allclose(f(a_vals, b_vals, c_vals, result),
+    testing.assert_allclose(f(result, a_vals, b_vals, c_vals),
                             eval_matrix_loop_numpy(a_vals, b_vals, c_vals))
 
     #testing.assert_allclose(f(a_vals, b_vals, 5.2, result).reshape(n, 2, 2),

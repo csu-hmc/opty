@@ -343,19 +343,19 @@ def test_symbolic_constraints():
 def test_output_equations():
 
     # four states (cols), and 5 time steps (rows)
-    x = np.array([[1, 2, 3, 4],
-                  [5, 6, 7, 8],
-                  [9, 10, 11, 12],
-                  [13, 14, 15, 16],
-                  [17, 18, 19, 20]])
+    x = np.array([[1.0, 2.0, 3.0, 4.0],
+                  [5.0, 6.0, 7.0, 8.0],
+                  [9.0, 10.0, 11.0, 12.0],
+                  [13.0, 14.0, 15.0, 16.0],
+                  [17.0, 18.0, 19.0, 20.0]])
 
     y = pendulum.output_equations(x)
 
-    expected_y = np.array([[1, 2],
-                           [5, 6],
-                           [9, 10],
-                           [13, 14],
-                           [17, 18]])
+    expected_y = np.array([[1.0, 2.0],
+                           [5.0, 6.0],
+                           [9.0, 10.0],
+                           [13.0, 14.0],
+                           [17.0, 18.0]])
 
     np.testing.assert_allclose(y, expected_y)
 
@@ -395,14 +395,16 @@ def test_objective_function_gradient():
     free = np.hstack((x_model.T.flatten(), np.random.random(q)))
 
     cost = pendulum.objective_function(free, M, n, h, time, y_measured)
-    grad = pendulum.objective_function_gradient(free, M, n, h, time, y_measured)
+    grad = pendulum.objective_function_gradient(free, M, n, h, time,
+                                                y_measured)
 
     expected_grad = np.zeros_like(free)
     delta = 1e-8
     for i in range(len(free)):
         free_copy = free.copy()
         free_copy[i] = free_copy[i] + delta
-        perturbed = pendulum.objective_function(free_copy, M, n, h, time, y_measured)
+        perturbed = pendulum.objective_function(free_copy, M, n, h, time,
+                                                y_measured)
         expected_grad[i] = (perturbed - cost) / delta
 
     np.testing.assert_allclose(grad, expected_grad, atol=1e-8)
@@ -527,9 +529,9 @@ def test_general_constraint():
     constrain = pendulum.general_constraint(eom_vector, states, specified,
                                             [m, c, k])
 
-    state_values = np.array([[1, 2, 3, 4],
-                             [5, 6, 7, 8]])
-    specified_values = np.array([2, 2, 2, 2])
+    state_values = np.array([[1.0, 2.0, 3.0, 4.0],
+                             [5.0, 6.0, 7.0, 8.0]])
+    specified_values = np.array([2.0, 2.0, 2.0, 2.0])
     constant_values = np.array([1.0, 2.0, 3.0])
     m, c, k = constant_values
     h = 0.01
@@ -578,9 +580,9 @@ def test_general_constraint_jacobian():
                                                     specified, constants,
                                                     free_constants)
 
-    state_values = np.array([[1, 2, 3, 4],   # x
-                             [5, 6, 7, 8]])  # v
-    specified_values = np.array([2, 2, 2, 2])
+    state_values = np.array([[1.0, 2.0, 3.0, 4.0],   # x
+                             [5.0, 6.0, 7.0, 8.0]])  # v
+    specified_values = np.array([2.0, 2.0, 2.0, 2.0])
     constant_values = np.array([1.0, 2.0, 3.0])
 
     x = state_values[0]
@@ -603,7 +605,8 @@ def test_general_constraint_jacobian():
          [     0,      0, -1 / h, 1 / h,      0,         0,          0,        -1,    0],
          [     0,      k,      0,     0, -m / h, c + m / h,          0,         0, x[1]],
          [     0,      0,      k,     0,      0,    -m / h,  c + m / h,         0, x[2]],
-         [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]])
+         [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]],
+        dtype=float)
 
     np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
 
@@ -640,7 +643,7 @@ def test_wrap_constraint():
     num_states = 2
     interval_value = 0.01
     fixed_constants = {m: 1.0, c: 2.0}
-    fixed_specified = {fi: np.array([2, 2, 2, 2])}
+    fixed_specified = {fi: np.array([2.0, 2.0, 2.0, 2.0])}
 
     specified_syms = [fi]
 
@@ -649,16 +652,16 @@ def test_wrap_constraint():
                                          constants, specified_syms,
                                          fixed_constants, fixed_specified)
 
-    free = np.array([1, 2, 3, 4, 5, 6, 7, 8, 3.0])
+    free = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 3.0])
 
     result = constrain(free)
 
     expected_dynamic = np.zeros(3)
     expected_kinematic = np.zeros(3)
 
-    state_values = np.array([[1, 2, 3, 4],
-                             [5, 6, 7, 8]])
-    specified_values = np.array([2, 2, 2, 2])
+    state_values = np.array([[1.0, 2.0, 3.0, 4.0],
+                             [5.0, 6.0, 7.0, 8.0]])
+    specified_values = np.array([2.0, 2.0, 2.0, 2.0])
     constant_values = np.array([1.0, 2.0, 3.0])
     m, c, k = constant_values
     h = interval_value
@@ -694,6 +697,7 @@ def test_wrap_constraint():
          [     0,      0, -1 / h, 1 / h,      0,         0,          0,        -1,    0],
          [     0,      k,      0,     0, -m / h, c + m / h,          0,         0, x[1]],
          [     0,      0,      k,     0,      0,    -m / h,  c + m / h,         0, x[2]],
-         [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]])
+         [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]],
+        dtype=float)
 
     np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)

@@ -12,14 +12,14 @@ _c_template = """\
 #include <math.h>
 #include "{file_prefix}_h.h"
 
-void {routine_name}({input_args}, double matrix[{matrix_output_size}])
+void {routine_name}(double matrix[{matrix_output_size}], {input_args})
 {{
 {eval_code}
 }}
 """
 
 _h_template = """\
-void {routine_name}({input_args}, double matrix[{matrix_output_size}]);
+void {routine_name}(double matrix[{matrix_output_size}], {input_args});
 """
 
 _cython_template = """\
@@ -28,19 +28,18 @@ cimport numpy as np
 cimport cython
 
 cdef extern from "{file_prefix}_h.h":
-    void {routine_name}({input_args}, double matrix[{matrix_output_size}])
+    void {routine_name}(double matrix[{matrix_output_size}], {input_args})
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def {routine_name}_loop({numpy_typed_input_args}, np.ndarray[np.double_t, ndim=2] matrix):
+def {routine_name}_loop(np.ndarray[np.double_t, ndim=2] matrix, {numpy_typed_input_args}):
 
     cdef int n = matrix.shape[0]
 
     cdef int i
 
     for i in range(n):
-        {routine_name}({indexed_input_args},
-                       &matrix[i, 0])
+        {routine_name}(&matrix[i, 0], {indexed_input_args})
 
     return matrix.reshape(n, {num_rows}, {num_cols})
 """
@@ -66,8 +65,23 @@ def ufuncify_matrix(args, expr, cse=True):
 
     matrix_size = expr.shape[0] * expr.shape[1]
 
+    file_prefix_base = 'ufuncify_matrix'
+    file_prefix = '{}_{}'.format(file_prefix_base, 0)
+
+    taken = False
+    i = 1
+
+    while not taken:
+        try:
+            open(file_prefix + '.pyx', 'r')
+        except IOError:
+            taken = True
+        else:
+            file_prefix = '{}_{}'.format(file_prefix_base, i)
+            i += 1
+
     d = {'routine_name': 'eval_matrix',
-         'file_prefix': 'ufuncify_matrix',
+         'file_prefix': file_prefix,
          'matrix_output_size': matrix_size,
          'num_rows': expr.shape[0],
          'num_cols': expr.shape[1]}
