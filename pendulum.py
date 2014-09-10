@@ -42,7 +42,6 @@ import sympy as sym
 from scipy.interpolate import interp1d
 from scipy.linalg import solve_continuous_are
 from scipy.integrate import odeint
-from scipy import sparse
 from pydy.codegen.code import generate_ode_function
 from model import n_link_pendulum_on_cart
 import ipopt
@@ -50,7 +49,7 @@ import tables
 import pandas
 
 # local
-from utils import substitute_matrix, controllable, ufuncify_matrix
+from utils import controllable, ufuncify_matrix
 from visualization import (plot_sim_results, plot_constraints,
                            animate_pendulum, plot_identified_state_trajectory)
 
