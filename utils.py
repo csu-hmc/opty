@@ -53,6 +53,7 @@ from Cython.Distutils import build_ext
 extension = Extension(name="{file_prefix}",
                       sources=["{file_prefix}.pyx",
                                "{file_prefix}_c.c"],
+                      extra_compile_args=["-O3", "-ffast-math"],
                       include_dirs=[numpy.get_include()])
 
 setup(name="{routine_name}",
