@@ -46,7 +46,7 @@ def test_ufuncify_iterable():
 
     result = np.empty((n, 4))
 
-    testing.assert_allclose(f(a_vals, b_vals, c_vals, result).reshape(n, 2, 2),
+    testing.assert_allclose(f(a_vals, b_vals, c_vals, result),
                             eval_matrix_loop_numpy(a_vals, b_vals, c_vals))
 
     #testing.assert_allclose(f(a_vals, b_vals, 5.2, result).reshape(n, 2, 2),

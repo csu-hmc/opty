@@ -42,7 +42,7 @@ def {routine_name}_loop({numpy_typed_input_args}, np.ndarray[np.double_t, ndim=2
         {routine_name}({indexed_input_args},
                        &matrix[i, 0])
 
-    return matrix
+    return matrix.reshape(n, {num_rows}, {num_cols})
 """
 
 _setup_template = """\
@@ -68,7 +68,9 @@ def ufuncify_matrix(args, expr, cse=True):
 
     d = {'routine_name': 'eval_matrix',
          'file_prefix': 'ufuncify_matrix',
-         'matrix_output_size': matrix_size}
+         'matrix_output_size': matrix_size,
+         'num_rows': expr.shape[0],
+         'num_cols': expr.shape[1]}
 
     matrix_sym = sy.MatrixSymbol('matrix', expr.shape[0], expr.shape[1])
 
