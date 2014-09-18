@@ -410,27 +410,6 @@ def test_objective_function_gradient():
     np.testing.assert_allclose(grad, expected_grad, atol=1e-8)
 
 
-def teste_substitute_matrix():
-
-    A = np.arange(1, 13, dtype=float).reshape(3, 4)
-    sub = np.array([[21, 22], [23, 24]])
-    new_A = pendulum.substitute_matrix(A, [1, 2], [0, 2], sub)
-    expected = np.array([[1, 2, 3, 4],
-                         [21, 6, 22, 8],
-                         [23, 10, 24, 12]], dtype=float)
-
-    np.testing.assert_allclose(new_A, expected)
-
-    A = sparse.lil_matrix(np.zeros((3, 4)))
-    sub = np.array([[21, 22], [23, 24]])
-    new_A = pendulum.substitute_matrix(A, [1, 2], [0, 2], sub)
-    expected = np.array([[0, 0, 0, 0],
-                         [21, 0, 22, 0],
-                         [23, 0, 24, 0]], dtype=float)
-
-    np.testing.assert_allclose(new_A.todense(), expected)
-
-
 def test_discrete_symbols():
     t = symbols('t')
     v, x = symbols('v, x', cls=Function)

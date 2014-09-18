@@ -219,6 +219,7 @@ def ufuncify(args, expr, **kwargs):
     args_with_indices = [a[i] for a in indexed_args]
     return autowrap(sy.Eq(y[i], f(*args_with_indices)), **kwargs)
 
+
 def controllable(a, b):
     """Returns true if the system is controllable and false if not.
 

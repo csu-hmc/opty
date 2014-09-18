@@ -1,8 +1,9 @@
 import numpy as np
 from numpy import testing
 import sympy as sp
+from scipy import sparse
 
-from utils import ufuncify_matrix
+import utils
 
 
 def test_ufuncify_matrix():
@@ -43,16 +44,37 @@ def test_ufuncify_matrix():
 
         return result
 
-    f = ufuncify_matrix((a, b, c), sym_mat)
+    f = utils.ufuncify_matrix((a, b, c), sym_mat)
 
     result = np.empty((n, 4))
 
     testing.assert_allclose(f(result, a_vals, b_vals, c_vals),
                             eval_matrix_loop_numpy(a_vals, b_vals, c_vals))
 
-    f = ufuncify_matrix((a, b, c), sym_mat, const=(c,))
+    f = utils.ufuncify_matrix((a, b, c), sym_mat, const=(c,))
 
     result = np.empty((n, 4))
 
     testing.assert_allclose(f(result, a_vals, b_vals, c_val),
                             eval_matrix_loop_numpy(a_vals, b_vals, c_val))
+
+
+def test_substitute_matrix():
+
+    A = np.arange(1, 13, dtype=float).reshape(3, 4)
+    sub = np.array([[21, 22], [23, 24]])
+    new_A = utils.substitute_matrix(A, [1, 2], [0, 2], sub)
+    expected = np.array([[1, 2, 3, 4],
+                         [21, 6, 22, 8],
+                         [23, 10, 24, 12]], dtype=float)
+
+    np.testing.assert_allclose(new_A, expected)
+
+    A = sparse.lil_matrix(np.zeros((3, 4)))
+    sub = np.array([[21, 22], [23, 24]])
+    new_A = utils.substitute_matrix(A, [1, 2], [0, 2], sub)
+    expected = np.array([[0, 0, 0, 0],
+                         [21, 0, 22, 0],
+                         [23, 0, 24, 0]], dtype=float)
+
+    np.testing.assert_allclose(new_A.todense(), expected)
