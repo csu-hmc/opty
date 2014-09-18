@@ -697,8 +697,6 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
     # returns the non-zero elements needed to build the sparse constraint
     # gradient.
 
-    num_free_constants = len(free_constants)
-
     def constraints_jacobian(state_values, specified_values,
                              constant_values, interval_value):
         """Returns a sparse matrix of constraint gradient given all of the
@@ -717,10 +715,10 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
 
         Returns
         -------
-        constraints_gradient : scipy.sparse.csr_matrix, shape(2 * (N-1), n * N + p)
-            A compressed sparse row matrix containing the gradient of the
-            constraints where the constaints are along the rows and the free
-            parameters are along the columns.
+        constraints_gradient : ndarray,
+            The values of the non-zero entries to the constraints Jacobian.
+            These correspond to the triplet formatted indices returned from
+            compute_jacobian_indices.
 
         """
         if state_values.shape[0] < 2:
@@ -729,12 +727,8 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
         x_current = state_values[:, 1:]  # n x N - 1
         x_previous = state_values[:, :-1]  # n x N - 1
 
-        num_states = state_values.shape[0]  # n
         num_time_steps = state_values.shape[1]  # N
         num_constraint_nodes = num_time_steps - 1  # N - 1
-
-        num_constraints = num_states * (num_constraint_nodes)
-        num_free = num_states * num_time_steps + num_free_constants
 
         # 2n x N - 1
         args = [x for x in x_current] + [x for x in x_previous]
@@ -760,57 +754,96 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
         # will be computed at each iteration).
         num_partials = (non_zero_derivatives.shape[1] *
                         non_zero_derivatives.shape[2])
-        # TODO : The ordered Jacobian values may be able to be gotten by
-        # simply flattening non_zero_derivatives.
-        jac_vals = np.empty(num_partials * num_constraint_nodes, dtype=float)
-        jac_row_idxs = np.empty(len(jac_vals), dtype=int)
-        jac_col_idxs = np.empty(len(jac_vals), dtype=int)
 
-        # TODO : Move the computation of the indices out of this function as
-        # it only needs to happen one time per problem.
+        jac_vals = np.empty(num_partials * num_constraint_nodes,
+                            dtype=float)
+
+        # TODO : The ordered Jacobian values may be able to be gotten by
+        # simply flattening non_zero_derivatives. And if not, then maybe
+        # this loop needs to be in Cython.
 
         for i in range(num_constraint_nodes):
-            # n: num_states
-            # m: num_specified
-            # p: num_free_constants
-
-            # the states repeat every N - 1 constraints
-            # row_idxs = [0 * (N - 1), 1 * (N - 1),  2 * (N - 1),  n * (N - 1)]
-
-            row_idxs = [j * (num_constraint_nodes) + i
-                        for j in range(num_states)]
-
-            # The derivative columns are in this order:
-            # [x1i, x2i, ..., xni, x1p, x2p, ..., xnp, p1, ..., pp]
-            # So we need to map them to the correct column.
-
-            # first row, the columns indices mapping is:
-            # [1, N + 1, ..., N - 1] : [x1p, x1i, 0, ..., 0]
-            # [0, N, ..., 2 * (N - 1)] : [x2p, x2i, 0, ..., 0]
-            # [-p:] : p1,..., pp  the free constants
-
-            # i=0: [1, ..., n * N + 1, 0, ..., n * N + 0, n * N:n * N + p]
-            # i=1: [2, ..., n * N + 2, 1, ..., n * N + 1, n * N:n * N + p]
-            # i=2: [3, ..., n * N + 3, 2, ..., n * N + 2, n * N:n * N + p]
-
-            col_idxs = [j * num_time_steps + i + 1 for j in range(num_states)]
-            col_idxs += [j * num_time_steps + i for j in range(num_states)]
-            col_idxs += [num_states * num_time_steps + j
-                         for j in range(num_free_constants)]
-
-            row_idx_permutations = np.repeat(row_idxs, len(col_idxs))
-            col_idx_permutations = np.array(list(col_idxs) * len(row_idxs),
-                                            dtype=int)
-
             start = i * num_partials
             stop = (i + 1) * num_partials
-            jac_row_idxs[start:stop] = row_idx_permutations
-            jac_col_idxs[start:stop] = col_idx_permutations
+            # TODO : This flatten() call is currently the most time
+            # consuming thing in this function at this point.
             jac_vals[start:stop] = non_zero_derivatives[i].flatten()
 
-        return jac_row_idxs, jac_col_idxs, jac_vals
+        return jac_vals
 
     return constraints_jacobian
+
+
+def compute_jacobian_indices(num_time_steps, num_states, num_free_constants):
+    """Returns the row and column indices for the non-zero values in the
+    constraint Jacobian.
+
+    Parameters
+    ----------
+    num_time_steps : integer
+        The number of discretization point in the time range.
+    num_states : integer
+        Number of system states.
+    num_free_constants : integer
+        The number of free model constants in the optimization.
+
+    Returns
+    -------
+    jac_row_idxs : ndarray, shape(2 * n + q + r,)
+        The row indices for the non-zero values in the Jacobian.
+    jac_col_idxs : ndarray, shape(n,)
+        The column indices for the non-zero values in the Jacobian.
+
+    """
+
+    num_constraint_nodes = num_time_steps - 1
+    # TODO : Change to the following to support free specified.
+    # num_states * (2 * num_states + num_free_constants + num_free_specified)
+    num_partials = num_states * (2 * num_states + num_free_constants)
+    num_non_zero_values = num_partials * num_constraint_nodes
+
+    jac_row_idxs = np.empty(num_non_zero_values, dtype=int)
+    jac_col_idxs = np.empty(num_non_zero_values, dtype=int)
+
+    for i in range(num_constraint_nodes):
+        # n: num_states
+        # m: num_specified
+        # p: num_free_constants
+
+        # the states repeat every N - 1 constraints
+        # row_idxs = [0 * (N - 1), 1 * (N - 1),  2 * (N - 1),  n * (N - 1)]
+
+        row_idxs = [j * (num_constraint_nodes) + i
+                    for j in range(num_states)]
+
+        # The derivative columns are in this order:
+        # [x1i, x2i, ..., xni, x1p, x2p, ..., xnp, p1, ..., pp]
+        # So we need to map them to the correct column.
+
+        # first row, the columns indices mapping is:
+        # [1, N + 1, ..., N - 1] : [x1p, x1i, 0, ..., 0]
+        # [0, N, ..., 2 * (N - 1)] : [x2p, x2i, 0, ..., 0]
+        # [-p:] : p1,..., pp  the free constants
+
+        # i=0: [1, ..., n * N + 1, 0, ..., n * N + 0, n * N:n * N + p]
+        # i=1: [2, ..., n * N + 2, 1, ..., n * N + 1, n * N:n * N + p]
+        # i=2: [3, ..., n * N + 3, 2, ..., n * N + 2, n * N:n * N + p]
+
+        col_idxs = [j * num_time_steps + i + 1 for j in range(num_states)]
+        col_idxs += [j * num_time_steps + i for j in range(num_states)]
+        col_idxs += [num_states * num_time_steps + j
+                     for j in range(num_free_constants)]
+
+        row_idx_permutations = np.repeat(row_idxs, len(col_idxs))
+        col_idx_permutations = np.array(list(col_idxs) * len(row_idxs),
+                                        dtype=int)
+
+        start = i * num_partials
+        stop = (i + 1) * num_partials
+        jac_row_idxs[start:stop] = row_idx_permutations
+        jac_col_idxs[start:stop] = col_idx_permutations
+
+    return jac_row_idxs, jac_col_idxs
 
 
 def wrap_constraint(func, num_time_steps, num_states,
@@ -945,12 +978,21 @@ class Problem(ipopt.problem):
 
         Parameters
         ----------
-        num_discretization_points
-        num_states
-        num_free_model_parameters
+        N : integer
+            Number of discretization points during the time range.
+        n : integer
+            Number of states in the system.
+        q : integer
+           Number of free model parameters, i.e. the number of model
+           constants which are included in the free optimization parameters.
         obj : function
-            The objective function.
+            Returns the value of the objective function.
         obj_grad : function
+            Returns the gradient of the objective function.
+        con : function
+            Returns the value of the constraints.
+        con_jac : function
+            Returns the Jacobian of the constraints.
 
         """
 
@@ -962,8 +1004,10 @@ class Problem(ipopt.problem):
         self.con = con
         self.con_jac = con_jac
 
-        self.con_jac_rows, self.con_jac_cols, values = \
-            con_jac(np.random.random(num_free_variables))
+        # TODO : 2 * n + q is likely only valid if there are no free input
+        # trajectories. I think it is 2 * n + q + r.
+        self.con_jac_rows, self.con_jac_cols = \
+            compute_jacobian_indices(N, n, q)
 
         con_bounds = np.zeros(num_constraints)
 
@@ -980,7 +1024,6 @@ class Problem(ipopt.problem):
 
         self.obj_value = []
 
-
     def objective(self, free):
         return self.obj(free)
 
@@ -996,7 +1039,7 @@ class Problem(ipopt.problem):
         return (self.con_jac_rows, self.con_jac_cols)
 
     def jacobian(self, free):
-        return self.con_jac(free)[2]
+        return self.con_jac(free)
 
     def intermediate(self, *args):
         self.obj_value.append(args[2])

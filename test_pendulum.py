@@ -410,7 +410,7 @@ def test_objective_function_gradient():
     np.testing.assert_allclose(grad, expected_grad, atol=1e-8)
 
 
-def test_substitute_matrix():
+def teste_substitute_matrix():
 
     A = np.arange(1, 13, dtype=float).reshape(3, 4)
     sub = np.array([[21, 22], [23, 24]])
@@ -589,9 +589,11 @@ def test_general_constraint_jacobian():
     m, c, k = constant_values
     h = 0.01
 
-    result = jacobian(state_values, specified_values, constant_values, h)
+    jac_vals = jacobian(state_values, specified_values, constant_values, h)
 
-    jacobian_matrix = sparse.coo_matrix((result[2], (result[0], result[1])))
+    row_idxs, col_idxs = pendulum.compute_jacobian_indices(4, 2, 1)
+
+    jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
 
     # jacobian of eom_vector wrt vi, xi, xp, vp, k
     #    [     vi,  xi,   vp,   xp,  k]
@@ -684,9 +686,11 @@ def test_wrap_constraint():
                                         specified_syms, fixed_constants,
                                         fixed_specified)
 
-    result = jacobian(free)
+    jac_vals = jacobian(free)
 
-    jacobian_matrix = sparse.coo_matrix((result[2], (result[0], result[1])))
+    row_idxs, col_idxs = pendulum.compute_jacobian_indices(4, 2, 1)
+
+    jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
 
     x = state_values[0]
 
