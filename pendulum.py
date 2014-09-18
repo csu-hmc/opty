@@ -688,7 +688,8 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
 
     symbolic_jacobian = eom_vector.jacobian(partials)
 
-    jac = ufuncify_matrix(args, symbolic_jacobian)
+    jac = ufuncify_matrix(args, symbolic_jacobian,
+                          const=tuple(constant_syms + [h_sym]))
 
     # jac is now a function that takes arguments that are made up of all the
     # variables in the discretized equations of motion. It will be used to
@@ -744,14 +745,8 @@ def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
         else:
             args += [specified_values[1:]]
 
-        # These are scalars so, for now, we need to create arrays for these
-        # because my version of ufuncify only works with arrays for all
-        # arguments. These are generally very short lists of constants, so
-        # it shouldn't be that much overhead.
-
-        ones = np.ones(num_constraint_nodes)
-        args += [c * ones for c in constant_values]
-        args += [interval_value * ones]
+        args += [c for c in constant_values]
+        args += [interval_value]
 
         result = np.empty((num_constraint_nodes,
                            symbolic_jacobian.shape[0] *

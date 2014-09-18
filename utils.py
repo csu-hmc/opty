@@ -53,7 +53,7 @@ from Cython.Distutils import build_ext
 extension = Extension(name="{file_prefix}",
                       sources=["{file_prefix}.pyx",
                                "{file_prefix}_c.c"],
-                      extra_compile_args=["-O3", "-ffast-math"],
+                      extra_compile_args=["-O3"], # , "-ffast-math"
                       include_dirs=[numpy.get_include()])
 
 setup(name="{routine_name}",
@@ -62,7 +62,21 @@ setup(name="{routine_name}",
 """
 
 
-def ufuncify_matrix(args, expr, cse=True):
+def ufuncify_matrix(args, expr, const=None):
+    """Returns a function that evaluates a matrix of expressions in a tight loop.
+
+    Parameters
+    ----------
+    args : iterable of sympy.Symbol
+        A list of all symbols in expr in the desired order for the output
+        function.
+    expr : sympy.Matrix
+        A matrix of expressions.
+    const : tuple
+        This should include any of the symbols in args that should be
+        constant with respect to the loop.
+
+    """
 
     matrix_size = expr.shape[0] * expr.shape[1]
 
@@ -103,12 +117,24 @@ def ufuncify_matrix(args, expr, cse=True):
 
     d['input_args'] = c_arg_spacer.join(['double {}'.format(a) for a in args])
 
+    cython_input_args = []
+    indexed_input_args = []
+    for a in args:
+        if const is not None and a in const:
+            typ = 'double'
+            idexy = '{}'
+        else:
+            typ = 'np.ndarray[np.double_t, ndim=1]'
+            idexy = '{}[i]'
+        cython_input_args.append('{} {}'.format(typ, a))
+        indexed_input_args.append(idexy.format(a))
+
     cython_indent = len('def {routine_name}_loop('.format(**d))
     cython_arg_spacer = ',\n' + ' ' * cython_indent
 
-    d['numpy_typed_input_args'] = cython_arg_spacer.join(['np.ndarray[np.double_t, ndim=1] {}'.format(a) for a in args])
+    d['numpy_typed_input_args'] = cython_arg_spacer.join(cython_input_args)
 
-    d['indexed_input_args'] = ',\n'.join(['{}[i]'.format(a) for a in args])
+    d['indexed_input_args'] = ',\n'.join(indexed_input_args)
 
     files = {}
     files[d['file_prefix'] + '_c.c'] = _c_template.format(**d)

@@ -25,12 +25,13 @@ def test_ufuncify_matrix():
     a_vals = np.random.random(n)
     b_vals = np.random.random(n)
     c_vals = np.random.random(n)
+    c_val = np.random.random(1)[0]
 
     def eval_matrix_loop_numpy(a_vals, b_vals, c_vals):
-        """Since the number of matrix elements are typically much smaller than
-        the number of evaluations, NumPy can be used to compute each of the
-        Matrix expressions. This is equivalent to the individual lambdified
-        expressions above."""
+        """Since the number of matrix elements are typically much smaller
+        than the number of evaluations, NumPy can be used to compute each of
+        the Matrix expressions. This is equivalent to the individual
+        lambdified expressions above."""
 
         result = np.empty((n, 2, 2))
 
@@ -49,5 +50,9 @@ def test_ufuncify_matrix():
     testing.assert_allclose(f(result, a_vals, b_vals, c_vals),
                             eval_matrix_loop_numpy(a_vals, b_vals, c_vals))
 
-    #testing.assert_allclose(f(a_vals, b_vals, 5.2, result).reshape(n, 2, 2),
-                            #eval_matrix_loop_numpy(a_vals, b_vals, 5.2))
+    f = ufuncify_matrix((a, b, c), sym_mat, const=(c,))
+
+    result = np.empty((n, 4))
+
+    testing.assert_allclose(f(result, a_vals, b_vals, c_val),
+                            eval_matrix_loop_numpy(a_vals, b_vals, c_val))
