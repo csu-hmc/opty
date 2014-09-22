@@ -12,6 +12,47 @@ import sympy as sy
 from sympy.utilities.lambdify import implemented_function
 from sympy.utilities.autowrap import autowrap
 
+
+def parse_free(free, n, r, N):
+    """Parses the free parameters vector and returns it's components.
+
+    free : ndarray, shape(n * N + m * M + q)
+        The free parameters of the system.
+    n : integer
+        The number of states.
+    r : integer
+        The number of free specified inputs.
+    N : integer
+        The number of time steps.
+
+    Returns
+    -------
+    states : ndarray, shape(n, N)
+        The array of n states through N time steps.
+    specified_values : ndarray, shape(r, N) or shape(N,), or None
+        The array of r specified inputs through N time steps.
+    constant_values : ndarray, shape(q,)
+        The array of q constants.
+
+    """
+
+    len_states = n * N
+    len_specified = r * N
+
+    free_states = free[:len_states].reshape((n, N))
+
+    if r == 0:
+        free_specified = None
+    else:
+        free_specified = free[len_states:len_states + len_specified]
+        if r > 1:
+            free_specified = free_specified.reshape((r, N))
+
+    free_constants = free[len_states + len_specified:]
+
+    return free_states, free_specified, free_constants
+
+
 _c_template = """\
 #include <math.h>
 #include "{file_prefix}_h.h"

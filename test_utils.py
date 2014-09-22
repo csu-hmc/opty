@@ -1,9 +1,33 @@
+#!/usr/bin/env python
+
 import numpy as np
 from numpy import testing
 import sympy as sp
 from scipy import sparse
 
 import utils
+
+
+def test_parse_free():
+
+    q = 2  # two free model constants
+    n = 4  # four states
+    r = 2  # two free specified inputs
+    N = 10  # ten time steps
+
+    expected_constants = np.random.random(q)
+    expected_state_traj = np.random.random((n, N))
+    expected_input_traj = np.random.random((r, N))
+
+    free = np.hstack((expected_state_traj.flatten(),
+                      expected_input_traj.flatten(),
+                      expected_constants))
+
+    state_traj, input_traj, constants = utils.parse_free(free, n, r, N)
+
+    np.testing.assert_allclose(expected_constants, constants)
+    np.testing.assert_allclose(expected_state_traj, state_traj)
+    np.testing.assert_allclose(expected_input_traj, input_traj)
 
 
 def test_ufuncify_matrix():

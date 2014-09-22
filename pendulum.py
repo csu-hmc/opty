@@ -49,14 +49,15 @@ import tables
 import pandas
 
 # local
-from utils import controllable, ufuncify_matrix
+from direct_collocation import ConstraintCollocator
+from utils import controllable, parse_free
 from visualization import (plot_sim_results, plot_constraints,
                            animate_pendulum, plot_identified_state_trajectory)
 
 
 def constants_dict(constants):
     """Returns an ordered dictionary which maps the system constant symbols
-    to numerical values. The cart sping is set to 10.0 N/m, the cart damper
+    to numerical values. The cart spring is set to 10.0 N/m, the cart damper
     to 5.0 Ns/m and gravity is set to 9.81 m/s and the masses and lengths of
     the pendulums are all set to 1.0 kg and meter, respectively."""
     return OrderedDict(zip(constants, [10.0, 5.0, 9.81] + (len(constants) - 1) * [1.0]))
@@ -351,71 +352,6 @@ def sum_of_sines(magnitudes, frequencies, time):
     return sines
 
 
-def discrete_symbols(states, specified, interval='h'):
-    """Returns discrete symbols for each state and specified input along
-    with an interval symbol.
-
-    Parameters
-    ----------
-    states : list of sympy.Functions
-        The n functions of time representing the system's states.
-    specified : list of sympy.Functions
-        The m functions of time representing the system's specified inputs.
-    interval : string, optional
-        The string to use for the discrete time interval symbol.
-
-    Returns
-    -------
-    current_states : list of sympy.Symbols
-        The n symbols representing the system's ith states.
-    previous_states : list of sympy.Symbols
-        The n symbols representing the system's (ith - 1) states.
-    current_specified : list of sympy.Symbols
-        The m symbols representing the system's ith specified inputs.
-    interval : sympy.Symbol
-        The symbol for the time interval.
-
-    """
-
-    xi = [sym.Symbol(f.__class__.__name__ + 'i') for f in states]
-    xp = [sym.Symbol(f.__class__.__name__ + 'p') for f in states]
-    si = [sym.Symbol(f.__class__.__name__ + 'i') for f in specified]
-    h = sym.Symbol(interval)
-
-    return xi, xp, si, h
-
-
-def discretize(eoms, states, specified, interval='h'):
-    """Returns the constraint equations in a discretized form. Backward
-    Euler discretization is used.
-
-    Parameters
-    ----------
-    states : list of sympy.Functions
-        The n functions of time representing the system's states.
-    specified : list of sympy.Functions
-        The m functions of time representing the system's specified inputs.
-    interval : string, optional
-        The string to use for the discrete time interval symbol.
-
-    Returns
-    -------
-    discrete_eoms : sympy.Matrix
-        The column vector of the constraint expressions.
-
-    """
-    xi, xp, si, h = discrete_symbols(states, specified, interval=interval)
-
-    euler_formula = [(i - p) / h for i, p in zip(xi, xp)]
-
-    # Note : The Derivatives must be substituted before the symbols.
-    eoms = eoms.subs(dict(zip(state_derivatives(states), euler_formula)))
-
-    eoms = eoms.subs(dict(zip(states + specified, xi + si)))
-
-    return eoms
-
-
 def objective_function(free, num_dis_points, num_states, dis_period,
                        time_measured, y_measured):
     """Returns the norm of the difference in the measured and simulated
@@ -536,441 +472,10 @@ def wrap_objective(obj_func, *args):
     return wrapped_func
 
 
-def general_constraint(eom_vector, state_syms, specified_syms,
-                       constant_syms):
-    """Returns a function that evaluates the constraints.
-
-    Parameters
-    ----------
-    discrete_eom_vec : sympy.Matrix, shape(n, 1)
-        A column vector containing the discrete symbolic expressions of the
-        n constraints.
-    state_syms : list of sympy.Functions
-        The n functions of time representing the system's states.
-    specified_syms : list of sympy.Functions
-        The m functions of time representing the system's specified inputs.
-    constant_syms : list of sympy.Symbols
-        The b symbols representing the system's specified inputs.
-
-    Returns
-    -------
-    constraints : function
-        A function which returns the numerical values of the constraints at
-        time points 2,...,N.
-
-    Notes
-    -----
-    args:
-        all current states (x1i, ..., xni)
-        all previous states (x1p, ... xnp)
-        all current specifieds (s1i, ..., smi)
-        constants (c1, ..., cb)
-        time interval (h)
-
-        args: (x1i, ..., xni, x1p, ... xnp, s1i, ..., smi, c1, ..., cb, h)
-        n: num states
-        m: num specified
-        b: num constants
-
-    The function should evaluate and return an array:
-
-        [con_1_2, ..., con_1_N, con_2_2, ..., con_2_N, ..., con_n_2, ..., con_n_N]
-
-    for n states and N-1 constraints at the time points.
-
-    """
-    xi_syms, xp_syms, si_syms, h_sym = \
-        discrete_symbols(state_syms, specified_syms)
-
-    args = [x for x in xi_syms] + [x for x in xp_syms]
-    args += [s for s in si_syms] + constant_syms + [h_sym]
-
-    f = ufuncify_matrix(args, eom_vector, const=tuple(constant_syms +
-                                                      [h_sym]))
-
-    def constraints(state_values, specified_values, constant_values,
-                    interval_value):
-        """Returns a vector of constraint values given all of the
-        unknowns in the equations of motion over the 2, ..., N time
-        steps.
-
-        Parameters
-        ----------
-        states : ndarray, shape(n, N)
-            The array of n states through N time steps.
-        specified_values : ndarray, shape(m, N) or shape(N,)
-            The array of m specifieds through N time steps.
-        constant_values : ndarray, shape(b,)
-            The array of b constants.
-        interval_value : float
-            The value of the dicretization time interval.
-
-        Returns
-        -------
-        constraints : ndarray, shape(N-1,)
-            The array of constraints from t = 2, ..., N.
-            [con_1_2, ..., con_1_N, con_2_2, ..., con_2_N, ..., con_n_2, ..., con_n_N]
-
-        """
-
-        if state_values.shape[0] < 2:
-            raise ValueError('There should always be at least two states.')
-
-        x_current = state_values[:, 1:]  # n x N - 1
-        x_previous = state_values[:, :-1]  # n x N - 1
-
-        # 2n x N - 1
-        args = [x for x in x_current] + [x for x in x_previous]
-
-        # 2n + m x N - 1
-        if len(specified_values.shape) == 2:
-            si = specified_values[:, 1:]
-            args += [s for s in si]
-        else:
-            si = specified_values[1:]
-            args += [si]
-
-        args += [c for c in constant_values]
-        args += [interval_value]
-
-        num_constraints = state_values.shape[1] - 1
-
-        result = np.empty((num_constraints, state_values.shape[0]))
-
-        return f(result, *args).T.flatten()
-
-    return constraints
-
-
-def general_constraint_jacobian(eom_vector, state_syms, specified_syms,
-                                constant_syms, free_constants):
-    """Returns a function that evaluates the Jacobian of the constraints.
-
-    Parameters
-    ----------
-    discrete_eom_vec : sympy.Matrix, shape(n, 1)
-        A column vector containing the discrete symbolic expressions of the
-        n constraints based on the first order discrete equations of motion.
-        This vector should equate to the zero vector.
-    state_syms : list of sympy.Functions
-        The n functions of time representing the system's states.
-    specified_syms : list of sympy.Functions
-        The m functions of time representing the system's specified inputs.
-    constant_syms : list of sympy.Symbols
-        The p symbols representing all of the system's constants.
-    free_constants : list of sympy.Symbols
-        The q symbols which are a subset of constant_syms that will be free
-        to vary in the optimization.
-
-    Returns
-    -------
-    constraints : function
-        A function which returns the numerical values of the constraints at
-        time points 2,...,N.
-
-    """
-    xi_syms, xp_syms, si_syms, h_sym = \
-        discrete_symbols(state_syms, specified_syms)
-
-    # The free parameters are always the n * (N - 1) state values and the
-    # user's specified unknown model constants, so the base Jacobian needs
-    # to be taken with respect to the ith, and ith - 1 states, and the free
-    # model constants.
-    # TODO : This needs to eventually support unknown specified inputs too.
-    partials = xi_syms + xp_syms + free_constants
-
-    # The arguments to the Jacobian function include all of the free
-    # Symbols/Functions in the matrix expression.
-    args = xi_syms + xp_syms + si_syms + constant_syms + [h_sym]
-
-    symbolic_jacobian = eom_vector.jacobian(partials)
-
-    jac = ufuncify_matrix(args, symbolic_jacobian,
-                          const=tuple(constant_syms + [h_sym]))
-
-    # jac is now a function that takes arguments that are made up of all the
-    # variables in the discretized equations of motion. It will be used to
-    # build the sparse constraint gradient matrix. This Jacobian function
-    # returns the non-zero elements needed to build the sparse constraint
-    # gradient.
-
-    def constraints_jacobian(state_values, specified_values,
-                             constant_values, interval_value):
-        """Returns a sparse matrix of constraint gradient given all of the
-        unknowns in the equations of motion over the 2, ..., N time steps.
-
-        Parameters
-        ----------
-        states : ndarray, shape(n, N)
-            The array of n states through N time steps.
-        specified_values : ndarray, shape(m, N) or shape(N,)
-            The array of m specified inputs through N time steps.
-        constant_values : ndarray, shape(p,)
-            The array of p constants.
-        interval_value : float
-            The value of the dicretization time interval.
-
-        Returns
-        -------
-        constraints_gradient : ndarray,
-            The values of the non-zero entries to the constraints Jacobian.
-            These correspond to the triplet formatted indices returned from
-            compute_jacobian_indices.
-
-        """
-        if state_values.shape[0] < 2:
-            raise ValueError('There should always be at least two states.')
-
-        x_current = state_values[:, 1:]  # n x N - 1
-        x_previous = state_values[:, :-1]  # n x N - 1
-
-        num_time_steps = state_values.shape[1]  # N
-        num_constraint_nodes = num_time_steps - 1  # N - 1
-
-        # 2n x N - 1
-        args = [x for x in x_current] + [x for x in x_previous]
-
-        # 2n + m x N - 1
-        if len(specified_values.shape) == 2:
-            args += [s for s in specified_values[:, 1:]]
-        else:
-            args += [specified_values[1:]]
-
-        args += [c for c in constant_values]
-        args += [interval_value]
-
-        result = np.empty((num_constraint_nodes,
-                           symbolic_jacobian.shape[0] *
-                           symbolic_jacobian.shape[1]))
-
-        # shape(N - 1, n, 2*n+p) where p is len(free_constants)
-        non_zero_derivatives = jac(result, *args)
-
-        # Now loop through the N - 1 constraint nodes to compute the
-        # non-zero entries to the gradient matrix (the partials for n states
-        # will be computed at each iteration).
-        num_partials = (non_zero_derivatives.shape[1] *
-                        non_zero_derivatives.shape[2])
-
-        jac_vals = np.empty(num_partials * num_constraint_nodes,
-                            dtype=float)
-
-        # TODO : The ordered Jacobian values may be able to be gotten by
-        # simply flattening non_zero_derivatives. And if not, then maybe
-        # this loop needs to be in Cython.
-
-        for i in range(num_constraint_nodes):
-            start = i * num_partials
-            stop = (i + 1) * num_partials
-            # TODO : This flatten() call is currently the most time
-            # consuming thing in this function at this point.
-            jac_vals[start:stop] = non_zero_derivatives[i].flatten()
-
-        return jac_vals
-
-    return constraints_jacobian
-
-
-def compute_jacobian_indices(num_time_steps, num_states, num_free_constants):
-    """Returns the row and column indices for the non-zero values in the
-    constraint Jacobian.
-
-    Parameters
-    ----------
-    num_time_steps : integer
-        The number of discretization point in the time range.
-    num_states : integer
-        Number of system states.
-    num_free_constants : integer
-        The number of free model constants in the optimization.
-
-    Returns
-    -------
-    jac_row_idxs : ndarray, shape(2 * n + q + r,)
-        The row indices for the non-zero values in the Jacobian.
-    jac_col_idxs : ndarray, shape(n,)
-        The column indices for the non-zero values in the Jacobian.
-
-    """
-
-    num_constraint_nodes = num_time_steps - 1
-    # TODO : Change to the following to support free specified.
-    # num_states * (2 * num_states + num_free_constants + num_free_specified)
-    num_partials = num_states * (2 * num_states + num_free_constants)
-    num_non_zero_values = num_partials * num_constraint_nodes
-
-    jac_row_idxs = np.empty(num_non_zero_values, dtype=int)
-    jac_col_idxs = np.empty(num_non_zero_values, dtype=int)
-
-    for i in range(num_constraint_nodes):
-        # n: num_states
-        # m: num_specified
-        # p: num_free_constants
-
-        # the states repeat every N - 1 constraints
-        # row_idxs = [0 * (N - 1), 1 * (N - 1),  2 * (N - 1),  n * (N - 1)]
-
-        row_idxs = [j * (num_constraint_nodes) + i
-                    for j in range(num_states)]
-
-        # The derivative columns are in this order:
-        # [x1i, x2i, ..., xni, x1p, x2p, ..., xnp, p1, ..., pp]
-        # So we need to map them to the correct column.
-
-        # first row, the columns indices mapping is:
-        # [1, N + 1, ..., N - 1] : [x1p, x1i, 0, ..., 0]
-        # [0, N, ..., 2 * (N - 1)] : [x2p, x2i, 0, ..., 0]
-        # [-p:] : p1,..., pp  the free constants
-
-        # i=0: [1, ..., n * N + 1, 0, ..., n * N + 0, n * N:n * N + p]
-        # i=1: [2, ..., n * N + 2, 1, ..., n * N + 1, n * N:n * N + p]
-        # i=2: [3, ..., n * N + 3, 2, ..., n * N + 2, n * N:n * N + p]
-
-        col_idxs = [j * num_time_steps + i + 1 for j in range(num_states)]
-        col_idxs += [j * num_time_steps + i for j in range(num_states)]
-        col_idxs += [num_states * num_time_steps + j
-                     for j in range(num_free_constants)]
-
-        row_idx_permutations = np.repeat(row_idxs, len(col_idxs))
-        col_idx_permutations = np.array(list(col_idxs) * len(row_idxs),
-                                        dtype=int)
-
-        start = i * num_partials
-        stop = (i + 1) * num_partials
-        jac_row_idxs[start:stop] = row_idx_permutations
-        jac_col_idxs[start:stop] = col_idx_permutations
-
-    return jac_row_idxs, jac_col_idxs
-
-
-def wrap_constraint(func, num_time_steps, num_states,
-                    interval_value, constant_syms, specified_syms,
-                    fixed_constants, fixed_specified):
-    """Returns a function that evaluates all of the constraints or Jacobian
-    of the constraints given the system's free parameters.
-
-    Parameters
-    ----------
-    func : function
-        A function that takes the full parameter set an evaulates the
-        constraint functions or the Jacobian of the contraint functions.
-        i.e. the output of general_constraint or general_jacobian.
-    num_time_steps : integer
-        The number of time steps.
-    num_states : integer
-        The number of states in the system.
-    interval_value : float
-        The interval between the time steps.
-    constant_syms : list of sympy.Symbols
-        A list of all the constants in system constraint equations.
-    specified_syms : list of sympy.Functions
-        A list of all the discrete specified inputs.
-    fixed_constants : dictionary
-        A map of all the system constants which are not free optimization
-        parameters to their fixed values.
-    fixed_specified : dictionary
-        A map of all the system's discrete specified inputs that are not
-        free optimization parameters to their fixed values.
-
-    Returns
-    -------
-    func : function
-        A function which returns constraint values given the system's free
-        parameters.
-
-    """
-
-    num_free_specified = len(specified_syms) - len(fixed_specified)
-
-    def constraints(free):
-        """
-
-        Parameters
-        ----------
-        free : ndarray
-
-        Returns
-        -------
-        constraints : ndarray, shape(N-1,)
-            The array of constraints from t = 2, ..., N.
-            [con_1_2, ..., con_1_N, con_2_2, ..., con_2_N, ..., con_n_2, ..., con_n_N]
-        """
-
-        free_states, free_specified, free_constants = \
-            parse_free(free, num_states, num_free_specified, num_time_steps)
-
-        all_specified = merge_fixed_free(specified_syms, fixed_specified,
-                                         free_specified)
-
-        all_constants = merge_fixed_free(constant_syms, fixed_constants,
-                                         free_constants)
-
-        return func(free_states, all_specified, all_constants, interval_value)
-
-    return constraints
-
-
-def merge_fixed_free(syms, fixed, free):
-    """Returns an array with the fixed and free
-
-    This assumes that you have the free constants in the correct order.
-
-    """
-
-    merged = []
-    n = 0
-    for i, s in enumerate(syms):
-        if s in fixed.keys():
-            merged.append(fixed[s])
-        else:
-            merged.append(free[n])
-            n += 1
-    return np.array(merged)
-
-
-def parse_free(free, n, r, N):
-    """Parses the free parameters vector and returns it's components.
-
-    free : ndarray, shape(n * N + m * M + q)
-        The free parameters of the system.
-    n : integer
-        The number of states.
-    r : integer
-        The number of free specified inputs.
-    N : integer
-        The number of time steps.
-
-    Returns
-    -------
-    states : ndarray, shape(n, N)
-        The array of n states through N time steps.
-    specified_values : ndarray, shape(r, N) or shape(N,), or None
-        The array of r specified inputs through N time steps.
-    constant_values : ndarray, shape(q,)
-        The array of q constants.
-
-    """
-
-    len_states = n * N
-    len_specified = r * N
-
-    free_states = free[:len_states].reshape((n, N))
-
-    if r == 0:
-        free_specified = None
-    else:
-        free_specified = free[len_states:len_states + len_specified]
-        if r > 1:
-            free_specified = free_specified.reshape((r, N))
-
-    free_constants = free[len_states + len_specified:]
-
-    return free_states, free_specified, free_constants
-
-
 class Problem(ipopt.problem):
 
-    def __init__(self, N, n, q, obj, obj_grad, con, con_jac):
+    def __init__(self, N, n, q, obj, obj_grad, con, con_jac,
+                 con_jac_indices):
         """
 
         Parameters
@@ -990,6 +495,8 @@ class Problem(ipopt.problem):
             Returns the value of the constraints.
         con_jac : function
             Returns the Jacobian of the constraints.
+        con_jac_indices : function
+            Returns the indices of the non-zero values in the Jacobian.
 
         """
 
@@ -1003,8 +510,7 @@ class Problem(ipopt.problem):
 
         # TODO : 2 * n + q is likely only valid if there are no free input
         # trajectories. I think it is 2 * n + q + r.
-        self.con_jac_rows, self.con_jac_cols = \
-            compute_jacobian_indices(N, n, q)
+        self.con_jac_rows, self.con_jac_cols = con_jac_indices()
 
         con_bounds = np.zeros(num_constraints)
 
@@ -1149,44 +655,24 @@ class Identifier():
         closed = symbolic_constraints(self.mass_matrix, self.forcing_vector,
                                       self.states_syms, control_dict, eq_dict)
 
-        # This is the discretized (backward euler) version of the closed loop
-        # system.
-        dclosed = discretize(closed, self.states_syms, self.specified_inputs_syms)
+        self.collocator = ConstraintCollocator(closed,
+                                               self.states_syms,
+                                               self.num_time_steps,
+                                               self.discretization_interval,
+                                               constants_dict(self.constants_syms),
+                                               {self.specified_inputs_syms[-1]: self.u})
 
         # Now generate a function which evaluates the N-1 constraints.
         start = time.clock()
-        gen_con_func = general_constraint(dclosed, self.states_syms,
-                                          [self.specified_inputs_syms[-1]],
-                                          self.constants_syms + gain_syms)
+        self.con_func = self.collocator.generate_constraint_function()
         msg = 'Compilation of constraint function took {} CPU seconds.'
         print(msg.format(time.clock() - start))
 
-        self.con_func = wrap_constraint(gen_con_func,
-                                        self.num_time_steps,
-                                        self.num_states,
-                                        self.discretization_interval,
-                                        self.constants_syms + gain_syms,
-                                        [self.specified_inputs_syms[-1]],
-                                        constants_dict(self.constants_syms),
-                                        {self.specified_inputs_syms[-1]: self.u})
 
         start = time.clock()
-        gen_con_jac_func = general_constraint_jacobian(dclosed,
-                                                       self.states_syms,
-                                                       [self.specified_inputs_syms[-1]],
-                                                       self.constants_syms + gain_syms,
-                                                       gain_syms)
+        self.con_jac_func = self.collocator.generate_jacobian_function()
         msg = 'Compilation of constraint Jacobian function took {} CPU seconds.'
         print(msg.format(time.clock() - start))
-
-        self.con_jac_func = wrap_constraint(gen_con_jac_func,
-                                            self.num_time_steps,
-                                            self.num_states,
-                                            self.discretization_interval,
-                                            self.constants_syms + gain_syms,
-                                            [self.specified_inputs_syms[-1]],
-                                            constants_dict(self.constants_syms),
-                                            {self.specified_inputs_syms[-1]: self.u})
 
     def generate_objective_funcs(self):
         print('Forming the objective function.')
@@ -1215,7 +701,8 @@ class Identifier():
                             self.obj_func,
                             self.obj_grad_func,
                             self.con_func,
-                            self.con_jac_func)
+                            self.con_jac_func,
+                            self.collocator.jacobian_indices)
 
         init_states, init_specified, init_constants = \
             parse_free(self.initial_guess, self.num_states, 0, self.num_time_steps)
@@ -1353,9 +840,8 @@ def parse_ipopt_output(file_name):
 
     results = {}
 
-    lines_of_interest = output[-50:]
-    for line in lines_of_interest:
-        if 'Number of Iterations' in line and 'Maximum' not in line:
+    for line in output:
+        if 'Number of Iterations....:' in line and 'Maximum' not in line:
             results['num_iterations'] = int(line.split(':')[1].strip())
 
         elif 'Number of objective function evaluations' in line:
@@ -1484,6 +970,7 @@ def load_run(filename, run_id):
         d[array_name] = getattr(group, array_name)[:]
     handle.close()
     return d
+
 
 def compute_gain_error(filename):
     # root mean square of gain error
