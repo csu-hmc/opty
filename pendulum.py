@@ -585,7 +585,8 @@ def general_constraint(eom_vector, state_syms, specified_syms,
     args = [x for x in xi_syms] + [x for x in xp_syms]
     args += [s for s in si_syms] + constant_syms + [h_sym]
 
-    f = ufuncify_matrix(args, eom_vector)
+    f = ufuncify_matrix(args, eom_vector, const=tuple(constant_syms +
+                                                      [h_sym]))
 
     def constraints(state_values, specified_values, constant_values,
                     interval_value):
@@ -629,14 +630,10 @@ def general_constraint(eom_vector, state_syms, specified_syms,
             si = specified_values[1:]
             args += [si]
 
-        # These are scalars so, for now, we need to create arrays for these
-        # because my version of ufuncify only works with arrays for all
-        # arguments. These are generally very short arrays, so it shouldn't
-        # be that much overhead.
+        args += [c for c in constant_values]
+        args += [interval_value]
+
         num_constraints = state_values.shape[1] - 1
-        ones = np.ones(num_constraints)
-        args += [c * ones for c in constant_values]
-        args += [interval_value * ones]
 
         result = np.empty((num_constraints, state_values.shape[0]))
 
