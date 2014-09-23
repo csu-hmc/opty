@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+import os
+import sys
+import shutil
+import tempfile
 import subprocess
 import importlib
 
@@ -60,9 +64,12 @@ setup(name="{routine_name}",
       ext_modules=cythonize([extension]))
 """
 
+module_counter = 0
 
-def ufuncify_matrix(args, expr, const=None):
-    """Returns a function that evaluates a matrix of expressions in a tight loop.
+
+def ufuncify_matrix(args, expr, const=None, tmp_dir=None):
+    """Returns a function that evaluates a matrix of expressions in a tight
+    loop.
 
     Parameters
     ----------
@@ -71,28 +78,44 @@ def ufuncify_matrix(args, expr, const=None):
         function.
     expr : sympy.Matrix
         A matrix of expressions.
-    const : tuple
+    const : tuple, optional
         This should include any of the symbols in args that should be
         constant with respect to the loop.
+    tmp_dir : string, optional
+        The path to a directory in which to store the generated files. If
+        None then the files will be not be retained after the function is
+        compiled.
 
     """
+
+    # TODO : This is my first ever global variable in Python. It'd probably
+    # be better if this was a class attribute of a Ufuncifier class. And I'm
+    # not sure if this current version counts sequentially.
+    global module_counter
 
     matrix_size = expr.shape[0] * expr.shape[1]
 
     file_prefix_base = 'ufuncify_matrix'
-    file_prefix = '{}_{}'.format(file_prefix_base, 0)
+    file_prefix = '{}_{}'.format(file_prefix_base, module_counter)
+
+    if tmp_dir is None:
+        codedir = tempfile.mkdtemp(".ufuncify_compile")
+    else:
+        codedir = os.path.abspath(tmp_dir)
+
+    if not os.path.exists(codedir):
+        os.makedirs(codedir)
 
     taken = False
-    i = 1
 
     while not taken:
         try:
-            open(file_prefix + '.pyx', 'r')
+            open(os.path.join(codedir, file_prefix + '.pyx'), 'r')
         except IOError:
             taken = True
         else:
-            file_prefix = '{}_{}'.format(file_prefix_base, i)
-            i += 1
+            file_prefix = '{}_{}'.format(file_prefix_base, module_counter)
+            module_counter += 1
 
     d = {'routine_name': 'eval_matrix',
          'file_prefix': file_prefix,
@@ -141,14 +164,25 @@ def ufuncify_matrix(args, expr, const=None):
     files[d['file_prefix'] + '.pyx'] = _cython_template.format(**d)
     files[d['file_prefix'] + '_setup.py'] = _setup_template.format(**d)
 
-    for filename, code in files.items():
-        with open(filename, 'w') as f:
-            f.write(code)
+    workingdir = os.getcwd()
+    os.chdir(codedir)
 
-    cmd = ['python', d['file_prefix'] + '_setup.py', 'build_ext', '--inplace']
-    subprocess.call(cmd, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+    try:
+        sys.path.append(codedir)
+        for filename, code in files.items():
+            with open(filename, 'w') as f:
+                f.write(code)
+        cmd = [sys.executable, d['file_prefix'] + '_setup.py', 'build_ext',
+               '--inplace']
+        subprocess.call(cmd, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+        cython_module = importlib.import_module(d['file_prefix'])
+    finally:
+        module_counter += 1
+        sys.path.remove(codedir)
+        os.chdir(workingdir)
+        if tmp_dir is None:
+            shutil.rmtree(codedir)
 
-    cython_module = importlib.import_module(d['file_prefix'])
     return getattr(cython_module, d['routine_name'] + '_loop')
 
 
