@@ -59,8 +59,18 @@ def constants_dict(constants):
     """Returns an ordered dictionary which maps the system constant symbols
     to numerical values. The cart spring is set to 10.0 N/m, the cart damper
     to 5.0 Ns/m and gravity is set to 9.81 m/s and the masses and lengths of
-    the pendulums are all set to 1.0 kg and meter, respectively."""
-    return OrderedDict(zip(constants, [10.0, 5.0, 9.81] + (len(constants) - 1) * [1.0]))
+    the pendulums are all set to make the human sized."""
+    # Psuedo average for male human:
+    total_height = 1.7
+    total_mass = 75.0
+    constant_values = [200.0 / 0.1, 200.0, 9.81]
+    num_links = (len(constants) - 4) / 2
+    for c in constants:
+        if c.name.startswith('m'):
+            constant_values.append(total_mass / (num_links + 1))
+        elif c.name.startswith('l'):
+            constant_values.append(total_height / num_links)
+    return OrderedDict(zip(constants, constant_values))
 
 
 def state_derivatives(states):
@@ -550,10 +560,12 @@ class Problem(ipopt.problem):
 
 def input_force(typ, time):
 
+    magnitude = 200.0  # Newtons
+
     if typ == 'sine':
-        lateral_force = 8.0 * np.sin(3.0 * 2.0 * np.pi * time)
+        lateral_force = magnitude * np.sin(3.0 * 2.0 * np.pi * time)
     elif typ == 'random':
-        lateral_force = 8.0 * np.random.random(len(time))
+        lateral_force = 2.0 * magnitude * np.random.random(len(time))
         lateral_force -= lateral_force.mean()
     elif typ == 'zero':
         lateral_force = np.zeros_like(time)
@@ -562,7 +574,7 @@ def input_force(typ, time):
         # pilot control problem.
         nums = [7, 11, 16, 25, 38, 61, 103, 131, 151, 181, 313, 523]
         freq = 2 * np.pi * np.array(nums) / 240
-        mags = 2.0 * np.ones(len(freq))
+        mags = magnitude * np.ones(len(freq))
         lateral_force = sum_of_sines(mags, freq, time)
     else:
         raise ValueError('{} is not a valid force type.'.format(typ))
