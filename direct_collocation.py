@@ -405,18 +405,20 @@ class ConstraintCollocator():
 
         """
 
-        specified = (self.known_input_trajectories +
-                     self.unknown_input_trajectories)
-
         xi = [sym.Symbol(f.__class__.__name__ + 'i')
               for f in self.state_symbols]
         xp = [sym.Symbol(f.__class__.__name__ + 'p')
               for f in self.state_symbols]
-        si = [sym.Symbol(f.__class__.__name__ + 'i') for f in specified]
+        ki = [sym.Symbol(f.__class__.__name__ + 'i') for f in
+              self.known_input_trajectories]
+        ui = [sym.Symbol(f.__class__.__name__ + 'i') for f in
+              self.unknown_input_trajectories]
 
         self.current_discrete_state_symbols = tuple(xi)
         self.previous_discrete_state_symbols = tuple(xp)
-        self.current_discrete_specified_symbols = tuple(si)
+        self.current_known_discrete_specified_symbols = tuple(ki)
+        self.current_unknown_discrete_specified_symbols = tuple(ui)
+        self.current_discrete_specified_symbols = tuple(ki) + tuple(ui)
 
     def _discretize_eom(self):
         """Instantiates the constraint equations in a discretized form using
@@ -568,11 +570,12 @@ class ConstraintCollocator():
 
         """
 
-        num_constraint_nodes = self.num_collocation_nodes - 1
-        # TODO : Change to the following to support free specified.
-        # num_states * (2 * num_states + num_free_constants +
-        # num_free_specified)
-        num_partials = self.num_states * (2 * self.num_states +
+        N = self.num_collocation_nodes
+        n = self.num_states
+
+        num_constraint_nodes = N - 1
+        num_partials = n * (2 * n +
+                                          self.num_unknown_input_trajectories +
                                           self.num_unknown_parameters)
         num_non_zero_values = num_partials * num_constraint_nodes
 
@@ -588,7 +591,7 @@ class ConstraintCollocator():
             # row_idxs = [0 * (N - 1), 1 * (N - 1),  2 * (N - 1),  n * (N - 1)]
 
             row_idxs = [j * (num_constraint_nodes) + i
-                        for j in range(self.num_states)]
+                        for j in range(n)]
 
             # The derivative columns are in this order:
             # [x1i, x2i, ..., xni, x1p, x2p, ..., xnp, p1, ..., pp]
@@ -603,11 +606,11 @@ class ConstraintCollocator():
             # i=1: [2, ..., n * N + 2, 1, ..., n * N + 1, n * N:n * N + p]
             # i=2: [3, ..., n * N + 3, 2, ..., n * N + 2, n * N:n * N + p]
 
-            col_idxs = [j * self.num_collocation_nodes + i + 1
-                        for j in range(self.num_states)]
-            col_idxs += [j * self.num_collocation_nodes + i
-                         for j in range(self.num_states)]
-            col_idxs += [self.num_states * self.num_collocation_nodes + j
+            col_idxs = [j * N + i + 1 for j in range(n)]
+            col_idxs += [j * N + i for j in range(n)]
+            col_idxs += [j * N + i + n * N + 1 for j in
+                         range(self.num_unknown_input_trajectories)]
+            col_idxs += [(n + self.num_unknown_input_trajectories) * N + j
                          for j in range(self.num_unknown_parameters)]
 
             row_idx_permutations = np.repeat(row_idxs, len(col_idxs))
@@ -635,6 +638,8 @@ class ConstraintCollocator():
         xi_syms = self.current_discrete_state_symbols
         xp_syms = self.previous_discrete_state_symbols
         si_syms = self.current_discrete_specified_symbols
+        ki_syms = self.current_known_discrete_specified_symbols
+        ui_syms = self.current_unknown_discrete_specified_symbols
         h_sym = self.time_interval_symbol
         constant_syms = self.known_parameters + self.unknown_parameters
 
@@ -642,9 +647,7 @@ class ConstraintCollocator():
         # the user's specified unknown model constants, so the base Jacobian
         # needs to be taken with respect to the ith, and ith - 1 states, and
         # the free model constants.
-        # TODO : This needs to eventually support unknown specified inputs
-        # too.
-        partials = xi_syms + xp_syms + self.unknown_parameters
+        partials = (xi_syms + xp_syms + ui_syms + self.unknown_parameters)
 
         # The arguments to the Jacobian function include all of the free
         # Symbols/Functions in the matrix expression.
@@ -741,6 +744,41 @@ class ConstraintCollocator():
 
         self._multi_arg_con_jac_func = constraints_jacobian
 
+    @staticmethod
+    def _merge_fixed_free(syms, fixed, free, typ):
+        """Returns an array with the fixed and free values combined. This
+        just takes the known and unknown values and combines them for the
+        function evaluation.
+
+        This assumes that you have the free constants in the correct order.
+
+        Parameters
+        ----------
+        syms : iterable of SymPy Symbols or Functions
+        fixed : dictionary
+            A mapping from Symbols to floats or Functions to 1d ndarrays.
+        free : ndarray, (N,) or shape(n,N)
+            An array
+        typ : string
+            traj or par
+
+
+        """
+
+        merged = []
+        n = 0
+        # syms is order as known (fixed) then unknown (free)
+        for i, s in enumerate(syms):
+            if s in fixed.keys():
+                merged.append(fixed[s])
+            else:
+                if typ == 'traj' and len(free.shape) == 1:
+                    merged.append(free)
+                else:
+                    merged.append(free[n])
+                    n += 1
+        return np.array(merged)
+
     def _wrap_constraint_funcs(self, func):
         """Returns a function that evaluates all of the constraints or
         Jacobian of the constraints given the free optimization variables.
@@ -770,11 +808,11 @@ class ConstraintCollocator():
 
             all_specified = self._merge_fixed_free(self.input_trajectories,
                                                    self.known_trajectory_map,
-                                                   free_specified)
+                                                   free_specified, 'traj')
 
             all_constants = self._merge_fixed_free(self.parameters,
                                                    self.known_parameter_map,
-                                                   free_constants)
+                                                   free_constants, 'par')
 
             return func(free_states, all_specified, all_constants,
                         self.node_time_interval)
@@ -798,22 +836,3 @@ class ConstraintCollocator():
         self._gen_multi_arg_con_jac_func()
         return self._wrap_constraint_funcs(self._multi_arg_con_jac_func)
 
-    @staticmethod
-    def _merge_fixed_free(syms, fixed, free):
-        """Returns an array with the fixed and free values combined. This
-        just takes the known and unknown values and combines them for the
-        function evaluation.
-
-        This assumes that you have the free constants in the correct order.
-
-        """
-
-        merged = []
-        n = 0
-        for i, s in enumerate(syms):
-            if s in fixed.keys():
-                merged.append(fixed[s])
-            else:
-                merged.append(free[n])
-                n += 1
-        return np.array(merged)
