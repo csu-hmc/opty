@@ -41,8 +41,11 @@ y2_meas = y_meas[:, 1]
 
 # Setup the optimization problem
 
-# Minimize the error in the angle, y1.
-obj = lambda free: interval * np.sum((y1_meas - free[:num_nodes])**2)
+
+def obj(free):
+    """Minimize the error in the angle, y1."""
+    return interval * np.sum((y1_meas - free[:num_nodes])**2)
+
 
 def obj_grad(free):
     grad = np.zeros_like(free)
@@ -51,9 +54,8 @@ def obj_grad(free):
 
 con_col = ConstraintCollocator(eom, (y1, y2), num_nodes, interval)
 
-prob = Problem(con_col.num_collocation_nodes,
-               con_col.num_states,
-               con_col.num_unknown_parameters,
+prob = Problem(con_col.num_free,
+               con_col.num_constraints,
                obj,
                obj_grad,
                con_col.generate_constraint_function(),

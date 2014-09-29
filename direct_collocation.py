@@ -12,19 +12,16 @@ from utils import ufuncify_matrix, parse_free
 
 class Problem(ipopt.problem):
 
-    def __init__(self, N, n, q, obj, obj_grad, con, con_jac,
+    def __init__(self, num_free, num_con, obj, obj_grad, con, con_jac,
                  con_jac_indices):
         """
 
         Parameters
         ----------
-        N : integer
-            Number of discretization points during the time range.
-        n : integer
-            Number of states in the system.
-        q : integer
-           Number of free model parameters, i.e. the number of model
-           constants which are included in the free optimization parameters.
+        num_free : integer
+            The number of free variables.
+        num_con : integer
+            The number of constraints.
         obj : function
             Returns the value of the objective function.
         obj_grad : function
@@ -38,22 +35,17 @@ class Problem(ipopt.problem):
 
         """
 
-        num_free_variables = n * N + q
-        num_constraints = n * (N-1)
-
         self.obj = obj
         self.obj_grad = obj_grad
         self.con = con
         self.con_jac = con_jac
 
-        # TODO : 2 * n + q is likely only valid if there are no free input
-        # trajectories. I think it is 2 * n + q + r.
         self.con_jac_rows, self.con_jac_cols = con_jac_indices()
 
-        con_bounds = np.zeros(num_constraints)
+        con_bounds = np.zeros(num_con)
 
-        super(Problem, self).__init__(n=num_free_variables,
-                                      m=num_constraints,
+        super(Problem, self).__init__(n=num_free,
+                                      m=num_con,
                                       cl=con_bounds,
                                       cu=con_bounds)
 
@@ -218,7 +210,7 @@ class ConstraintCollocator():
     def __init__(self, equations_of_motion, state_symbols,
                  num_collocation_nodes, node_time_interval,
                  known_parameter_map={}, known_trajectory_map={},
-                 time_symbol='t', tmp_dir=None):
+                 instance_constraints=None, time_symbol='t', tmp_dir=None):
         """
         Parameters
         ----------
@@ -245,6 +237,15 @@ class ConstraintCollocator():
             ndarrays of floats of shape(N,). Any time varying parameters in
             the equations of motion not provided in this dictionary will
             become free trajectories optimization variables.
+        instance_constraints : iterable of SymPy expressions
+            These expressions are for constraints on the states at specific
+            time points. They can be expressions with any state instance and
+            any of the known parameters found in the equations of motion.
+            All states should be evaluated at a specific instant of time.
+            For example, the constraint x(0) = 5.0 would be specified as
+            x(0) - 5.0 and the constraint x(0) = x(5.0) would be specified
+            as  x(0) - x(5.0). Unknown parameters and time varying
+            parameters other than the states are currently not supported.
         time_symbol : string, optional
             The string representation of the SymPy Symbol which represents
             time in the equations of motion.
@@ -270,13 +271,31 @@ class ConstraintCollocator():
         self.known_parameter_map = known_parameter_map
         self.known_trajectory_map = known_trajectory_map
 
+        self.instance_constraints = instance_constraints
+
+        self.num_constraints = self.num_states * (num_collocation_nodes - 1)
+
         self.tmp_dir = tmp_dir
 
         self._sort_parameters()
         self._check_known_trajectories()
         self._sort_trajectories()
+        self.num_free = ((self.num_states +
+                          self.num_unknown_input_trajectories) *
+                         self.num_collocation_nodes +
+                         self.num_unknown_parameters)
         self._discrete_symbols()
         self._discretize_eom()
+
+        if instance_constraints is not None:
+            self.num_instance_constraints = len(instance_constraints)
+            self.num_constraints += self.num_instance_constraints
+            self._identify_functions_in_instance_constraints()
+            self._find_closest_free_index()
+            self.eval_instance_constraints = \
+                self._instance_constraints_func()
+            self.eval_instance_constratints_jacobian_values = \
+                self._instance_constraints_jacobian_values_func()
 
     @staticmethod
     def _parse_inputs(all_syms, known_syms):
@@ -446,6 +465,107 @@ class ConstraintCollocator():
 
         self.discrete_eom = me.msubs(self.eom, deriv_sub, func_sub)
 
+    def _identify_functions_in_instance_constraints(self):
+        """Instantiates a set containing all of the instance functions, i.e.
+        x(1.0) in the instance constraints."""
+
+        all_funcs = set()
+
+        for con in self.instance_constraints:
+            all_funcs = all_funcs.union(con.atoms(sym.Function))
+
+        self.instance_constraint_function_atoms = all_funcs
+
+    def _find_closest_free_index(self):
+        """Instantiates a dictionary mapping the instance functions to the
+        nearest index in the free variables vector."""
+
+        def determine_free_index(time_index, state):
+            state_index = self.state_symbols.index(state)
+            return time_index + state_index * self.num_collocation_nodes
+
+        N = self.num_collocation_nodes
+        h = self.node_time_interval
+        duration = h * (N - 1)
+
+        time_vector = np.linspace(0.0, duration, num=N)
+
+        node_map = {}
+        for func in self.instance_constraint_function_atoms:
+            time_value = func.args[0]
+            time_index = np.argmin(np.abs(time_vector - time_value))
+            free_index = determine_free_index(time_index,
+                                              func.__class__(self.time_symbol))
+            node_map[func] = free_index
+
+        self.instance_constraints_free_index_map = node_map
+
+    def _instance_constraints_func(self):
+        """Returns a function that evaluates the instance constraints given
+        the free optimization variables."""
+        free = sym.DeferredVector('FREE')
+        def_map = {k: free[v] for k, v in
+                   self.instance_constraints_free_index_map.items()}
+        subbed_constraints = [con.subs(def_map) for con in
+                              self.instance_constraints]
+        f = sym.lambdify(([free] + self.known_parameter_map.keys()),
+                         subbed_constraints, default_array=True)
+
+        def wrapped(free):
+            return f(free, *self.known_parameter_map.values())
+
+        return wrapped
+
+    def _instance_constraints_jacobian_indices(self):
+        """Returns the row and column indices of the non-zero values in the
+        Jacobian of the constraints."""
+        idx_map = self.instance_constraints_free_index_map
+
+        num_eom_constraints = 2 * (self.num_collocation_nodes - 1)
+
+        rows = []
+        cols = []
+
+        for i, con in enumerate(self.instance_constraints):
+            funcs = con.atoms(sym.Function)
+            indices = [idx_map[f] for f in funcs]
+            row_idxs = num_eom_constraints + i * np.ones(len(indices),
+                                                         dtype=int)
+            rows += list(row_idxs)
+            cols += indices
+
+        return np.array(rows), np.array(cols)
+
+    def _instance_constraints_jacobian_values_func(self):
+        """Retruns the non-zero values of the constraint Jacobian associated
+        with the instance constraints."""
+        free = sym.DeferredVector('FREE')
+
+        def_map = {k: free[v] for k, v in
+                   self.instance_constraints_free_index_map.items()}
+
+        funcs = []
+        num_vals_per_func = []
+        for con in self.instance_constraints:
+            partials = list(con.atoms(sym.Function))
+            num_vals_per_func.append(len(partials))
+            jac = sym.Matrix([con]).jacobian(partials)
+            jac = jac.subs(def_map)
+            funcs.append(sym.lambdify(([free] +
+                                       self.known_parameter_map.keys()),
+                                      jac, default_array=True))
+        l = np.sum(num_vals_per_func)
+
+        def wrapped(free):
+            arr = np.zeros(l)
+            j = 0
+            for i, (f, num) in enumerate(zip(funcs, num_vals_per_func)):
+                arr[j:j + num] = f(free, *self.known_parameter_map.values())
+                j += num
+            return arr
+
+        return wrapped
+
     def _gen_multi_arg_con_func(self):
         """Instantiates a function that evaluates the constraints given all
         of the arguments of the functions, i.e. not just the free
@@ -574,10 +694,14 @@ class ConstraintCollocator():
         n = self.num_states
 
         num_constraint_nodes = N - 1
-        num_partials = n * (2 * n +
-                                          self.num_unknown_input_trajectories +
-                                          self.num_unknown_parameters)
+        num_partials = n * (2 * n + self.num_unknown_input_trajectories +
+                            self.num_unknown_parameters)
         num_non_zero_values = num_partials * num_constraint_nodes
+
+        if self.instance_constraints is not None:
+            ins_row_idxs, ins_col_idxs = \
+                self._instance_constraints_jacobian_indices()
+            num_non_zero_values += len(ins_row_idxs)
 
         jac_row_idxs = np.empty(num_non_zero_values, dtype=int)
         jac_col_idxs = np.empty(num_non_zero_values, dtype=int)
@@ -621,6 +745,10 @@ class ConstraintCollocator():
             stop = (i + 1) * num_partials
             jac_row_idxs[start:stop] = row_idx_permutations
             jac_col_idxs[start:stop] = col_idx_permutations
+
+        if self.instance_constraints is not None:
+            jac_row_idxs[-len(ins_row_idxs):] = ins_row_idxs
+            jac_col_idxs[-len(ins_col_idxs):] = ins_col_idxs
 
         return jac_row_idxs, jac_col_idxs
 
@@ -779,7 +907,7 @@ class ConstraintCollocator():
                     n += 1
         return np.array(merged)
 
-    def _wrap_constraint_funcs(self, func):
+    def _wrap_constraint_funcs(self, func, typ):
         """Returns a function that evaluates all of the constraints or
         Jacobian of the constraints given the free optimization variables.
 
@@ -814,8 +942,17 @@ class ConstraintCollocator():
                                                    self.known_parameter_map,
                                                    free_constants, 'par')
 
-            return func(free_states, all_specified, all_constants,
-                        self.node_time_interval)
+            eom_con_vals = func(free_states, all_specified, all_constants,
+                                self.node_time_interval)
+
+            if self.instance_constraints is not None:
+                if typ == 'con':
+                    ins_con_vals = self.eval_instance_constraints(free)
+                elif typ == 'jac':
+                    ins_con_vals = self.eval_instance_constratints_jacobian_values(free)
+                return np.hstack((eom_con_vals, ins_con_vals))
+            else:
+                return eom_con_vals
 
         intro, second = func.__doc__.split('Parameters')
         params, returns = second.split('Returns')
@@ -828,11 +965,11 @@ class ConstraintCollocator():
         """Returns a function which evaluates the constraints given the
         array of free optimization variables."""
         self._gen_multi_arg_con_func()
-        return self._wrap_constraint_funcs(self._multi_arg_con_func)
+        return self._wrap_constraint_funcs(self._multi_arg_con_func, 'con')
 
     def generate_jacobian_function(self):
         """Returns a function which evaluates the Jacobian of the
         constraints given the array of free optimization variables."""
         self._gen_multi_arg_con_jac_func()
-        return self._wrap_constraint_funcs(self._multi_arg_con_jac_func)
+        return self._wrap_constraint_funcs(self._multi_arg_con_jac_func, 'jac')
 

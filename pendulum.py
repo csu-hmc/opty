@@ -178,9 +178,8 @@ class Identifier():
 
         print('Solving optimization problem.')
 
-        self.prob = dc.Problem(self.num_time_steps,
-                               self.num_states,
-                               self.num_gains,
+        self.prob = dc.Problem(self.collocator.num_free,
+                               self.collocator.num_constraints,
                                self.obj_func,
                                self.obj_grad_func,
                                self.con_func,
