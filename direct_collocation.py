@@ -537,7 +537,7 @@ class ConstraintCollocator():
                      self.num_collocation_nodes)
                 si = specified_values[:, 1:]
                 args += [s for s in si]
-            else:
+            elif len(specified_values.shape) == 1 and specified_values.size != 0:
                 assert specified_values.shape == \
                     (self.num_collocation_nodes,)
                 si = specified_values[1:]
@@ -705,7 +705,7 @@ class ConstraintCollocator():
             # 2n + m x N - 1
             if len(specified_values.shape) == 2:
                 args += [s for s in specified_values[:, 1:]]
-            else:
+            elif len(specified_values.shape) == 1 and specified_values.size != 0:
                 args += [specified_values[1:]]
 
             args += [c for c in constant_values]
