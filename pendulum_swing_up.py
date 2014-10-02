@@ -18,8 +18,8 @@ import matplotlib.animation as animation
 from direct_collocation import Problem
 
 target_angle = 5 * np.pi
-duration = 20.0
-num_nodes = 1000
+duration = 10.0
+num_nodes = 500
 save_animation = False
 
 interval_value = duration / (num_nodes - 1)
@@ -64,7 +64,8 @@ instance_constraints = (theta(0.0),
 # Create an optimization problem.
 prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
                known_parameter_map=par_map,
-               instance_constraints=instance_constraints)
+               instance_constraints=instance_constraints,
+               unknown_trajectory_bounds={T(t): (-2.0, 2.0)})
 
 
 # Use a random positive initial guess.
