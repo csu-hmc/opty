@@ -26,14 +26,14 @@ interval_value = duration / (num_nodes - 1)
 
 # Symbolic equations of motion
 I, m, g, d, t = sym.symbols('I, m, g, d, t')
-theta, omega, T = [f(t) for f in sym.symbols('theta, omega, T',
-                                             cls=sym.Function)]
-state_symbols = (theta, omega)
-constant_symbols = (I, m, g, d)
-specified_symbols = (T,)
+theta, omega, T = sym.symbols('theta, omega, T', cls=sym.Function)
 
-eom = sym.Matrix([theta.diff() - omega,
-                  I * omega.diff() + m * g * d * sym.sin(theta) - T])
+state_symbols = (theta(t), omega(t))
+constant_symbols = (I, m, g, d)
+specified_symbols = (T(t),)
+
+eom = sym.Matrix([theta(t).diff() - omega(t),
+                  I * omega(t).diff() + m * g * d * sym.sin(theta(t)) - T(t)])
 
 # Specify the known system parameters.
 par_map = OrderedDict()
@@ -56,7 +56,6 @@ def obj_grad(free):
 
 # Specify the symbolic instance constraints, i.e. initial and end
 # conditions.
-theta, omega = sym.symbols('theta, omega', cls=sym.Function)
 instance_constraints = (theta(0.0),
                         theta(duration) - target_angle,
                         omega(0.0),
