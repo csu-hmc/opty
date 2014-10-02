@@ -24,6 +24,10 @@ class Problem(ipopt.problem):
 
         """
 
+        self.state_bounds = kwargs.pop('state_bounds')
+        self.unknown_trajectory_bounds = kwargs.pop('unknown_trajectory_bounds')
+        self.unknown_parameter_bounds = kwargs.pop('unknown_parameter_bounds')
+
         self.collocator = ConstraintCollocator(*args, **kwargs)
 
         self.obj = obj
@@ -37,10 +41,15 @@ class Problem(ipopt.problem):
         self.num_free = self.collocator.num_free
         self.num_constraints = self.collocator.num_constraints
 
+        self._generate_bound_arrays()
+
+        # All constraints are expected to be equalt to zero.
         con_bounds = np.zeros(self.num_constraints)
 
         super(Problem, self).__init__(n=self.num_free,
                                       m=self.num_constraints,
+                                      lb=self.lower_bound,
+                                      ub=self.upper_bound,
                                       cl=con_bounds,
                                       cu=con_bounds)
 
@@ -51,6 +60,53 @@ class Problem(ipopt.problem):
         self.addOption('linear_solver', 'ma57')
 
         self.obj_value = []
+
+    def _generate_bound_arrays(self):
+        INF = 10e19
+        lb = -INF * np.ones(self.num_free)
+        ub = INF * np.ones(self.num_free)
+
+        N = self.collocator.num_collocation_nodes
+
+        if self.state_bounds is not None:
+            state_syms = self.collocator.state_symbols
+            for i, state in enumerate(state_syms):
+                start = i * N
+                stop = (i + 1) * N
+                try:
+                    lb[start:stop] = self.state_bounds[state][0] * np.ones(N)
+                    ub[start:stop] = self.state_bounds[state][1] * np.ones(N)
+                except KeyError:
+                    pass
+
+        unk_traj_bnds = self.unknown_trajectory_bounds
+        if unk_traj_bnds is not None:
+            unk_traj = self.collocator.unknown_input_trajectories
+            num_state_nodes = N * self.collocator.num_states
+            for i, traj in enumerate(unk_traj):
+                start = num_state_nodes + i * N
+                stop = num_state_nodes + (i + 1) * N
+                try:
+                    lb[start:stop] = unk_traj_bnds[traj][0] * np.ones(N)
+                    ub[start:stop] = unk_traj_bnds[traj][1] * np.ones(N)
+                except KeyError:
+                    pass
+
+        unk_par_bnds = self.unknown_parameter_bounds
+        if unk_par_bnds is not None:
+            unk_par = self.collocator.unknown_parameters
+            num_non_par_nodes = N * (self.collocator.num_states +
+                                     self.collocator.num_unknown_input_trajectories)
+            for i, par in enumerate(unk_par):
+                idx = num_non_par_nodes + i
+                try:
+                    lb[idx] = unk_par_bnds[par][0]
+                    ub[idx] = unk_par_bnds[par][1]
+                except KeyError:
+                    pass
+
+        self.lower_bound = lb
+        self.upper_bound = ub
 
     def objective(self, free):
         return self.obj(free)

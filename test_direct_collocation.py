@@ -6,8 +6,45 @@ import numpy as np
 import sympy as sym
 from scipy import sparse
 
-from direct_collocation import (ConstraintCollocator, objective_function,
+from direct_collocation import (Problem, ConstraintCollocator,
+                                objective_function,
                                 objective_function_gradient)
+
+
+def test_Problem():
+
+    m, c, k, t = sym.symbols('m, c, k, t')
+    x, v, f = [s(t) for s in sym.symbols('x, v, f', cls=sym.Function)]
+
+    state_symbols = (x, v)
+
+    interval_value = 0.01
+
+    eom = sym.Matrix([x.diff() - v,
+                      m * v.diff() + c * v + k * x - f])
+
+    prob = Problem(lambda x: 1.0,
+                   lambda x: x,
+                   eom,
+                   state_symbols,
+                   2,
+                   interval_value,
+                   state_bounds={x: (-10.0, 10.0)},
+                   unknown_trajectory_bounds={f: (-8.0, 8.0)},
+                   unknown_parameter_bounds={m: (-1.0, 1.0),
+                                             c: (-0.5, 0.5)})
+
+    INF = 10e19
+    expected_lower = np.array([-10.0, -10.0,
+                               -INF, -INF,
+                               -8.0, -8.0,
+                               -0.5, -INF, -1.0])
+    np.testing.assert_allclose(prob.lower_bound, expected_lower)
+    expected_upper = np.array([10.0, 10.0,
+                               INF, INF,
+                               8.0, 8.0,
+                               0.5, INF, 1.0])
+    np.testing.assert_allclose(prob.upper_bound, expected_upper)
 
 
 def test_objective_function():
