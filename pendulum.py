@@ -118,9 +118,9 @@ class Identifier():
         self.y_noise = simulate.output_equations(self.x_noise)
         self.u = self.lateral_force
 
-    def generate_constraint_funcs(self):
+    def generate_symbolic_closed_loop(self):
+        print('Forming the closed loop equations of motion.')
 
-        print('Forming the constraint function.')
         # Generate the expressions for creating the closed loop equations of
         # motion.
         control_dict, gain_syms, equil_syms = \
@@ -132,30 +132,11 @@ class Identifier():
         eq_dict = dict(zip(equil_syms, self.num_states * [0]))
 
         # This is the symbolic closed loop continuous system.
-        closed = model.symbolic_constraints(self.mass_matrix,
+        self.closed = model.symbolic_constraints(self.mass_matrix,
                                             self.forcing_vector,
                                             self.states_syms,
                                             control_dict,
                                             eq_dict)
-
-        self.collocator = \
-            dc.ConstraintCollocator(closed,
-                                    self.states_syms,
-                                    self.num_time_steps,
-                                    self.discretization_interval,
-                                    simulate.constants_dict(self.constants_syms),
-                                    {self.specified_inputs_syms[-1]: self.u})
-
-        # Now generate a function which evaluates the N-1 constraints.
-        start = time.clock()
-        self.con_func = self.collocator.generate_constraint_function()
-        msg = 'Compilation of constraint function took {} CPU seconds.'
-        print(msg.format(time.clock() - start))
-
-        start = time.clock()
-        self.con_jac_func = self.collocator.generate_jacobian_function()
-        msg = 'Compilation of constraint Jacobian function took {} CPU seconds.'
-        print(msg.format(time.clock() - start))
 
     def generate_objective_funcs(self):
         print('Forming the objective function.')
@@ -174,17 +155,22 @@ class Identifier():
                                                self.time,
                                                self.y_noise if self.sensor_noise else self.y)
 
+    def generate_constraint_funcs(self):
+
+        print('Forming the constraint functions.')
+
+        self.prob = dc.Problem(self.obj_func,
+                               self.obj_grad_func,
+                               self.closed,
+                               self.states_syms,
+                               self.num_time_steps,
+                               self.discretization_interval,
+                               known_parameter_map=simulate.constants_dict(self.constants_syms),
+                               known_trajectory_map={self.specified_inputs_syms[-1]: self.u})
+
     def optimize(self):
 
         print('Solving optimization problem.')
-
-        self.prob = dc.Problem(self.collocator.num_free,
-                               self.collocator.num_constraints,
-                               self.obj_func,
-                               self.obj_grad_func,
-                               self.con_func,
-                               self.con_jac_func,
-                               self.collocator.jacobian_indices)
 
         init_states, init_specified, init_constants = \
             utils.parse_free(self.initial_guess, self.num_states, 0,
@@ -198,7 +184,7 @@ class Identifier():
                              self.num_time_steps)
         sol_gains = sol_constants.reshape(self.gains.shape)
 
-        print("Initial gain guess: {}".format(init_gains))
+        print("\nInitial gain guess: {}".format(init_gains))
         print("Known gains: {}".format(self.gains))
         print("Identified gains: {}".format(sol_gains))
 
@@ -206,11 +192,11 @@ class Identifier():
 
         viz.plot_sim_results(self.y_noise if self.sensor_noise else self.y,
                              self.u)
-        viz.plot_constraints(self.con_func(self.initial_guess),
+        viz.plot_constraints(self.prob.con(self.initial_guess),
                              self.num_states,
                              self.num_time_steps,
                              self.states_syms)
-        viz.plot_constraints(self.con_func(self.solution),
+        viz.plot_constraints(self.prob.con(self.solution),
                              self.num_states,
                              self.num_time_steps,
                              self.states_syms)
@@ -246,9 +232,9 @@ class Identifier():
         results['known_solution'] = known_solution
         results['optimal_solution'] = self.solution
 
-        results['initial_guess_constraints'] = self.con_func(self.initial_guess)
-        results['known_solution_constraints'] = self.con_func(known_solution)
-        results['optimal_solution_constraints'] = self.con_func(self.solution)
+        results['initial_guess_constraints'] = self.prob.con(self.initial_guess)
+        results['known_solution_constraints'] = self.prob.con(known_solution)
+        results['optimal_solution_constraints'] = self.prob.con(self.solution)
 
         results['initial_conditions'] = self.initial_conditions
         results['lateral_force'] = self.lateral_force
@@ -270,10 +256,11 @@ class Identifier():
 
         self.compute_discretization()
         self.generate_eoms()
+        self.generate_symbolic_closed_loop()
         self.find_optimal_gains()
         self.simulate()
-        self.generate_constraint_funcs()
         self.generate_objective_funcs()
+        self.generate_constraint_funcs()
         self.initial_guess = \
             simulate.choose_initial_conditions(self.init_type,
                                                self.x_noise if self.sensor_noise else

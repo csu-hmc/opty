@@ -13,7 +13,7 @@ import sympy as sym
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
 
-from direct_collocation import ConstraintCollocator, Problem
+from direct_collocation import Problem
 
 # Specify the symbolic equations of motion: y' = f(y, t).
 p, t = sym.symbols('p, t')
@@ -40,8 +40,6 @@ y1_meas = y_meas[:, 0]
 y2_meas = y_meas[:, 1]
 
 # Setup the optimization problem
-
-
 def obj(free):
     """Minimize the error in the angle, y1."""
     return interval * np.sum((y1_meas - free[:num_nodes])**2)
@@ -52,15 +50,7 @@ def obj_grad(free):
     grad[:num_nodes] = 2.0 * interval * (free[:num_nodes] - y1_meas)
     return grad
 
-con_col = ConstraintCollocator(eom, (y1, y2), num_nodes, interval)
-
-prob = Problem(con_col.num_free,
-               con_col.num_constraints,
-               obj,
-               obj_grad,
-               con_col.generate_constraint_function(),
-               con_col.generate_jacobian_function(),
-               con_col.jacobian_indices)
+prob = Problem(obj, obj_grad, eom, (y1, y2), num_nodes, interval)
 
 # Zeros for the state trajectories and a random positive value for the
 # parameter.

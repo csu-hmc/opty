@@ -1,6 +1,6 @@
 """This solves the simple pendulum swing up problem presented here:
 
-    http://hmc.csuohio.edu/resources/human-motion-seminar-jan-23-2014
+http://hmc.csuohio.edu/resources/human-motion-seminar-jan-23-2014
 
 A simple pendulum is controlled by a torque at its joint. The goal is to
 swing the pendulum from its rest equilibrium to a target angle by minimizing
@@ -15,15 +15,16 @@ import sympy as sym
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-from direct_collocation import ConstraintCollocator, Problem
+from direct_collocation import Problem
 
 target_angle = 5 * np.pi
-duration = 5.0
-num_nodes = 100
+duration = 20.0
+num_nodes = 1000
 save_animation = False
 
 interval_value = duration / (num_nodes - 1)
 
+# Symbolic equations of motion
 I, m, g, d, t = sym.symbols('I, m, g, d, t')
 theta, omega, T = [f(t) for f in sym.symbols('theta, omega, T',
                                              cls=sym.Function)]
@@ -34,10 +35,16 @@ specified_symbols = (T,)
 eom = sym.Matrix([theta.diff() - omega,
                   I * omega.diff() + m * g * d * sym.sin(theta) - T])
 
-par_map = OrderedDict(zip(constant_symbols, (1.0, 1.0, 9.81, 1.0)))
+# Specify the known system parameters.
+par_map = OrderedDict()
+par_map[I] = 1.0
+par_map[m] = 1.0
+par_map[g] = 9.81
+par_map[d] = 1.0
 
-
+# Specify the objective function and it's gradient.
 def obj(free):
+    """Minimize the sum of the squares of the control torque."""
     T = free[2 * num_nodes:]
     return np.sum(T**2)
 
@@ -47,52 +54,68 @@ def obj_grad(free):
     grad[2 * num_nodes:] = 2.0 * interval_value * free[2 * num_nodes:]
     return grad
 
+# Specify the symbolic instance constraints, i.e. initial and end
+# conditions.
 theta, omega = sym.symbols('theta, omega', cls=sym.Function)
 instance_constraints = (theta(0.0),
                         theta(duration) - target_angle,
                         omega(0.0),
                         omega(duration))
 
-con_col = ConstraintCollocator(eom, state_symbols, num_nodes,
-                               interval_value, known_parameter_map=par_map,
-                               instance_constraints=instance_constraints)
+# Create an optimization problem.
+prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
+               known_parameter_map=par_map,
+               instance_constraints=instance_constraints)
 
-prob = Problem(con_col.num_free,
-               con_col.num_constraints,
-               obj,
-               obj_grad,
-               con_col.generate_constraint_function(),
-               con_col.generate_jacobian_function(),
-               con_col.jacobian_indices)
 
-# Known solution as initial guess.
-initial_guess = np.random.randn(con_col.num_free)
+# Use a random positive initial guess.
+initial_guess = np.random.randn(prob.num_free)
 
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
 
+# Plot trajectories
 time = np.linspace(0.0, duration, num=num_nodes)
 
 angle = solution[:num_nodes]
 rate = solution[num_nodes:2 * num_nodes]
 torque = solution[2 * num_nodes:]
-con_violations = prob.con(solution)
 
-fig, axes = plt.subplots(5)
-
+fig, axes = plt.subplots(3)
+axes[0].set_title('State and Control Trajectories')
 axes[0].plot(time, angle)
 axes[0].set_ylabel('Angle [rad]')
 axes[1].plot(time, rate)
-axes[1].set_ylabel('Angular Rate [rad]')
+axes[1].set_ylabel('Angular Rate [rad/s]')
 axes[2].plot(time, torque)
 axes[2].set_ylabel('Torque [Nm]')
 axes[2].set_xlabel('Time [S]')
-axes[3].plot(con_violations)
-axes[4].plot(prob.obj_value)
 
-# Animation
+# Plot constraint violations
+con_violations = prob.con(solution)
+con_nodes = range(2, num_nodes + 1)
+N = len(con_nodes)
+fig, axes = plt.subplots(3)
+axes[0].set_title('Constraint Violations')
+axes[0].plot(con_nodes, con_violations[:N])
+axes[0].set_ylabel('Angle [rad]')
+axes[1].plot(con_nodes, con_violations[N:2 * N])
+axes[1].set_ylabel('Angular Rate [rad/s]')
+axes[1].set_xlabel('Node Number')
+axes[2].plot(con_violations[2 * N:])
+axes[2].set_ylabel('Other')
+
+# Plot objective value
+fig, ax = plt.subplots(1)
+ax.set_title('Objective Value')
+ax.plot(prob.obj_value)
+ax.set_ylabel('Objective Value')
+ax.set_xlabel('Iteration Number')
+
+# Display animation
 fig = plt.figure()
-ax = fig.add_subplot(111, autoscale_on=False, xlim=(-2, 2), ylim=(-2, 2))
+ax = fig.add_subplot(111, aspect='equal', autoscale_on=False, xlim=(-2, 2),
+                     ylim=(-2, 2))
 ax.grid()
 
 line, = ax.plot([], [], 'o-', lw=2)

@@ -12,40 +12,35 @@ from utils import ufuncify_matrix, parse_free
 
 class Problem(ipopt.problem):
 
-    def __init__(self, num_free, num_con, obj, obj_grad, con, con_jac,
-                 con_jac_indices):
+    def __init__(self, obj, obj_grad, *args, **kwargs):
         """
 
         Parameters
         ----------
-        num_free : integer
-            The number of free variables.
-        num_con : integer
-            The number of constraints.
         obj : function
             Returns the value of the objective function.
         obj_grad : function
             Returns the gradient of the objective function.
-        con : function
-            Returns the value of the constraints.
-        con_jac : function
-            Returns the Jacobian of the constraints.
-        con_jac_indices : function
-            Returns the indices of the non-zero values in the Jacobian.
 
         """
 
+        self.collocator = ConstraintCollocator(*args, **kwargs)
+
         self.obj = obj
         self.obj_grad = obj_grad
-        self.con = con
-        self.con_jac = con_jac
+        self.con = self.collocator.generate_constraint_function()
+        self.con_jac = self.collocator.generate_jacobian_function()
 
-        self.con_jac_rows, self.con_jac_cols = con_jac_indices()
+        self.con_jac_rows, self.con_jac_cols = \
+            self.collocator.jacobian_indices()
 
-        con_bounds = np.zeros(num_con)
+        self.num_free = self.collocator.num_free
+        self.num_constraints = self.collocator.num_constraints
 
-        super(Problem, self).__init__(n=num_free,
-                                      m=num_con,
+        con_bounds = np.zeros(self.num_constraints)
+
+        super(Problem, self).__init__(n=self.num_free,
+                                      m=self.num_constraints,
                                       cl=con_bounds,
                                       cu=con_bounds)
 
