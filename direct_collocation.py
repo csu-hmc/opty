@@ -294,7 +294,7 @@ class ConstraintCollocator():
             self._find_closest_free_index()
             self.eval_instance_constraints = \
                 self._instance_constraints_func()
-            self.eval_instance_constratints_jacobian_values = \
+            self.eval_instance_constraints_jacobian_values = \
                 self._instance_constraints_jacobian_values_func()
 
     @staticmethod
@@ -949,7 +949,7 @@ class ConstraintCollocator():
                 if typ == 'con':
                     ins_con_vals = self.eval_instance_constraints(free)
                 elif typ == 'jac':
-                    ins_con_vals = self.eval_instance_constratints_jacobian_values(free)
+                    ins_con_vals = self.eval_instance_constraints_jacobian_values(free)
                 return np.hstack((eom_con_vals, ins_con_vals))
             else:
                 return eom_con_vals
