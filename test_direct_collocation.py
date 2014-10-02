@@ -29,10 +29,10 @@ def test_Problem():
                    state_symbols,
                    2,
                    interval_value,
-                   state_bounds={x: (-10.0, 10.0)},
-                   unknown_trajectory_bounds={f: (-8.0, 8.0)},
-                   unknown_parameter_bounds={m: (-1.0, 1.0),
-                                             c: (-0.5, 0.5)})
+                   bounds={x: (-10.0, 10.0),
+                           f: (-8.0, 8.0),
+                           m: (-1.0, 1.0),
+                           c: (-0.5, 0.5)})
 
     INF = 10e19
     expected_lower = np.array([-10.0, -10.0,

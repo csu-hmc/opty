@@ -21,12 +21,16 @@ class Problem(ipopt.problem):
             Returns the value of the objective function.
         obj_grad : function
             Returns the gradient of the objective function.
+        bounds : dictionary
+            This dictionary should contain a mapping from any of the
+            symbolic states, unknown trajectories, or unknown parameters to
+            a 2-tuple of floats, the first being the lower bound and the
+            second the upper bound for that free variable, e.g. {x(t):
+                (-1.0, 5.0)}.
 
         """
 
-        self.state_bounds = kwargs.pop('state_bounds', None)
-        self.unknown_trajectory_bounds = kwargs.pop('unknown_trajectory_bounds', None)
-        self.unknown_parameter_bounds = kwargs.pop('unknown_parameter_bounds', None)
+        self.bounds = kwargs.pop('bounds', None)
 
         self.collocator = ConstraintCollocator(*args, **kwargs)
 
@@ -67,36 +71,32 @@ class Problem(ipopt.problem):
         ub = INF * np.ones(self.num_free)
 
         N = self.collocator.num_collocation_nodes
+        num_state_nodes = N * self.collocator.num_states
+        num_non_par_nodes = N * (self.collocator.num_states +
+                                 self.collocator.num_unknown_input_trajectories)
+        state_syms = self.collocator.state_symbols
+        unk_traj = self.collocator.unknown_input_trajectories
+        unk_par = self.collocator.unknown_parameters
 
-        if self.state_bounds is not None:
-            state_syms = self.collocator.state_symbols
-
-            for state, bounds in self.state_bounds.items():
-                i = state_syms.index(state)
-                start = i * N
-                stop = start + N
-                lb[start:stop] = bounds[0] * np.ones(N)
-                ub[start:stop] = bounds[1] * np.ones(N)
-
-        if self.unknown_trajectory_bounds is not None:
-            unk_traj = self.collocator.unknown_input_trajectories
-            num_state_nodes = N * self.collocator.num_states
-            for traj, bounds in self.unknown_trajectory_bounds.items():
-                i = unk_traj.index(traj)
-                start = num_state_nodes + i * N
-                stop = start + N
-                lb[start:stop] = bounds[0] * np.ones(N)
-                ub[start:stop] = bounds[1] * np.ones(N)
-
-        if self.unknown_parameter_bounds is not None:
-            unk_par = self.collocator.unknown_parameters
-            num_non_par_nodes = N * (self.collocator.num_states +
-                                     self.collocator.num_unknown_input_trajectories)
-            for par, bounds in self.unknown_parameter_bounds.items():
-                i = unk_par.index(par)
-                idx = num_non_par_nodes + i
-                lb[idx] = bounds[0]
-                ub[idx] = bounds[1]
+        if self.bounds is not None:
+            for var, bounds in self.bounds.items():
+                if var in state_syms:
+                    i = state_syms.index(var)
+                    start = i * N
+                    stop = start + N
+                    lb[start:stop] = bounds[0] * np.ones(N)
+                    ub[start:stop] = bounds[1] * np.ones(N)
+                elif var in unk_traj:
+                    i = unk_traj.index(var)
+                    start = num_state_nodes + i * N
+                    stop = start + N
+                    lb[start:stop] = bounds[0] * np.ones(N)
+                    ub[start:stop] = bounds[1] * np.ones(N)
+                elif var in unk_par:
+                    i = unk_par.index(var)
+                    idx = num_non_par_nodes + i
+                    lb[idx] = bounds[0]
+                    ub[idx] = bounds[1]
 
         self.lower_bound = lb
         self.upper_bound = ub
