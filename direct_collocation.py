@@ -24,9 +24,9 @@ class Problem(ipopt.problem):
 
         """
 
-        self.state_bounds = kwargs.pop('state_bounds')
-        self.unknown_trajectory_bounds = kwargs.pop('unknown_trajectory_bounds')
-        self.unknown_parameter_bounds = kwargs.pop('unknown_parameter_bounds')
+        self.state_bounds = kwargs.pop('state_bounds', None)
+        self.unknown_trajectory_bounds = kwargs.pop('unknown_trajectory_bounds', None)
+        self.unknown_parameter_bounds = kwargs.pop('unknown_parameter_bounds', None)
 
         self.collocator = ConstraintCollocator(*args, **kwargs)
 
