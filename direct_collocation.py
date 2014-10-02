@@ -70,40 +70,33 @@ class Problem(ipopt.problem):
 
         if self.state_bounds is not None:
             state_syms = self.collocator.state_symbols
-            for i, state in enumerate(state_syms):
-                start = i * N
-                stop = (i + 1) * N
-                try:
-                    lb[start:stop] = self.state_bounds[state][0] * np.ones(N)
-                    ub[start:stop] = self.state_bounds[state][1] * np.ones(N)
-                except KeyError:
-                    pass
 
-        unk_traj_bnds = self.unknown_trajectory_bounds
-        if unk_traj_bnds is not None:
+            for state, bounds in self.state_bounds.items():
+                i = state_syms.index(state)
+                start = i * N
+                stop = start + N
+                lb[start:stop] = bounds[0] * np.ones(N)
+                ub[start:stop] = bounds[1] * np.ones(N)
+
+        if self.unknown_trajectory_bounds is not None:
             unk_traj = self.collocator.unknown_input_trajectories
             num_state_nodes = N * self.collocator.num_states
-            for i, traj in enumerate(unk_traj):
+            for traj, bounds in self.unknown_trajectory_bounds.items():
+                i = unk_traj.index(traj)
                 start = num_state_nodes + i * N
-                stop = num_state_nodes + (i + 1) * N
-                try:
-                    lb[start:stop] = unk_traj_bnds[traj][0] * np.ones(N)
-                    ub[start:stop] = unk_traj_bnds[traj][1] * np.ones(N)
-                except KeyError:
-                    pass
+                stop = start + N
+                lb[start:stop] = bounds[0] * np.ones(N)
+                ub[start:stop] = bounds[1] * np.ones(N)
 
-        unk_par_bnds = self.unknown_parameter_bounds
-        if unk_par_bnds is not None:
+        if self.unknown_parameter_bounds is not None:
             unk_par = self.collocator.unknown_parameters
             num_non_par_nodes = N * (self.collocator.num_states +
                                      self.collocator.num_unknown_input_trajectories)
-            for i, par in enumerate(unk_par):
+            for par, bounds in self.unknown_parameter_bounds.items():
+                i = unk_par.index(par)
                 idx = num_non_par_nodes + i
-                try:
-                    lb[idx] = unk_par_bnds[par][0]
-                    ub[idx] = unk_par_bnds[par][1]
-                except KeyError:
-                    pass
+                lb[idx] = bounds[0]
+                ub[idx] = bounds[1]
 
         self.lower_bound = lb
         self.upper_bound = ub
