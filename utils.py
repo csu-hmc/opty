@@ -11,6 +11,7 @@ import numpy as np
 import sympy as sy
 from sympy.utilities.lambdify import implemented_function
 from sympy.utilities.autowrap import autowrap
+from sympy.physics.mechanics import msubs
 
 
 def parse_free(free, n, r, N):
@@ -164,6 +165,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None):
          'num_rows': expr.shape[0],
          'num_cols': expr.shape[1]}
 
+    print('Printing ccode.')
     matrix_sym = sy.MatrixSymbol('matrix', expr.shape[0], expr.shape[1])
 
     sub_exprs, simple_mat = sy.cse(expr, sy.numbered_symbols('z_'))
@@ -190,6 +192,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None):
         else:
             typ = 'np.ndarray[np.double_t, ndim=1]'
             idexy = '{}[i]'
+
         cython_input_args.append('{} {}'.format(typ, sy.ccode(a)))
         indexed_input_args.append(idexy.format(sy.ccode(a)))
 

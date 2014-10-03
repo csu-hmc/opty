@@ -66,8 +66,14 @@ initial_guess = np.hstack((y1_meas, y2_meas, 10.0))
 solution, info = prob.solve(initial_guess)
 p_sol = solution[-1]
 
-print("Known value of p = {}".format(p_val))
-print("Identified value of p = {}".format(p_sol))
+known_msg = "Known value of p = {}".format(p_val)
+identified_msg = "Identified value of p = {}".format(p_sol)
+divider = '=' * max(len(known_msg), len(identified_msg))
+
+print(divider)
+print(known_msg)
+print(identified_msg)
+print(divider)
 
 # Simulate with the identified parameter.
 y_sim = odeint(func, y0, time, args=(p_sol,))

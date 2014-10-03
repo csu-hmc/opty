@@ -249,7 +249,7 @@ class ConstraintCollocator():
     methods for a non-linear programming problem where the essential
     constraints are defined from the equations of motion of the system."""
 
-    time_interval_symbol = sym.Symbol('h')
+    time_interval_symbol = sym.Symbol('h', real=True)
 
     def __init__(self, equations_of_motion, state_symbols,
                  num_collocation_nodes, node_time_interval,
@@ -471,13 +471,13 @@ class ConstraintCollocator():
 
         """
 
-        xi = [sym.Symbol(f.__class__.__name__ + 'i')
+        xi = [sym.Symbol(f.__class__.__name__ + 'i', real=True)
               for f in self.state_symbols]
-        xp = [sym.Symbol(f.__class__.__name__ + 'p')
+        xp = [sym.Symbol(f.__class__.__name__ + 'p', real=True)
               for f in self.state_symbols]
-        ki = [sym.Symbol(f.__class__.__name__ + 'i') for f in
+        ki = [sym.Symbol(f.__class__.__name__ + 'i', real=True) for f in
               self.known_input_trajectories]
-        ui = [sym.Symbol(f.__class__.__name__ + 'i') for f in
+        ui = [sym.Symbol(f.__class__.__name__ + 'i', real=True) for f in
               self.unknown_input_trajectories]
 
         self.current_discrete_state_symbols = tuple(xi)
@@ -830,6 +830,9 @@ class ConstraintCollocator():
         # Symbols/Functions in the matrix expression.
         args = xi_syms + xp_syms + si_syms + constant_syms + (h_sym,)
 
+        # TODO: This needs to be profiled for larger matrices of long
+        # expressions. This is quite slow at the moment.
+        print('Computing the symbolic partial derivatives.')
         symbolic_jacobian = self.discrete_eom.jacobian(partials)
 
         jac = ufuncify_matrix(args, symbolic_jacobian,
