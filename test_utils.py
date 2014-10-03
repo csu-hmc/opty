@@ -32,7 +32,7 @@ def test_parse_free():
 
 def test_ufuncify_matrix():
 
-    a, b, c = sp.symbols('a, b, c')
+    a, b, c = sp.symbols('a, b, if')
 
     expr_00 = a**2 * sp.cos(b)**c
     expr_01 = sp.tan(b) / sp.sin(a + b) + c**4

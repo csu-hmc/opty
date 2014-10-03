@@ -134,6 +134,16 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None):
     # not sure if this current version counts sequentially.
     global module_counter
 
+    dummy_map = {a: sy.Dummy() for a in args}
+    # TODO: This substitution may take time for big matrices. There is
+    # probably a better solution for dealing with variables that have the
+    # same name as reserved keywords in the printed language. See sympy
+    # issue #8190.
+    expr = expr.subs(dummy_map)
+    args = [dummy_map[a] for a in args]
+    if const is not None:
+        const = [dummy_map[a] for a in const]
+
     matrix_size = expr.shape[0] * expr.shape[1]
 
     file_prefix_base = 'ufuncify_matrix'
@@ -178,19 +188,20 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None):
     c_indent = len('void {routine_name}('.format(**d))
     c_arg_spacer = ',\n' + ' ' * c_indent
 
-    d['input_args'] = c_arg_spacer.join(['double {}'.format(a) for a in args])
+    input_args = ['double {}_{}'.format(a.name, a.dummy_index) for a in args]
+    d['input_args'] = c_arg_spacer.join(input_args)
 
     cython_input_args = []
     indexed_input_args = []
     for a in args:
         if const is not None and a in const:
             typ = 'double'
-            idexy = '{}'
+            idexy = '{}_{}'
         else:
             typ = 'np.ndarray[np.double_t, ndim=1]'
-            idexy = '{}[i]'
-        cython_input_args.append('{} {}'.format(typ, a))
-        indexed_input_args.append(idexy.format(a))
+            idexy = '{}_{}[i]'
+        cython_input_args.append('{} {}_{}'.format(typ, a.name, a.dummy_index))
+        indexed_input_args.append(idexy.format(a.name, a.dummy_index))
 
     cython_indent = len('def {routine_name}_loop('.format(**d))
     cython_arg_spacer = ',\n' + ' ' * cython_indent
