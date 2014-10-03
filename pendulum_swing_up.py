@@ -65,7 +65,7 @@ instance_constraints = (theta(0.0),
 prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
-               unknown_trajectory_bounds={T(t): (-2.0, 2.0)})
+               bounds={T(t): (-2.5, 2.5)})
 
 
 # Use a random positive initial guess.
