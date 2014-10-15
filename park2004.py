@@ -10,6 +10,8 @@ import sympy.physics.mechanics as me
 import yeadon
 from pydy.codegen.code import generate_ode_function
 
+from direct_collocation import Problem
+
 sym_kwargs = {'positive': True, 'real': True}
 me.dynamicsymbols._t = sy.symbols('t', **sym_kwargs)
 
@@ -17,10 +19,21 @@ me.dynamicsymbols._t = sy.symbols('t', **sym_kwargs)
 class PlanarStandingHumanOnMovingPlatform():
     """Generates the symbolic equations of motion of a 2D planar two body
     model representing a human standing on a antero-posteriorly moving
-    platform similar to the one found in Park et. al 2004.
+    platform similar to the one found in [Park2004]_.
+
+    References
+    ==========
+
+    .. [Park2004] Park, Sukyung, Fay B. Horak, and Arthur D. Kuo. "Postural
+       Feedback Responses Scale with Biomechanical Constraints in Human
+       Standing." Experimental Brain Research 154, no. 4 (February 1, 2004):
+       417-27. doi:10.1007/s00221-003-1674-3.
+
+    Model Description
+    =================
 
     Time Varying Parameters
-    =======================
+    -----------------------
     theta_a :
         Angle of legs wrt to foot, plantar flexion is positive.
     theta_h :
@@ -40,7 +53,8 @@ class PlanarStandingHumanOnMovingPlatform():
         causes extension.
 
     Constant Parameters
-    ===================
+    -------------------
+
     l_L : distance from ankle to hip
     d_L : distance from ankle to legs center of mass
     d_T : distance from hip to torso center of mass
@@ -51,7 +65,7 @@ class PlanarStandingHumanOnMovingPlatform():
     g : acceleration due to gravity
 
     Equations of Motion
-    ===================
+    -------------------
 
     The generalized coordinates:
 
@@ -80,10 +94,10 @@ class PlanarStandingHumanOnMovingPlatform():
     x' = A * x + B * r
 
     Closed Loop Equations of Motion
-    ===============================
+    -------------------------------
 
-    Additional constants
-    --------------------
+    Additional constants:
+
     k = [k_00, k_01, k_02, k_03]
         [k_10, k_11, k_12, k_{T_h-omega_h}
 
@@ -97,32 +111,37 @@ class PlanarStandingHumanOnMovingPlatform():
 
     T = -k * x
 
-
     """
 
     def _create_states(self):
 
-        theta_a, theta_h = me.dynamicsymbols('theta_a, theta_h')
-        omega_a, omega_h = me.dynamicsymbols('omega_a, omega_h')
+        self.time = me.dynamicsymbols._t
+
+        syms = 'theta_a, theta_h, omega_a, omega_h'
+        time_varying = [s(self.time) for s in sy.symbols(syms,
+                                                         cls=sy.Function,
+                                                         real=True)]
 
         self.coordinates = OrderedDict()
-        self.coordinates['ankle_angle'] = theta_a
-        self.coordinates['hip_angle'] = theta_h
+        self.coordinates['ankle_angle'] = time_varying[0]
+        self.coordinates['hip_angle'] = time_varying[1]
 
         self.speeds = OrderedDict()
-        self.speeds['ankle_rate'] = omega_a
-        self.speeds['hip_rate'] = omega_h
-
-        self.time = me.dynamicsymbols._t
+        self.speeds['ankle_rate'] = time_varying[2]
+        self.speeds['hip_rate'] = time_varying[3]
 
     def _create_specified(self):
 
+        time_varying = [s(self.time)
+                        for s in sy.symbols('x, v, a, T_h, T_a',
+                                            cls=sy.Function, real=True)]
+
         self.specified = OrderedDict()
-        self.specified['platform_position'] = me.dynamicsymbols('x')
-        self.specified['platform_speed'] = me.dynamicsymbols('v')
-        self.specified['platform_acceleration'] = me.dynamicsymbols('a')
-        self.specified['ankle_torque'] = me.dynamicsymbols('T_a')
-        self.specified['hip_torque'] = me.dynamicsymbols('T_h')
+        self.specified['platform_position'] = time_varying[0]
+        self.specified['platform_speed'] = time_varying[1]
+        self.specified['platform_acceleration'] = time_varying[2]
+        self.specified['ankle_torque'] = time_varying[3]
+        self.specified['hip_torque'] = time_varying[4]
 
     def _create_parameters(self):
 
@@ -217,9 +236,11 @@ class PlanarStandingHumanOnMovingPlatform():
 
         self.points['origin'].set_vel(self.frames['inertial'], 0)
 
-        self.points['ankle'].set_acc(self.frames['inertial'],
-                                     self.specified['platform_acceleration'] *
-                                     self.frames['inertial'].x)
+        # Note : This doesn't acutally populate through in the KanesMethod
+        # classe. See https://github.com/sympy/sympy/issues/8244.
+        vec = (self.specified['platform_acceleration'] *
+               self.frames['inertial'].x)
+        self.points['ankle'].set_acc(self.frames['inertial'], vec)
 
     def _create_inertia_dyadics(self):
 
@@ -317,7 +338,8 @@ class PlanarStandingHumanOnMovingPlatform():
         M_top_rows = sy.eye(2).row_join(sy.zeros(2))
         F_top_rows = sy.Matrix(self.speeds.values())
 
-        self.mass_matrix_full = M_top_rows.col_join(sy.zeros(2).row_join(self.mass_matrix))
+        tmp = sy.zeros(2).row_join(self.mass_matrix)
+        self.mass_matrix_full = M_top_rows.col_join(tmp)
         self.forcing_vector_full = F_top_rows.col_join(self.forcing_vector)
 
     def _generate_rhs(self):
@@ -393,8 +415,8 @@ class PlanarStandingHumanOnMovingPlatform():
         self.numerical_gains = np.array([[950.0, 175.0, 185.0, 50.0],
                                          [45.0, 290.0, 60.0, 26.0]])
 
-        for g, v in zip(self.gain_matrix, self.numerical_gains.flatten()):
-            self.parameter_map[g] = v
+        #for g, v in zip(self.gain_matrix, self.numerical_gains.flatten()):
+            #self.parameter_map[g] = v
 
     def _linearize(self):
 
@@ -462,47 +484,44 @@ class PlanarStandingHumanOnMovingPlatform():
 
         controls = np.empty(3, dtype=float)
 
-        ref_noise_interp_func = interp1d(time, reference_noise, axis=0)
-        acceleration_interp_func = interp1d(time, platform_acceleration)
+        all_sigs = np.hstack((reference_noise,
+                              np.expand_dims(platform_acceleration, 1)))
+        interp_func = interp1d(time, all_sigs, axis=0)
 
         def controller(x, t):
             """
             x = [theta_a, theta_h, omega_a, omega_h]
             r = [a, T_a, T_h]
             """
+            # TODO : This interpolation call is the most expensive thing
+            # when running odeint.
             if t > time[-1]:
-                ref_noise = ref_noise_interp_func(time[-1])
-                acceleration = acceleration_interp_func(time[-1])
+                result = interp_func(time[-1])
             else:
-                ref_noise = ref_noise_interp_func(t)
-                acceleration = acceleration_interp_func(t)
+                result = interp_func(t)
 
-            # If he reference (set point) is equal to zero, this is
-            # equivalent.
-            joint_torques = np.dot(self.numerical_gains, ref_noise - x)
-
-            controls[0] = acceleration
-            controls[1:] = joint_torques
+            controls[0] = result[-1]
+            controls[1:] = np.dot(self.numerical_gains, result[:-1] - x)
 
             return controls
 
         rhs = generate_ode_function(self.mass_matrix_full,
                                     self.forcing_vector_full,
-                                    self.parameters.values(),  # shouldn't include gains
+                                    self.parameters.values(),
                                     self.coordinates.values(),
                                     self.speeds.values(),
-                                    self.specified.values()[-3:], # a, T_a, T_h
+                                    self.specified.values()[-3:],
                                     generator='cython')
 
-        args = {'constants': np.array(self.parameter_map.values()[:-8]),
+        args = {'constants': np.array(self.parameter_map.values()),
                 'specified': controller}
 
         return rhs, args
 
 
 def sum_of_sines(sigma, frequencies, time):
-    """Returns a sum of sines centered at zero and its first and second
-    derivatives.
+    """Returns a sum of sines centered at zero along with its first and
+    second derivatives.
 
     Parameters
     ==========
@@ -516,8 +535,11 @@ def sum_of_sines(sigma, frequencies, time):
     Returns
     =======
     sines : ndarray, shape(n,)
+        A sum of sines.
     sines_prime : ndarray, shape(n,)
+        The first derivative of the sum of sines.
     sines_double_prime : ndarray, shape(n,)
+        The second derivative of the sum of sines.
 
     """
 
@@ -539,24 +561,69 @@ def sum_of_sines(sigma, frequencies, time):
 
 if __name__ == '__main__':
 
-    import matplotlib.pyplot as plt
-
+    print('Generating equations of motion.')
     h = PlanarStandingHumanOnMovingPlatform()
     h.derive()
 
-    sample_rate = 100.0
-    duration = 10.0
-    num_samples = sample_rate * duration
-    time = np.linspace(0.0, duration, num=num_samples)
+    num_nodes = 1000
+    duration = 20.0
+    interval = duration / (num_nodes - 1)
+    time = np.linspace(0.0, duration, num=num_nodes)
 
     ref_noise = np.random.normal(scale=np.deg2rad(1.0), size=(len(time), 4))
+    ref_noise = np.zeros((len(time), 4))
 
     nums = [7, 11, 16, 25, 38, 61, 103, 131, 151, 181, 313, 523]
     freq = 2.0 * np.pi * np.array(nums, dtype=float) / 240.0
     pos, vel, accel = sum_of_sines(0.01, freq, time)
 
+    print('Generating right hand side function.')
     rhs, args = h.closed_loop_ode_func(time, ref_noise, accel)
 
     x0 = np.zeros(4)
 
+    print('Integrating equations of motion.')
     x = odeint(rhs, x0, time, args=(args,))
+
+    # Add measurement noise to the data.
+    x_meas = x + np.random.normal(scale=np.deg2rad(0.25), size=x.shape)
+    x_meas = x
+
+    # TODO : Add measurement noise to the acceleration measurement.
+
+    x_meas_vec = x_meas.T.flatten()
+
+    print('Setting up optimization problem.')
+    # Setup the optimization problem
+    def obj(free):
+        """Minimize the error in the angle, y1."""
+        return interval * np.sum((x_meas_vec - free[:4 * num_nodes])**2)
+
+    def obj_grad(free):
+        grad = np.zeros_like(free)
+        grad[:4 * num_nodes] = 2.0 * interval * (free[:4 * num_nodes] - x_meas_vec)
+        return grad
+
+    bounds = {}
+    for g in h.gain_symbols:
+        bounds[g] = (0.0, 2000.0)
+
+    prob = Problem(obj, obj_grad,
+                   sy.Matrix(h.kin_diff_eqs).col_join(h.fr_plus_frstar_closed),
+                   h.coordinates.values() + h.speeds.values(),
+                   num_nodes, interval,
+                   known_parameter_map=h.parameter_map,
+                   known_trajectory_map={h.specified['platform_acceleration']: accel},
+                   bounds=bounds,
+                   time_symbol=h.time)
+
+    initial_guess = np.hstack((x_meas_vec, h.numerical_gains.flatten()))
+    initial_guess = np.hstack((x_meas_vec), 1000.0 * np.random.random(8)))
+    initial_guess = np.hstack((x_meas_vec, np.zeros(8)))
+
+    # Find the optimal solution.
+    solution, info = prob.solve(initial_guess)
+    p_sol = solution[-8:]
+
+    print("Known value of p = {}".format(h.numerical_gains))
+    print("Identified value of p = {}".format(p_sol))
