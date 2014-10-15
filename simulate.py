@@ -74,7 +74,7 @@ def input_force(typ, time):
         # I took these frequencies from a sum of sines Ron designed for a
         # pilot control problem.
         nums = [7, 11, 16, 25, 38, 61, 103, 131, 151, 181, 313, 523]
-        freq = 2 * np.pi * np.array(nums) / 240
+        freq = 2.0 * np.pi * np.array(nums, dtype=float) / 240.0
         mags = magnitude * np.ones(len(freq))
         lateral_force = sum_of_sines(mags, freq, time)
     else:
