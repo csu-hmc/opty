@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 import numpy as np
 from scipy.interpolate import interp1d
+from scipy.integrate import odeint
 import sympy as sy
 import sympy.physics.mechanics as me
 import yeadon
@@ -105,12 +106,12 @@ class PlanarStandingHumanOnMovingPlatform():
         omega_a, omega_h = me.dynamicsymbols('omega_a, omega_h')
 
         self.coordinates = OrderedDict()
-        self.coordinates['theta_a'] = theta_a
-        self.coordinates['theta_h'] = theta_h
+        self.coordinates['ankle_angle'] = theta_a
+        self.coordinates['hip_angle'] = theta_h
 
         self.speeds = OrderedDict()
-        self.speeds['omega_a'] = omega_a
-        self.speeds['omega_h'] = omega_h
+        self.speeds['ankle_rate'] = omega_a
+        self.speeds['hip_rate'] = omega_h
 
         self.time = me.dynamicsymbols._t
 
@@ -146,12 +147,12 @@ class PlanarStandingHumanOnMovingPlatform():
 
         self.frames['leg'].orient(self.frames['inertial'],
                                   'Axis',
-                                  (self.coordinates['theta_a'],
+                                  (self.coordinates['ankle_angle'],
                                    self.frames['inertial'].z))
 
         self.frames['torso'].orient(self.frames['leg'],
                                     'Axis',
-                                    (self.coordinates['theta_h'],
+                                    (self.coordinates['hip_angle'],
                                      self.frames['leg'].z))
 
     def _create_points(self):
@@ -179,17 +180,17 @@ class PlanarStandingHumanOnMovingPlatform():
 
     def _define_kin_diff_eqs(self):
 
-        self.kin_diff_eqs = (self.speeds['omega_a'] -
-                             self.coordinates['theta_a'].diff(self.time),
-                             self.speeds['omega_h'] -
-                             self.coordinates['theta_h'].diff(self.time))
+        self.kin_diff_eqs = (self.speeds['ankle_rate'] -
+                             self.coordinates['ankle_angle'].diff(self.time),
+                             self.speeds['hip_rate'] -
+                             self.coordinates['hip_angle'].diff(self.time))
 
     def _set_angular_velocities(self):
 
-        vec = self.speeds['omega_a'] * self.frames['inertial'].z
+        vec = self.speeds['ankle_rate'] * self.frames['inertial'].z
         self.frames['leg'].set_ang_vel(self.frames['inertial'], vec)
 
-        vec = self.speeds['omega_h'] * self.frames['leg'].z
+        vec = self.speeds['hip_rate'] * self.frames['leg'].z
         self.frames['torso'].set_ang_vel(self.frames['leg'], vec)
 
     def _set_linear_velocities(self):
@@ -417,12 +418,8 @@ class PlanarStandingHumanOnMovingPlatform():
         A = A_top_rows.col_join(M.LUsolve(F_A))
         B = B_top_rows.col_join(M.LUsolve(F_B))
 
-        # I think this happends in-place.
-        sy.simplify(A)
-        sy.simplify(B)
-
-        self.A = A
-        self.B = B
+        self.A = sy.simplify(A)
+        self.B = sy.simplify(B)
 
     def derive(self):
         self._setup_problem()
@@ -465,7 +462,7 @@ class PlanarStandingHumanOnMovingPlatform():
 
         controls = np.empty(3, dtype=float)
 
-        ref_noise_interp_func = interp1d(time, reference_noise)
+        ref_noise_interp_func = interp1d(time, reference_noise, axis=0)
         acceleration_interp_func = interp1d(time, platform_acceleration)
 
         def controller(x, t):
@@ -497,7 +494,69 @@ class PlanarStandingHumanOnMovingPlatform():
                                     self.specified.values()[-3:], # a, T_a, T_h
                                     generator='cython')
 
-        args = {'constants': np.array(self.parameter_map.values()[-8:]),
+        args = {'constants': np.array(self.parameter_map.values()[:-8]),
                 'specified': controller}
 
         return rhs, args
+
+
+def sum_of_sines(sigma, frequencies, time):
+    """Returns a sum of sines centered at zero and its first and second
+    derivatives.
+
+    Parameters
+    ==========
+    sigma : float
+        The desired standard deviation of the series.
+    frequencies : iterable of floats
+        The frequencies of the sin curves to be included in the sum.
+    time : array_like, shape(n,)
+        The montonically increasing time vector.
+
+    Returns
+    =======
+    sines : ndarray, shape(n,)
+    sines_prime : ndarray, shape(n,)
+    sines_double_prime : ndarray, shape(n,)
+
+    """
+
+    phases = 2.0 * np.pi * np.random.ranf(len(frequencies))
+
+    sines = np.zeros_like(time)
+    sines_prime = np.zeros_like(time)
+    sines_double_prime = np.zeros_like(time)
+
+    amplitude = sigma / 2.0
+
+    for w, p in zip(frequencies, phases):
+        sines += amplitude * np.sin(w * time + p)
+        sines_prime += amplitude * w * np.cos(w * time + p)
+        sines_double_prime -= amplitude * w**2 * np.sin(w * time + p)
+
+    return sines, sines_prime, sines_double_prime
+
+
+if __name__ == '__main__':
+
+    import matplotlib.pyplot as plt
+
+    h = PlanarStandingHumanOnMovingPlatform()
+    h.derive()
+
+    sample_rate = 100.0
+    duration = 10.0
+    num_samples = sample_rate * duration
+    time = np.linspace(0.0, duration, num=num_samples)
+
+    ref_noise = np.random.normal(scale=np.deg2rad(1.0), size=(len(time), 4))
+
+    nums = [7, 11, 16, 25, 38, 61, 103, 131, 151, 181, 313, 523]
+    freq = 2.0 * np.pi * np.array(nums, dtype=float) / 240.0
+    pos, vel, accel = sum_of_sines(0.01, freq, time)
+
+    rhs, args = h.closed_loop_ode_func(time, ref_noise, accel)
+
+    x0 = np.zeros(4)
+
+    x = odeint(rhs, x0, time, args=(args,))
