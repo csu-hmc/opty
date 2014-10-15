@@ -254,7 +254,7 @@ class ConstraintCollocator():
     def __init__(self, equations_of_motion, state_symbols,
                  num_collocation_nodes, node_time_interval,
                  known_parameter_map={}, known_trajectory_map={},
-                 instance_constraints=None, time_symbol='t', tmp_dir=None):
+                 instance_constraints=None, time_symbol=None, tmp_dir=None):
         """
         Parameters
         ----------
@@ -290,9 +290,10 @@ class ConstraintCollocator():
             x(0) - 5.0 and the constraint x(0) = x(5.0) would be specified
             as  x(0) - x(5.0). Unknown parameters and time varying
             parameters other than the states are currently not supported.
-        time_symbol : string, optional
-            The string representation of the SymPy Symbol which represents
-            time in the equations of motion.
+        time_symbol : SymPy Symbol, optional
+            The symbol representating time in the equations of motion. If
+            not given, it is assumed to be the default stored in
+            dynamicsymbols._t.
         tmp_dir : string, optional
             If you want to see the generated Cython and C code for the
             constraint and constraint Jacobian evaluations, pass in a path
@@ -301,8 +302,10 @@ class ConstraintCollocator():
         """
         self.eom = equations_of_motion
 
-        self.time_symbol = sym.Symbol(time_symbol)
-        me.dynamicsymbols._t = self.time_symbol
+        if time_symbol is not None:
+            self.time_symbol = time_symbol
+        else:
+            self.time_symbol = me.dynamicsymbols._t
 
         self.state_symbols = tuple(state_symbols)
         self.state_derivative_symbols = tuple([s.diff(self.time_symbol) for
