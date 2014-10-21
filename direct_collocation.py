@@ -556,8 +556,8 @@ class ConstraintCollocator():
         subbed_constraints = [con.subs(def_map) for con in
                               self.instance_constraints]
         f = sym.lambdify(([free] + self.known_parameter_map.keys()),
-                         subbed_constraints, default_array=True)
-
+                         subbed_constraints, modules=[{'ImmutableMatrix':
+                                                       np.array}, "numpy"])
         def wrapped(free):
             return f(free, *self.known_parameter_map.values())
 
@@ -600,7 +600,9 @@ class ConstraintCollocator():
             jac = jac.subs(def_map)
             funcs.append(sym.lambdify(([free] +
                                        self.known_parameter_map.keys()),
-                                      jac, default_array=True))
+                                      jac,
+                                      modules=[{'ImmutableMatrix': np.array},
+                                               "numpy"]))
         l = np.sum(num_vals_per_func)
 
         def wrapped(free):
