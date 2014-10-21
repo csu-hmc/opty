@@ -31,7 +31,9 @@ y0 = [np.pi / 6.0, 0.0]
 time = np.linspace(0.0, duration, num=num_nodes)
 interval = duration / (num_nodes - 1)
 
-eval_f = sym.lambdify((t, y1, y2, p), f, modules='numpy')
+modules=[{'ImmutableMatrix': np.array}, "numpy"]
+eval_f = sym.lambdify((t, y1, y2, p), f, modules=modules)
+
 func = lambda y, t, p: eval_f(t, y[0], y[1], p).flatten()
 
 y_meas = odeint(func, y0, time, args=(p_val,))
