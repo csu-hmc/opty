@@ -17,7 +17,7 @@ import matplotlib.animation as animation
 
 from direct_collocation import Problem
 
-target_angle = 5 * np.pi
+target_angle = np.pi
 duration = 10.0
 num_nodes = 500
 save_animation = False
@@ -65,7 +65,7 @@ instance_constraints = (theta(0.0),
 prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
-               bounds={T(t): (-2.5, 2.5)})
+               bounds={T(t): (-1.5, 1.5)})
 
 
 # Use a random positive initial guess.
@@ -103,7 +103,7 @@ axes[1].plot(con_nodes, con_violations[N:2 * N])
 axes[1].set_ylabel('Angular Rate [rad/s]')
 axes[1].set_xlabel('Node Number')
 axes[2].plot(con_violations[2 * N:])
-axes[2].set_ylabel('Other')
+axes[2].set_ylabel('Instance')
 
 # Plot objective value
 fig, ax = plt.subplots(1)
