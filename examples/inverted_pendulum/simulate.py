@@ -83,35 +83,6 @@ def input_force(typ, time):
     return lateral_force
 
 
-def output_equations(x):
-    """Returns the outputs of the system. For now just the an array of the
-    generalized coordinates.
-
-    Parameters
-    ----------
-    x : ndarray, shape(N, n)
-        The trajectories of the system states.
-
-    Returns
-    -------
-    y : ndarray, shape(N, o)
-        The trajectories of the generalized coordinates.
-
-    Notes
-    -----
-    The order of the states is assumed to be:
-
-    [coord_1, ..., coord_{n/2}, speed_1, ..., speed_{n/2}]
-
-    [q_1, ..., q_{n/2}, u_1, ...., u_{n/2}]
-
-    As this is what generate_ode_function creates.
-
-    """
-
-    return x[:, :x.shape[1] / 2]
-
-
 def compute_controller_gains(num_links):
     """Returns a numerical gain matrix that can be multiplied by the error
     in the states of the n link pendulum on a cart to generate the joint

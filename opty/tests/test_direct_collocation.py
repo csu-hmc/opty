@@ -6,9 +6,7 @@ import numpy as np
 import sympy as sym
 from scipy import sparse
 
-from direct_collocation import (Problem, ConstraintCollocator,
-                                objective_function,
-                                objective_function_gradient)
+from ..direct_collocation import Problem, ConstraintCollocator
 
 
 def test_Problem():
@@ -47,55 +45,6 @@ def test_Problem():
     np.testing.assert_allclose(prob.upper_bound, expected_upper)
 
 
-def test_objective_function():
-
-    M = 5
-    o = 2
-    n = 2 * o
-    q = 3
-    h = 0.01
-
-    time = np.linspace(0.0, (M - 1) * h, num=M)
-
-    y_measured = np.random.random((M, o))  # measured coordinates
-
-    x_model = np.hstack((y_measured, np.random.random((M, o))))
-
-    free = np.hstack((x_model.T.flatten(), np.random.random(q)))
-
-    cost = objective_function(free, M, n, h, time, y_measured)
-
-    np.testing.assert_allclose(cost, 0.0, atol=1e-15)
-
-
-def test_objective_function_gradient():
-
-    M = 5
-    o = 2
-    n = 2 * o
-    q = 3
-    h = 0.01
-
-    time = np.linspace(0.0, (M - 1) * h, num=M)
-    y_measured = np.random.random((M, o))  # measured coordinates
-    x_model = np.random.random((M, n))
-    free = np.hstack((x_model.T.flatten(), np.random.random(q)))
-
-    cost = objective_function(free, M, n, h, time, y_measured)
-    grad = objective_function_gradient(free, M, n, h, time, y_measured)
-
-    expected_grad = np.zeros_like(free)
-    delta = 1e-8
-    for i in range(len(free)):
-        free_copy = free.copy()
-        free_copy[i] = free_copy[i] + delta
-        perturbed = objective_function(free_copy, M, n, h, time, y_measured)
-        expected_grad[i] = (perturbed - cost) / delta
-
-    np.testing.assert_allclose(grad, expected_grad, atol=1e-8)
-
-
-
 class TestConstraintCollocator():
 
     def setup(self):
@@ -106,7 +55,7 @@ class TestConstraintCollocator():
         self.state_symbols = (x, v)
         self.constant_symbols = (m, c, k)
         self.specified_symbols = (f,)
-        self.discrete_symbols = sym.symbols('xi, vi, xp, vp, fi')
+        self.discrete_symbols = sym.symbols('xi, vi, xp, vp, fi', real=True)
 
         self.state_values = np.array([[1.0, 2.0, 3.0, 4.0],
                                       [5.0, 6.0, 7.0, 8.0]])
@@ -333,7 +282,8 @@ class TestConstraintCollocatorUnknownTrajectories():
         self.state_symbols = (x, v)
         self.constant_symbols = (m, c)
         self.specified_symbols = (f, k)
-        self.discrete_symbols = sym.symbols('xi, vi, xp, vp, fi, ki')
+        self.discrete_symbols = sym.symbols('xi, vi, xp, vp, fi, ki',
+                                            real=True)
 
         # The state order should match the eom order and state symbol order.
         self.state_values = np.array([[1.0, 2.0, 3.0, 4.0],  # x
@@ -649,7 +599,8 @@ class TestConstraintCollocatorInstanceConstraints():
         self.state_symbols = (theta, omega)
         self.constant_symbols = (I, m, g, d)
         self.specified_symbols = (T,)
-        self.discrete_symbols = sym.symbols('thetai, omegai, thetap, omegap, Ti')
+        self.discrete_symbols = \
+            sym.symbols('thetai, omegai, thetap, omegap, Ti', real=True)
 
         self.state_values = np.array([[1.0, 2.0, 3.0, 4.0],
                                       [5.0, 6.0, 7.0, 8.0]])

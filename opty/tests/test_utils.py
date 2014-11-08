@@ -5,7 +5,7 @@ from numpy import testing
 import sympy as sp
 from scipy import sparse
 
-import utils
+from .. import utils
 
 
 def test_parse_free():
