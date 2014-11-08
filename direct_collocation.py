@@ -830,8 +830,6 @@ class ConstraintCollocator():
         # Symbols/Functions in the matrix expression.
         args = xi_syms + xp_syms + si_syms + constant_syms + (h_sym,)
 
-        # TODO: This needs to be profiled for larger matrices of long
-        # expressions. This is quite slow at the moment.
         print('Computing the symbolic partial derivatives.')
         symbolic_jacobian = self.discrete_eom.jacobian(partials)
 
@@ -917,7 +915,7 @@ class ConstraintCollocator():
                 start = i * num_partials
                 stop = (i + 1) * num_partials
                 # TODO : This flatten() call is currently the most time
-                # consuming thing in this function at this point.
+                # consuming thing in this function.
                 jac_vals[start:stop] = non_zero_derivatives[i].flatten()
 
             return jac_vals
