@@ -23,6 +23,7 @@ setup(
     extras_require={'examples': ['pydy>=0.2.1',
                                  'matplotlib>=1.1.1rc',
                                  'tables',
+                                 'pygait2d',
                                  ],
                     'doc': ['sphinx',
                             'numpydoc',
