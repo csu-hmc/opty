@@ -12,10 +12,9 @@ from collections import OrderedDict
 
 import numpy as np
 import sympy as sym
+from opty.direct_collocation import Problem
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-
-from direct_collocation import Problem
 
 target_angle = np.pi
 duration = 10.0
@@ -43,6 +42,8 @@ par_map[g] = 9.81
 par_map[d] = 1.0
 
 # Specify the objective function and it's gradient.
+
+
 def obj(free):
     """Minimize the sum of the squares of the control torque."""
     T = free[2 * num_nodes:]
@@ -66,7 +67,6 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
                bounds={T(t): (-1.5, 1.5)})
-
 
 # Use a random positive initial guess.
 initial_guess = np.random.randn(prob.num_free)

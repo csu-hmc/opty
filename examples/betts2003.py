@@ -11,8 +11,7 @@ from collections import OrderedDict
 import numpy as np
 import sympy as sym
 import matplotlib.pyplot as plt
-
-from direct_collocation import Problem
+from opty.direct_collocation import Problem
 
 duration = 1.0
 num_nodes = 100

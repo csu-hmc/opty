@@ -8,8 +8,9 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.linalg import solve_continuous_are
 from pydy.codegen.code import generate_ode_function
+from opty.utils import controllable
 
-from utils import controllable
+# local
 from model import n_link_pendulum_on_cart
 
 

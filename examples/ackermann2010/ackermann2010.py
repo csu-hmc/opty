@@ -4,9 +4,9 @@ den Bogert 2010."""
 import numpy as np
 from pygait2d import derive, simulate
 from pygait2d.segment import time_symbol
+from opty.direct_collocation import Problem
 
 from model import f_minus_ma
-from direct_collocation import Problem
 
 speed = 1.3250
 speed = 0.0
@@ -35,8 +35,7 @@ qax, qay, qa, qb, qc, qd, qe, qf, qg = coordinates
 uax, uay, ua, ub, uc, ud, ue, uf, ug = speeds
 Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = specified
 
-# TODO : Move these constants into this repository.
-par_map = simulate.load_constants(constants, '/home/moorepants/src/gait2d/data/example_constants.yml')
+par_map = simulate.load_constants(constants, 'example_constants.yml')
 
 # Hand of god is nothing.
 traj_map = {Fax: np.zeros(num_nodes),

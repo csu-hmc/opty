@@ -2,10 +2,47 @@
 
 import numpy as np
 from numpy import testing
-import sympy as sp
+import sympy as sym
 from scipy import sparse
 
 from .. import utils
+
+
+def test_state_derivatives():
+
+    t = sym.symbols('t')
+    x, v = sym.symbols('x, v', cls=sym.Function)
+
+    x = x(t)
+    v = v(t)
+
+    derivs = utils.state_derivatives([x, v])
+
+    assert derivs == [x.diff(t), v.diff(t)]
+
+
+def test_f_minus_ma():
+
+    t = sym.symbols('t')
+    x, v = sym.symbols('x, v', cls=sym.Function)
+    m, c, k = sym.symbols('m, c, k')
+    f = sym.symbols('f', cls=sym.Function)
+
+    x = x(t)
+    v = v(t)
+    f = f(t)
+
+    states = [x, v]
+
+    mass_matrix = sym.Matrix([[1, 0], [0, m]])
+    forcing_vector = sym.Matrix([v, -c * v - k * x + f])
+
+    constraint = utils.f_minus_ma(mass_matrix, forcing_vector, states)
+
+    expected = sym.Matrix([x.diff() - v,
+                           m * v.diff() + c * v + k * x - f])
+
+    assert sym.simplify(constraint - expected) == sym.Matrix([0, 0])
 
 
 def test_parse_free():
@@ -32,15 +69,15 @@ def test_parse_free():
 
 def test_ufuncify_matrix():
 
-    a, b, c = sp.symbols('a, b, if')
+    a, b, c = sym.symbols('a, b, if')
 
-    expr_00 = a**2 * sp.cos(b)**c
-    expr_01 = sp.tan(b) / sp.sin(a + b) + c**4
-    expr_10 = a**2 + b**2 - sp.sqrt(c)
-    expr_11 = ((a + b + c) * (a + b)) / a * sp.sin(b)
+    expr_00 = a**2 * sym.cos(b)**c
+    expr_01 = sym.tan(b) / sym.sin(a + b) + c**4
+    expr_10 = a**2 + b**2 - sym.sqrt(c)
+    expr_11 = ((a + b + c) * (a + b)) / a * sym.sin(b)
 
-    sym_mat = sp.Matrix([[expr_00, expr_01],
-                         [expr_10, expr_11]])
+    sym_mat = sym.Matrix([[expr_00, expr_01],
+                          [expr_10, expr_11]])
 
     # These simply set up some large one dimensional arrays that will be
     # used in the expression evaluation.

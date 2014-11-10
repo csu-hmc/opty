@@ -38,13 +38,14 @@ import time
 # external
 import numpy as np
 from scipy.integrate import odeint
+from opty import direct_collocation as dc
+from opty import parameter_identification as pi
+from opty import utils
 
 # local
 import data
-import direct_collocation as dc
 import model
 import simulate
-import utils
 import visualization as viz
 
 
@@ -114,8 +115,8 @@ class Identifier():
         print(msg.format(self.duration, time.clock() - start))
 
         self.x_noise = self.x + np.deg2rad(0.25) * np.random.randn(*self.x.shape)
-        self.y = simulate.output_equations(self.x)
-        self.y_noise = simulate.output_equations(self.x_noise)
+        self.y = pi.output_equations(self.x)
+        self.y_noise = pi.output_equations(self.x_noise)
         self.u = self.lateral_force
 
     def generate_symbolic_closed_loop(self):
@@ -141,14 +142,14 @@ class Identifier():
     def generate_objective_funcs(self):
         print('Forming the objective function.')
 
-        self.obj_func = dc.wrap_objective(dc.objective_function,
+        self.obj_func = pi.wrap_objective(pi.objective_function,
                                           self.num_time_steps,
                                           self.num_states,
                                           self.discretization_interval,
                                           self.time,
                                           self.y_noise if self.sensor_noise else self.y)
 
-        self.obj_grad_func = dc.wrap_objective(dc.objective_function_gradient,
+        self.obj_grad_func = pi.wrap_objective(pi.objective_function_gradient,
                                                self.num_time_steps,
                                                self.num_states,
                                                self.discretization_interval,

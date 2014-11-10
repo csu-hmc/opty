@@ -2,6 +2,7 @@
 
 import sympy as sym
 import sympy.physics.mechanics as me
+from opty.utils import state_derivatives
 
 
 def n_link_pendulum_on_cart(n, cart_force=True, joint_torques=False,
@@ -144,20 +145,6 @@ def n_link_pendulum_on_cart(n, cart_force=True, joint_torques=False,
 
     return (mass_matrix, forcing_vector, constants, coordinates, speeds,
             specified)
-
-
-def state_derivatives(states):
-    """Returns functions of time which represent the time derivatives of the
-    states."""
-    return [state.diff() for state in states]
-
-
-def f_minus_ma(mass_matrix, forcing_vector, states):
-    """Returns Fr + Fr* from the mass_matrix and forcing vector."""
-
-    xdot = sym.Matrix(state_derivatives(states))
-
-    return mass_matrix * xdot - forcing_vector
 
 
 def create_symbolic_controller(states, inputs):

@@ -5,8 +5,7 @@ import os
 import numpy as np
 import tables
 import pandas
-
-from utils import parse_free
+from opty.utils import parse_free
 
 
 def compute_gain_error(filename):

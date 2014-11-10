@@ -5,8 +5,8 @@ from scipy.integrate import odeint
 import sympy as sym
 import matplotlib.pyplot as plt
 from pydy.codegen.code import generate_ode_function
+from opty import direct_collocation as dc
 
-import direct_collocation as dc
 import model
 import simulate
 

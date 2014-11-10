@@ -9,8 +9,7 @@ import sympy as sy
 import sympy.physics.mechanics as me
 import yeadon
 from pydy.codegen.code import generate_ode_function
-
-from direct_collocation import Problem
+from opty.direct_collocation import Problem
 
 sym_kwargs = {'positive': True, 'real': True}
 me.dynamicsymbols._t = sy.symbols('t', **sym_kwargs)
@@ -618,7 +617,7 @@ if __name__ == '__main__':
                    time_symbol=h.time)
 
     initial_guess = np.hstack((x_meas_vec, h.numerical_gains.flatten()))
-    initial_guess = np.hstack((x_meas_vec), 1000.0 * np.random.random(8)))
+    initial_guess = np.hstack((x_meas_vec, 1000.0 * np.random.random(8)))
     initial_guess = np.hstack((x_meas_vec, np.zeros(8)))
 
     # Find the optimal solution.

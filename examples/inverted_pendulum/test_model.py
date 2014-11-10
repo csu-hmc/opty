@@ -5,43 +5,6 @@ import sympy as sym
 import model
 
 
-def test_state_derivatives():
-
-    t = sym.symbols('t')
-    x, v = sym.symbols('x, v', cls=sym.Function)
-
-    x = x(t)
-    v = v(t)
-
-    derivs = model.state_derivatives([x, v])
-
-    assert derivs == [x.diff(t), v.diff(t)]
-
-
-def test_f_minus_ma():
-
-    t = sym.symbols('t')
-    x, v = sym.symbols('x, v', cls=sym.Function)
-    m, c, k = sym.symbols('m, c, k')
-    f = sym.symbols('f', cls=sym.Function)
-
-    x = x(t)
-    v = v(t)
-    f = f(t)
-
-    states = [x, v]
-
-    mass_matrix = sym.Matrix([[1, 0], [0, m]])
-    forcing_vector = sym.Matrix([v, -c * v - k * x + f])
-
-    constraint = model.f_minus_ma(mass_matrix, forcing_vector, states)
-
-    expected = sym.Matrix([x.diff() - v,
-                           m * v.diff() + c * v + k * x - f])
-
-    assert sym.simplify(constraint - expected) == sym.Matrix([0, 0])
-
-
 def test_symbolic_constraints():
 
     states = sym.symbols('q0, q1, u0, u1', cls=sym.Function)

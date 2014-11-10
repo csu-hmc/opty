@@ -14,6 +14,20 @@ from sympy.utilities.autowrap import autowrap
 from sympy.physics.mechanics import msubs
 
 
+def state_derivatives(states):
+    """Returns functions of time which represent the time derivatives of the
+    states."""
+    return [state.diff() for state in states]
+
+
+def f_minus_ma(mass_matrix, forcing_vector, states):
+    """Returns Fr + Fr* from the mass_matrix and forcing vector."""
+
+    xdot = sym.Matrix(state_derivatives(states))
+
+    return mass_matrix * xdot - forcing_vector
+
+
 def parse_free(free, n, r, N):
     """Parses the free parameters vector and returns it's components.
 

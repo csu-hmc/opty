@@ -12,8 +12,7 @@ import numpy as np
 import sympy as sym
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
-
-from direct_collocation import Problem
+from opty.direct_collocation import Problem
 
 # Specify the symbolic equations of motion: y' = f(y, t).
 p, t = sym.symbols('p, t')
