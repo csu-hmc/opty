@@ -48,7 +48,9 @@ Install conda then create an environment::
 Usage
 =====
 
-There are several examples available in the ``examples`` directory. For example::
+There are several examples available in the ``examples`` directory. For example
+the optimal torque to swing up a pendulum with minimal energy can be found
+with::
 
    (opty)$ cd examples/
    (opty)$ python pendulum_swing_up.py
