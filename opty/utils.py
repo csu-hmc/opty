@@ -11,7 +11,6 @@ import numpy as np
 import sympy as sy
 from sympy.utilities.lambdify import implemented_function
 from sympy.utilities.autowrap import autowrap
-from sympy.physics.mechanics import msubs
 
 
 def state_derivatives(states):
@@ -23,7 +22,7 @@ def state_derivatives(states):
 def f_minus_ma(mass_matrix, forcing_vector, states):
     """Returns Fr + Fr* from the mass_matrix and forcing vector."""
 
-    xdot = sym.Matrix(state_derivatives(states))
+    xdot = sy.Matrix(state_derivatives(states))
 
     return mass_matrix * xdot - forcing_vector
 

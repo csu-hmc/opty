@@ -5,8 +5,7 @@ import numpy as np
 from pygait2d import derive, simulate
 from pygait2d.segment import time_symbol
 from opty.direct_collocation import Problem
-
-from model import f_minus_ma
+from opty.utils import f_minus_ma
 
 speed = 1.3250
 speed = 0.0
