@@ -2,16 +2,17 @@ Introduction
 ============
 
 ``opty`` utlizes symbolic descriptions of ordinary differential equations
-expressed with SymPy to form the constraint functions needed to solve
-optimization problems using the direct collocation method. In general, if one
-can express first order ordinary differential equations as symbolic expressions
-``opty`` will automatically generate a function to evaluate the constraints and
-a function that evaluates the sparse Jacobian of the constraints.
+expressed with SymPy to form the constraints needed to solve optimization
+problems using the direct collocation method. In general, if one can express
+first order ordinary differential equations as symbolic expressions ``opty``
+will automatically generate a function to evaluate the constraints and a
+function that evaluates the sparse Jacobian of the constraints, which have been
+optimized for speed and memory.
 
 Installation
 ============
 
-Dependencies this runs with:
+The core dependencies are as follows:
 
 - ipopt 3.11
 - numpy 1.8.1
@@ -20,7 +21,7 @@ Dependencies this runs with:
 - cython
 - cyipopt 0.1.4
 
-To run the examples you will additionally need:
+To run the examples the following additional dependencies are required:
 
 - matplotlib 1.3.1
 - pydy 0.2.1
