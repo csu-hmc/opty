@@ -178,7 +178,6 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None):
          'num_rows': expr.shape[0],
          'num_cols': expr.shape[1]}
 
-    print('Printing ccode.')
     matrix_sym = sy.MatrixSymbol('matrix', expr.shape[0], expr.shape[1])
 
     sub_exprs, simple_mat = sy.cse(expr, sy.numbered_symbols('z_'))
