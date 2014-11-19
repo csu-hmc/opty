@@ -62,7 +62,8 @@ prob = Problem(obj, obj_grad,
                num_nodes, interval,
                known_parameter_map=par_map,
                known_trajectory_map={T(t): time},
-               instance_constraints=instance_constraints)
+               instance_constraints=instance_constraints,
+               integration_method='midpoint')
 
 # Use a random positive initial guess.
 initial_guess = np.random.randn(prob.num_free)
