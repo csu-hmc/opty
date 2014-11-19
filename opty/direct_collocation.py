@@ -463,8 +463,8 @@ class ConstraintCollocator(object):
 
         elif self.integration_method == 'midpoint':
 
-            xdot_sub = {d: (i + n) / 2 for d, i, n in zip(xd, xi, xn)}
-            x_sub = {d: (n - i) / h for d, i, n in zip(x, xi, xn)}
+            xdot_sub = {d: (n - i) / h for d, i, n in zip(xd, xi, xn)}
+            x_sub = {d: (i + n) / 2 for d, i, n in zip(x, xi, xn)}
             u_sub = {d: (i + n) / 2 for d, i, n in zip(u, ui, un)}
             self.discrete_eom = me.msubs(self.eom, xdot_sub, x_sub, u_sub)
 

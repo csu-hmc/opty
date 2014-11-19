@@ -56,7 +56,8 @@ class TestConstraintCollocator():
         self.state_symbols = (x, v)
         self.constant_symbols = (m, c, k)
         self.specified_symbols = (f,)
-        self.discrete_symbols = sym.symbols('xi, vi, xp, vp, xn, vn, fi, fn', real=True)
+        self.discrete_symbols = sym.symbols('xi, vi, xp, vp, xn, vn, fi, fn',
+                                            real=True)
 
         self.state_values = np.array([[1.0, 2.0, 3.0, 4.0],
                                       [5.0, 6.0, 7.0, 8.0]])
@@ -115,7 +116,8 @@ class TestConstraintCollocator():
 
         self.collocator._sort_trajectories()
 
-        assert self.collocator.known_input_trajectories == self.specified_symbols
+        assert self.collocator.known_input_trajectories == \
+            self.specified_symbols
         assert self.collocator.num_known_input_trajectories == 1
 
         assert self.collocator.unknown_input_trajectories == tuple()
@@ -156,9 +158,9 @@ class TestConstraintCollocator():
 
         h = self.collocator.time_interval_symbol
 
-        expected = sym.Matrix([(xi + xn) / 2 - (vn - vi) / h,
-                               m * (vi + vn) / 2 + c * (vn - vi) / h +
-                               k * (xn - xi) / h - (fi + fn) / 2])
+        expected = sym.Matrix([(xn - xi) / h - (vi + vn) / 2,
+                               m * (vn - vi) / h + c * (vi + vn) / 2 +
+                               k * (xi + xn) / 2 - (fi + fn) / 2])
 
         self.collocator.integration_method = 'midpoint'
         self.collocator._discretize_eom()
@@ -234,9 +236,9 @@ class TestConstraintCollocator():
             fi = self.specified_values[i:i + 1]
             fn = self.specified_values[i + 1:i + 2]
 
-            expected_dynamic[i] = (m * (vi + vn) / 2 + c * (vn - vi) / h
-                                       + k * (xn - xi) / h - (fi + fn) / 2)
-            expected_kinematic[i] = (xi + xn) / 2 - (vn - vi) / h
+            expected_kinematic[i] = (xn - xi) / h - (vi + vn) / 2
+            expected_dynamic[i] = (m * (vn - vi) / h + c * (vn + vi) / 2 + k
+                                   * (xn + xi) / 2 - (fi + fn) / 2)
 
         expected = np.hstack((expected_kinematic, expected_dynamic))
 
@@ -310,15 +312,27 @@ class TestConstraintCollocator():
         m, c, k = self.constant_values
         h = self.interval_value
 
-        expected_jacobian = np.array(
-            #         x0,         x1,         x2,        x3,            v0,            v1,            v2,            v3,                 k      i
-            [[ 1.0 / 2.0,  1.0 / 2.0,          0,         0,         1 / h,        -1 / h,             0,             0,                 0],  # 0
-             [         0,  1.0 / 2.0,  1.0 / 2.0,         0,             0,         1 / h,        -1 / h,             0,                 0],  # 1
-             [         0,          0,  1.0 / 2.0, 1.0 / 2.0,             0,             0,         1 / h,        -1 / h,                 0],  # 2
-             [    -k / h,      k / h,          0,         0, m / 2 - c / h, m / 2 + c / h,             0,             0, (x[1] - x[0]) / h],  # 0
-             [         0,     -k / h,      k / h,         0,             0, m / 2 - c / h, m / 2 + c / h,             0, (x[2] - x[1]) / h],  # 1
-             [         0,          0,     -k / h,     k / h,             0,             0, m / 2 - c / h, m / 2 + c / h, (x[3] - x[2]) / h]], # 2
+        part1 = np.array(
+            #        x0,       x1,       x2,      x3
+            [[ -1.0 / h,  1.0 / h,        0,       0],
+             [        0, -1.0 / h,  1.0 / h,       0],
+             [        0,        0, -1.0 / h, 1.0 / h],
+             [  k / 2.0,  k / 2.0,        0,       0],
+             [        0,  k / 2.0,  k / 2.0,       0],
+             [        0,        0,  k / 2.0, k / 2.0]],
             dtype=float)
+
+        part2 = np.array(
+            #                v0,               v1,               v2,              v3,                   k      i
+            [[       -1.0 / 2.0,       -1.0 / 2.0,                0,               0,                   0],  # 0
+             [                0,       -1.0 / 2.0,       -1.0 / 2.0,               0,                   0],  # 1
+             [                0,                0,       -1.0 / 2.0,      -1.0 / 2.0,                   0],  # 2
+             [ -m / h + c / 2.0,  m / h + c / 2.0,                0,               0, (x[1] + x[0]) / 2.0],  # 0
+             [                0, -m / h + c / 2.0,  m / h + c / 2.0,               0, (x[2] + x[1]) / 2.0],  # 1
+             [                0,                0, -m / h + c / 2.0, m / h + c / 2.0, (x[3] + x[2]) / 2.0]], # 2
+            dtype=float)
+
+        expected_jacobian = np.hstack((part1, part2))
 
         np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
 
@@ -364,11 +378,11 @@ class TestConstraintCollocator():
         expected_jacobian = np.array(
             #     x1,     x2,     x3,    x4,     v1,        v2,         v3,        v4,    k
             [[-1 / h,  1 / h,      0,     0,      0,        -1,          0,         0,    0],
-            [     0, -1 / h,  1 / h,     0,      0,         0,         -1,         0,    0],
-            [     0,      0, -1 / h, 1 / h,      0,         0,          0,        -1,    0],
-            [     0,      k,      0,     0, -m / h, c + m / h,          0,         0, x[1]],
-            [     0,      0,      k,     0,      0,    -m / h,  c + m / h,         0, x[2]],
-            [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]],
+            [     0,  -1 / h,  1 / h,     0,      0,         0,         -1,         0,    0],
+            [     0,       0, -1 / h, 1 / h,      0,         0,          0,        -1,    0],
+            [     0,       k,      0,     0, -m / h, c + m / h,          0,         0, x[1]],
+            [     0,       0,      k,     0,      0,    -m / h,  c + m / h,         0, x[2]],
+            [     0,       0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]],
             dtype=float)
 
         np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
@@ -604,39 +618,38 @@ class TestConstraintCollocatorUnknownTrajectories():
         h = self.interval_value
 
         part1 = np.array(
-            #                        x0,                       x1,                       x2,                      x3,
-            [[                1.0 / 2.0,                1.0 / 2.0,                        0,                       0],
-             [                        0,                1.0 / 2.0,                1.0 / 2.0,                       0],
-             [                        0,                        0,                1.0 / 2.0,               1.0 / 2.0],
-             [ -(k[0] + k[1]) / 2.0 / h,  (k[0] + k[1]) / 2.0 / h,                        0,                       0],
-             [                        0, -(k[1] + k[2]) / 2.0 / h,  (k[1] + k[2]) / 2.0 / h,                       0],
-             [                        0,                        0, -(k[2] + k[3]) / 2.0 / h, (k[2] + k[3]) / 2.0 / h]],
+            #                   x0,                  x1,                  x2,                  x3
+            [[            -1.0 / h,             1.0 / h,                   0,                   0],
+             [                   0,            -1.0 / h,             1.0 / h,                   0],
+             [                   0,                   0,            -1.0 / h,             1.0 / h],
+             [ (k[0] + k[1]) / 4.0, (k[0] + k[1]) / 4.0,                   0,                   0],
+             [                   0, (k[1] + k[2]) / 4.0, (k[1] + k[2]) / 4.0,                   0],
+             [                   0,                   0, (k[2] + k[3]) / 4.0, (k[2] + k[3]) / 4.0]],
             dtype=float)
 
         part2 = np.array(
-            #             v0,            v1,            v2,            v3      i
-            [[         1 / h,        -1 / h,             0,             0],  # 0
-             [             0,         1 / h,        -1 / h,             0],  # 1
-             [             0,             0,         1 / h,        -1 / h],  # 2
-             [ m / 2 - c / h, m / 2 + c / h,             0,             0],  # 0
-             [             0, m / 2 - c / h, m / 2 + c / h,             0],  # 1
-             [             0,             0, m / 2 - c / h, m / 2 + c / h]], # 2
+            #              v0,             v1,             v2,            v3      i
+            [[     -1.0 / 2.0,     -1.0 / 2.0,              0,             0],  # 0
+             [              0,     -1.0 / 2.0,     -1.0 / 2.0,             0],  # 1
+             [              0,              0,     -1.0 / 2.0,    -1.0 / 2.0],  # 2
+             [ -m / h + c / 2,  m / h + c / 2,              0,             0],  # 0
+             [              0, -m / h + c / 2,  m / h + c / 2,             0],  # 1
+             [              0,              0, -m / h + c / 2, m / h + c / 2]], # 2
             dtype=float)
 
         part3 = np.array(
-            #                       k0,                      k1,                      k2,                      k3,                 c      i
-            [[                       0,                       0,                       0,                       0,                 0],  # 0
-             [                       0,                       0,                       0,                       0,                 0],  # 1
-             [                       0,                       0,                       0,                       0,                 0],  # 2
-             [ (x[1] - x[0]) / 2.0 / h, (x[1] - x[0]) / 2.0 / h,                       0,                       0, (v[1] - v[0]) / h],  # 0
-             [                       0, (x[2] - x[1]) / 2.0 / h, (x[2] - x[1]) / 2.0 / h,                       0, (v[2] - v[1]) / h],  # 1
-             [                       0,                       0, (x[3] - x[2]) / 2.0 / h, (x[3] - x[2]) / 2.0 / h, (v[3] - v[2]) / h]], # 2
+            #                   k0,                   k1,                 k2,                  k3,                 c      i
+            [[                   0,                   0,                   0,                   0,                 0],  # 0
+             [                   0,                   0,                   0,                   0,                 0],  # 1
+             [                   0,                   0,                   0,                   0,                 0],  # 2
+             [ (x[1] + x[0]) / 4.0, (x[1] + x[0]) / 4.0,                   0,                   0, (v[1] + v[0]) / 2],  # 0
+             [                   0, (x[2] + x[1]) / 4.0, (x[2] + x[1]) / 4.0,                   0, (v[2] + v[1]) / 2],  # 1
+             [                   0,                   0, (x[3] + x[2]) / 4.0, (x[3] + x[2]) / 4.0, (v[3] + v[2]) / 2]], # 2
             dtype=float)
 
         expected_jacobian = np.hstack((part1, part2, part3))
 
         np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
-
 
     def test_generate_constraint_function(self):
 
@@ -737,7 +750,7 @@ def test_merge_fixed_free_trajectories():
     np.testing.assert_allclose(merged, expected)
 
     t = sym.symbols('t')
-    all_syms = [f(t) for f in sym.symbols('a, b, c, d', cls=sym.Function)]
+    all_syms = [g(t) for g in sym.symbols('a, b, c, d', cls=sym.Function)]
     a, b, c, d = all_syms
     known = {a: np.array([1.0, 2.0]),
              b: np.array([3.0, 4.0])}
