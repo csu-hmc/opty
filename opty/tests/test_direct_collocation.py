@@ -5,6 +5,7 @@ from collections import OrderedDict
 import numpy as np
 import sympy as sym
 from scipy import sparse
+from nose.tools import raises
 
 from ..direct_collocation import Problem, ConstraintCollocator
 
@@ -55,7 +56,7 @@ class TestConstraintCollocator():
         self.state_symbols = (x, v)
         self.constant_symbols = (m, c, k)
         self.specified_symbols = (f,)
-        self.discrete_symbols = sym.symbols('xi, vi, xp, vp, fi', real=True)
+        self.discrete_symbols = sym.symbols('xi, vi, xp, vp, xn, vn, fi, fn', real=True)
 
         self.state_values = np.array([[1.0, 2.0, 3.0, 4.0],
                                       [5.0, 6.0, 7.0, 8.0]])
@@ -79,7 +80,8 @@ class TestConstraintCollocator():
                                  num_collocation_nodes=4,
                                  node_time_interval=self.interval_value,
                                  known_parameter_map=par_map,
-                                 known_trajectory_map=traj_map)
+                                 known_trajectory_map=traj_map,
+                                 tmp_dir='test_ufuncs')
 
     def test_init(self):
 
@@ -87,6 +89,11 @@ class TestConstraintCollocator():
         assert self.collocator.state_derivative_symbols == \
             tuple([s.diff() for s in self.state_symbols])
         assert self.collocator.num_states == 2
+        assert self.collocator.num_collocation_nodes == 4
+
+    @raises(ValueError)
+    def test_integration_method(self):
+        self.collocator.integration_method = 'booger'
 
     def test_sort_parameters(self):
 
@@ -118,16 +125,19 @@ class TestConstraintCollocator():
 
         self.collocator._discrete_symbols()
 
-        xi, vi, xp, vp, fi = self.discrete_symbols
+        xi, vi, xp, vp, xn, vn, fi, fn = self.discrete_symbols
 
-        assert self.collocator.current_discrete_state_symbols == (xi, vi)
         assert self.collocator.previous_discrete_state_symbols == (xp, vp)
-        assert self.collocator.current_discrete_specified_symbols[0] is fi
+        assert self.collocator.current_discrete_state_symbols == (xi, vi)
+        assert self.collocator.next_discrete_state_symbols == (xn, vn)
 
-    def test_discretize_eom(self):
+        assert self.collocator.current_discrete_specified_symbols == (fi, )
+        assert self.collocator.next_discrete_specified_symbols == (fn, )
+
+    def test_discretize_eom_backward_euler(self):
 
         m, c, k = self.constant_symbols
-        xi, vi, xp, vp, fi = self.discrete_symbols
+        xi, vi, xp, vp, xn, vn, fi, fn = self.discrete_symbols
         h = self.collocator.time_interval_symbol
 
         expected = sym.Matrix([(xi - xp) / h - vi,
@@ -139,7 +149,25 @@ class TestConstraintCollocator():
 
         assert zero == sym.Matrix([0, 0])
 
-    def test_gen_multi_arg_con_func(self):
+    def test_discretize_eom_midpoint(self):
+
+        m, c, k = self.constant_symbols
+        xi, vi, xp, vp, xn, vn, fi, fn = self.discrete_symbols
+
+        h = self.collocator.time_interval_symbol
+
+        expected = sym.Matrix([(xi + xn) / 2 - (vn - vi) / h,
+                               m * (vi + vn) / 2 + c * (vn - vi) / h +
+                               k * (xn - xi) / h - (fi + fn) / 2])
+
+        self.collocator.integration_method = 'midpoint'
+        self.collocator._discretize_eom()
+
+        zero = sym.simplify(self.collocator.discrete_eom - expected)
+
+        assert zero == sym.Matrix([0, 0])
+
+    def test_gen_multi_arg_con_func_backward_euler(self):
 
         self.collocator._gen_multi_arg_con_func()
 
@@ -175,7 +203,46 @@ class TestConstraintCollocator():
 
         np.testing.assert_allclose(result, expected)
 
-    def test_gen_multi_arg_con_jac_func(self):
+    def test_gen_multi_arg_con_func_midpoint(self):
+
+        self.collocator.integration_method = 'midpoint'
+        self.collocator._gen_multi_arg_con_func()
+
+        # Make sure the parameters are in the correct order.
+        constant_values = \
+            np.array([self.constant_values[self.constant_symbols.index(c)]
+                      for c in self.collocator.parameters])
+
+        # TODO : Once there are more than one specified, they will need to
+        # be put in the correct order too.
+
+        result = self.collocator._multi_arg_con_func(self.state_values,
+                                                     self.specified_values,
+                                                     constant_values,
+                                                     self.interval_value)
+
+        m, c, k = self.constant_values
+        h = self.interval_value
+
+        expected_dynamic = np.zeros(3)
+        expected_kinematic = np.zeros(3)
+
+        for i in [0, 1, 2]:
+
+            xi, vi = self.state_values[:, i]
+            xn, vn = self.state_values[:, i + 1]
+            fi = self.specified_values[i:i + 1]
+            fn = self.specified_values[i + 1:i + 2]
+
+            expected_dynamic[i] = (m * (vi + vn) / 2 + c * (vn - vi) / h
+                                       + k * (xn - xi) / h - (fi + fn) / 2)
+            expected_kinematic[i] = (xi + xn) / 2 - (vn - vi) / h
+
+        expected = np.hstack((expected_kinematic, expected_dynamic))
+
+        np.testing.assert_allclose(result, expected)
+
+    def test_gen_multi_arg_con_jac_func_backward_euler(self):
 
         self.collocator._gen_multi_arg_con_jac_func()
 
@@ -213,6 +280,44 @@ class TestConstraintCollocator():
              [     0,      k,      0,     0, -m / h, c + m / h,          0,         0, x[1]],
              [     0,      0,      k,     0,      0,    -m / h,  c + m / h,         0, x[2]],
              [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]],
+            dtype=float)
+
+        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+
+    def test_gen_multi_arg_con_jac_func_midpoint(self):
+
+        self.collocator.integration_method = 'midpoint'
+        self.collocator._gen_multi_arg_con_jac_func()
+
+        # Make sure the parameters are in the correct order.
+        constant_values = \
+            np.array([self.constant_values[self.constant_symbols.index(c)]
+                      for c in self.collocator.parameters])
+
+        # TODO : Once there are more than one specified, they will need to
+        # be put in the correct order too.
+
+        jac_vals = self.collocator._multi_arg_con_jac_func(self.state_values,
+                                                           self.specified_values,
+                                                           constant_values,
+                                                           self.interval_value)
+
+        row_idxs, col_idxs = self.collocator.jacobian_indices()
+
+        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+
+        x = self.state_values[0]
+        m, c, k = self.constant_values
+        h = self.interval_value
+
+        expected_jacobian = np.array(
+            #         x0,         x1,         x2,        x3,            v0,            v1,            v2,            v3,                 k      i
+            [[ 1.0 / 2.0,  1.0 / 2.0,          0,         0,         1 / h,        -1 / h,             0,             0,                 0],  # 0
+             [         0,  1.0 / 2.0,  1.0 / 2.0,         0,             0,         1 / h,        -1 / h,             0,                 0],  # 1
+             [         0,          0,  1.0 / 2.0, 1.0 / 2.0,             0,             0,         1 / h,        -1 / h,                 0],  # 2
+             [    -k / h,      k / h,          0,         0, m / 2 - c / h, m / 2 + c / h,             0,             0, (x[1] - x[0]) / h],  # 0
+             [         0,     -k / h,      k / h,         0,             0, m / 2 - c / h, m / 2 + c / h,             0, (x[2] - x[1]) / h],  # 1
+             [         0,          0,     -k / h,     k / h,             0,             0, m / 2 - c / h, m / 2 + c / h, (x[3] - x[2]) / h]], # 2
             dtype=float)
 
         np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
@@ -470,6 +575,68 @@ class TestConstraintCollocatorUnknownTrajectories():
             dtype=float)
 
         np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+
+    def test_gen_multi_arg_con_jac_func_midpoint(self):
+
+        self.collocator.integration_method = 'midpoint'
+        self.collocator._gen_multi_arg_con_jac_func()
+
+        # Make sure the parameters are in the correct order.
+        constant_values = \
+            np.array([self.constant_values[self.constant_symbols.index(c)]
+                      for c in self.collocator.parameters])
+
+        # TODO : Once there are more than one specified, they will need to
+        # be put in the correct order too.
+
+        jac_vals = self.collocator._multi_arg_con_jac_func(self.state_values,
+                                                           self.specified_values,
+                                                           constant_values,
+                                                           self.interval_value)
+
+        row_idxs, col_idxs = self.collocator.jacobian_indices()
+
+        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+
+        x, v = self.state_values
+        m, c = self.constant_values
+        f, k = self.specified_values
+        h = self.interval_value
+
+        part1 = np.array(
+            #                        x0,                       x1,                       x2,                      x3,
+            [[                1.0 / 2.0,                1.0 / 2.0,                        0,                       0],
+             [                        0,                1.0 / 2.0,                1.0 / 2.0,                       0],
+             [                        0,                        0,                1.0 / 2.0,               1.0 / 2.0],
+             [ -(k[0] + k[1]) / 2.0 / h,  (k[0] + k[1]) / 2.0 / h,                        0,                       0],
+             [                        0, -(k[1] + k[2]) / 2.0 / h,  (k[1] + k[2]) / 2.0 / h,                       0],
+             [                        0,                        0, -(k[2] + k[3]) / 2.0 / h, (k[2] + k[3]) / 2.0 / h]],
+            dtype=float)
+
+        part2 = np.array(
+            #             v0,            v1,            v2,            v3      i
+            [[         1 / h,        -1 / h,             0,             0],  # 0
+             [             0,         1 / h,        -1 / h,             0],  # 1
+             [             0,             0,         1 / h,        -1 / h],  # 2
+             [ m / 2 - c / h, m / 2 + c / h,             0,             0],  # 0
+             [             0, m / 2 - c / h, m / 2 + c / h,             0],  # 1
+             [             0,             0, m / 2 - c / h, m / 2 + c / h]], # 2
+            dtype=float)
+
+        part3 = np.array(
+            #                       k0,                      k1,                      k2,                      k3,                 c      i
+            [[                       0,                       0,                       0,                       0,                 0],  # 0
+             [                       0,                       0,                       0,                       0,                 0],  # 1
+             [                       0,                       0,                       0,                       0,                 0],  # 2
+             [ (x[1] - x[0]) / 2.0 / h, (x[1] - x[0]) / 2.0 / h,                       0,                       0, (v[1] - v[0]) / h],  # 0
+             [                       0, (x[2] - x[1]) / 2.0 / h, (x[2] - x[1]) / 2.0 / h,                       0, (v[2] - v[1]) / h],  # 1
+             [                       0,                       0, (x[3] - x[2]) / 2.0 / h, (x[3] - x[2]) / 2.0 / h, (v[3] - v[2]) / h]], # 2
+            dtype=float)
+
+        expected_jacobian = np.hstack((part1, part2, part3))
+
+        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+
 
     def test_generate_constraint_function(self):
 

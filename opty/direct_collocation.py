@@ -120,18 +120,31 @@ class Problem(ipopt.problem):
         self.obj_value.append(args[2])
 
 
-class ConstraintCollocator():
+class ConstraintCollocator(object):
     """This class is responsible for generating the constraint function and
     the sparse Jacobian of the constraint function using direct collocation
     methods for a non-linear programming problem where the essential
-    constraints are defined from the equations of motion of the system."""
+    constraints are defined from the equations of motion of the system.
+
+    Notes
+    -----
+    N : number of collocation nodes
+    N - 1 : number of constraints
+    n : number of states
+    m : number of input trajectories
+    p : number of parameters
+    q : number of unknown input trajectories
+    r : number of unknown parameters
+
+    """
 
     time_interval_symbol = sym.Symbol('h', real=True)
 
     def __init__(self, equations_of_motion, state_symbols,
                  num_collocation_nodes, node_time_interval,
                  known_parameter_map={}, known_trajectory_map={},
-                 instance_constraints=None, time_symbol=None, tmp_dir=None):
+                 instance_constraints=None, time_symbol=None, tmp_dir=None,
+                 integration_method='backward euler'):
         """
         Parameters
         ----------
@@ -139,7 +152,8 @@ class ConstraintCollocator():
             A column matrix of SymPy expressions defining the right hand
             side of the equations of motion when the left hand side is zero,
             e.g. 0 = x'(t) - f(x(t), u(t), p) or 0 = f(x'(t), x(t), u(t),
-            p). These should be in first order form.
+            p). These should be in first order form but not necessairly
+            explicit.
         state_symbols : iterable
             An iterable containing all of the SymPy functions of time which
             represent the states in the equations of motion.
@@ -158,6 +172,9 @@ class ConstraintCollocator():
             ndarrays of floats of shape(N,). Any time varying parameters in
             the equations of motion not provided in this dictionary will
             become free trajectories optimization variables.
+        integration_method : string, optional
+            The integration method to use, either `backward euler` or
+            `midpoint`.
         instance_constraints : iterable of SymPy expressions
             These expressions are for constraints on the states at specific
             time points. They can be expressions with any state instance and
@@ -208,8 +225,8 @@ class ConstraintCollocator():
                           self.num_unknown_input_trajectories) *
                          self.num_collocation_nodes +
                          self.num_unknown_parameters)
-        self._discrete_symbols()
-        self._discretize_eom()
+
+        self.integration_method = integration_method
 
         if instance_constraints is not None:
             self.num_instance_constraints = len(instance_constraints)
@@ -220,6 +237,20 @@ class ConstraintCollocator():
                 self._instance_constraints_func()
             self.eval_instance_constraints_jacobian_values = \
                 self._instance_constraints_jacobian_values_func()
+
+    @property
+    def integration_method(self):
+        return self._integration_method
+
+    @integration_method.setter
+    def integration_method(self, method):
+        if method not in ['backward euler', 'midpoint']:
+            msg = ("{} is not a valid integration method.")
+            raise ValueError(msg.format(method))
+        else:
+            self._integration_method = method
+            self._discrete_symbols()
+            self._discretize_eom()
 
     @staticmethod
     def _parse_inputs(all_syms, known_syms):
@@ -339,29 +370,66 @@ class ConstraintCollocator():
 
         Instantiates
         ------------
-        current_discrete_state_symbols : tuple of sympy.Symbols
-            The n symbols representing the system's ith states.
         previous_discrete_state_symbols : tuple of sympy.Symbols
             The n symbols representing the system's (ith - 1) states.
+        current_discrete_state_symbols : tuple of sympy.Symbols
+            The n symbols representing the system's ith states.
+        next_discrete_state_symbols : tuple of sympy.Symbols
+            The n symbols representing the system's (ith + 1) states.
+        current_known_discrete_specified_symbols : tuple of sympy.Symbols
+            The symbols representing the system's ith known input
+            trajectories.
+        next_known_discrete_specified_symbols : tuple of sympy.Symbols
+            The symbols representing the system's (ith + 1) known input
+            trajectories.
+        current_unknown_discrete_specified_symbols : tuple of sympy.Symbols
+            The symbols representing the system's ith unknown input
+            trajectories.
+        next_unknown_discrete_specified_symbols : tuple of sympy.Symbols
+            The symbols representing the system's (ith + 1) unknown input
+            trajectories.
         current_discrete_specified_symbols : tuple of sympy.Symbols
             The m symbols representing the system's ith specified inputs.
+        next_discrete_specified_symbols : tuple of sympy.Symbols
+            The m symbols representing the system's (ith + 1) specified
+            inputs.
 
         """
 
-        xi = [sym.Symbol(f.__class__.__name__ + 'i', real=True)
-              for f in self.state_symbols]
-        xp = [sym.Symbol(f.__class__.__name__ + 'p', real=True)
-              for f in self.state_symbols]
-        ki = [sym.Symbol(f.__class__.__name__ + 'i', real=True) for f in
-              self.known_input_trajectories]
-        ui = [sym.Symbol(f.__class__.__name__ + 'i', real=True) for f in
-              self.unknown_input_trajectories]
+        # The previus, current, and next states.
+        self.previous_discrete_state_symbols = \
+            tuple([sym.Symbol(f.__class__.__name__ + 'p', real=True)
+                   for f in self.state_symbols])
+        self.current_discrete_state_symbols = \
+            tuple([sym.Symbol(f.__class__.__name__ + 'i', real=True)
+                   for f in self.state_symbols])
+        self.next_discrete_state_symbols = \
+            tuple([sym.Symbol(f.__class__.__name__ + 'n', real=True)
+                   for f in self.state_symbols])
 
-        self.current_discrete_state_symbols = tuple(xi)
-        self.previous_discrete_state_symbols = tuple(xp)
-        self.current_known_discrete_specified_symbols = tuple(ki)
-        self.current_unknown_discrete_specified_symbols = tuple(ui)
-        self.current_discrete_specified_symbols = tuple(ki) + tuple(ui)
+        # The current and next known input trajectories.
+        self.current_known_discrete_specified_symbols = \
+            tuple([sym.Symbol(f.__class__.__name__ + 'i', real=True)
+                   for f in self.known_input_trajectories])
+        self.next_known_discrete_specified_symbols = \
+            tuple([sym.Symbol(f.__class__.__name__ + 'n', real=True)
+                   for f in self.known_input_trajectories])
+
+
+        # The current and next unknown input trajectories.
+        self.current_unknown_discrete_specified_symbols = \
+            tuple([sym.Symbol(f.__class__.__name__ + 'i', real=True)
+                   for f in self.unknown_input_trajectories])
+        self.next_unknown_discrete_specified_symbols = \
+            tuple([sym.Symbol(f.__class__.__name__ + 'n', real=True)
+                   for f in self.unknown_input_trajectories])
+
+        self.current_discrete_specified_symbols = \
+            (self.current_known_discrete_specified_symbols +
+             self.current_unknown_discrete_specified_symbols)
+        self.next_discrete_specified_symbols = \
+            (self.next_known_discrete_specified_symbols +
+             self.next_unknown_discrete_specified_symbols)
 
     def _discretize_eom(self):
         """Instantiates the constraint equations in a discretized form using
@@ -377,17 +445,28 @@ class ConstraintCollocator():
         xd = self.state_derivative_symbols
         u = self.input_trajectories
 
-        xi = self.current_discrete_state_symbols
         xp = self.previous_discrete_state_symbols
+        xi = self.current_discrete_state_symbols
+        xn = self.next_discrete_state_symbols
         ui = self.current_discrete_specified_symbols
+        un = self.next_discrete_specified_symbols
 
         h = self.time_interval_symbol
 
-        deriv_sub = {d: (i - p) / h for d, i, p in zip(xd, xi, xp)}
+        if self.integration_method == 'backward euler':
 
-        func_sub = dict(zip(x + u, xi + ui))
+            deriv_sub = {d: (i - p) / h for d, i, p in zip(xd, xi, xp)}
 
-        self.discrete_eom = me.msubs(self.eom, deriv_sub, func_sub)
+            func_sub = dict(zip(x + u, xi + ui))
+
+            self.discrete_eom = me.msubs(self.eom, deriv_sub, func_sub)
+
+        elif self.integration_method == 'midpoint':
+
+            xdot_sub = {d: (i + n) / 2 for d, i, n in zip(xd, xi, xn)}
+            x_sub = {d: (n - i) / h for d, i, n in zip(x, xi, xn)}
+            u_sub = {d: (i + n) / 2 for d, i, n in zip(u, ui, un)}
+            self.discrete_eom = me.msubs(self.eom, xdot_sub, x_sub, u_sub)
 
     def _identify_functions_in_instance_constraints(self):
         """Instantiates a set containing all of the instance functions, i.e.
@@ -527,12 +606,32 @@ class ConstraintCollocator():
         """
         xi_syms = self.current_discrete_state_symbols
         xp_syms = self.previous_discrete_state_symbols
+        xn_syms = self.next_discrete_state_symbols
         si_syms = self.current_discrete_specified_symbols
+        sn_syms = self.next_discrete_specified_symbols
         h_sym = self.time_interval_symbol
         constant_syms = self.known_parameters + self.unknown_parameters
 
-        args = [x for x in xi_syms] + [x for x in xp_syms]
-        args += [s for s in si_syms] + list(constant_syms) + [h_sym]
+        if self.integration_method == 'backward euler':
+
+            args = [x for x in xi_syms] + [x for x in xp_syms]
+            args += [s for s in si_syms] + list(constant_syms) + [h_sym]
+
+            current_start = 1
+            current_stop = None
+            adjacent_start = None
+            adjacent_stop = -1
+
+        elif self.integration_method == 'midpoint':
+
+            args = [x for x in xi_syms] + [x for x in xn_syms]
+            args += [s for s in si_syms] + [s for s in sn_syms]
+            args += list(constant_syms) + [h_sym]
+
+            current_start = None
+            current_stop = -1
+            adjacent_start = 1
+            adjacent_stop = None
 
         f = ufuncify_matrix(args, self.discrete_eom,
                             const=constant_syms + (h_sym,),
@@ -570,24 +669,30 @@ class ConstraintCollocator():
             assert state_values.shape == (self.num_states,
                                           self.num_collocation_nodes)
 
-            x_current = state_values[:, 1:]  # n x N - 1
-            x_previous = state_values[:, :-1]  # n x N - 1
+            x_current = state_values[:, current_start:current_stop]  # n x N - 1
+            x_adjacent = state_values[:, adjacent_start:adjacent_stop]  # n x N - 1
 
             # 2n x N - 1
-            args = [x for x in x_current] + [x for x in x_previous]
+            args = [x for x in x_current] + [x for x in x_adjacent]
 
             # 2n + m x N - 1
             if len(specified_values.shape) == 2:
                 assert specified_values.shape == \
                     (self.num_input_trajectories,
                      self.num_collocation_nodes)
-                si = specified_values[:, 1:]
+                si = specified_values[:, current_start:current_stop]
                 args += [s for s in si]
+                if self.integration_method == 'midpoint':
+                    sn = specified_values[:, adjacent_start:adjacent_stop]
+                    args += [s for s in sn]
             elif len(specified_values.shape) == 1 and specified_values.size != 0:
                 assert specified_values.shape == \
                     (self.num_collocation_nodes,)
-                si = specified_values[1:]
+                si = specified_values[current_start:current_stop]
                 args += [si]
+                if self.integration_method == 'midpoint':
+                    sn = specified_values[adjacent_start:adjacent_stop]
+                    args += [sn]
 
             args += [c for c in constant_values]
             args += [interval_value]
@@ -620,9 +725,19 @@ class ConstraintCollocator():
         n = self.num_states
 
         num_constraint_nodes = N - 1
-        num_partials = n * (2 * n + self.num_unknown_input_trajectories +
-                            self.num_unknown_parameters)
-        num_non_zero_values = num_partials * num_constraint_nodes
+
+        if self.integration_method == 'backward euler':
+
+            num_partials = n * (2 * n + self.num_unknown_input_trajectories
+                                + self.num_unknown_parameters)
+
+        elif self.integration_method == 'midpoint':
+
+            num_partials = n * (2 * n + 2 *
+                                self.num_unknown_input_trajectories +
+                                self.num_unknown_parameters)
+
+        num_non_zero_values = num_constraint_nodes * num_partials
 
         if self.instance_constraints is not None:
             ins_row_idxs, ins_col_idxs = \
@@ -632,20 +747,132 @@ class ConstraintCollocator():
         jac_row_idxs = np.empty(num_non_zero_values, dtype=int)
         jac_col_idxs = np.empty(num_non_zero_values, dtype=int)
 
+        """
+        The symbolic derivative matrix for a single constraint node follows
+        these patterns:
+
+        Backward Euler
+        --------------
+        i: ith, p: ith-1
+
+        For example:
+        x1i = the first state at the ith constraint node
+        uqi = the qth state at the ith constraint node
+        uqn = the qth state at the ith+1 constraint node
+
+        [x1] [x1i, ..., xni, x1p, ..., xnp, u1i, .., uqi, p1, ..., pr]
+        [. ]
+        [. ]
+        [. ]
+        [xn]
+
+        Midpoint
+        --------
+        i: ith, n: ith+1
+
+        [x1] [x1i, ..., xni, x1n, ..., xnn, u1i, .., uqi, u1n, ..., uqn, p1, ..., pp]
+        [. ]
+        [. ]
+        [. ]
+        [xn]
+
+        Each of these matrices are evaulated at N-1 constraint nodes and
+        then the 3D matrix is flattened into a 1d array. The backward euler
+        uses nodes 1 <= i <= N-1 and the midpoint uses 0 <= i <= N - 2. So
+        the flattened arrays looks like:
+
+        M = N-1
+        P = N-2
+
+        Backward Euler
+        --------------
+
+        i=1  x1  | [x11, ..., xn1, x10, ..., xn0, u11, .., uq1, p1, ..., pr,
+             x2  |  x11, ..., xn1, x10, ..., xn0, u11, .., uq1, p1, ..., pr,
+             ... |  ...,
+             xn  |  x11, ..., xn1, x10, ..., xn0, u11, .., uq1, p1, ..., pr,
+        i=2  x1  |  x12, ..., xn2, x11, ..., xn1, u12, .., uq2, p1, ..., pr,
+             x2  |  x12, ..., xn2, x11, ..., xn1, u12, .., uq2, p1, ..., pr,
+             ... |  ...,
+             xn  |  x12, ..., xn2, x11, ..., xn1, u12, .., uq2, p1, ..., pr,
+                 |  ...,
+        i=M  x1  |  x1M, ..., xnM, x1P, ..., xnP, u1M, .., uqM, p1, ..., pr,
+             x2  |  x1M, ..., xnM, x1P, ..., xnP, u1M, .., uqM, p1, ..., pr,
+             ... |  ...,
+             xn  |  x1M, ..., xnM, x1P, ..., xnP, u1M, .., uqM, p1, ..., pr]
+
+        Midpoint
+        --------
+
+        i=0   x1  | [x10, ..., xn0, x11, ..., xn1, u10, .., uq0, u11, .., uq1, p1, ..., pr,
+                x2  |  x10, ..., xn0, x11, ..., xn1, u10, .., uq0, u11, .., uq1, p1, ..., pr,
+                ... |  ...,
+                xn  |  x10, ..., xn0, x11, ..., xn1, u10, .., uq0, u11, .., uq1, p1, ..., pr,
+        i=1   x1  |  x11, ..., xn1, x12, ..., xn2, u11, .., uq1, u12, .., uq2, p1, ..., pr,
+                x2  |  x11, ..., xn1, x12, ..., xn2, u11, .., uq1, u12, .., uq2, p1, ..., pr,
+                ... |  ...,
+                xn  |  x11, ..., xn1, x12, ..., xn2, u11, .., uq1, u12, .., uq2, p1, ..., pr,
+                ... |  ...,
+        i=P   x1  |  x1P, ..., xnP, x1M, ..., xnM, u1P, .., uqP, u1M, .., uqM, p1, ..., pr,
+                x2  |  x1P, ..., xnP, x1M, ..., xnM, u1P, .., uqP, u1M, .., uqM, p1, ..., pr,
+                ... |  ...,
+                xn  |  x1P, ..., xnP, x1M, ..., xnM, u1P, .., uqP, u1M, .., uqM, p1, ..., pr]
+
+        These two arrays contain of the non-zero values of the sparse
+        Jacobian[#]_.
+
+        .. [#] Some of the partials can be equal to zero and could be
+            excluded from the array. These could be a significant number.
+
+        Now we need to generate the triplet format indices of the full
+        sparse Jacobian for each one of the entries in these arrays. The
+        format of the Jacobian matrix is:
+
+        Backward Euler
+        --------------
+
+                [x10, ..., x1N-1, ..., xn0, ..., xnN-1, u10, ..., u1N-1, ..., uq0, ..., uqN-1, p1, ..., pr]
+        [x11]
+        [x12]
+        [...]
+        [x1M]
+        [...]
+        [xn1]
+        [xn2]
+        [...]
+        [xnM]
+
+        Midpoint
+        --------
+
+                [x10, ..., x1N-1, ..., xn0, ..., xnN-1, u10, ..., u1N-1, ..., uq0, ..., uqN-1, p1, ..., pr]
+        [x10]
+        [x11]
+        [...]
+        [x1P]
+        [...]
+        [xn0]
+        [xn1]
+        [...]
+        [xnP]
+
+
+        """
         for i in range(num_constraint_nodes):
-            # n: num_states
-            # m: num_specified
-            # p: num_free_constants
+
+            # n : number of states
+            # m : number of input trajectories
+            # p : number of parameters
+            # q : number of unknown input trajectories
+            # r : number of unknown parameters
 
             # the states repeat every N - 1 constraints
-            # row_idxs = [0 * (N - 1), 1 * (N - 1),  2 * (N - 1),  n * (N - 1)]
+            # row_idxs = [0 * (N - 1), 1 * (N - 1),  2 * (N - 1), ..., n * (N - 1)]
 
-            row_idxs = [j * (num_constraint_nodes) + i
-                        for j in range(n)]
-
-            # The derivative columns are in this order:
-            # [x1i, x2i, ..., xni, x1p, x2p, ..., xnp, p1, ..., pp]
-            # So we need to map them to the correct column.
+            # This gives the Jacobian row indices matching the ith
+            # constraint node for each state. ith corresponds to the loop
+            # indice.
+            row_idxs = [j * (num_constraint_nodes) + i for j in range(n)]
 
             # first row, the columns indices mapping is:
             # [1, N + 1, ..., N - 1] : [x1p, x1i, 0, ..., 0]
@@ -656,12 +883,25 @@ class ConstraintCollocator():
             # i=1: [2, ..., n * N + 2, 1, ..., n * N + 1, n * N:n * N + p]
             # i=2: [3, ..., n * N + 3, 2, ..., n * N + 2, n * N:n * N + p]
 
-            col_idxs = [j * N + i + 1 for j in range(n)]
-            col_idxs += [j * N + i for j in range(n)]
-            col_idxs += [j * N + i + n * N + 1 for j in
-                         range(self.num_unknown_input_trajectories)]
-            col_idxs += [(n + self.num_unknown_input_trajectories) * N + j
-                         for j in range(self.num_unknown_parameters)]
+            if self.integration_method == 'backward euler':
+
+                col_idxs = [j * N + i + 1 for j in range(n)]
+                col_idxs += [j * N + i for j in range(n)]
+                col_idxs += [n * N + j * N + i + 1 for j in
+                            range(self.num_unknown_input_trajectories)]
+                col_idxs += [(n + self.num_unknown_input_trajectories) * N + j
+                            for j in range(self.num_unknown_parameters)]
+
+            elif self.integration_method == 'midpoint':
+
+                col_idxs = [j * N + i for j in range(n)]
+                col_idxs += [j * N + i + 1 for j in range(n)]
+                col_idxs += [n * N + j * N + i for j in
+                            range(self.num_unknown_input_trajectories)]
+                col_idxs += [n * N + j * N + i + 1 for j in
+                            range(self.num_unknown_input_trajectories)]
+                col_idxs += [(n + self.num_unknown_input_trajectories) * N + j
+                            for j in range(self.num_unknown_parameters)]
 
             row_idx_permutations = np.repeat(row_idxs, len(col_idxs))
             col_idx_permutations = np.array(list(col_idxs) * len(row_idxs),
@@ -691,111 +931,133 @@ class ConstraintCollocator():
         """
         xi_syms = self.current_discrete_state_symbols
         xp_syms = self.previous_discrete_state_symbols
+        xn_syms = self.next_discrete_state_symbols
         si_syms = self.current_discrete_specified_symbols
-        ki_syms = self.current_known_discrete_specified_symbols
+        sn_syms = self.next_discrete_specified_symbols
         ui_syms = self.current_unknown_discrete_specified_symbols
+        un_syms = self.next_unknown_discrete_specified_symbols
         h_sym = self.time_interval_symbol
         constant_syms = self.known_parameters + self.unknown_parameters
 
-        # The free parameters are always the n * (N - 1) state values and
-        # the user's specified unknown model constants, so the base Jacobian
-        # needs to be taken with respect to the ith, and ith - 1 states, and
-        # the free model constants.
-        partials = (xi_syms + xp_syms + ui_syms + self.unknown_parameters)
+        if self.integration_method == 'backward euler':
 
-        # The arguments to the Jacobian function include all of the free
-        # Symbols/Functions in the matrix expression.
-        args = xi_syms + xp_syms + si_syms + constant_syms + (h_sym,)
+            # The free parameters are always the n * (N - 1) state values,
+            # the unknown input trajectories, and the unknown model
+            # constants, so the base Jacobian needs to be taken with respect
+            # to the ith, and ith - 1 states, and the free model constants.
+            wrt = (xi_syms + xp_syms + ui_syms + self.unknown_parameters)
 
-        print('Computing the symbolic partial derivatives.')
-        symbolic_jacobian = self.discrete_eom.jacobian(partials)
+            # The arguments to the Jacobian function include all of the free
+            # Symbols/Functions in the matrix expression.
+            args = xi_syms + xp_syms + si_syms + constant_syms + (h_sym,)
 
-        jac = ufuncify_matrix(args, symbolic_jacobian,
-                              const=constant_syms + (h_sym,),
-                              tmp_dir=self.tmp_dir)
+            current_start = 1
+            current_stop = None
+            adjacent_start = None
+            adjacent_stop = -1
 
-        # jac is now a function that takes arguments that are made up of all
-        # the variables in the discretized equations of motion. It will be
-        # used to build the sparse constraint gradient matrix. This Jacobian
-        # function returns the non-zero elements needed to build the sparse
-        # constraint gradient.
+        elif self.integration_method == 'midpoint':
+
+            wrt = (xi_syms + xn_syms + ui_syms + un_syms +
+                   self.unknown_parameters)
+
+            # The arguments to the Jacobian function include all of the free
+            # Symbols/Functions in the matrix expression.
+            args = (xi_syms + xn_syms + si_syms + sn_syms + constant_syms +
+                    (h_sym,))
+
+            current_start = None
+            current_stop = -1
+            adjacent_start = 1
+            adjacent_stop = None
+
+        # This creates a matrix with all of the symbolic partial derivatives
+        # necessary to compute the full Jacobian.
+        symbolic_partials = self.discrete_eom.jacobian(wrt)
+
+        # This generates a numerical function that evaluates the matrix of
+        # partial derivatives. This function returns the non-zero elements
+        # needed to build the sparse constraint Jacobian.
+        eval_partials = ufuncify_matrix(args, symbolic_partials,
+                                        const=constant_syms + (h_sym,),
+                                        tmp_dir=self.tmp_dir)
+
+        result = np.empty((self.num_collocation_nodes - 1,
+                           symbolic_partials.shape[0] *
+                           symbolic_partials.shape[1]))
 
         def constraints_jacobian(state_values, specified_values,
-                                 constant_values, interval_value):
-            """Returns a sparse matrix of constraint gradient given all of
-            the unknowns in the equations of motion over the 2, ..., N time
-            steps.
+                                 parameter_values, interval_value):
+            """Returns the values of the sparse constraing Jacobian matrix
+            given all of the values for each variable in the equations of
+            motion over the N - 1 nodes.
 
             Parameters
             ----------
             states : ndarray, shape(n, N)
-                The array of n states through N time steps.
+                The array of n states through N time steps. There are always
+                at least two states.
             specified_values : ndarray, shape(m, N) or shape(N,)
                 The array of m specified inputs through N time steps.
-            constant_values : ndarray, shape(p,)
-                The array of p constants.
+            parameter_values : ndarray, shape(p,)
+                The array of p parameter.
             interval_value : float
-                The value of the dicretization time interval.
+                The value of the discretization time interval.
 
             Returns
             -------
-            constraints_gradient : ndarray,
-                The values of the non-zero entries to the constraints
-                Jacobian.  These correspond to the triplet formatted indices
+            constraint_jacobian_values : ndarray, shape(see below,)
+                backward euler: shape((N - 1) * n * (2*n + q + r),)
+                midpoint: shape((N - 1) * n * (2*n + 2*q + r),)
+                The values of the non-zero entries of the constraints
+                Jacobian. These correspond to the triplet formatted indices
                 returned from jacobian_indices.
+
+            Notes
+            -----
+            N : number of collocation nodes
+            n : number of states
+            m : number of input trajectories
+            p : number of parameters
+            q : number of unknown input trajectories
+            r : number of unknown parameters
+            n * (N - 1) : number of constraints
 
             """
             if state_values.shape[0] < 2:
                 raise ValueError('There should always be at least two states.')
 
-            x_current = state_values[:, 1:]  # n x N - 1
-            x_previous = state_values[:, :-1]  # n x N - 1
-
-            num_time_steps = state_values.shape[1]  # N
-            num_constraint_nodes = num_time_steps - 1  # N - 1
+            # Each of these arrays are shape(n, N - 1). The x_adjacent is
+            # either the previous value of the state or the next value of
+            # the state, depending on the integration method.
+            x_current = state_values[:, current_start:current_stop]
+            x_adjacent = state_values[:, adjacent_start:adjacent_stop]
 
             # 2n x N - 1
-            args = [x for x in x_current] + [x for x in x_previous]
+            args = [x for x in x_current] + [x for x in x_adjacent]
 
             # 2n + m x N - 1
             if len(specified_values.shape) == 2:
-                args += [s for s in specified_values[:, 1:]]
+                si = specified_values[:, current_start:current_stop]
+                args += [s for s in si]
+                if self.integration_method == 'midpoint':
+                    sn = specified_values[:, adjacent_start:adjacent_stop]
+                    args += [s for s in sn]
             elif len(specified_values.shape) == 1 and specified_values.size != 0:
-                args += [specified_values[1:]]
+                si = specified_values[current_start:current_stop]
+                args += [si]
+                if self.integration_method == 'midpoint':
+                    sn = specified_values[adjacent_start:adjacent_stop]
+                    args += [sn]
 
-            args += [c for c in constant_values]
+            args += [c for c in parameter_values]
             args += [interval_value]
 
-            result = np.empty((num_constraint_nodes,
-                               symbolic_jacobian.shape[0] *
-                               symbolic_jacobian.shape[1]))
+            # backward euler: shape(N - 1, n, 2*n + q + r)
+            # midpoint: shape(N - 1, n, 2*n + 2*q + r)
+            non_zero_derivatives = eval_partials(result, *args)
 
-            # shape(N - 1, n, 2*n+p) where p is len(free_constants)
-            non_zero_derivatives = jac(result, *args)
-
-            # Now loop through the N - 1 constraint nodes to compute the
-            # non-zero entries to the gradient matrix (the partials for n
-            # states will be computed at each iteration).
-            num_partials = (non_zero_derivatives.shape[1] *
-                            non_zero_derivatives.shape[2])
-
-            # TODO : Move this to a class attribute so it is only created
-            # once and reused.
-            jac_vals = np.empty(num_partials * num_constraint_nodes,
-                                dtype=float)
-
-            # TODO : The ordered Jacobian values may be able to be gotten by
-            # simply flattening non_zero_derivatives. And if not, then maybe
-            # this loop needs to be in Cython.
-
-            for i in range(num_constraint_nodes):
-                start = i * num_partials
-                stop = (i + 1) * num_partials
-                # TODO : This flatten() call is currently the most time
-                # consuming thing in this function.
-                jac_vals[start:stop] = non_zero_derivatives[i].flatten()
-
-            return jac_vals
+            return non_zero_derivatives.ravel()
 
         self._multi_arg_con_jac_func = constraints_jacobian
 
