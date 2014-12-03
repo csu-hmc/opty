@@ -45,7 +45,7 @@ class Problem(ipopt.problem):
 
         self._generate_bound_arrays()
 
-        # All constraints are expected to be equalt to zero.
+        # All constraints are expected to be equal to zero.
         con_bounds = np.zeros(self.num_constraints)
 
         super(Problem, self).__init__(n=self.num_free,
@@ -54,12 +54,6 @@ class Problem(ipopt.problem):
                                       ub=self.upper_bound,
                                       cl=con_bounds,
                                       cu=con_bounds)
-
-        self.output_filename = 'ipopt_output.txt'
-        #self.addOption('derivative_test', 'first-order')
-        self.addOption('output_file', self.output_filename)
-        self.addOption('print_timing_statistics', 'yes')
-        self.addOption('linear_solver', 'ma57')
 
         self.obj_value = []
 

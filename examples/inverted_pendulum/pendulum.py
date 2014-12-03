@@ -169,6 +169,10 @@ class Identifier():
                                known_parameter_map=simulate.constants_dict(self.constants_syms),
                                known_trajectory_map={self.specified_inputs_syms[-1]: self.u})
 
+        self.prob.addOption('output_file', 'ipopt_output.txt')
+        self.prob.addOption('print_timing_statistics', 'yes')
+        self.prob.addOption('linear_solver', 'ma57')
+
     def optimize(self):
 
         print('Solving optimization problem.')

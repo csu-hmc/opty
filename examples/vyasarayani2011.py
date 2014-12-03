@@ -80,6 +80,9 @@ def main(initial_guess, do_plot=False):
     prob = Problem(obj, obj_grad, eom, (y1, y2), num_nodes, interval,
                 integration_method='midpoint')
 
+    # Set some IPOPT options.
+    prob.addOption('linear_solver', 'ma57')
+
     num_states = len(y)
 
     if initial_guess == 'zero':
@@ -99,7 +102,7 @@ def main(initial_guess, do_plot=False):
     elif initial_guess == 'sysid':
         # Give noisy measurements as the initial state guess and a random
         # positive values as the parameter guess.
-        initial_guess = np.hstack((y1_meas, y2_meas, 50.0 *
+        initial_guess = np.hstack((y1_meas, y2_meas, 100.0 *
                                    np.random.random(1)))
     elif initial_guess == 'known':
         # Known solution as initial guess.
@@ -111,11 +114,13 @@ def main(initial_guess, do_plot=False):
 
     # Print the result.
     known_msg = "Known value of p = {}".format(p_val)
+    guess_msg = "Initial guess for p = {}".format(initial_guess[-1])
     identified_msg = "Identified value of p = {}".format(p_sol)
     divider = '=' * max(len(known_msg), len(identified_msg))
 
     print(divider)
     print(known_msg)
+    print(guess_msg)
     print(identified_msg)
     print(divider)
 
