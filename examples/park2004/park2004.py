@@ -70,7 +70,7 @@ class PlanarStandingHumanOnMovingPlatform():
 
     q = [theta_a, theta_h]
 
-    q = [0, 0] is the nominal configuration: upright standing
+    q = [0, 0] is the upright standing configuration.
 
     The generalized speeds:
 
@@ -84,9 +84,19 @@ class PlanarStandingHumanOnMovingPlatform():
 
     r = [a, T_a, T_h]
 
+    The first order explicit form of the equations of motion are:
+
     x' = f(x, r)
 
-    and a form linearized about the upright equilibrium:
+    The class can also output the first order implicit form:
+
+    0 = f(x', x, r)
+
+    Linearized Equations of Motion
+    ------------------------------
+
+    This class also generates a form linearized about the upright
+    equilibrium where the only inputs are the joint torques.
 
     r = [T_a, T_h]
 
@@ -94,6 +104,9 @@ class PlanarStandingHumanOnMovingPlatform():
 
     Closed Loop Equations of Motion
     -------------------------------
+
+    The open loop system can be controlled by a simple full state feedback
+    controller.
 
     Additional constants:
 
@@ -363,14 +376,20 @@ class PlanarStandingHumanOnMovingPlatform():
                       sy.symbols('k_{}{}'.format(i, j)))
         self.gain_matrix = K
 
+        S = sy.Matrix(num_inputs, num_states, lambda i, j:
+                      sy.symbols('s_{}{}'.format(i, j)))
+        self.scale_matrix = S
+
         x = sy.Matrix(states)
         T = sy.Matrix(inputs)
 
         self.gain_symbols = [k for k in K]
+        self.scale_symbols = [s for s in S]
 
-        # T = K * (xeq - x) -> 0 = T - K * (xeq - x)
+        # T = K * (xeq - x) -> 0 = T - S .* K * (xeq - x)
 
-        self.controller_dict = sy.solve(T - K * (xeq - x), inputs)
+        self.controller_dict = sy.solve(T - S.multiply_elementwise(K) *
+                                        (xeq - x), inputs)
 
     def _generate_closed_loop_eoms(self):
 
@@ -413,6 +432,9 @@ class PlanarStandingHumanOnMovingPlatform():
         # the Park paper.
         self.numerical_gains = np.array([[950.0, 175.0, 185.0, 50.0],
                                          [45.0, 290.0, 60.0, 26.0]])
+        # We are going to scale the gains so that the values we search for
+        # with IPOPT are all close to 0.5 instead of the large gain values.
+        self.numerical_gains_scales = self.numerical_gains / 0.5
 
         #for g, v in zip(self.gain_matrix, self.numerical_gains.flatten()):
             #self.parameter_map[g] = v
@@ -500,7 +522,8 @@ class PlanarStandingHumanOnMovingPlatform():
                 result = interp_func(t)
 
             controls[0] = result[-1]
-            controls[1:] = np.dot(self.numerical_gains, result[:-1] - x)
+            controls[1:] = np.dot(0.5 * self.numerical_gains_scales,
+                                  result[:-1] - x)
 
             return controls
 
@@ -517,6 +540,12 @@ class PlanarStandingHumanOnMovingPlatform():
 
         return rhs, args
 
+    def first_order_implicit(self):
+        return sy.Matrix(self.kin_diff_eqs).col_join(self.fr_plus_frstar_closed)
+
+    # TODO : This should be a property.
+    def states(self):
+        return self.coordinates.values() + self.speeds.values()
 
 def sum_of_sines(sigma, frequencies, time):
     """Returns a sum of sines centered at zero along with its first and
@@ -564,8 +593,8 @@ if __name__ == '__main__':
     h = PlanarStandingHumanOnMovingPlatform()
     h.derive()
 
-    num_nodes = 1000
-    duration = 20.0
+    num_nodes = 10000
+    duration = 200.0
     interval = duration / (num_nodes - 1)
     time = np.linspace(0.0, duration, num=num_nodes)
 
@@ -605,19 +634,26 @@ if __name__ == '__main__':
 
     bounds = {}
     for g in h.gain_symbols:
-        bounds[g] = (0.0, 2000.0)
+        bounds[g] = (0.0, 1.0)
+
+    # The scalings are added to the parameter map here instead of the class
+    # because it boogers up the ode generator with too many values.
+    for k, v in zip(h.scale_symbols, h.numerical_gains_scales.flatten()):
+        h.parameter_map[k] = v
 
     prob = Problem(obj, obj_grad,
-                   sy.Matrix(h.kin_diff_eqs).col_join(h.fr_plus_frstar_closed),
-                   h.coordinates.values() + h.speeds.values(),
+                   h.first_order_implicit(),
+                   h.states(),
                    num_nodes, interval,
                    known_parameter_map=h.parameter_map,
                    known_trajectory_map={h.specified['platform_acceleration']: accel},
                    bounds=bounds,
-                   time_symbol=h.time)
+                   time_symbol=h.time,
+                   integration_method='midpoint')
 
-    initial_guess = np.hstack((x_meas_vec, h.numerical_gains.flatten()))
-    initial_guess = np.hstack((x_meas_vec, 1000.0 * np.random.random(8)))
+    initial_guess = np.hstack((x_meas_vec, (h.numerical_gains_scales *
+                                            h.numerical_gains).flatten()))
+    initial_guess = np.hstack((x_meas_vec, 0.5 * np.random.random(8)))
     initial_guess = np.hstack((x_meas_vec, np.zeros(8)))
 
     # Find the optimal solution.
@@ -625,4 +661,4 @@ if __name__ == '__main__':
     p_sol = solution[-8:]
 
     print("Known value of p = {}".format(h.numerical_gains))
-    print("Identified value of p = {}".format(p_sol))
+    print("Identified value of p = {}".format(h.numerical_gains_scales.flatten() * p_sol))
