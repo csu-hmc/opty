@@ -73,6 +73,7 @@ if __name__ == '__main__':
                                             h.numerical_gains).flatten()))
     initial_guess = np.hstack((x_meas_vec, np.random.random(8)))
     initial_guess = np.hstack((x_meas_vec, np.zeros(8)))
+    initial_guess = np.zeros(prob.num_free)
 
     # Find the optimal solution.
     solution, info = prob.solve(initial_guess)
