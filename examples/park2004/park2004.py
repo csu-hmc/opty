@@ -3,48 +3,10 @@
 import numpy as np
 from scipy.integrate import odeint
 from opty.direct_collocation import Problem
+from opty.utils import sum_of_sines
 
 from model import PlanarStandingHumanOnMovingPlatform
 
-
-def sum_of_sines(sigma, frequencies, time):
-    """Returns a sum of sines centered at zero along with its first and
-    second derivatives.
-
-    Parameters
-    ==========
-    sigma : float
-        The desired standard deviation of the series.
-    frequencies : iterable of floats
-        The frequencies of the sin curves to be included in the sum.
-    time : array_like, shape(n,)
-        The montonically increasing time vector.
-
-    Returns
-    =======
-    sines : ndarray, shape(n,)
-        A sum of sines.
-    sines_prime : ndarray, shape(n,)
-        The first derivative of the sum of sines.
-    sines_double_prime : ndarray, shape(n,)
-        The second derivative of the sum of sines.
-
-    """
-
-    phases = 2.0 * np.pi * np.random.ranf(len(frequencies))
-
-    sines = np.zeros_like(time)
-    sines_prime = np.zeros_like(time)
-    sines_double_prime = np.zeros_like(time)
-
-    amplitude = sigma / 2.0
-
-    for w, p in zip(frequencies, phases):
-        sines += amplitude * np.sin(w * time + p)
-        sines_prime += amplitude * w * np.cos(w * time + p)
-        sines_double_prime -= amplitude * w**2 * np.sin(w * time + p)
-
-    return sines, sines_prime, sines_double_prime
 
 if __name__ == '__main__':
 
@@ -74,7 +36,6 @@ if __name__ == '__main__':
 
     # Add measurement noise to the data.
     x_meas = x + np.random.normal(scale=np.deg2rad(0.25), size=x.shape)
-    #x_meas = x
 
     # TODO : Add measurement noise to the acceleration measurement.
 
