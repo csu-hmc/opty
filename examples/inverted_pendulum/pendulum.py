@@ -53,6 +53,32 @@ class Identifier():
 
     def __init__(self, num_links, duration, sample_rate, init_type,
                  sensor_noise, do_plot, do_animate):
+        """
+
+        Parameters
+        ==========
+        num_links : integer
+            The desired number of links in the pendulum.
+        duration : float
+            The desired duration of the simulation.
+        sample_rate : float
+            The desired sample rate for both the measurements and the
+            collocation discretization in Hertz.
+        init_type : string
+            The type of initial guess to provide. All of the options provide
+            the "measured" state trajectories as initial guesses. The
+            guesses for the gains are given by these options: 'known'
+            provides the known gains, 'zero' provides zero, 'ones' provides
+            ones, 'close' gives random guesses that are close to the known
+            gains, and 'random' give values between -100 and 100.
+        sensor_noise : boolean
+            If true, noise will be added to the sensor measurements.
+        do_plot : boolean
+            If true, plots will display showing the identification results.
+        do_animate : boolean
+            If true, an animation of the pendulum will be displayed.
+
+        """
 
         self.num_links = num_links
         self.duration = duration
@@ -82,7 +108,8 @@ class Identifier():
         self.constants_syms = self.system[2]
         self.coordinates_syms = self.system[3]
         self.speeds_syms = self.system[4]
-        self.specified_inputs_syms = self.system[5]  # last entry is lateral force
+        # last entry is always the lateral force
+        self.specified_inputs_syms = self.system[5]
 
         self.states_syms = self.coordinates_syms + self.speeds_syms
 
@@ -134,10 +161,9 @@ class Identifier():
 
         # This is the symbolic closed loop continuous system.
         self.closed = model.symbolic_constraints(self.mass_matrix,
-                                            self.forcing_vector,
-                                            self.states_syms,
-                                            control_dict,
-                                            eq_dict)
+                                                 self.forcing_vector,
+                                                 self.states_syms,
+                                                 control_dict, eq_dict)
 
     def generate_objective_funcs(self):
         print('Forming the objective function.')
@@ -169,7 +195,8 @@ class Identifier():
                                known_parameter_map=simulate.constants_dict(self.constants_syms),
                                known_trajectory_map={self.specified_inputs_syms[-1]: self.u})
 
-        self.prob.addOption('output_file', 'ipopt_output.txt')
+        self.output_filename = 'ipopt_output.txt'
+        self.prob.addOption('output_file', self.output_filename)
         self.prob.addOption('print_timing_statistics', 'yes')
         self.prob.addOption('linear_solver', 'ma57')
 
@@ -215,7 +242,7 @@ class Identifier():
 
     def store_results(self):
 
-        results = data.parse_ipopt_output(self.prob.output_filename)
+        results = data.parse_ipopt_output(self.output_filename)
 
         results["datetime"] = int((datetime.datetime.now() -
                                    datetime.datetime(1970, 1, 1)).total_seconds())
@@ -297,8 +324,8 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--samplerate', type=float,
         help="The sample rate of the discretization.", default=50.0)
 
-    parser.add_argument('-i', '--initialconditions', type=str,
-        help="The type of initial conditions.", default='random')
+    parser.add_argument('-i', '--initialguess', type=str,
+        help="The type of initial guess.", default='random')
 
     parser.add_argument('-r', '--sensornoise', action="store_true",
         help="Add noise to sensor data.",)
@@ -312,6 +339,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     identifier = Identifier(args.numlinks, args.duration,
-                            args.samplerate, args.initialconditions,
+                            args.samplerate, args.initialguess,
                             args.sensornoise, args.plot, args.animate)
     identifier.identify()

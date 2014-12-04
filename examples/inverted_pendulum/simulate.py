@@ -8,7 +8,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.linalg import solve_continuous_are
 from pydy.codegen.code import generate_ode_function
-from opty.utils import controllable
+from opty.utils import controllable, sum_of_sines
 
 # local
 from model import n_link_pendulum_on_cart
@@ -19,17 +19,7 @@ def constants_dict(constants):
     to numerical values. The cart spring is set to 10.0 N/m, the cart damper
     to 5.0 Ns/m and gravity is set to 9.81 m/s and the masses and lengths of
     the pendulums are all set to make the human sized."""
-    # Psuedo average for male human:
-    total_height = 1.7
-    total_mass = 75.0
-    constant_values = [200.0 / 0.1, 200.0, 9.81]
-    num_links = (len(constants) - 4) / 2
-    for c in constants:
-        if c.name.startswith('m'):
-            constant_values.append(total_mass / (num_links + 1))
-        elif c.name.startswith('l'):
-            constant_values.append(total_height / num_links)
-    return OrderedDict(zip(constants, constant_values))
+    return OrderedDict(zip(constants, [10.0, 5.0, 9.81] + (len(constants) - 1) * [1.0]))
 
 
 def choose_initial_conditions(typ, x, gains):
@@ -53,16 +43,9 @@ def choose_initial_conditions(typ, x, gains):
     return initial_guess
 
 
-def sum_of_sines(magnitudes, frequencies, time):
-    sines = np.zeros_like(time)
-    for m, w in zip(magnitudes, frequencies):
-        sines += m * np.sin(w * time)
-    return sines
-
-
 def input_force(typ, time):
 
-    magnitude = 200.0  # Newtons
+    magnitude = 8.0  # Newtons
 
     if typ == 'sine':
         lateral_force = magnitude * np.sin(3.0 * 2.0 * np.pi * time)
@@ -76,8 +59,7 @@ def input_force(typ, time):
         # pilot control problem.
         nums = [7, 11, 16, 25, 38, 61, 103, 131, 151, 181, 313, 523]
         freq = 2.0 * np.pi * np.array(nums, dtype=float) / 240.0
-        mags = magnitude * np.ones(len(freq))
-        lateral_force = sum_of_sines(mags, freq, time)
+        lateral_force = sum_of_sines(magnitude, freq, time)[0]
     else:
         raise ValueError('{} is not a valid force type.'.format(typ))
 
