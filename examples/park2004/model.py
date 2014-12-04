@@ -13,7 +13,7 @@ sym_kwargs = {'positive': True, 'real': True}
 me.dynamicsymbols._t = sy.symbols('t', **sym_kwargs)
 
 
-class PlanarStandingHumanOnMovingPlatform():
+class PlanarStandingHumanOnMovingPlatform(object):
     """Generates the symbolic equations of motion of a 2D planar two body
     model representing a human standing on a antero-posteriorly moving
     platform similar to the one found in [Park2004]_.
@@ -130,6 +130,20 @@ class PlanarStandingHumanOnMovingPlatform():
     when the model is used in an NLP optimization.
 
     """
+
+    def __init__(self, unscaled_gain=None):
+        """
+
+        Parameters
+        ==========
+        scaled_gain : None or float
+            The desired numerical value of the unscaled gains. The unscaled
+            gains can be multiplied by the gain scale factors to get the
+            actual gain matrix. If None, the gains are not scaled.
+
+        """
+
+        self.unscaled_gain = unscaled_gain
 
     def _create_states(self):
 
@@ -439,14 +453,15 @@ class PlanarStandingHumanOnMovingPlatform():
         # the Park paper.
         self.numerical_gains = np.array([[950.0, 175.0, 185.0, 50.0],
                                          [45.0, 290.0, 60.0, 26.0]])
-        # We are going to scale the gains so that the values we search for
-        # with IPOPT are all close to 0.5 instead of the large gain values.
-        self.numerical_gains_scales = self.numerical_gains / 0.5
+        if self.unscaled_gain is None:
+            self.gain_scale_factors = np.ones_like(self.numerical_gains)
+        else:
+            self.gain_scale_factors = self.numerical_gains / self.unscaled_gain
 
         self.closed_loop_par_map = self.open_loop_par_map.copy()
 
         for k, v in zip(self.scale_symbols,
-                        self.numerical_gains_scales.flatten()):
+                        self.gain_scale_factors.flatten()):
             self.closed_loop_par_map[k] = v
 
     def _linearize(self):
@@ -485,8 +500,10 @@ class PlanarStandingHumanOnMovingPlatform():
 
     def numerical_linear(self):
 
-        return (sy.matrix2numpy(self.A.subs(self.open_loop_par_map), dtype=float),
-                sy.matrix2numpy(self.B.subs(self.open_loop_par_map), dtype=float))
+        return (sy.matrix2numpy(self.A.subs(self.open_loop_par_map),
+                                dtype=float),
+                sy.matrix2numpy(self.B.subs(self.open_loop_par_map),
+                                dtype=float))
 
     def closed_loop_ode_func(self, time, reference_noise,
                              platform_acceleration):
@@ -517,7 +534,15 @@ class PlanarStandingHumanOnMovingPlatform():
 
         all_sigs = np.hstack((reference_noise,
                               np.expand_dims(platform_acceleration, 1)))
-        interp_func = interp1d(time, all_sigs, axis=0)
+        # NOTE : copy and assume_sorted do not seem to speed up the actual
+        # interpolation call. assume_sorted was introduced in SciPy 0.14.
+        interp_func = interp1d(time, all_sigs, axis=0, copy=False,
+                               assume_sorted=True)
+
+        if self.unscaled_gain is None:
+            s = 1.0
+        else:
+            s = self.unscaled_gain
 
         def controller(x, t):
             """
@@ -525,14 +550,15 @@ class PlanarStandingHumanOnMovingPlatform():
             r = [a, T_a, T_h]
             """
             # TODO : This interpolation call is the most expensive thing
-            # when running odeint.
+            # when running odeint. Seems like InterpolatedUnivariateSpline
+            # may be faster, but it doesn't supprt an multidimensional y.
             if t > time[-1]:
                 result = interp_func(time[-1])
             else:
                 result = interp_func(t)
 
             controls[0] = result[-1]
-            controls[1:] = np.dot(0.5 * self.numerical_gains_scales,
+            controls[1:] = np.dot(s * self.gain_scale_factors,
                                   result[:-1] - x)
 
             return controls
