@@ -1,23 +1,44 @@
 Introduction
 ============
 
+.. image:: https://travis-ci.org/csu-hmc/opty.svg?branch=master
+    :target: https://travis-ci.org/csu-hmc/opty
+
 ``opty`` utlizes symbolic descriptions of ordinary differential equations
-expressed with SymPy to form the constraints needed to solve optimization
-problems using the direct collocation method. In general, if one can express
-first order ordinary differential equations as symbolic expressions ``opty``
-will automatically generate a function to evaluate the constraints and a
-function that evaluates the sparse Jacobian of the constraints, which have been
-optimized for speed and memory.
+expressed with SymPy_ to form the constraints needed to solve optimal control
+and parameter identification problems using the direct collocation method and
+non-linear programming. In general, if one can express the continous first
+order ordinary differential equations of the system as symbolic expressions
+``opty`` will automatically generate a function to efficiently evaluate the
+dynamical constraints and a function that evaluates the sparse Jacobian of the
+constraints, which have been optimized for speed and memory consumption. The
+translation of the dynamical system description to the NLP form, primarily the
+formation of the constraints and the Jabcobian of the constraints, manually is
+a time consuming and error prone process. ``opty`` elimantes both of those
+issues.
+
+.. _SymPy: http://www.sympy.org
+
+Features
+--------
+
+- Both implicit and explicit forms of the first order ordinary differential
+  equations are supported, i.e. there is no need to solve for x'.
+- Backward Euler or Midpoint integration methods.
+- Supports both trajectory optimization and parameter identification.
+- Easy specification of bounds on free variables.
+- Easily specify additional "instance" constraints.
+- Built with support of sympy.physics.mechanics in mind.
 
 Installation
 ============
 
 The core dependencies are as follows:
 
+- sympy 0.7.6
 - ipopt 3.11
 - numpy 1.8.1
 - scipy 0.14.1
-- sympy 0.7.6
 - cython
 - cyipopt 0.1.4
 
