@@ -12,15 +12,14 @@ from .utils import ufuncify_matrix, parse_free, ObjectiveLambdaPrinter
 
 class Problem(ipopt.problem):
 
-    def __init__(self, obj, obj_grad, *args, **kwargs):
+    def __init__(self, objective, *args, **kwargs):
         """
 
         Parameters
         ----------
-        obj : function
-            Returns the value of the objective function.
-        obj_grad : function
-            Returns the gradient of the objective function.
+        objective : SymPy expression
+            A scalar expression which is a function of the state, constants,
+            and specifieds.
         bounds : dictionary
             This dictionary should contain a mapping from any of the
             symbolic states, unknown trajectories, or unknown parameters to
@@ -33,11 +32,18 @@ class Problem(ipopt.problem):
         self.bounds = kwargs.pop('bounds', None)
 
         self.collocator = ConstraintCollocator(*args, **kwargs)
-
-        self.obj = obj
-        self.obj_grad = obj_grad
         self.con = self.collocator.generate_constraint_function()
         self.con_jac = self.collocator.generate_jacobian_function()
+
+        self.obj = Objective(objective,
+                             self.collocator.state_symbols,
+                             self.collocator.time_interval_symbol,
+                             self.collocator.node_time_interval,
+                             self.collocator.num_collocation_nodes,
+                             self.collocator.unknown_input_trajectories,
+                             self.collocator.unknown_parameters,
+                             self.collocator.known_trajectory_map,
+                             self.collocator.known_parameter_map)
 
         self.con_jac_rows, self.con_jac_cols = \
             self.collocator.jacobian_indices()
@@ -96,11 +102,11 @@ class Problem(ipopt.problem):
         self.upper_bound = ub
 
     def objective(self, free):
-        return self.obj(free)
+        return self.obj.evaluate(free)
 
     def gradient(self, free):
         # This should return a column vector.
-        return self.obj_grad(free)
+        return self.obj.evaluate_gradient(free)
 
     def constraints(self, free):
         # This should return a column vector.
@@ -118,9 +124,11 @@ class Problem(ipopt.problem):
 
 class Objective(object):
 
-    def __init__(self, expr, states, unknown_specifieds, unknown_constants,
-                 known_specifieds_map, known_constants_map, interval_symbol,
-                 interval_value, num_nodes):
+    def __init__(self, expr, states, interval_symbol, interval_value,
+                 num_nodes, unknown_specifieds=tuple(),
+                 unknown_constants=tuple(),
+                 known_specifieds_map=OrderedDict(),
+                 known_constants_map=OrderedDict()):
         """
 
         Parameters
@@ -130,32 +138,33 @@ class Objective(object):
             specifieds, and constants.
         states : tuple of SymPy functions of time
             The system states.
-        unknown_specifieds : typle of SymPy functions of time
-            The specified exongeous inputs.
-        unknown_constants : tuple of SymPy symbols
-            The system constants.
-        known_specifieds_map : collections.OrderedDict
-            A dictionary mapping SymPy functions of time to NumPy 1D arrays.
-        known_constants_map : collections.OrderedDict
-            A dictionary mapping SymPy symbols to floats.
         interval_symbol : sympy.Symbol
             The symbol used for the node interval.
         interval_value : float
             The interval time in seconds.
         num_nodes : integer
             The number of nodes.
+        unknown_specifieds : tuple of SymPy functions of time, optional
+            The specified exongeous inputs.
+        unknown_constants : tuple of SymPy symbols, optional
+            The system constants.
+        known_specifieds_map : collections.OrderedDict, optional
+            A dictionary mapping SymPy functions of time to NumPy 1D arrays.
+        known_constants_map : collections.OrderedDict, optional
+            A dictionary mapping SymPy symbols to floats.
 
         """
 
         self.expr = expr
         self.states = states
+        self.interval_symbol = interval_symbol
+        self.interval_value = interval_value
+        self.num_nodes = num_nodes
+
         self.unknown_specifieds = unknown_specifieds
         self.unknown_constants = unknown_constants
         self.known_specifieds_map = known_specifieds_map
         self.known_constants_map = known_constants_map
-        self.interval_symbol = interval_symbol
-        self.interval_value = interval_value
-        self.num_nodes = num_nodes
 
         self.free_symbols = states + unknown_specifieds + unknown_constants
 
@@ -174,22 +183,25 @@ class Objective(object):
         for i, v in enumerate(self.known_specifieds_map.values()):
             self._known_specifieds_values[i] = v
 
+        self._generate_base_obj()
+        self._generate_base_obj_grad()
+
     def _build_deferred_map(self):
 
+        vec_reps = ['x', 'r_u', 'p_u', 'r_k', 'p_k']
         sym_seqs = [self.states,
                     self.unknown_specifieds,
                     self.unknown_constants,
                     tuple(self.known_specifieds_map.keys()),
                     tuple(self.known_constants_map.keys())]
-        vec_reps = ['x', 'r_u', 'p_u', 'r_k', 'p_k']
 
         self._deferred_vec_map = OrderedDict()
 
-        for sym_seq, vec_sym in zip(sym_seqs, vec_reps):
-            self._deferred_vec_map[sym_seq] = sym.DeferredVector(vec_sym)
+        for vec_sym, sym_seq in zip(vec_reps, sym_seqs):
+            self._deferred_vec_map[sym.DeferredVector(vec_sym)] = sym_seq
 
         subs = {}
-        for sym_seq, v in self._deferred_vec_map.items():
+        for v, sym_seq in self._deferred_vec_map.items():
             for i, s in enumerate(sym_seq):
                 subs[s] = v[i]
 
@@ -209,7 +221,7 @@ class Objective(object):
         return expr.subs(self._deferred_sym_map)
 
     def _generate_base_obj(self):
-        args = self._deferred_vec_map.values()
+        args = self._deferred_vec_map.keys()
         args.append(self.interval_symbol)
 
         f = sym.lambdify(args,
@@ -223,7 +235,7 @@ class Objective(object):
 
     def _generate_base_obj_grad(self):
 
-        args = self._deferred_vec_map.values()
+        args = self._deferred_vec_map.keys()
         args.append(self.interval_symbol)
         expr = sym.Matrix(self._symbolic_partials().values())
 
@@ -264,8 +276,11 @@ class Objective(object):
                                                    len(self.unknown_specifieds),
                                                    self.num_nodes)
 
-        if len(specifieds.shape) < 2:
-            specifieds = np.array([specifieds])
+        try:
+            if len(specifieds.shape) < 2:
+                specifieds = np.array([specifieds])
+        except AttributeError:
+            pass
 
         args = (states,
                 specifieds,
