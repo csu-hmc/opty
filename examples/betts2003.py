@@ -41,27 +41,23 @@ y1_m = np.sin(np.pi * time) + np.random.normal(scale=0.05, size=len(time))
 y2_m = np.pi * np.cos(np.pi * time) + np.random.normal(scale=0.05,
                                                        size=len(time))
 
+
 # Specify the objective function and it's gradient. I'm only fitting to y1,
 # but they may have fit to both states in the paper.
-def obj(free):
-    return interval * np.sum((y1_m - free[:num_nodes])**2)
+y1m = sym.symbols('y1m', cls=sym.Function)
 
-
-def obj_grad(free):
-    grad = np.zeros_like(free)
-    grad[:num_nodes] = 2.0 * interval * (free[:num_nodes] - y1_m)
-    return grad
+obj = sym.Integral((y1m(t) - y1(t))**2, t)
 
 # Specify the symbolic instance constraints, i.e. initial and end
 # conditions.
 instance_constraints = (y1(0.0), y2(0.0) - np.pi)
 
 # Create an optimization problem.
-prob = Problem(obj, obj_grad,
+prob = Problem(obj,
                eom, state_symbols,
                num_nodes, interval,
                known_parameter_map=par_map,
-               known_trajectory_map={T(t): time},
+               known_trajectory_map={T(t): time, y1m(t): y1_m},
                instance_constraints=instance_constraints,
                integration_method='midpoint')
 
