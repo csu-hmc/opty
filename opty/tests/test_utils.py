@@ -2,7 +2,7 @@
 
 import numpy as np
 from numpy import testing
-import sympy as sm
+import sympy as sym
 from scipy import sparse
 
 from .. import utils
