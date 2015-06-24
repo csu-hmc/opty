@@ -7,7 +7,7 @@ import sympy as sym
 from scipy import sparse
 from nose.tools import raises
 
-from ..direct_collocation import Problem, ConstraintCollocator
+from ..direct_collocation import Problem, ConstraintCollocator, Objective
 
 
 def test_Problem():
@@ -20,7 +20,7 @@ def test_Problem():
     interval_value = 0.01
 
     eom = sym.Matrix([x.diff() - v,
-                      m * v.diff() + c * v + k * x - f])
+                     m * v.diff() + c * v + k * x - f])
 
     prob = Problem(lambda x: 1.0,
                    lambda x: x,
@@ -44,6 +44,203 @@ def test_Problem():
                                8.0, 8.0,
                                0.5, INF, 1.0])
     np.testing.assert_allclose(prob.upper_bound, expected_upper)
+
+
+class TestObjective():
+
+    def setup(self):
+
+        m, c, k, w_0, w_1, t, h = sym.symbols('m, c, k, w_0, w_1, t, h')
+        x, v, F, N = tuple([s(t) for s in sym.symbols('x, v, F, N',
+                                                      cls=sym.Function)])
+
+        self.states_syms = (x, v)
+        self.unknown_specifieds_syms = (F,)
+        self.unknown_constants_syms = (m, c, k)
+        self.known_specifieds_syms = (N,)
+        self.known_constants_syms = (w_0, w_1)
+        self.interval_sym = h
+        self.time_sym = t
+
+        self.known_specifieds_map = OrderedDict()
+        self.known_specifieds_map[N] = np.array([13.0, 14.0, 15.0])
+
+        self.known_constants_map = OrderedDict()
+        self.known_constants_map[w_0] = 16.0
+        self.known_constants_map[w_1] = 17.0
+
+        self.state_values = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+        self.unknown_specifieds_values = np.array([[7.0, 8.0, 9.0]])
+        self.unknown_constants_values = np.array([10.0, 11.0, 12.0])
+        self.known_specifieds_values = np.array([[13.0, 14.0, 15.0]])
+        self.known_constants_values = np.array([16.0, 17.0])
+        self.interval_value = 0.01
+
+        self.free_values = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0,
+                                     9.0, 10.0, 11.0, 12.0])
+
+        self.expr = (w_0 * sym.Integral(x**3 + (m * v**2) / 2 +
+                                        (F / k)**2 + N**2, t) +
+                     w_1 * sym.Integral((x - N)**2, t))
+
+        self.num_nodes = 3
+
+        self.obj = Objective(self.expr,
+                             self.states_syms,
+                             self.unknown_specifieds_syms,
+                             self.unknown_constants_syms,
+                             self.known_specifieds_map,
+                             self.known_constants_map,
+                             self.interval_sym,
+                             self.interval_value,
+                             self.num_nodes)
+
+    def test_init(self):
+
+        self.obj.expr == self.expr
+        self.obj.states == self.states_syms
+        self.obj.unknown_specifieds == self.unknown_specifieds_syms
+        self.obj.unknown_constants == self.unknown_constants_syms
+        self.obj.known_specifieds_map.keys() == self.known_specifieds_syms
+        self.obj.known_constants_map.keys() == self.known_constants_syms
+        self.obj.num_nodes = self.num_nodes
+
+    def test_build_defferred_map(self):
+
+        x = sym.DeferredVector('x')
+        r_u = sym.DeferredVector('r_u')
+        r_k = sym.DeferredVector('r_k')
+        p_u = sym.DeferredVector('p_u')
+        p_k = sym.DeferredVector('p_k')
+
+        expected = {self.states_syms[0]: x[0],
+                    self.states_syms[1]: x[1],
+                    self.unknown_specifieds_syms[0]: r_u[0],
+                    self.unknown_constants_syms[0]: p_u[0],
+                    self.unknown_constants_syms[1]: p_u[1],
+                    self.unknown_constants_syms[2]: p_u[2],
+                    self.known_specifieds_syms[0]: r_k[0],
+                    self.known_constants_syms[0]: p_k[0],
+                    self.known_constants_syms[1]: p_k[1]}
+
+        self.obj._build_deferred_map()
+
+        assert self.obj._deferred_sym_map == expected
+
+    def test_symbolic_partials(self):
+
+        x, v = self.states_syms
+        F, = self.unknown_specifieds_syms
+        m, c, k = self.unknown_constants_syms
+        N, = self.known_specifieds_syms
+        w_0, w_1 = self.known_constants_syms
+        t = self.time_sym
+
+        self.expr = (w_0 * sym.Integral(x**3 + (m * v**2) / 2 +
+                                        (F / k)**2 + N**2, t) +
+                     w_1 * sym.Integral((x - N)**2, t))
+
+        expected_par = {}
+        expected_par[x] = (w_0 * sym.Integral(3 * x**2, t) +
+                           w_1 * sym.Integral(2 * (x - N), t))
+        expected_par[v] = w_0 * sym.Integral(m * v, t)
+        expected_par[F] = w_0 * sym.Integral(2 / k**2 * F, t)
+        expected_par[m] = w_0 * sym.Integral(v**2 / 2, t)
+        expected_par[c] = sym.S(0)
+        expected_par[k] = w_0 * sym.Integral(-2 * F**2 / k**3, t)
+
+        partials = self.obj._symbolic_partials()
+
+        for s, expr in expected_par.items():
+            assert sym.simplify(partials[s] - expr) == 0
+
+    def test_replace_with_deferred(self):
+
+        expr = self.obj._replace_with_deferred(self.obj.expr)
+
+        x = sym.DeferredVector('x')
+        r_u = sym.DeferredVector('r_u')
+        r_k = sym.DeferredVector('r_k')
+        p_u = sym.DeferredVector('p_u')
+        p_k = sym.DeferredVector('p_k')
+
+        t = self.time_sym
+
+        expected_expr = (p_k[0] * sym.Integral(x[0]**3 + (p_u[0] * x[1]**2) / 2 +
+                                               (r_u[0] / p_u[2])**2 + r_k[0]**2, t) +
+                         p_k[1] * sym.Integral((x[0] - r_k[0])**2, t))
+
+        assert sym.simplify(expr - expected_expr) == 0
+
+    def test_eval_base_objective(self):
+
+        def expected_base_obj(states,
+                              unknown_specifieds,
+                              unknown_constants,
+                              known_specifieds,
+                              known_constants,
+                              interval_value):
+            x, v = states
+            F, = unknown_specifieds
+            m, c, k = unknown_constants
+            N, = known_specifieds
+            w_0, w_1 = known_constants
+            h = interval_value
+
+            return (w_0 * h * np.sum(x**3 + (m * v**2) / 2 +
+                                     (F / k)**2 + N**2) +
+                    w_1 * h * np.sum((x - N)**2))
+
+        # NOTE : For the deferred vectors to work properly we have to treat
+        # the states and specifieds as 2d arrays and the first dimension
+        # must index the state giving an array of that state/specified over
+        # time.
+
+        args = (self.state_values,
+                self.unknown_specifieds_values,
+                self.unknown_constants_values,
+                self.known_specifieds_values,
+                self.known_constants_values,
+                self.interval_value)
+
+        self.obj._generate_base_obj()
+
+        np.testing.assert_allclose(self.obj._base_obj_func(*args),
+                                   expected_base_obj(*args))
+
+        np.testing.assert_allclose(self.obj.evaluate(self.free_values),
+                                   expected_base_obj(*args))
+
+        def expected_obj_grad(states, unknown_specifieds, unknown_constants,
+                              known_specifieds, known_constants,
+                              interval_value):
+
+            x, v = states
+            F = unknown_specifieds
+            m, c, k = unknown_constants
+            N = known_specifieds
+            w_0, w_1 = known_constants
+            h = interval_value
+
+            obj_grad = np.zeros(12)
+
+            obj_grad[0:3] = (w_0 * h * np.sum(3.0 * x**2.0) +
+                             w_1 * h * np.sum(2.0 * (x - N)))   # x
+            obj_grad[3:6] = w_0 * h * np.sum(m * v)  # v
+            obj_grad[6:9] = w_0 * h * np.sum(2.0 / k**2 * F)  # F
+            obj_grad[9] = w_0 * h * np.sum(v**2 / 2.0)  # m
+            obj_grad[10] = 0.0  # c
+            obj_grad[11] = w_0 * h * np.sum(-2.0 * F**2.0 / k**3.0)  # k
+
+            return obj_grad
+
+        self.obj._generate_base_obj_grad()
+
+        np.testing.assert_allclose(self.obj._eval_base_obj_grad(*args),
+                                   expected_obj_grad(*args))
+
+        np.testing.assert_allclose(self.obj.evaluate_gradient(self.free_values),
+                                   expected_obj_grad(*args))
 
 
 class TestConstraintCollocator():

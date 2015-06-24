@@ -9,8 +9,35 @@ import importlib
 
 import numpy as np
 import sympy as sy
+from sympy.printing.lambdarepr import LambdaPrinter
 from sympy.utilities.lambdify import implemented_function
 from sympy.utilities.autowrap import autowrap
+
+
+class ObjectiveLambdaPrinter(LambdaPrinter):
+
+    interval_symbol = sy.symbols('h', real=True)
+
+    # TODO : This is a bug fix for the LambdaPrinter to properly print
+    # matrices. This needs to be fixed in SymPy proper.
+    def _print_MatrixBase(self, expr):
+        return "%s(%s)" % (expr.__class__.__name__,
+                           self._print((expr.tolist())))
+
+    _print_SparseMatrix = \
+        _print_MutableSparseMatrix = \
+        _print_ImmutableSparseMatrix = \
+        _print_Matrix = \
+        _print_DenseMatrix = \
+        _print_MutableDenseMatrix = \
+        _print_ImmutableMatrix = \
+        _print_ImmutableDenseMatrix = \
+        _print_MatrixBase
+
+    def _print_Integral(self, expr):
+
+        return '{}*Integral({})'.format(self._print(self.interval_symbol),
+                                        self._print(expr.function))
 
 
 def state_derivatives(states):

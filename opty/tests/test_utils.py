@@ -2,10 +2,28 @@
 
 import numpy as np
 from numpy import testing
-import sympy as sym
+import sympy as sm
 from scipy import sparse
 
 from .. import utils
+
+
+def test_ObjectiveLambdaPrinter_doprint():
+
+    w_e, w_n, t = sym.symbols('w_e, w_n, t')
+    F, N = [f(t) for f in sym.symbols('F, N', cls=sym.Function)]
+
+    expr = w_e * sym.Integral(F, t) + w_n * sym.Integral(N**2, t)
+    expected = 'w_e*h*Integral(F(t)) + w_n*h*Integral(N(t)**2)'
+
+    assert utils.ObjectiveLambdaPrinter().doprint(expr) == expected
+
+    mat_expr = sym.Matrix([expr, expr])
+    expected = ('MutableDenseMatrix('
+                '[[w_e*h*Integral(F(t)) + w_n*h*Integral(N(t)**2)], '
+                '[w_e*h*Integral(F(t)) + w_n*h*Integral(N(t)**2)]])')
+
+    assert utils.ObjectiveLambdaPrinter().doprint(mat_expr) == expected
 
 
 def test_state_derivatives():

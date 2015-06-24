@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
+from collections import OrderedDict
+
 import numpy as np
 import sympy as sym
 from sympy.physics import mechanics as me
 import ipopt
 
-from .utils import ufuncify_matrix, parse_free
+from .utils import ufuncify_matrix, parse_free, ObjectiveLambdaPrinter
 
 
 class Problem(ipopt.problem):
@@ -112,6 +114,175 @@ class Problem(ipopt.problem):
 
     def intermediate(self, *args):
         self.obj_value.append(args[2])
+
+
+class Objective(object):
+
+    def __init__(self, expr, states, unknown_specifieds, unknown_constants,
+                 known_specifieds_map, known_constants_map, interval_symbol,
+                 interval_value, num_nodes):
+        """
+
+        Parameters
+        ==========
+        expr : SymPy expression
+            A scalar expression which is a function of the provided states,
+            specifieds, and constants.
+        states : tuple of SymPy functions of time
+            The system states.
+        unknown_specifieds : typle of SymPy functions of time
+            The specified exongeous inputs.
+        unknown_constants : tuple of SymPy symbols
+            The system constants.
+        known_specifieds_map : collections.OrderedDict
+            A dictionary mapping SymPy functions of time to NumPy 1D arrays.
+        known_constants_map : collections.OrderedDict
+            A dictionary mapping SymPy symbols to floats.
+        interval_symbol : sympy.Symbol
+            The symbol used for the node interval.
+        interval_value : float
+            The interval time in seconds.
+        num_nodes : integer
+            The number of nodes.
+
+        """
+
+        self.expr = expr
+        self.states = states
+        self.unknown_specifieds = unknown_specifieds
+        self.unknown_constants = unknown_constants
+        self.known_specifieds_map = known_specifieds_map
+        self.known_constants_map = known_constants_map
+        self.interval_symbol = interval_symbol
+        self.interval_value = interval_value
+        self.num_nodes = num_nodes
+
+        self.free_symbols = states + unknown_specifieds + unknown_constants
+
+        self._build_deferred_map()
+
+        self._obj_grad_result = np.zeros(len(states) * num_nodes +
+                                         len(unknown_specifieds) * num_nodes +
+                                         len(unknown_constants))
+
+        self._known_constants_values = np.array(
+            self.known_constants_map.values())
+        self._known_specifieds_values = np.empty((len(known_specifieds_map),
+                                                  num_nodes),
+                                                 dtype=float)
+
+        for i, v in enumerate(self.known_specifieds_map.values()):
+            self._known_specifieds_values[i] = v
+
+    def _build_deferred_map(self):
+
+        sym_seqs = [self.states,
+                    self.unknown_specifieds,
+                    self.unknown_constants,
+                    tuple(self.known_specifieds_map.keys()),
+                    tuple(self.known_constants_map.keys())]
+        vec_reps = ['x', 'r_u', 'p_u', 'r_k', 'p_k']
+
+        self._deferred_vec_map = OrderedDict()
+
+        for sym_seq, vec_sym in zip(sym_seqs, vec_reps):
+            self._deferred_vec_map[sym_seq] = sym.DeferredVector(vec_sym)
+
+        subs = {}
+        for sym_seq, v in self._deferred_vec_map.items():
+            for i, s in enumerate(sym_seq):
+                subs[s] = v[i]
+
+        self._deferred_sym_map = subs
+
+    def _symbolic_partials(self):
+
+        partials = OrderedDict()
+
+        for s in self.free_symbols:
+            partials[s] = self.expr.diff(s)
+
+        return partials
+
+    def _replace_with_deferred(self, expr):
+
+        return expr.subs(self._deferred_sym_map)
+
+    def _generate_base_obj(self):
+        args = self._deferred_vec_map.values()
+        args.append(self.interval_symbol)
+
+        f = sym.lambdify(args,
+                         self._replace_with_deferred(self.expr),
+                         printer=ObjectiveLambdaPrinter,
+                         modules=({'Integral': np.sum,
+                                   'ImmutableMatrix': np.array}, 'numpy'),
+                         dummify=False)
+
+        self._base_obj_func = f
+
+    def _generate_base_obj_grad(self):
+
+        args = self._deferred_vec_map.values()
+        args.append(self.interval_symbol)
+        expr = sym.Matrix(self._symbolic_partials().values())
+
+        f = sym.lambdify(args,
+                         self._replace_with_deferred(expr),
+                         printer=ObjectiveLambdaPrinter,
+                         modules=({'Integral': np.sum,
+                                   'ImmutableMatrix': np.array}, 'numpy'),
+                         dummify=False)
+
+        self._base_obj_grad_func = f
+
+    def _eval_base_obj_grad(self, *args):
+
+        partials = self._base_obj_grad_func(*args)
+
+        for i, state in enumerate(self.states):
+            start = i * self.num_nodes
+            end = start + self.num_nodes
+            self._obj_grad_result[start:end] = partials[i]
+
+        base = len(self.states) * self.num_nodes
+        for i, spec in enumerate(self.unknown_specifieds):
+            start = base + i * self.num_nodes
+            end = start + self.num_nodes
+            self._obj_grad_result[start:end] = partials[len(self.states) + i]
+
+        partial_base = len(self.states) + len(self.unknown_specifieds)
+        base = partial_base * self.num_nodes
+        for i, con in enumerate(self.unknown_constants):
+            self._obj_grad_result[base + i] = partials[partial_base + i]
+
+        return self._obj_grad_result
+
+    def _generate_args(self, free):
+
+        states, specifieds, constants = parse_free(free, len(self.states),
+                                                   len(self.unknown_specifieds),
+                                                   self.num_nodes)
+
+        if len(specifieds.shape) < 2:
+            specifieds = np.array([specifieds])
+
+        args = (states,
+                specifieds,
+                constants,
+                self._known_specifieds_values,
+                self._known_constants_values,
+                self.interval_value)
+
+        return args
+
+    def evaluate(self, free):
+
+        return self._base_obj_func(*self._generate_args(free))
+
+    def evaluate_gradient(self, free):
+
+        return self._eval_base_obj_grad(*self._generate_args(free))
 
 
 class ConstraintCollocator(object):
