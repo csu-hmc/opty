@@ -34,26 +34,15 @@ specified_symbols = (T(t),)
 eom = sym.Matrix([theta(t).diff() - omega(t),
                   I * omega(t).diff() + m * g * d * sym.sin(theta(t)) - T(t)])
 
+# Specify the objective function
+obj = sym.Integral(T(t)**2, t)
+
 # Specify the known system parameters.
 par_map = OrderedDict()
 par_map[I] = 1.0
 par_map[m] = 1.0
 par_map[g] = 9.81
 par_map[d] = 1.0
-
-# Specify the objective function and it's gradient.
-
-
-def obj(free):
-    """Minimize the sum of the squares of the control torque."""
-    T = free[2 * num_nodes:]
-    return np.sum(T**2)
-
-
-def obj_grad(free):
-    grad = np.zeros_like(free)
-    grad[2 * num_nodes:] = 2.0 * interval_value * free[2 * num_nodes:]
-    return grad
 
 # Specify the symbolic instance constraints, i.e. initial and end
 # conditions.
@@ -63,7 +52,7 @@ instance_constraints = (theta(0.0),
                         omega(duration))
 
 # Create an optimization problem.
-prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
+prob = Problem(obj, eom, state_symbols, num_nodes, interval_value,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
                bounds={T(t): (-1.5, 1.5)})
