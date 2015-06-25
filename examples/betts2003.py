@@ -42,11 +42,10 @@ y2_m = np.pi * np.cos(np.pi * time) + np.random.normal(scale=0.05,
                                                        size=len(time))
 
 
-# Specify the objective function and it's gradient. I'm only fitting to y1,
-# but they may have fit to both states in the paper.
-y1m = sym.symbols('y1m', cls=sym.Function)
+# Specify the objective function.
+y1m, y2m = sym.symbols('y1m, y2m', cls=sym.Function)
 
-obj = sym.Integral((y1m(t) - y1(t))**2, t)
+obj = sym.Integral((y1m(t) - y1(t))**2 + (y2m(t) - y2(t))**2, t)
 
 # Specify the symbolic instance constraints, i.e. initial and end
 # conditions.
@@ -57,7 +56,7 @@ prob = Problem(obj,
                eom, state_symbols,
                num_nodes, interval,
                known_parameter_map=par_map,
-               known_trajectory_map={T(t): time, y1m(t): y1_m},
+               known_trajectory_map={T(t): time, y1m(t): y1_m, y2m(t): y2_m},
                instance_constraints=instance_constraints,
                integration_method='midpoint')
 
