@@ -65,20 +65,14 @@ def main(initial_guess, do_plot=False):
 
     # Setup the optimization problem to minimize the error in the simulated
     # angle and the measured angle.
-    def obj(free):
-        """Minimize the error in the angle, y1."""
-        return interval * np.sum((y1_meas - free[:num_nodes])**2)
-
-
-    def obj_grad(free):
-        grad = np.zeros_like(free)
-        grad[:num_nodes] = 2.0 * interval * (free[:num_nodes] - y1_meas)
-        return grad
+    y1_m = sym.Function('y1_m')(t)
+    obj = sym.Integral((y1_m - y1)**2, t)
 
     # The midpoint integration method is preferable to the backward Euler
     # method because no artificial damping is introduced.
-    prob = Problem(obj, obj_grad, eom, (y1, y2), num_nodes, interval,
-                integration_method='midpoint')
+    prob = Problem(obj, eom, (y1, y2), num_nodes, interval,
+                   known_trajectory_map={y1_m: y1_meas},
+                   integration_method='midpoint')
 
     # Set some IPOPT options.
     prob.addOption('linear_solver', 'ma57')
