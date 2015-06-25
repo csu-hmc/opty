@@ -1,24 +1,25 @@
 #!/usr/bin/env python
 
+from collections import OrderedDict
+
 import numpy as np
 import sympy as sym
 from sympy.physics import mechanics as me
 import ipopt
 
-from .utils import ufuncify_matrix, parse_free
+from .utils import ufuncify_matrix, parse_free, ObjectiveLambdaPrinter
 
 
 class Problem(ipopt.problem):
 
-    def __init__(self, obj, obj_grad, *args, **kwargs):
+    def __init__(self, objective, *args, **kwargs):
         """
 
         Parameters
         ----------
-        obj : function
-            Returns the value of the objective function.
-        obj_grad : function
-            Returns the gradient of the objective function.
+        objective : SymPy expression
+            A scalar expression which is a function of the state, constants,
+            and specifieds.
         bounds : dictionary
             This dictionary should contain a mapping from any of the
             symbolic states, unknown trajectories, or unknown parameters to
@@ -31,11 +32,18 @@ class Problem(ipopt.problem):
         self.bounds = kwargs.pop('bounds', None)
 
         self.collocator = ConstraintCollocator(*args, **kwargs)
-
-        self.obj = obj
-        self.obj_grad = obj_grad
         self.con = self.collocator.generate_constraint_function()
         self.con_jac = self.collocator.generate_jacobian_function()
+
+        self.obj = Objective(objective,
+                             self.collocator.state_symbols,
+                             self.collocator.time_interval_symbol,
+                             self.collocator.node_time_interval,
+                             self.collocator.num_collocation_nodes,
+                             self.collocator.unknown_input_trajectories,
+                             self.collocator.unknown_parameters,
+                             self.collocator.known_trajectory_map,
+                             self.collocator.known_parameter_map)
 
         self.con_jac_rows, self.con_jac_cols = \
             self.collocator.jacobian_indices()
@@ -94,11 +102,11 @@ class Problem(ipopt.problem):
         self.upper_bound = ub
 
     def objective(self, free):
-        return self.obj(free)
+        return self.obj.evaluate(free)
 
     def gradient(self, free):
         # This should return a column vector.
-        return self.obj_grad(free)
+        return self.obj.evaluate_gradient(free)
 
     def constraints(self, free):
         # This should return a column vector.
@@ -112,6 +120,184 @@ class Problem(ipopt.problem):
 
     def intermediate(self, *args):
         self.obj_value.append(args[2])
+
+
+class Objective(object):
+
+    def __init__(self, expr, states, interval_symbol, interval_value,
+                 num_nodes, unknown_specifieds=tuple(),
+                 unknown_constants=tuple(),
+                 known_specifieds_map=OrderedDict(),
+                 known_constants_map=OrderedDict()):
+        """
+
+        Parameters
+        ==========
+        expr : SymPy expression
+            A scalar expression which is a function of the provided states,
+            specifieds, and constants.
+        states : tuple of SymPy functions of time
+            The system states.
+        interval_symbol : sympy.Symbol
+            The symbol used for the node interval.
+        interval_value : float
+            The interval time in seconds.
+        num_nodes : integer
+            The number of nodes.
+        unknown_specifieds : tuple of SymPy functions of time, optional
+            The specified exongeous inputs.
+        unknown_constants : tuple of SymPy symbols, optional
+            The system constants.
+        known_specifieds_map : collections.OrderedDict, optional
+            A dictionary mapping SymPy functions of time to NumPy 1D arrays.
+        known_constants_map : collections.OrderedDict, optional
+            A dictionary mapping SymPy symbols to floats.
+
+        """
+
+        self.expr = expr
+        self.states = states
+        self.interval_symbol = interval_symbol
+        self.interval_value = interval_value
+        self.num_nodes = num_nodes
+
+        self.unknown_specifieds = unknown_specifieds
+        self.unknown_constants = unknown_constants
+        self.known_specifieds_map = known_specifieds_map
+        self.known_constants_map = known_constants_map
+
+        self.free_symbols = states + unknown_specifieds + unknown_constants
+
+        self._build_deferred_map()
+
+        self._obj_grad_result = np.zeros(len(states) * num_nodes +
+                                         len(unknown_specifieds) * num_nodes +
+                                         len(unknown_constants))
+
+        self._known_constants_values = np.array(
+            self.known_constants_map.values())
+        self._known_specifieds_values = np.empty((len(known_specifieds_map),
+                                                  num_nodes),
+                                                 dtype=float)
+
+        for i, v in enumerate(self.known_specifieds_map.values()):
+            self._known_specifieds_values[i] = v
+
+        self._generate_base_obj()
+        self._generate_base_obj_grad()
+
+    def _build_deferred_map(self):
+
+        vec_reps = ['x', 'r_u', 'p_u', 'r_k', 'p_k']
+        sym_seqs = [self.states,
+                    self.unknown_specifieds,
+                    self.unknown_constants,
+                    tuple(self.known_specifieds_map.keys()),
+                    tuple(self.known_constants_map.keys())]
+
+        self._deferred_vec_map = OrderedDict()
+
+        for vec_sym, sym_seq in zip(vec_reps, sym_seqs):
+            self._deferred_vec_map[sym.DeferredVector(vec_sym)] = sym_seq
+
+        subs = {}
+        for v, sym_seq in self._deferred_vec_map.items():
+            for i, s in enumerate(sym_seq):
+                subs[s] = v[i]
+
+        self._deferred_sym_map = subs
+
+    def _symbolic_partials(self):
+
+        partials = OrderedDict()
+
+        for s in self.free_symbols:
+            partials[s] = self.expr.diff(s)
+
+        return partials
+
+    def _replace_with_deferred(self, expr):
+
+        return expr.subs(self._deferred_sym_map)
+
+    def _generate_base_obj(self):
+        args = self._deferred_vec_map.keys()
+        args.append(self.interval_symbol)
+
+        f = sym.lambdify(args,
+                         self._replace_with_deferred(self.expr),
+                         printer=ObjectiveLambdaPrinter,
+                         modules=({'Integral': np.sum,
+                                   'ImmutableMatrix': np.array}, 'numpy'),
+                         dummify=False)
+
+        self._base_obj_func = f
+
+    def _generate_base_obj_grad(self):
+
+        args = self._deferred_vec_map.keys()
+        args.append(self.interval_symbol)
+        expr = sym.Matrix(self._symbolic_partials().values())
+
+        f = sym.lambdify(args,
+                         self._replace_with_deferred(expr),
+                         printer=ObjectiveLambdaPrinter,
+                         modules=({'Integral': np.sum,
+                                   'ImmutableMatrix': np.array}, 'numpy'),
+                         dummify=False)
+
+        self._base_obj_grad_func = f
+
+    def _eval_base_obj_grad(self, *args):
+
+        partials = self._base_obj_grad_func(*args)
+
+        for i, state in enumerate(self.states):
+            start = i * self.num_nodes
+            end = start + self.num_nodes
+            self._obj_grad_result[start:end] = partials[i]
+
+        base = len(self.states) * self.num_nodes
+        for i, spec in enumerate(self.unknown_specifieds):
+            start = base + i * self.num_nodes
+            end = start + self.num_nodes
+            self._obj_grad_result[start:end] = partials[len(self.states) + i]
+
+        partial_base = len(self.states) + len(self.unknown_specifieds)
+        base = partial_base * self.num_nodes
+        for i, con in enumerate(self.unknown_constants):
+            self._obj_grad_result[base + i] = partials[partial_base + i]
+
+        return self._obj_grad_result
+
+    def _generate_args(self, free):
+
+        states, specifieds, constants = parse_free(free, len(self.states),
+                                                   len(self.unknown_specifieds),
+                                                   self.num_nodes)
+
+        try:
+            if len(specifieds.shape) < 2:
+                specifieds = np.array([specifieds])
+        except AttributeError:
+            pass
+
+        args = (states,
+                specifieds,
+                constants,
+                self._known_specifieds_values,
+                self._known_constants_values,
+                self.interval_value)
+
+        return args
+
+    def evaluate(self, free):
+
+        return self._base_obj_func(*self._generate_args(free))
+
+    def evaluate_gradient(self, free):
+
+        return self._eval_base_obj_grad(*self._generate_args(free))
 
 
 class ConstraintCollocator(object):
@@ -271,7 +457,12 @@ class ConstraintCollocator(object):
 
         """
         all_syms = set(all_syms)
-        known_syms = known_syms
+        known_syms = list(known_syms)
+
+        # Remove any symbols that are extraneous.
+        for s in known_syms:
+            if s not in all_syms:
+                known_syms.remove(s)
 
         def sort_sympy(seq):
             seq = list(seq)
@@ -282,14 +473,10 @@ class ConstraintCollocator(object):
             return seq
 
         if not all_syms:  # if empty sequence
-            if known_syms:
-                msg = '{} are not in the provided equations of motion.'
-                raise ValueError(msg.format(known_syms))
-            else:
-                known = tuple()
-                num_known = 0
-                unknown = tuple()
-                num_unknown = 0
+            known = tuple()
+            num_known = 0
+            unknown = tuple()
+            num_unknown = 0
         else:
             if known_syms:
                 known = tuple(known_syms)  # don't sort known syms
@@ -338,13 +525,14 @@ class ConstraintCollocator(object):
         """Finds and counts all of the non-state, time varying parameters in
         the equations of motion and categorizes them based on which
         parameters the user supplies. The unknown parameters are sorted by
-        name."""
+        name. Any extraneous known parameters are ignored."""
 
         states = set(self.state_symbols)
         states_derivatives = set(self.state_derivative_symbols)
+        state_related = states.union(states_derivatives)
 
         time_varying_symbols = me.find_dynamicsymbols(self.eom)
-        state_related = states.union(states_derivatives)
+
         non_states = time_varying_symbols.difference(state_related)
 
         res = self._parse_inputs(non_states,
