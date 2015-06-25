@@ -616,6 +616,55 @@ class TestConstraintCollocator():
         assert self.collocator.unknown_input_trajectories == tuple()
         assert self.collocator.num_unknown_input_trajectories == 0
 
+    def test_parse_inputs(self):
+
+        t = sym.symbols('t')
+        a, b, c = [s(t) for s in sym.symbols('a, b, c', cls=sym.Function)]
+
+        parse = self.collocator._parse_inputs
+
+        # case 1: no specifieds in the equations of motion and none provided
+        # in the known trajectory map
+
+        all_syms = tuple()
+        known_syms = tuple()
+
+        assert parse(all_syms, known_syms) == (tuple(), 0, tuple(), 0)
+
+        # case 2: no specifieds in the equations of motion and extraneious
+        # known trajectories are provided in the known trajectory map
+
+        all_syms = tuple()
+        known_syms = (a,)
+
+        assert parse(all_syms, known_syms) == (tuple(), 0, tuple(), 0)
+
+        # case 3: some specifieds in the equations of motion and none
+        # provided in the known trajectory map
+
+        all_syms = (a, b)
+        known_syms = tuple()
+
+        assert parse(all_syms, known_syms) == (tuple(), 0, (a, b), 2)
+
+        # case 2: some specifieds in the equations of motion and extraneious
+        # known trajectories are provided in the known trajectory map
+
+        all_syms = (a, b)
+        known_syms = (b,)
+
+        assert parse(all_syms, known_syms) == ((b,), 1, (a,), 1)
+
+        all_syms = (a, b)
+        known_syms = (c,)
+
+        assert parse(all_syms, known_syms) == (tuple(), 0, (a, b), 2)
+
+        all_syms = (a, b)
+        known_syms = (b, c)
+
+        assert parse(all_syms, known_syms) == ((b,), 1, (a,), 1)
+
     def test_discrete_symbols(self):
 
         self.collocator._discrete_symbols()

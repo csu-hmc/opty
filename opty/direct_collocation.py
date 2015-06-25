@@ -457,7 +457,12 @@ class ConstraintCollocator(object):
 
         """
         all_syms = set(all_syms)
-        known_syms = known_syms
+        known_syms = list(known_syms)
+
+        # Remove any symbols that are extraneous.
+        for s in known_syms:
+            if s not in all_syms:
+                known_syms.remove(s)
 
         def sort_sympy(seq):
             seq = list(seq)
@@ -468,14 +473,10 @@ class ConstraintCollocator(object):
             return seq
 
         if not all_syms:  # if empty sequence
-            if known_syms:
-                msg = '{} are not in the provided equations of motion.'
-                raise ValueError(msg.format(known_syms))
-            else:
-                known = tuple()
-                num_known = 0
-                unknown = tuple()
-                num_unknown = 0
+            known = tuple()
+            num_known = 0
+            unknown = tuple()
+            num_unknown = 0
         else:
             if known_syms:
                 known = tuple(known_syms)  # don't sort known syms
@@ -524,13 +525,14 @@ class ConstraintCollocator(object):
         """Finds and counts all of the non-state, time varying parameters in
         the equations of motion and categorizes them based on which
         parameters the user supplies. The unknown parameters are sorted by
-        name."""
+        name. Any extraneous known parameters are ignored."""
 
         states = set(self.state_symbols)
         states_derivatives = set(self.state_derivative_symbols)
+        state_related = states.union(states_derivatives)
 
         time_varying_symbols = me.find_dynamicsymbols(self.eom)
-        state_related = states.union(states_derivatives)
+
         non_states = time_varying_symbols.difference(state_related)
 
         res = self._parse_inputs(non_states,
