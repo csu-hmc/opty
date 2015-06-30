@@ -47,7 +47,7 @@ par_map[d] = 1.0
 def obj(free):
     """Minimize the sum of the squares of the control torque."""
     T = free[2 * num_nodes:]
-    return np.sum(T**2)
+    return interval_value * np.sum(T**2)
 
 
 def obj_grad(free):
