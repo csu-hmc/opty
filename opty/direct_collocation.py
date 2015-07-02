@@ -518,7 +518,7 @@ class ConstraintCollocator(object):
         Jacobian of the constraints."""
         idx_map = self.instance_constraints_free_index_map
 
-        num_eom_constraints = 2 * (self.num_collocation_nodes - 1)
+        num_eom_constraints = self.num_states * (self.num_collocation_nodes - 1)
 
         rows = []
         cols = []
