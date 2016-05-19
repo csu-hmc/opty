@@ -485,7 +485,7 @@ class ConstraintCollocator(object):
         ui = self.current_discrete_specified_symbols
         un = self.next_discrete_specified_symbols
         ei = self.current_known_discrete_experiment_symbols  " define experiment data acorrding input trajectories define
-	en = self.next_known_discrete_experiment_symbols  " define experiment data acorrding input trajectories define
+        en = self.next_known_discrete_experiment_symbols  " define experiment data acorrding input trajectories define
 
         h = self.time_interval_symbol
 
