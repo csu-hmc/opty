@@ -204,18 +204,18 @@ class ConstraintCollocator(object):
         Lamda_Matrix = sym.Matrix([[0,0,0,0], [0,0,0,0], [0,0,Lamda,0],[0,0,0,Lamda]])
 	    """
 	    define matrix Lamda =   [0 0 0     0    ]
-			                    [0 0 0     0    ]
- 			                    [0 0 lamda 0    ]
-			                    [0 0 0     lamda]
+			            [0 0 0     0    ]
+ 			            [0 0 lamda 0    ]
+			            [0 0 0     lamda]
 	    """
 
     	self.eom = (1-Lamada_Matrix)*equations_of_motion + Lamada_Matrix*(xd - (e - x))
 	    """
 	    add extra term in equations of motion, the goal is to have the following formula:
 	    homotopy motion equations = [1 0 0    0   ]   [f1(x, xd, p, r) ]   [0 0 0  0 ]     [x1_dot]     [e1]   [x1]
-			      	                 0 1 0    0     *  f2(x, xd, p, r)   +  0 0 0  0   * (  x2_dot  - (  e2  -  x2  ) )
- 			      	                 0 0 1-la 0        f3(x, xd, p, r)      0 0 la 0        x3_dot       e3     x3
-			      	                [0 0 0    1-la]   [f4(x, xd, p, r) ]   [0 0 0  la]     [x4_dot]     [e4]   [x4]
+			      	         0 1 0    0     *  f2(x, xd, p, r)   +  0 0 0  0   * (  x2_dot  - (  e2  -  x2  ) )
+ 			      	         0 0 1-la 0        f3(x, xd, p, r)      0 0 la 0        x3_dot       e3     x3
+			      	         [0 0 0    1-la]   [f4(x, xd, p, r) ]   [0 0 0  la]     [x4_dot]     [e4]   [x4]
 	    """
 	
         # self.eom = equations_of_motion
@@ -485,7 +485,7 @@ class ConstraintCollocator(object):
         ui = self.current_discrete_specified_symbols
         un = self.next_discrete_specified_symbols
         ei = self.current_known_discrete_experiment_symbols  " define experiment data acorrding input trajectories define
-	    en = self.next_known_discrete_experiment_symbols  " define experiment data acorrding input trajectories define
+	en = self.next_known_discrete_experiment_symbols  " define experiment data acorrding input trajectories define
 
         h = self.time_interval_symbol
 
