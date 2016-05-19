@@ -133,10 +133,16 @@ class ConstraintCollocator(object):
     """
 
     time_interval_symbol = sym.Symbol('h', real=True)
+    expeirment_data_symbol = sym.Symbol('e', real=True)
+    """
+    define symbol of expeirment data
+    	in order to add symbolic extra term in quations of motion
+    """
 
     def __init__(self, equations_of_motion, state_symbols,
                  num_collocation_nodes, node_time_interval,
                  known_parameter_map={}, known_trajectory_map={},
+                 known_experiment_map={}, Lamda,
                  instance_constraints=None, time_symbol=None, tmp_dir=None,
                  integration_method='backward euler'):
         """
@@ -166,6 +172,13 @@ class ConstraintCollocator(object):
             ndarrays of floats of shape(N,). Any time varying parameters in
             the equations of motion not provided in this dictionary will
             become free trajectories optimization variables.
+        known_experiment_map : dictionary, optional
+            A dictionary that maps the state SymPy functions of time to
+            ndarrays of floats of shape(N,4). Any time varying parameters in
+            the equations of motion not provided in this dictionary will
+            become free trajectories optimization variables.
+	    Lamda: float
+	        A parameter in homotopy method that controls the change of motion equations.
         integration_method : string, optional
             The integration method to use, either `backward euler` or
             `midpoint`.
@@ -188,7 +201,24 @@ class ConstraintCollocator(object):
             to a directory here.
 
         """
-        self.eom = equations_of_motion
+        Lamda_Matrix = sym.Matrix([[0,0,0,0], [0,0,0,0], [0,0,Lamda,0],[0,0,0,Lamda]])
+	    """
+	    define matrix Lamda =   [0 0 0     0    ]
+			                    [0 0 0     0    ]
+ 			                    [0 0 lamda 0    ]
+			                    [0 0 0     lamda]
+	    """
+
+    	self.eom = (1-Lamada_Matrix)*equations_of_motion + Lamada_Matrix*(xd - (e - x))
+	    """
+	    add extra term in equations of motion, the goal is to have the following formula:
+	    homotopy motion equations = [1 0 0    0   ]   [f1(x, xd, p, r) ]   [0 0 0  0 ]     [x1_dot]     [e1]   [x1]
+			      	                 0 1 0    0     *  f2(x, xd, p, r)   +  0 0 0  0   * (  x2_dot  - (  e2  -  x2  ) )
+ 			      	                 0 0 1-la 0        f3(x, xd, p, r)      0 0 la 0        x3_dot       e3     x3
+			      	                [0 0 0    1-la]   [f4(x, xd, p, r) ]   [0 0 0  la]     [x4_dot]     [e4]   [x4]
+	    """
+	
+        # self.eom = equations_of_motion
 
         if time_symbol is not None:
             self.time_symbol = time_symbol
@@ -205,6 +235,8 @@ class ConstraintCollocator(object):
 
         self.known_parameter_map = known_parameter_map
         self.known_trajectory_map = known_trajectory_map
+        
+        self.know_experiment_map = known_experiment_map " get input experiment data into self
 
         self.instance_constraints = instance_constraints
 
@@ -408,7 +440,14 @@ class ConstraintCollocator(object):
         self.next_known_discrete_specified_symbols = \
             tuple([sym.Symbol(f.__class__.__name__ + 'n', real=True)
                    for f in self.known_input_trajectories])
-
+                   
+        # The current and next known experiment data.
+        self.current_known_discrete_experiment_symbols = \
+            tuple([sym.Symbol(f.__class__.__name__ + 'i', real=True)
+                   for f in self.known_experiment_map])
+        self.next_known_discrete_experiment_symbols = \
+            tuple([sym.Symbol(f.__class__.__name__ + 'n', real=True)
+                   for f in self.known_experiment_map])
 
         # The current and next unknown input trajectories.
         self.current_unknown_discrete_specified_symbols = \
@@ -438,12 +477,15 @@ class ConstraintCollocator(object):
         x = self.state_symbols
         xd = self.state_derivative_symbols
         u = self.input_trajectories
+        e = self.know_experiment_map " define experiment data acorrding input trajectories define
 
         xp = self.previous_discrete_state_symbols
         xi = self.current_discrete_state_symbols
         xn = self.next_discrete_state_symbols
         ui = self.current_discrete_specified_symbols
         un = self.next_discrete_specified_symbols
+        ei = self.current_known_discrete_experiment_symbols  " define experiment data acorrding input trajectories define
+	    en = self.next_known_discrete_experiment_symbols  " define experiment data acorrding input trajectories define
 
         h = self.time_interval_symbol
 
@@ -460,7 +502,8 @@ class ConstraintCollocator(object):
             xdot_sub = {d: (n - i) / h for d, i, n in zip(xd, xi, xn)}
             x_sub = {d: (i + n) / 2 for d, i, n in zip(x, xi, xn)}
             u_sub = {d: (i + n) / 2 for d, i, n in zip(u, ui, un)}
-            self.discrete_eom = me.msubs(self.eom, xdot_sub, x_sub, u_sub)
+            e_sub = {d: (i + n) / 2 for d, i, n in zip(e, ei, en)} " define experiment sub for eom
+            self.discrete_eom = me.msubs(self.eom, xdot_sub, x_sub, u_sub, e_sub) " add experiment data into eom
 
     def _identify_functions_in_instance_constraints(self):
         """Instantiates a set containing all of the instance functions, i.e.
