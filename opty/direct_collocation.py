@@ -142,7 +142,7 @@ class ConstraintCollocator(object):
     def __init__(self, equations_of_motion, state_symbols,
                  num_collocation_nodes, node_time_interval,
                  known_parameter_map={}, known_trajectory_map={},
-                 known_experiment_map={}, Lamda,
+                 known_experiment_map={}, Lambda, K,
                  instance_constraints=None, time_symbol=None, tmp_dir=None,
                  integration_method='backward euler'):
         """
@@ -177,8 +177,10 @@ class ConstraintCollocator(object):
             ndarrays of floats of shape(N,4). Any time varying parameters in
             the equations of motion not provided in this dictionary will
             become free trajectories optimization variables.
-	    Lamda: float
-	        A parameter in homotopy method that controls the change of motion equations.
+	Lambda: float
+	    A parameter in homotopy method that controls the change of motion equations.
+	K: float
+	    A parameter in homotopy method that controls the dynamics of extra term.
         integration_method : string, optional
             The integration method to use, either `backward euler` or
             `midpoint`.
@@ -201,21 +203,27 @@ class ConstraintCollocator(object):
             to a directory here.
 
         """
-        Lamda_Matrix = sym.Matrix([[0,0,0,0], [0,0,0,0], [0,0,Lamda,0],[0,0,0,Lamda]])
+        Lambda_Matrix = sym.Matrix([[0,0,0,0], [0,0,0,0], [0,0,Lambda,0],[0,0,0,Lambda]])
 	    """
-	    define matrix Lamda =   [0 0 0     0    ]
-			            [0 0 0     0    ]
- 			            [0 0 lamda 0    ]
-			            [0 0 0     lamda]
+	    define matrix Lambda =   [0 0 0      0     ]
+			             [0 0 0      0     ]
+ 			             [0 0 lambda 0     ]
+			             [0 0 0      lambda]
 	    """
-
-    	self.eom = (1-Lamada_Matrix)*equations_of_motion + Lamada_Matrix*(xd - (e - x))
+        K_Matrix = sym.Matrix([[0,0,0,0], [0,0,0,0], [0,0,K,0],[0,0,0,K]])
+	    """
+	    define matrix Lambda =   [0 0 0 0 ]
+			             [0 0 0 0 ]
+ 			             [0 0 K 0 ]
+			             [0 0 0 K ]
+	    """
+    	self.eom = (1-Lambda_Matrix)*equations_of_motion + Lambda_Matrix*(xd - K_Matrix*(e - x))
 	    """
 	    add extra term in equations of motion, the goal is to have the following formula:
-	    homotopy motion equations = [1 0 0    0   ]   [f1(x, xd, p, r) ]   [0 0 0  0 ]     [x1_dot]     [e1]   [x1]
-			      	         0 1 0    0     *  f2(x, xd, p, r)   +  0 0 0  0   * (  x2_dot  - (  e2  -  x2  ) )
- 			      	         0 0 1-la 0        f3(x, xd, p, r)      0 0 la 0        x3_dot       e3     x3
-			      	         [0 0 0    1-la]   [f4(x, xd, p, r) ]   [0 0 0  la]     [x4_dot]     [e4]   [x4]
+	    homotopy motion equations = [1 0 0    0   ]   [f1(x, xd, p, r) ]   [0 0 0  0 ]     [x1_dot]   [0, 0, 0, 0]     [e1]   [x1]
+			      	         0 1 0    0     *  f2(x, xd, p, r)   +  0 0 0  0   * (  x2_dot  - [0, 0, 0, 0] * (  e2  -  x2  ) )
+ 			      	         0 0 1-la 0        f3(x, xd, p, r)      0 0 la 0        x3_dot    [0, 0, K, 0]      e3     x3
+			      	         [0 0 0    1-la]   [f4(x, xd, p, r) ]   [0 0 0  la]     [x4_dot]  [0, 0, 0, K]     [e4]   [x4]
 	    """
 	
         # self.eom = equations_of_motion
