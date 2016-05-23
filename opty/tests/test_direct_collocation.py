@@ -50,26 +50,39 @@ class TestConstraintCollocator():
 
     def setup(self):
 
-        m, c, k, t = sym.symbols('m, c, k, t')
-        x, v, f = [s(t) for s in sym.symbols('x, v, f', cls=sym.Function)]
+        m, c, k, la, dy, t = sym.symbols('m, c, k, t')
+        la, dy = sym.symbols('la, dy')
+        x, v, f, xm, vm = [s(t) for s in sym.symbols('x, v, f, xm, vm', cls=sym.Function)]
 
         self.state_symbols = (x, v)
         self.constant_symbols = (m, c, k)
-        self.specified_symbols = (f,)
+        self.lamda = la
+        self.dynamic = dy
+        self.specified_symbols = (f, xm, vm)
         self.discrete_symbols = sym.symbols('xi, vi, xp, vp, xn, vn, fi, fn',
                                             real=True)
 
         self.state_values = np.array([[1.0, 2.0, 3.0, 4.0],
                                       [5.0, 6.0, 7.0, 8.0]])
-        self.specified_values = np.array([2.0, 2.0, 2.0, 2.0])
+        self.specified_values = np.array([[2.0, 2.0, 2.0, 2.0],
+                                          [1.0, 2.0, 3.0, 4.0],
+                                          [5.0, 6.0, 7.0, 8.0]])
         self.constant_values = np.array([1.0, 2.0, 3.0])
+        self.lamda = 0.0
+        self.dynamic = 5.0
         self.interval_value = 0.01
         self.free = np.array([1.0, 2.0, 3.0, 4.0,  # x
                               5.0, 6.0, 7.0, 8.0,  # v
                               3.0])  # k
+                              
+        lamda_matrix = sym.zeros(2)
+        lamda_matrix[1:, 1:] = self.lamda * sym.eye(1)
 
-        self.eom = sym.Matrix([x.diff() - v,
-                               m * v.diff() + c * v + k * x - f])
+        #k_matrix = self.dynamic * sym.eye(2)
+
+        self.eom = (1-lamda_matrix) * sym.Matrix([x.diff() - v,
+                                m * v.diff() + c * v + k * x - f]) + lamda_matrix*sym.Matrix([x.diff() - self.dynamic*(xm - x),
+                                               v.diff() - self.dynamic*(vm - v)])
 
         par_map = OrderedDict(zip(self.constant_symbols[:2],
                                   self.constant_values[:2]))
@@ -82,6 +95,8 @@ class TestConstraintCollocator():
                                  node_time_interval=self.interval_value,
                                  known_parameter_map=par_map,
                                  known_trajectory_map=traj_map,
+                                 homotopy_control=self.lamda,
+                                 tracing_dynamic_control=self.dynamic,
                                  tmp_dir='test_ufuncs')
 
     def test_init(self):
@@ -118,32 +133,50 @@ class TestConstraintCollocator():
 
         assert self.collocator.known_input_trajectories == \
             self.specified_symbols
-        assert self.collocator.num_known_input_trajectories == 1
+        assert self.collocator.num_known_input_trajectories == 3
 
         assert self.collocator.unknown_input_trajectories == tuple()
         assert self.collocator.num_unknown_input_trajectories == 0
+        
+    def test_homotopy_parameters(self):
+
+        # TODO : Added checks for the other cases.
+
+        self.collocator.lamda()
+
+        la = self.lamda
+        dy = self.dynamic
+
+        assert self.collocator.lamda == la
+        assert self.collocator.dynamic == dy       
 
     def test_discrete_symbols(self):
 
         self.collocator._discrete_symbols()
 
-        xi, vi, xp, vp, xn, vn, fi, fn = self.discrete_symbols
+        xi, vi, xp, vp, xn, vn, fi, fn, xmi, xmn, vmi, vmn = self.discrete_symbols
 
         assert self.collocator.previous_discrete_state_symbols == (xp, vp)
         assert self.collocator.current_discrete_state_symbols == (xi, vi)
         assert self.collocator.next_discrete_state_symbols == (xn, vn)
 
-        assert self.collocator.current_discrete_specified_symbols == (fi, )
-        assert self.collocator.next_discrete_specified_symbols == (fn, )
+        assert self.collocator.current_discrete_specified_symbols == (fi, xmi, vmi)
+        assert self.collocator.next_discrete_specified_symbols == (fn, xmn, vmn)
 
     def test_discretize_eom_backward_euler(self):
 
         m, c, k = self.constant_symbols
-        xi, vi, xp, vp, xn, vn, fi, fn = self.discrete_symbols
+        xi, vi, xp, vp, xn, vn, fi, fn, xmi, xmn, vmi, vmn = self.discrete_symbols
         h = self.collocator.time_interval_symbol
-
-        expected = sym.Matrix([(xi - xp) / h - vi,
-                               m * (vi - vp) / h + c * vi + k * xi - fi])
+        
+        lamda_matrix = sym.zeros(2)
+        lamda_matrix[1:, 1:] = self.lamda * sym.eye(1)
+        #expected = sym.Matrix([(xi - xp) / h - vi,
+        #                       m * (vi - vp) / h + c * vi + k * xi - fi])
+        
+        expected = (1-lamda_matrix)*sym.Matrix([(xi - xp) / h - vi,
+                                m * (vi - vp) / h + c * vi + k * xi - fi]) + lamda_matrix*sym.Matrix([(xi - xp) / h - self.dynamic*(xmi - xi),
+                                               (vi - vp) / h - self.dynamic*(vmi - vi)])
 
         self.collocator._discretize_eom()
 
@@ -154,13 +187,20 @@ class TestConstraintCollocator():
     def test_discretize_eom_midpoint(self):
 
         m, c, k = self.constant_symbols
-        xi, vi, xp, vp, xn, vn, fi, fn = self.discrete_symbols
+        xi, vi, xp, vp, xn, vn, fi, fn, xmi, xmn, vmi, vmn = self.discrete_symbols
 
         h = self.collocator.time_interval_symbol
+        
+        lamda_matrix = sym.zeros(2)
+        lamda_matrix[1:, 1:] = self.lamda * sym.eye(1)
 
-        expected = sym.Matrix([(xn - xi) / h - (vi + vn) / 2,
-                               m * (vn - vi) / h + c * (vi + vn) / 2 +
-                               k * (xi + xn) / 2 - (fi + fn) / 2])
+        #expected = sym.Matrix([(xn - xi) / h - (vi + vn) / 2,
+        #                       m * (vn - vi) / h + c * (vi + vn) / 2 +
+        #                       k * (xi + xn) / 2 - (fi + fn) / 2])
+                               
+        expected = (1-lamda_matrix) * sym.Matrix([(xn - xi) / h - (vi + vn) / 2,
+                                m * (vn - vi) / h + c * (vi + vn) / 2 + k * (xi + xn) / 2 - (fi + fn) / 2]) + lamda_matrix*sym.Matrix([(xn - xi) / h - self.dynamic*((xmn - xmi) / h - (xn - xi) / h),
+                                               (vn - vi) / h - self.dynamic*((vmn - vmi) / h - (vn - vi) / h)])
 
         self.collocator.integration_method = 'midpoint'
         self.collocator._discretize_eom()
