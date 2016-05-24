@@ -50,7 +50,7 @@ class TestConstraintCollocator():
 
     def setup(self):
 
-        m, c, k, la, dy, t = sym.symbols('m, c, k, t')
+        m, c, k, t = sym.symbols('m, c, k, t')
         la, dy = sym.symbols('la, dy')
         x, v, f, xm, vm = [s(t) for s in sym.symbols('x, v, f, xm, vm', cls=sym.Function)]
 
@@ -59,7 +59,7 @@ class TestConstraintCollocator():
         self.lamda = la
         self.dynamic = dy
         self.specified_symbols = (f, xm, vm)
-        self.discrete_symbols = sym.symbols('xi, vi, xp, vp, xn, vn, fi, fn',
+        self.discrete_symbols = sym.symbols('xi, vi, xp, vp, xn, vn, fi, fn, xmi, xmn, vmi, vmn',
                                             real=True)
 
         self.state_values = np.array([[1.0, 2.0, 3.0, 4.0],
