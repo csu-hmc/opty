@@ -137,7 +137,6 @@ class ConstraintCollocator(object):
     def __init__(self, equations_of_motion, state_symbols,
                  num_collocation_nodes, node_time_interval,
                  known_parameter_map={}, known_trajectory_map={},
-                 homotopy_control={}, tracing_dynamic_control={},
                  instance_constraints=None, time_symbol=None, tmp_dir=None,
                  integration_method='backward euler'):
         """
@@ -167,13 +166,6 @@ class ConstraintCollocator(object):
             ndarrays of floats of shape(N,). Any time varying parameters in
             the equations of motion not provided in this dictionary will
             become free trajectories optimization variables.
-        homotopy_control: float, optional
-	       A parameter in homotopy method that controls the change of 
-	       motion equations. The default value of it is 0, which means 
-             the homotopy method does not apply. 
-        tracing_dynamic_control: float, optional
-	    A parameter in homotopy method that adjust the dynamics of extra
-	    'data tracing' term. The default value of it is 1.
         integration_method : string, optional
             The integration method to use, either `backward euler` or
             `midpoint`.
@@ -196,7 +188,8 @@ class ConstraintCollocator(object):
             to a directory here.
 
         """
-	
+        self.eom = equations_of_motion
+
         if time_symbol is not None:
             self.time_symbol = time_symbol
         else:
@@ -212,51 +205,20 @@ class ConstraintCollocator(object):
 
         self.known_parameter_map = known_parameter_map
         self.known_trajectory_map = known_trajectory_map
-        
-        self.lamda = homotopy_control
-        self.dynamic = tracing_dynamic_control
-        
-        self.num_know_trajectory_map = len(self.known_trajectory_map)
 
         self.instance_constraints = instance_constraints
 
         self.num_constraints = self.num_states * (num_collocation_nodes - 1)
 
         self.tmp_dir = tmp_dir
-        
-        Lamda_matrix = sym.zeros(self.num_states)
-        Lamda_matrix[self.num_states/2:, self.num_states/2:] = self.lamda * sym.eye(self.num_states/2)
-
-        k_matrix = self.dynamic * sym.eye(self.num_states)
-        
-        if homotopy_control == 0:
-            self.eom = equations_of_motion
-        
-        else:
-            self.eom = (1-Lamda_matrix)*equations_of_motion + Lamda_matrix*(self.state_derivative_symbols - k_matrix
-		            * (known_trajectory_map[self.num_know_trajectory_map 
-		            - self.num_states:]-self.state_symbols))
-          
-        """
-        add extra term in equations of motion, the goal is to have the following formula:
-        homotopy motion equations = [1 0 0    0   ]   [f1(x, xd, p, r) ]   
-			      	         0 1 0    0     *  f2(x, xd, p, r)   
- 			      	         0 0 1-la 0        f3(x, xd, p, r)  
-			      	        [0 0 0    1-la]   [f4(x, xd, p, r) ]
-
-				          [0 0 0  0 ]     [x1_dot]       [e1]   [x1]
- 			             +   0 0 0  0   * (  x2_dot  - K*(  e2  -  x2  ) )
-			                 0 0 la 0        x3_dot         e3     x3
-				          [0 0 0  la]     [x4_dot]       [e4]   [x4]
-        """
 
         self._sort_parameters()
         self._check_known_trajectories()
         self._sort_trajectories()
         self.num_free = ((self.num_states +
                           self.num_unknown_input_trajectories) *
-                          self.num_collocation_nodes +
-                          self.num_unknown_parameters)
+                         self.num_collocation_nodes +
+                         self.num_unknown_parameters)
 
         self.integration_method = integration_method
 
@@ -447,6 +409,7 @@ class ConstraintCollocator(object):
             tuple([sym.Symbol(f.__class__.__name__ + 'n', real=True)
                    for f in self.known_input_trajectories])
 
+
         # The current and next unknown input trajectories.
         self.current_unknown_discrete_specified_symbols = \
             tuple([sym.Symbol(f.__class__.__name__ + 'i', real=True)
@@ -497,7 +460,6 @@ class ConstraintCollocator(object):
             xdot_sub = {d: (n - i) / h for d, i, n in zip(xd, xi, xn)}
             x_sub = {d: (i + n) / 2 for d, i, n in zip(x, xi, xn)}
             u_sub = {d: (i + n) / 2 for d, i, n in zip(u, ui, un)}
-
             self.discrete_eom = me.msubs(self.eom, xdot_sub, x_sub, u_sub)
 
     def _identify_functions_in_instance_constraints(self):
