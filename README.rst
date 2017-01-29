@@ -48,13 +48,15 @@ To run all of the examples the following additional dependencies are required:
 - matplotlib >= 1.3.1
 - pydy >= 0.2.1
 - pytables
+- pandas
+- yeadon
 
 If you are installing on Linux or Mac, the easiest way to get started is to
 install Anaconda_ (or Miniconda_) and use conda to install all of the
 dependencies from the Conda Forge channel::
 
    $ conda config --add channels conda-forge
-   $ conda install sympy numpy scipy cython ipopt cyipopt matplotlib pytables pydy
+   $ conda install sympy numpy scipy cython ipopt cyipopt matplotlib pytables pydy pandas
 
 Next download the opty source files and install with::
 
@@ -84,7 +86,7 @@ to a location other than `/usr/local` you will likely have to set the
 
 Once Ipopt is installed and accessible, install conda then create an environment::
 
-   $ conda create -n opty pip numpy scipy cython matplotlib pytables sympy pydy
+   $ conda create -n opty pip numpy scipy cython matplotlib pytables sympy pydy pandas
    $ source activate opty
    (opty)$ pip install https://github.com/matthias-k/cyipopt/archive/master.zip
    (opty)$ conda develop /path/to/opty
