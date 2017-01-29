@@ -1,8 +1,11 @@
 Introduction
 ============
 
+.. image:: https://img.shields.io/pypi/v/opty.svg
+   :target: https://pypi.org/project/opty
+
 .. image:: https://travis-ci.org/csu-hmc/opty.svg?branch=master
-    :target: https://travis-ci.org/csu-hmc/opty
+   :target: https://travis-ci.org/csu-hmc/opty
 
 ``opty`` utilizes symbolic descriptions of ordinary differential equations
 expressed with SymPy_ to form the constraints needed to solve optimal control
