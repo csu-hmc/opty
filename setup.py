@@ -7,7 +7,7 @@ exec(open('opty/version.py').read())
 setup(
     name='opty',
     version=__version__,
-    author='Jason Keith Moore',
+    author='Jason K. Moore',
     author_email='moorepants@gmail.com',
     packages=find_packages(),
     url='http://github.com/csu-hmc/opty',
@@ -18,8 +18,8 @@ setup(
     install_requires=['numpy>=1.8.1',
                       'scipy>=0.14.1',
                       'sympy>=0.7.6',
-                      'cython',
-                      'ipopt',  # cyipopt
+                      'cython>=0.20.1',
+                      'ipopt>=0.1.7',  # cyipopt
                       ],
     extras_require={'examples': ['pydy>=0.2.1',
                                  'matplotlib>=1.3.1',
@@ -33,7 +33,6 @@ setup(
     test_suite='nose.collector',
     classifiers=['Programming Language :: Python',
                  'Programming Language :: Python :: 2.7',
-                 'Programming Language :: Python :: 3.4',
                  'Programming Language :: Python :: 3.5',
                  'Programming Language :: Python :: 3.6',
                  'Operating System :: OS Independent',
