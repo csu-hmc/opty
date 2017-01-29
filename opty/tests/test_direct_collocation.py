@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+#%%
 from collections import OrderedDict
 
 import numpy as np
@@ -7,11 +8,12 @@ import sympy as sym
 from scipy import sparse
 from nose.tools import raises
 
-from ..direct_collocation import Problem, ConstraintCollocator
 
+from opty.direct_collocation import Problem, ConstraintCollocator
+#%%
 
 def test_Problem():
-
+    
     m, c, k, t = sym.symbols('m, c, k, t')
     x, v, f = [s(t) for s in sym.symbols('x, v, f', cls=sym.Function)]
 
@@ -43,9 +45,11 @@ def test_Problem():
                                INF, INF,
                                8.0, 8.0,
                                0.5, INF, 1.0])
-    np.testing.assert_allclose(prob.upper_bound, expected_upper)
+    result = np.testing.assert_allclose(prob.upper_bound, expected_upper)
+    return result
+    #print(result)
 
-
+#%%
 class TestConstraintCollocator():
 
     def setup(self):
@@ -83,7 +87,7 @@ class TestConstraintCollocator():
                                  known_parameter_map=par_map,
                                  known_trajectory_map=traj_map,
                                  tmp_dir='test_ufuncs')
-
+#%%
     def test_init(self):
 
         assert self.collocator.state_symbols == self.state_symbols
