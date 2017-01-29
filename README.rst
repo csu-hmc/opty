@@ -4,17 +4,17 @@ Introduction
 .. image:: https://travis-ci.org/csu-hmc/opty.svg?branch=master
     :target: https://travis-ci.org/csu-hmc/opty
 
-``opty`` utlizes symbolic descriptions of ordinary differential equations
+``opty`` utilizes symbolic descriptions of ordinary differential equations
 expressed with SymPy_ to form the constraints needed to solve optimal control
 and parameter identification problems using the direct collocation method and
-non-linear programming. In general, if one can express the continous first
+non-linear programming. In general, if one can express the continuous first
 order ordinary differential equations of the system as symbolic expressions
 ``opty`` will automatically generate a function to efficiently evaluate the
 dynamical constraints and a function that evaluates the sparse Jacobian of the
 constraints, which have been optimized for speed and memory consumption. The
 translation of the dynamical system description to the NLP form, primarily the
 formation of the constraints and the Jabcobian of the constraints, manually is
-a time consuming and error prone process. ``opty`` elimantes both of those
+a time consuming and error prone process. ``opty`` eliminates both of those
 issues.
 
 .. _SymPy: http://www.sympy.org
@@ -35,18 +35,18 @@ Installation
 
 The core dependencies are as follows:
 
-- sympy 0.7.6
-- ipopt 3.11
-- numpy 1.8.1
-- scipy 0.14.1
-- cython
-- cyipopt 0.1.4
+- sympy >= 0.7.6
+- ipopt >= 3.11
+- numpy >= 1.8.1
+- scipy >= 0.14.1
+- cython >= 0.20.1
+- cyipopt >= 0.1.7
 
 To run the examples the following additional dependencies are required:
 
-- matplotlib 1.3.1
-- pydy 0.2.1
-- tables
+- matplotlib >= 1.3.1
+- pydy >= 0.2.1
+- pytables
 
 First you must install IPOPT along with it's headers. For example on Debian
 based systems you can use the package manager::

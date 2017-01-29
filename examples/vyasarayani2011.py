@@ -80,9 +80,6 @@ def main(initial_guess, do_plot=False):
     prob = Problem(obj, obj_grad, eom, (y1, y2), num_nodes, interval,
                 integration_method='midpoint')
 
-    # Set some IPOPT options.
-    prob.addOption('linear_solver', 'ma57')
-
     num_states = len(y)
 
     if initial_guess == 'zero':

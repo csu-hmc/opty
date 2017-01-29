@@ -505,7 +505,7 @@ class ConstraintCollocator(object):
                    self.instance_constraints_free_index_map.items()}
         subbed_constraints = [con.subs(def_map) for con in
                               self.instance_constraints]
-        f = sym.lambdify(([free] + self.known_parameter_map.keys()),
+        f = sym.lambdify(([free] + list(self.known_parameter_map.keys())),
                          subbed_constraints, modules=[{'ImmutableMatrix':
                                                        np.array}, "numpy"])
         def wrapped(free):
@@ -549,7 +549,7 @@ class ConstraintCollocator(object):
             jac = sym.Matrix([con]).jacobian(partials)
             jac = jac.subs(def_map)
             funcs.append(sym.lambdify(([free] +
-                                       self.known_parameter_map.keys()),
+                                       list(self.known_parameter_map.keys())),
                                       jac,
                                       modules=[{'ImmutableMatrix': np.array},
                                                "numpy"]))

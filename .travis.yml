@@ -1,12 +1,9 @@
 language: python
 python:
-  - "2.7"
+  - 2.7
+  - 3.5
+  - 3.6
 install:
-  - sudo apt-get update
-  # All of the following apt installed packages are build dependencies of
-  # cyipopt.
-  - sudo apt-get install gfortran libblas3gf liblapack3gf liblapack-dev libmumps-dev
-  - sudo apt-get install coinor-libipopt1 coinor-libipopt-dev
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
     else
@@ -16,11 +13,11 @@ install:
   - export PATH="$HOME/miniconda/bin:$PATH"
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
+  - conda config --add channels conda-forge
   - conda update -q conda
   - conda info -a
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pip sympy numpy scipy cython nose coverage
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION sympy cython cyipopt nose coverage
   - source activate test-environment
-  - pip install https://bitbucket.org/moorepants/cyipopt/get/tip.zip
-  - python setup.py install
 script:
-  nosetests -v --with-coverage --cover-package=opty
+  - nosetests -v --with-coverage --cover-package=opty
+  - python setup.py install
