@@ -32,7 +32,7 @@ def output_equations(x):
 
     """
 
-    return x[:, :x.shape[1] / 2]
+    return x[:, :x.shape[1] // 2]
 
 
 def objective_function(free, num_dis_points, num_states, dis_period,
