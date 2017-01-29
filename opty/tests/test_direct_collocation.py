@@ -81,8 +81,7 @@ class TestConstraintCollocator():
                                  num_collocation_nodes=4,
                                  node_time_interval=self.interval_value,
                                  known_parameter_map=par_map,
-                                 known_trajectory_map=traj_map,
-                                 tmp_dir='test_ufuncs')
+                                 known_trajectory_map=traj_map)
 
     def test_init(self):
 
