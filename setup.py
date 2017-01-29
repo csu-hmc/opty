@@ -11,7 +11,7 @@ setup(
     author_email='moorepants@gmail.com',
     packages=find_packages(),
     url='http://github.com/csu-hmc/opty',
-    license='LICENSE.txt',
+    license='BSD-2-clause',
     description=('Tools for optimizing dynamic systems using direct '
                  'collocation.'),
     long_description=open('README.rst').read(),
@@ -24,6 +24,8 @@ setup(
     extras_require={'examples': ['pydy>=0.2.1',
                                  'matplotlib>=1.3.1',
                                  'tables',
+                                 'yeadon',
+                                 'pandas',
                                  ],
                     'doc': ['sphinx',
                             'numpydoc',
