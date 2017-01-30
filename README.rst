@@ -31,12 +31,12 @@ Features
 - Supports both trajectory optimization and parameter identification.
 - Easy specification of bounds on free variables.
 - Easily specify additional "instance" constraints.
-- Built with support of sympy.physics.mechanics in mind.
+- Built with support of sympy.physics.mechanics and PyDy in mind.
 
 Installation
 ============
 
-The core dependencies are as follows:
+The required dependencies are as follows:
 
 - python 2.7 or 3.5+
 - sympy >= 0.7.6
@@ -55,27 +55,18 @@ To run all of the examples the following additional dependencies are required:
 - yeadon
 
 If you are installing on Linux or Mac, the easiest way to get started is to
-install Anaconda_ (or Miniconda_) and use conda to install all of the
-dependencies from the Conda Forge channel::
+install Anaconda_ (or Miniconda_) and use conda to install opty and any desired
+optional dependencies from the Conda Forge channel, e.g.::
 
    $ conda config --add channels conda-forge
-   $ conda install sympy numpy scipy cython ipopt cyipopt matplotlib pytables pydy pandas
-
-Next download the opty source files and install with::
-
-   $ conda develop /path/to/opty
-
-or::
-
-   $ cd /path/to/opty
-   $ python setup.py install
+   $ conda install opty matplotlib pytables pandas yeadon pydy
 
 .. _Anaconda: https://www.continuum.io/downloads
 .. _Miniconda: https://conda.io/miniconda.html
 
-If you are using Windows or want a custom installation of Ipopt, you must first
-install IPOPT along with it's headers. For example, on Debian based systems you
-can use the package manager::
+If you are using Windows or want a custom installation of any of the
+dependencies, e.g. Ipopt, you must first install Ipopt along with it's headers.
+For example, on Debian based systems you can use the package manager::
 
    $ sudo apt-get install coinor-libipopt1v5 coinor-libipopt-dev
 
@@ -89,10 +80,27 @@ to a location other than `/usr/local` you will likely have to set the
 
 Once Ipopt is installed and accessible, install conda then create an environment::
 
-   $ conda create -n opty pip numpy scipy cython matplotlib pytables sympy pydy pandas
-   $ source activate opty
-   (opty)$ pip install https://github.com/matthias-k/cyipopt/archive/master.zip
-   (opty)$ conda develop /path/to/opty
+   $ conda create -n opty-custom pip numpy scipy cython sympy
+   $ source activate opty-custom
+   (opty-custom)$ pip install https://github.com/matthias-k/cyipopt/archive/v0.1.7.tar.gz
+   (opty-custom)$ cd /path/to/opty
+   (opty-custom)$ python setup.py install
+
+If you want to develop opty, create a conda environment with all of the
+dependencies installed::
+
+   $ conda config --add channels conda-forge
+   $ conda create -n opty-dev python sympy numpy scipy cython ipopt cyipopt matplotlib pytables pydy pandas
+   $ source activate opty-dev
+
+Next download the opty source files and install with::
+
+   (opty-dev)$ conda develop /path/to/opty
+
+or::
+
+   (opty-dev)$ cd /path/to/opty
+   (opty-dev)$ python setup.py install
 
 Usage
 =====
