@@ -83,8 +83,7 @@ Once Ipopt is installed and accessible, install conda then create an environment
    $ conda create -n opty-custom pip numpy scipy cython sympy
    $ source activate opty-custom
    (opty-custom)$ pip install https://github.com/matthias-k/cyipopt/archive/v0.1.7.tar.gz
-   (opty-custom)$ cd /path/to/opty
-   (opty-custom)$ python setup.py install
+   (opty-custom)$ pip install opty
 
 If you want to develop opty, create a conda environment with all of the
 dependencies installed::
@@ -100,7 +99,7 @@ Next download the opty source files and install with::
 or::
 
    (opty-dev)$ cd /path/to/opty
-   (opty-dev)$ python setup.py install
+   (opty-dev)$ python setup.py develop
 
 Usage
 =====
