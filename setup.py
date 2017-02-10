@@ -17,11 +17,11 @@ setup(
     long_description=open('README.rst').read(),
     install_requires=['numpy>=1.8.1',
                       'scipy>=0.14.1',
-                      'sympy>=0.7.6',
+                      'sympy>=1.0.0',
                       'cython>=0.20.1',
                       'ipopt>=0.1.7',  # cyipopt
                       ],
-    extras_require={'examples': ['pydy>=0.2.1',
+    extras_require={'examples': ['pydy>=0.3.0',
                                  'matplotlib>=1.3.1',
                                  'tables',
                                  'yeadon',
