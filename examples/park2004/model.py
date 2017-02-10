@@ -7,7 +7,7 @@ from scipy.interpolate import interp1d
 import sympy as sy
 import sympy.physics.mechanics as me
 import yeadon
-from pydy.codegen.code import generate_ode_function
+from pydy.codegen.ode_function_generators import generate_ode_function
 
 sym_kwargs = {'positive': True, 'real': True}
 me.dynamicsymbols._t = sy.symbols('t', **sym_kwargs)
@@ -267,8 +267,8 @@ class PlanarStandingHumanOnMovingPlatform(object):
 
         self.points['origin'].set_vel(self.frames['inertial'], 0)
 
-        # Note : This doesn't acutally populate through in the KanesMethod
-        # classe. See https://github.com/sympy/sympy/issues/8244.
+        # Note : This doesn't actually populate through in the KanesMethod
+        # class. See https://github.com/sympy/sympy/issues/8244.
         vec = (self.specified['platform_acceleration'] *
                self.frames['inertial'].x)
         self.points['ankle'].set_acc(self.frames['inertial'], vec)
@@ -344,12 +344,12 @@ class PlanarStandingHumanOnMovingPlatform(object):
     def _generate_eoms(self):
 
         self.kane = me.KanesMethod(self.frames['inertial'],
-                                   self.coordinates.values(),
-                                   self.speeds.values(),
+                                   list(self.coordinates.values()),
+                                   list(self.speeds.values()),
                                    self.kin_diff_eqs)
 
-        fr, frstar = self.kane.kanes_equations(self.loads.values(),
-                                               self.rigid_bodies.values())
+        fr, frstar = self.kane.kanes_equations(list(self.loads.values()),
+                                               list(self.rigid_bodies.values()))
 
         sub = {self.specified['platform_speed'].diff(self.time):
                self.specified['platform_acceleration']}
@@ -367,7 +367,7 @@ class PlanarStandingHumanOnMovingPlatform(object):
                                           self.mass_matrix * udots)
 
         M_top_rows = sy.eye(2).row_join(sy.zeros(2))
-        F_top_rows = sy.Matrix(self.speeds.values())
+        F_top_rows = sy.Matrix(list(self.speeds.values()))
 
         tmp = sy.zeros(2).row_join(self.mass_matrix)
         self.mass_matrix_full = M_top_rows.col_join(tmp)
@@ -383,8 +383,8 @@ class PlanarStandingHumanOnMovingPlatform(object):
 
     def _create_symbolic_controller(self):
 
-        states = self.coordinates.values() + self.speeds.values()
-        inputs = self.specified.values()[-2:]
+        states = self.states()
+        inputs = list(self.specified.values())[-2:]
 
         num_states = len(states)
         num_inputs = len(inputs)
@@ -467,9 +467,9 @@ class PlanarStandingHumanOnMovingPlatform(object):
     def _linearize(self):
 
         # x = [theta_a, theta_h, omega_a, omega_h]
-        states = self.coordinates.values() + self.speeds.values()
+        states = list(self.coordinates.values()) + list(self.speeds.values())
         # r = [T_a, T_h]
-        specified = self.specified.values()[-2:]
+        specified = list(self.specified.values())[-2:]
 
         # We are only concerned about the upright standing equilibrium
         # point.
@@ -551,7 +551,7 @@ class PlanarStandingHumanOnMovingPlatform(object):
             """
             # TODO : This interpolation call is the most expensive thing
             # when running odeint. Seems like InterpolatedUnivariateSpline
-            # may be faster, but it doesn't supprt an multidimensional y.
+            # may be faster, but it doesn't supprt a multidimensional y.
             if t > time[-1]:
                 result = interp_func(time[-1])
             else:
@@ -563,21 +563,18 @@ class PlanarStandingHumanOnMovingPlatform(object):
 
             return controls
 
-        rhs = generate_ode_function(self.mass_matrix_full,
-                                    self.forcing_vector_full,
-                                    self.parameters.values(),
-                                    self.coordinates.values(),
-                                    self.speeds.values(),
-                                    self.specified.values()[-3:],
+        rhs = generate_ode_function(self.forcing_vector_full,
+                                    list(self.coordinates.values()),
+                                    list(self.speeds.values()),
+                                    list(self.parameters.values()),
+                                    mass_matrix=self.mass_matrix_full,
+                                    specifieds=list(self.specified.values())[-3:],
                                     generator='cython')
 
-        args = {'constants': np.array(self.open_loop_par_map.values()),
-                'specified': controller}
-
-        return rhs, args
+        return rhs, controller, np.array(list(self.open_loop_par_map.values()))
 
     def first_order_implicit(self):
         return sy.Matrix(self.kin_diff_eqs).col_join(self.fr_plus_frstar_closed)
 
     def states(self):
-        return self.coordinates.values() + self.speeds.values()
+        return list(self.coordinates.values()) + list(self.speeds.values())

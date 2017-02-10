@@ -33,10 +33,10 @@ if __name__ == '__main__':
     x0 = np.zeros(4)
 
     print('Generating right hand side function.')
-    rhs, args = h.closed_loop_ode_func(time, ref_noise, accel)
+    rhs, r, p = h.closed_loop_ode_func(time, ref_noise, accel)
 
     print('Integrating equations of motion.')
-    x = odeint(rhs, x0, time, args=(args,))
+    x = odeint(rhs, x0, time, args=(r, p))
 
     # Add measurement noise to the data.
     x_meas = x + np.random.normal(scale=np.deg2rad(0.25), size=x.shape)
