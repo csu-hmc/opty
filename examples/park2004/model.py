@@ -14,9 +14,9 @@ me.dynamicsymbols._t = sy.symbols('t', **sym_kwargs)
 
 
 class PlanarStandingHumanOnMovingPlatform(object):
-    """Generates the symbolic equations of motion of a 2D planar two body
-    model representing a human standing on a antero-posteriorly moving
-    platform similar to the one found in [Park2004]_.
+    """Generates the symbolic equations of motion of a 2D planar two body model
+    representing a human standing on a antero-posteriorly moving platform
+    similar to the one found in [Park2004]_.
 
     References
     ==========
@@ -136,10 +136,10 @@ class PlanarStandingHumanOnMovingPlatform(object):
 
         Parameters
         ==========
-        scaled_gain : None or float
+        unscaled_gain : None or float
             The desired numerical value of the unscaled gains. The unscaled
-            gains can be multiplied by the gain scale factors to get the
-            actual gain matrix. If None, the gains are not scaled.
+            gains can be multiplied by the gain scale factors to get the actual
+            gain matrix. If None, the gains are not scaled.
 
         """
 
@@ -341,7 +341,7 @@ class PlanarStandingHumanOnMovingPlatform(object):
         self._create_rigid_bodies()
         self._create_loads()
 
-    def _generate_eoms(self):
+    def _generate_eoms(self, simplify=False):
 
         self.kane = me.KanesMethod(self.frames['inertial'],
                                    list(self.coordinates.values()),
@@ -354,7 +354,12 @@ class PlanarStandingHumanOnMovingPlatform(object):
         sub = {self.specified['platform_speed'].diff(self.time):
                self.specified['platform_acceleration']}
 
-        self.fr_plus_frstar = sy.trigsimp(fr + frstar).subs(sub)
+        if simplify:
+            fr_plus_frstar = sy.trigsimp(fr + frstar)
+        else:
+            fr_plus_frstar = fr + frstar
+
+        self.fr_plus_frstar = fr_plus_frstar.xreplace(sub)
 
         udots = sy.Matrix([s.diff(self.time) for s in self.speeds.values()])
 
@@ -414,8 +419,8 @@ class PlanarStandingHumanOnMovingPlatform(object):
 
     def _generate_closed_loop_eoms(self):
 
-        self.fr_plus_frstar_closed = me.msubs(self.fr_plus_frstar,
-                                              self.controller_dict)
+        self.fr_plus_frstar_closed = self.fr_plus_frstar.xreplace(
+            self.controller_dict)
 
     def _numerical_parameters(self):
 
@@ -475,13 +480,13 @@ class PlanarStandingHumanOnMovingPlatform(object):
         # point.
         equilibrium = {s: 0 for s in states}
 
-        F_A = self.forcing_vector.jacobian(states).subs(equilibrium)
-        F_B = self.forcing_vector.jacobian(specified).subs(equilibrium)
+        F_A = self.forcing_vector.jacobian(states).xreplace(equilibrium)
+        F_B = self.forcing_vector.jacobian(specified).xreplace(equilibrium)
 
         A_top_rows = sy.zeros(2).row_join(sy.eye(2))
         B_top_rows = sy.zeros(2)
 
-        M = self.mass_matrix.subs(equilibrium)
+        M = self.mass_matrix.xreplace(equilibrium)
 
         A = A_top_rows.col_join(M.LUsolve(F_A))
         B = B_top_rows.col_join(M.LUsolve(F_B))
@@ -500,9 +505,9 @@ class PlanarStandingHumanOnMovingPlatform(object):
 
     def numerical_linear(self):
 
-        return (sy.matrix2numpy(self.A.subs(self.open_loop_par_map),
+        return (sy.matrix2numpy(self.A.xreplace(self.open_loop_par_map),
                                 dtype=float),
-                sy.matrix2numpy(self.B.subs(self.open_loop_par_map),
+                sy.matrix2numpy(self.B.xreplace(self.open_loop_par_map),
                                 dtype=float))
 
     def closed_loop_ode_func(self, time, reference_noise,
