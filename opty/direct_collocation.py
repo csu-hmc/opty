@@ -3,6 +3,7 @@
 import numpy as np
 import sympy as sym
 from sympy.physics import mechanics as me
+import matplotlib.pyplot as plt
 import ipopt
 
 from .utils import ufuncify_matrix, parse_free
@@ -112,6 +113,20 @@ class Problem(ipopt.problem):
 
     def intermediate(self, *args):
         self.obj_value.append(args[2])
+
+    def plot_trajectories(self, vector):
+        state_traj, specified_traj, constants = \
+            parse_free(vector, self.collocator.num_states,
+                       self.collocator.num_unknown_input_trajectories,
+                       self.collocator.num_collocation_nodes)
+        time = np.arange(self.collocator.num_collocation_nodes,
+                         self.collocator.node_time_interval)
+        fig, axes = plt.subplots(self.collocator.num_states, 1, sharex=True)
+        for ax, traj, symbol in zip(axes, state_traj.T,
+                                    self.collocator.state_symbols):
+            ax.plot(time, traj)
+            ax.set_ylabel(sym.latex(symbol, mode='inline'))
+        return axes
 
 
 class ConstraintCollocator(object):
