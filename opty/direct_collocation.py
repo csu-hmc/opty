@@ -246,8 +246,7 @@ class Problem(ipopt.problem):
         use."""
         self.obj_value.append(args[2])
 
-    def plot_trajectories(self, vector, axes_state_traj=None,
-                          axes_input_traj=None):
+    def plot_trajectories(self, vector, axes=None):
         """Returns the axes for two plots. The first plot displays the state
         trajectories versuse time and the second plot displays the input
         trjaectories versus time.
@@ -257,17 +256,13 @@ class Problem(ipopt.problem):
         vector : ndarray, (n * N + m * M + q, )
             The initial guess, solution, or nay other vector that is in the
             canonical form.
-        axes_state_traj : AxesSubplot
-            A matplotlib axes to plot to.
-        axes_input_traj : AxesSubplot
-            A matplotlib axes to plot to.
+        axes : ndarray of AxesSubplot, shape(n + m, )
+            An array of matplotlib axes to plot to.
 
         Returns
         =======
-        axes_state_traj : ndarray of AxesSubplot
-            A matplotlib axes with the state trajectories plotted.
-        axes_input_traj : ndarray of AxesSubplot
-            A matplotlib axes with the input trajectories plotted.
+        axes : ndarray of AxesSubplot
+            A matplotlib axes with the state and input trajectories plotted.
 
         """
 
@@ -280,35 +275,23 @@ class Problem(ipopt.problem):
                          self.collocator.node_time_interval,
                          self.collocator.node_time_interval)[:-1]
 
-        if axes_state_traj is None:
-            fig_state_traj, axes_state_traj = \
-                plt.subplots(self.collocator.num_states, 1, sharex=True)
-        for ax, traj, symbol in zip(axes_state_traj, state_traj,
-                                    self.collocator.state_symbols):
+        num_axes = (self.collocator.num_states +
+                    self.collocator.num_input_trajectories)
+        traj_syms = (self.collocator.state_symbols +
+                     self.collocator.input_trajectories)
+        trajectories = np.vstack((state_traj, input_traj))
+
+        if axes is None:
+            fig, axes = plt.subplots(num_axes, 1, sharex=True)
+
+        for ax, traj, symbol in zip(axes, trajectories, traj_syms):
             ax.plot(time, traj)
             ax.set_ylabel(sym.latex(symbol, mode='inline'))
         ax.set_xlabel('Time')
-        axes_state_traj[0].set_title('State Trajectories')
+        axes[0].set_title('State Trajectories')
+        axes[self.collocator.num_states].set_title('Input Trajectories')
 
-        if self.collocator.num_input_trajectories != 0:
-            if axes_input_traj is None:
-                fig_input_traj, axes_input_traj = \
-                    plt.subplots(self.collocator.num_input_trajectories, 1,
-                                 sharex=True)
-                if self.collocator.num_input_trajectories == 1:
-                    axes_input_traj = np.array((axes_input_traj, ))
-            if self.collocator.num_input_trajectories == 1:
-                input_traj = np.array((input_traj, ))
-            for ax, traj, symbol in zip(axes_input_traj, input_traj,
-                                        self.collocator.input_trajectories):
-                ax.plot(time, traj)
-                ax.set_ylabel(sym.latex(symbol, mode='inline'))
-            ax.set_xlabel('Time')
-            axes_input_traj[0].set_title('Input Trajectories')
-        else:
-            axes_input_traj = None
-
-        return axes_state_traj, axes_input_traj
+        return axes
 
     def plot_constraint_violations(self, vector):
         """Returns an axis with the state constraint violations plotted versus
