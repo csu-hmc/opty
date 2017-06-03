@@ -27,6 +27,8 @@ Options can be viewed with:
 
 """
 
+import os
+
 import numpy as np
 import sympy as sym
 from scipy.integrate import odeint
@@ -35,6 +37,9 @@ from opty.direct_collocation import Problem
 
 
 def main(initial_guess, do_plot=False):
+
+    if os.environ['SPHINX']:
+        do_plot = True
 
     # Specify the symbolic equations of motion.
     p, t = sym.symbols('p, t')
@@ -167,6 +172,7 @@ def main(initial_guess, do_plot=False):
         plt.tight_layout()
 
         plt.show()
+
 
 if __name__ == "__main__":
 

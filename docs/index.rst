@@ -6,11 +6,17 @@
 Welcome to opty's documentation!
 ================================
 
+Contents
+--------
+
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
+   index
+   examples
+   api
 
+.. include:: ../README.rst
 
 Indices and tables
 ==================

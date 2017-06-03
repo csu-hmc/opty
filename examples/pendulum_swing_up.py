@@ -8,6 +8,7 @@ the energy used to do so.
 
 """
 
+import os
 from collections import OrderedDict
 
 import numpy as np
@@ -80,37 +81,37 @@ prob.plot_constraint_violations(solution)
 prob.plot_objective_value()
 
 # Display animation
-time = np.linspace(0.0, duration, num=num_nodes)
-angle = solution[:num_nodes]
+if not os.environ['SPHINX']:
+    time = np.linspace(0.0, duration, num=num_nodes)
+    angle = solution[:num_nodes]
 
-fig = plt.figure()
-ax = fig.add_subplot(111, aspect='equal', autoscale_on=False, xlim=(-2, 2),
-                     ylim=(-2, 2))
-ax.grid()
+    fig = plt.figure()
+    ax = fig.add_subplot(111, aspect='equal', autoscale_on=False, xlim=(-2, 2),
+                         ylim=(-2, 2))
+    ax.grid()
 
-line, = ax.plot([], [], 'o-', lw=2)
-time_template = 'time = {:0.1f}s'
-time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
+    line, = ax.plot([], [], 'o-', lw=2)
+    time_template = 'time = {:0.1f}s'
+    time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
 
+    def init():
+        line.set_data([], [])
+        time_text.set_text('')
+        return line, time_text
 
-def init():
-    line.set_data([], [])
-    time_text.set_text('')
-    return line, time_text
+    def animate(i):
+        x = [0, par_map[d] * np.sin(angle[i])]
+        y = [0, -par_map[d] * np.cos(angle[i])]
 
+        line.set_data(x, y)
+        time_text.set_text(time_template.format(i * interval_value))
+        return line, time_text
 
-def animate(i):
-    x = [0, par_map[d] * np.sin(angle[i])]
-    y = [0, -par_map[d] * np.cos(angle[i])]
+    ani = animation.FuncAnimation(fig, animate, np.arange(1, len(time)),
+                                  interval=25, blit=True, init_func=init)
 
-    line.set_data(x, y)
-    time_text.set_text(time_template.format(i * interval_value))
-    return line, time_text
-
-ani = animation.FuncAnimation(fig, animate, np.arange(1, len(time)),
-                              interval=25, blit=True, init_func=init)
-
-if save_animation:
-    ani.save('pendulum_swing_up.mp4', writer='avconv', fps=15)
+    if save_animation:
+        ani.save('pendulum_swing_up.mp4', writer='ffmpeg',
+                 fps=1 / interval_value)
 
 plt.show()

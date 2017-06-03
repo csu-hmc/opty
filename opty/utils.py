@@ -6,6 +6,7 @@ import shutil
 import tempfile
 import subprocess
 import importlib
+from functools import wraps
 
 import numpy as np
 import sympy as sm
@@ -19,6 +20,7 @@ plt = sm.external.import_module('matplotlib.pyplot',
 def _optional_plt_dep(func):
     """Decorator that aborts function/method call if matplotlib is not
     installed."""
+    @wraps(func)
     def wrapper(*args, **kwargs):
         if plt is None:
             raise ImportError('Install matplotlib for plotting features.')
