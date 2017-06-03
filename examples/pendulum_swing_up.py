@@ -74,45 +74,15 @@ initial_guess = np.random.randn(prob.num_free)
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
 
-# Plot trajectories
-time = np.linspace(0.0, duration, num=num_nodes)
-
-angle = solution[:num_nodes]
-rate = solution[num_nodes:2 * num_nodes]
-torque = solution[2 * num_nodes:]
-
-fig, axes = plt.subplots(3)
-axes[0].set_title('State and Control Trajectories')
-axes[0].plot(time, angle)
-axes[0].set_ylabel('Angle [rad]')
-axes[1].plot(time, rate)
-axes[1].set_ylabel('Angular Rate [rad/s]')
-axes[2].plot(time, torque)
-axes[2].set_ylabel('Torque [Nm]')
-axes[2].set_xlabel('Time [S]')
-
-# Plot constraint violations
-con_violations = prob.con(solution)
-con_nodes = range(2, num_nodes + 1)
-N = len(con_nodes)
-fig, axes = plt.subplots(3)
-axes[0].set_title('Constraint Violations')
-axes[0].plot(con_nodes, con_violations[:N])
-axes[0].set_ylabel('Angle [rad]')
-axes[1].plot(con_nodes, con_violations[N:2 * N])
-axes[1].set_ylabel('Angular Rate [rad/s]')
-axes[1].set_xlabel('Node Number')
-axes[2].plot(con_violations[2 * N:])
-axes[2].set_ylabel('Instance')
-
-# Plot objective value
-fig, ax = plt.subplots(1)
-ax.set_title('Objective Value')
-ax.plot(prob.obj_value)
-ax.set_ylabel('Objective Value')
-ax.set_xlabel('Iteration Number')
+# Make some plots
+prob.plot_trajectories(solution)
+prob.plot_constraint_violations(solution)
+prob.plot_objective_value()
 
 # Display animation
+time = np.linspace(0.0, duration, num=num_nodes)
+angle = solution[:num_nodes]
+
 fig = plt.figure()
 ax = fig.add_subplot(111, aspect='equal', autoscale_on=False, xlim=(-2, 2),
                      ylim=(-2, 2))
