@@ -12,6 +12,8 @@ plt = sm.external.import_module('matplotlib.pyplot',
 
 from .utils import ufuncify_matrix, parse_free, _optional_plt_dep
 
+__all__ = ['Problem', 'ConstraintCollocator']
+
 
 class _DocInherit(object):
     """
@@ -68,7 +70,7 @@ class _DocInherit(object):
     @staticmethod
     def _combine_docs(prob_doc, coll_doc):
         beg, end = prob_doc.split('bounds')
-        _, middle = coll_doc.split('Parameters\n        ==========\n')
+        _, middle = coll_doc.split('Parameters\n        ==========\n        ')
         return beg + middle[:-9] + '        bounds' + end
 
 _doc_inherit = _DocInherit
@@ -359,14 +361,14 @@ class ConstraintCollocator(object):
 
     Notes
     -----
-    N : number of collocation nodes
-    N - 1 + q: number of constraints
-    n : number of states
-    m : number of input trajectories
-    p : number of parameters
-    q : number of unknown input trajectories
-    r : number of unknown parameters
-    o : number of instance constraints
+    - N : number of collocation nodes
+    - N - 1 + q: number of constraints
+    - n : number of states
+    - m : number of input trajectories
+    - p : number of parameters
+    - q : number of unknown input trajectories
+    - r : number of unknown parameters
+    - o : number of instance constraints
 
     """
 

@@ -4,6 +4,9 @@ Introduction
 .. image:: https://img.shields.io/pypi/v/opty.svg
    :target: https://pypi.org/project/opty
 
+.. image:: https://anaconda.org/conda-forge/opty/badges/version.svg
+   :target: https://anaconda.org/conda-forge/opty
+
 .. image:: https://travis-ci.org/csu-hmc/opty.svg?branch=master
    :target: https://travis-ci.org/csu-hmc/opty
 

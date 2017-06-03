@@ -6,11 +6,10 @@ import shutil
 import tempfile
 import subprocess
 import importlib
+from functools import wraps
 
 import numpy as np
 import sympy as sm
-from sympy.utilities.lambdify import implemented_function
-from sympy.utilities.autowrap import autowrap
 plt = sm.external.import_module('matplotlib.pyplot',
                                 __import__kwargs={'fromlist': ['']},
                                 catch=(RuntimeError,))
@@ -19,6 +18,7 @@ plt = sm.external.import_module('matplotlib.pyplot',
 def _optional_plt_dep(func):
     """Decorator that aborts function/method call if matplotlib is not
     installed."""
+    @wraps(func)
     def wrapper(*args, **kwargs):
         if plt is None:
             raise ImportError('Install matplotlib for plotting features.')
@@ -255,74 +255,6 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None):
             shutil.rmtree(codedir)
 
     return getattr(cython_module, d['routine_name'] + '_loop')
-
-
-"""This is a small rewrite of the ufuncify function in sympy so it supports
-array arguments for all values."""
-
-
-def ufuncify(args, expr, **kwargs):
-    """
-    Generates a binary ufunc-like lambda function for numpy arrays
-
-    ``args``
-        Either a Symbol or a tuple of symbols. Specifies the argument sequence
-        for the ufunc-like function.
-
-    ``expr``
-        A SymPy expression that defines the element wise operation
-
-    ``kwargs``
-        Optional keyword arguments are forwarded to autowrap().
-
-    The returned function can only act on one array at a time, as only the
-    first argument accept arrays as input.
-
-    .. Note:: a *proper* numpy ufunc is required to support broadcasting, type
-       casting and more.  The function returned here, may not qualify for
-       numpy's definition of a ufunc.  That why we use the term ufunc-like.
-
-    References
-    ==========
-    [1] http://docs.scipy.org/doc/numpy/reference/ufuncs.html
-
-    Examples
-    ========
-
-    >>> from sympy.utilities.autowrap import ufuncify
-    >>> from sympy.abc import x, y
-    >>> import numpy as np
-    >>> f = ufuncify([x, y], y + x**2)
-    >>> f([1, 2, 3], [2, 2, 2])
-    [ 3.  6.  11.]
-    >>> a = f(np.arange(5), 3 * np.ones(5))
-    >>> isinstance(a, np.ndarray)
-    True
-    >>> print a
-    [ 3. 4. 7. 12. 19.]
-
-    """
-    y = sm.IndexedBase(sm.Dummy('y'))  # result array
-
-    i = sm.Dummy('i', integer=True)  # index of the array
-    m = sm.Dummy('m', integer=True)  # length of array (dimension)
-    i = sm.Idx(i, m)  # index of the array
-
-    l = sm.Lambda(args, expr)  # A lambda function that represents the inputs and outputs of the expression
-    f = implemented_function('f', l)  # maps an UndefinedFunction('f') to the lambda function
-
-    if isinstance(args, sm.Symbol):
-        args = [args]
-    else:
-        args = list(args)
-
-    # For each of the args create an indexed version.
-    indexed_args = [sm.IndexedBase(sm.Dummy(str(a))) for a in args]
-
-    # ensure correct order of arguments
-    kwargs['args'] = [y] + indexed_args + [m]
-    args_with_indices = [a[i] for a in indexed_args]
-    return autowrap(sm.Eq(y[i], f(*args_with_indices)), **kwargs)
 
 
 def controllable(a, b):
