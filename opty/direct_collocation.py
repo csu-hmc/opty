@@ -3,12 +3,12 @@
 from functools import wraps
 
 import numpy as np
-import sympy as sym
+import sympy as sm
 from sympy.physics import mechanics as me
 import ipopt
-plt = sym.external.import_module('matplotlib.pyplot',
-                                 __import__kwargs={'fromlist': ['']},
-                                 catch=(RuntimeError,))
+plt = sm.external.import_module('matplotlib.pyplot',
+                                __import__kwargs={'fromlist': ['']},
+                                catch=(RuntimeError,))
 
 from .utils import ufuncify_matrix, parse_free, _optional_plt_dep
 
@@ -289,7 +289,7 @@ class Problem(ipopt.problem):
 
         for ax, traj, symbol in zip(axes, trajectories, traj_syms):
             ax.plot(time, traj)
-            ax.set_ylabel(sym.latex(symbol, mode='inline'))
+            ax.set_ylabel(sm.latex(symbol, mode='inline'))
         ax.set_xlabel('Time')
         axes[0].set_title('State Trajectories')
         axes[self.collocator.num_states].set_title('Input Trajectories')
@@ -323,14 +323,14 @@ class Problem(ipopt.problem):
         for i, (ax, symbol) in enumerate(zip(axes[:-1],
                                              self.collocator.state_symbols)):
             ax.plot(con_nodes, con_violations[i * N:i * N + N])
-            ax.set_ylabel(sym.latex(symbol, mode='inline'))
+            ax.set_ylabel(sm.latex(symbol, mode='inline'))
 
         axes[0].set_title('Constraint Violations')
         axes[-2].set_xlabel('Node Number')
 
         left = range(len(con_violations[self.collocator.num_states * N:]))
         axes[-1].bar(left, con_violations[self.collocator.num_states * N:],
-                     tick_label=[sym.latex(s, mode='inline')
+                     tick_label=[sm.latex(s, mode='inline')
                                  for s in self.collocator.instance_constraints])
         axes[-1].set_ylabel('Instance')
         axes[-1].set_xticklabels(axes[-1].get_xticklabels(), rotation=-10)
@@ -370,7 +370,7 @@ class ConstraintCollocator(object):
 
     """
 
-    time_interval_symbol = sym.Symbol('h', real=True)
+    time_interval_symbol = sm.Symbol('h', real=True)
 
     def __init__(self, equations_of_motion, state_symbols,
                  num_collocation_nodes, node_time_interval,
@@ -632,29 +632,29 @@ class ConstraintCollocator(object):
 
         # The previus, current, and next states.
         self.previous_discrete_state_symbols = \
-            tuple([sym.Symbol(f.__class__.__name__ + 'p', real=True)
+            tuple([sm.Symbol(f.__class__.__name__ + 'p', real=True)
                    for f in self.state_symbols])
         self.current_discrete_state_symbols = \
-            tuple([sym.Symbol(f.__class__.__name__ + 'i', real=True)
+            tuple([sm.Symbol(f.__class__.__name__ + 'i', real=True)
                    for f in self.state_symbols])
         self.next_discrete_state_symbols = \
-            tuple([sym.Symbol(f.__class__.__name__ + 'n', real=True)
+            tuple([sm.Symbol(f.__class__.__name__ + 'n', real=True)
                    for f in self.state_symbols])
 
         # The current and next known input trajectories.
         self.current_known_discrete_specified_symbols = \
-            tuple([sym.Symbol(f.__class__.__name__ + 'i', real=True)
+            tuple([sm.Symbol(f.__class__.__name__ + 'i', real=True)
                    for f in self.known_input_trajectories])
         self.next_known_discrete_specified_symbols = \
-            tuple([sym.Symbol(f.__class__.__name__ + 'n', real=True)
+            tuple([sm.Symbol(f.__class__.__name__ + 'n', real=True)
                    for f in self.known_input_trajectories])
 
         # The current and next unknown input trajectories.
         self.current_unknown_discrete_specified_symbols = \
-            tuple([sym.Symbol(f.__class__.__name__ + 'i', real=True)
+            tuple([sm.Symbol(f.__class__.__name__ + 'i', real=True)
                    for f in self.unknown_input_trajectories])
         self.next_unknown_discrete_specified_symbols = \
-            tuple([sym.Symbol(f.__class__.__name__ + 'n', real=True)
+            tuple([sm.Symbol(f.__class__.__name__ + 'n', real=True)
                    for f in self.unknown_input_trajectories])
 
         self.current_discrete_specified_symbols = \
@@ -708,7 +708,7 @@ class ConstraintCollocator(object):
         all_funcs = set()
 
         for con in self.instance_constraints:
-            all_funcs = all_funcs.union(con.atoms(sym.Function))
+            all_funcs = all_funcs.union(con.atoms(sm.Function))
 
         self.instance_constraint_function_atoms = all_funcs
 
@@ -739,18 +739,16 @@ class ConstraintCollocator(object):
     def _instance_constraints_func(self):
         """Returns a function that evaluates the instance constraints given
         the free optimization variables."""
-        free = sym.DeferredVector('FREE')
+        free = sm.DeferredVector('FREE')
         def_map = {k: free[v] for k, v in
                    self.instance_constraints_free_index_map.items()}
         subbed_constraints = [con.subs(def_map) for con in
                               self.instance_constraints]
-        f = sym.lambdify(([free] + list(self.known_parameter_map.keys())),
-                         subbed_constraints, modules=[{'ImmutableMatrix':
-                                                       np.array}, "numpy"])
-        def wrapped(free):
-            return f(free, *self.known_parameter_map.values())
+        f = sm.lambdify(([free] + list(self.known_parameter_map.keys())),
+                        subbed_constraints, modules=[{'ImmutableMatrix':
+                                                      np.array}, "numpy"])
 
-        return wrapped
+        return lambda free: f(free, *self.known_parameter_map.values())
 
     def _instance_constraints_jacobian_indices(self):
         """Returns the row and column indices of the non-zero values in the
@@ -763,7 +761,7 @@ class ConstraintCollocator(object):
         cols = []
 
         for i, con in enumerate(self.instance_constraints):
-            funcs = con.atoms(sym.Function)
+            funcs = con.atoms(sm.Function)
             indices = [idx_map[f] for f in funcs]
             row_idxs = num_eom_constraints + i * np.ones(len(indices),
                                                          dtype=int)
@@ -775,7 +773,7 @@ class ConstraintCollocator(object):
     def _instance_constraints_jacobian_values_func(self):
         """Retruns the non-zero values of the constraint Jacobian associated
         with the instance constraints."""
-        free = sym.DeferredVector('FREE')
+        free = sm.DeferredVector('FREE')
 
         def_map = {k: free[v] for k, v in
                    self.instance_constraints_free_index_map.items()}
@@ -783,15 +781,14 @@ class ConstraintCollocator(object):
         funcs = []
         num_vals_per_func = []
         for con in self.instance_constraints:
-            partials = list(con.atoms(sym.Function))
+            partials = list(con.atoms(sm.Function))
             num_vals_per_func.append(len(partials))
-            jac = sym.Matrix([con]).jacobian(partials)
+            jac = sm.Matrix([con]).jacobian(partials)
             jac = jac.subs(def_map)
-            funcs.append(sym.lambdify(([free] +
-                                       list(self.known_parameter_map.keys())),
-                                      jac,
-                                      modules=[{'ImmutableMatrix': np.array},
-                                               "numpy"]))
+            funcs.append(sm.lambdify(([free] +
+                                      list(self.known_parameter_map.keys())),
+                                     jac, modules=[{'ImmutableMatrix':
+                                                    np.array}, "numpy"]))
         l = np.sum(num_vals_per_func)
 
         def wrapped(free):
@@ -1121,20 +1118,20 @@ class ConstraintCollocator(object):
                 col_idxs = [j * N + i + 1 for j in range(n)]
                 col_idxs += [j * N + i for j in range(n)]
                 col_idxs += [n * N + j * N + i + 1 for j in
-                            range(self.num_unknown_input_trajectories)]
+                             range(self.num_unknown_input_trajectories)]
                 col_idxs += [(n + self.num_unknown_input_trajectories) * N + j
-                            for j in range(self.num_unknown_parameters)]
+                             for j in range(self.num_unknown_parameters)]
 
             elif self.integration_method == 'midpoint':
 
                 col_idxs = [j * N + i for j in range(n)]
                 col_idxs += [j * N + i + 1 for j in range(n)]
                 col_idxs += [n * N + j * N + i for j in
-                            range(self.num_unknown_input_trajectories)]
+                             range(self.num_unknown_input_trajectories)]
                 col_idxs += [n * N + j * N + i + 1 for j in
-                            range(self.num_unknown_input_trajectories)]
+                             range(self.num_unknown_input_trajectories)]
                 col_idxs += [(n + self.num_unknown_input_trajectories) * N + j
-                            for j in range(self.num_unknown_parameters)]
+                             for j in range(self.num_unknown_parameters)]
 
             row_idx_permutations = np.repeat(row_idxs, len(col_idxs))
             col_idx_permutations = np.array(list(col_idxs) * len(row_idxs),
