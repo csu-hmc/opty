@@ -5,10 +5,12 @@ from functools import wraps
 import numpy as np
 import sympy as sym
 from sympy.physics import mechanics as me
-import matplotlib.pyplot as plt
 import ipopt
+plt = sym.external.import_module('matplotlib.pyplot',
+                                 __import__kwargs={'fromlist': ['']},
+                                 catch=(RuntimeError,))
 
-from .utils import ufuncify_matrix, parse_free
+from .utils import ufuncify_matrix, parse_free, _optional_plt_dep
 
 
 class _DocInherit(object):
@@ -246,6 +248,7 @@ class Problem(ipopt.problem):
         use."""
         self.obj_value.append(args[2])
 
+    @_optional_plt_dep
     def plot_trajectories(self, vector, axes=None):
         """Returns the axes for two plots. The first plot displays the state
         trajectories versuse time and the second plot displays the input
@@ -293,6 +296,7 @@ class Problem(ipopt.problem):
 
         return axes
 
+    @_optional_plt_dep
     def plot_constraint_violations(self, vector):
         """Returns an axis with the state constraint violations plotted versus
         node number and the instance constraints as a bar graph.
@@ -333,6 +337,7 @@ class Problem(ipopt.problem):
 
         return axes
 
+    @_optional_plt_dep
     def plot_objective_value(self):
         """Returns an axis with the objective value plotted versus the
         optimization iteration. solve() must be run first."""

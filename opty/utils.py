@@ -11,6 +11,20 @@ import numpy as np
 import sympy as sy
 from sympy.utilities.lambdify import implemented_function
 from sympy.utilities.autowrap import autowrap
+plt = sym.external.import_module('matplotlib.pyplot',
+                                 __import__kwargs={'fromlist': ['']},
+                                 catch=(RuntimeError,))
+
+
+def _optional_plt_dep(func):
+    """Decorator that aborts function/method call if matplotlib is not
+    installed."""
+    def wrapper(*args, **kwargs):
+        if plt is None:
+            raise ImportError('Install matplotlib for plotting features.')
+        else:
+            func(*args, **kwargs)
+    return wrapper
 
 
 def state_derivatives(states):
