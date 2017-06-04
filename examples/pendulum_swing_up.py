@@ -8,12 +8,12 @@ the energy used to do so.
 
 """
 
-import os
 from collections import OrderedDict
 
 import numpy as np
 import sympy as sym
 from opty.direct_collocation import Problem
+from opty.utils import building_docs
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
@@ -81,7 +81,7 @@ prob.plot_constraint_violations(solution)
 prob.plot_objective_value()
 
 # Display animation
-if not os.environ['SPHINX'] or not os.environ['READTHEDOCS']:
+if building_docs():
     time = np.linspace(0.0, duration, num=num_nodes)
     angle = solution[:num_nodes]
 

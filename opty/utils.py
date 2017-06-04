@@ -15,6 +15,20 @@ plt = sm.external.import_module('matplotlib.pyplot',
                                 catch=(RuntimeError,))
 
 
+def building_docs():
+    try:
+        os.eviron['READTHEDOCS']
+    except:
+        try:
+            os.environ['SPHINX']
+        except:
+            pass
+        else:
+            return True
+    else:
+        return True
+
+
 def _optional_plt_dep(func):
     """Decorator that aborts function/method call if matplotlib is not
     installed."""

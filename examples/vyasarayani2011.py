@@ -27,18 +27,17 @@ Options can be viewed with:
 
 """
 
-import os
-
 import numpy as np
 import sympy as sym
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
 from opty.direct_collocation import Problem
+from opty.utils import building_docs
 
 
 def main(initial_guess, do_plot=False):
 
-    if os.environ['SPHINX'] or os.eviron['READTHEDOCS']:
+    if building_docs:
         do_plot = True
 
     # Specify the symbolic equations of motion.
