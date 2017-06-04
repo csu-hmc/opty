@@ -8,7 +8,7 @@ Introduction
    :target: https://anaconda.org/conda-forge/opty
 
 .. image:: https://readthedocs.org/projects/opty/badge/?version=stable
-   :target: https://opty.readthdocs.io
+   :target: http://opty.readthedocs.io
 
 .. image:: https://travis-ci.org/csu-hmc/opty.svg?branch=master
    :target: https://travis-ci.org/csu-hmc/opty
