@@ -7,6 +7,9 @@ Introduction
 .. image:: https://anaconda.org/conda-forge/opty/badges/version.svg
    :target: https://anaconda.org/conda-forge/opty
 
+.. image:: https://readthedocs.org/projects/opty/badge/?version=stable
+   :target: https://opty.readthdocs.io
+
 .. image:: https://travis-ci.org/csu-hmc/opty.svg?branch=master
    :target: https://travis-ci.org/csu-hmc/opty
 
