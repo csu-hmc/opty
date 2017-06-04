@@ -38,7 +38,7 @@ from opty.direct_collocation import Problem
 
 def main(initial_guess, do_plot=False):
 
-    if os.environ['SPHINX']:
+    if os.environ['SPHINX'] or os.eviron['READTHEDOCS']:
         do_plot = True
 
     # Specify the symbolic equations of motion.
