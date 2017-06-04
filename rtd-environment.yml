@@ -10,3 +10,4 @@ dependencies:
 - cython
 - cyipopt
 - matplotlib
+- sphinx >=1.4
