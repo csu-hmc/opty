@@ -22,7 +22,7 @@ order ordinary differential equations of the system as symbolic expressions
 dynamical constraints and a function that evaluates the sparse Jacobian of the
 constraints, which have been optimized for speed and memory consumption. The
 translation of the dynamical system description to the NLP form, primarily the
-formation of the constraints and the Jabcobian of the constraints, manually is
+formation of the constraints and the Jacobian of the constraints, manually is
 a time consuming and error prone process. ``opty`` eliminates both of those
 issues.
 
