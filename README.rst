@@ -60,6 +60,10 @@ To run all of the examples the following additional dependencies are required:
 - pandas
 - yeadon
 
+**Currently only Linux and Mac are officially supported.** Although, it should
+be possible to install this on Windows with an appropriate Cython compilation
+toolchain and IPOPT installed from binaries or custom compliation.
+
 If you are installing on Linux or Mac, the easiest way to get started is to
 install Anaconda_ (or Miniconda_) and use conda to install opty and any desired
 optional dependencies from the Conda Forge channel, e.g.::
@@ -81,8 +85,9 @@ https://www.coin-or.org/download/binary/Ipopt/.
 
 For customized installation (usually desired for performance) follow the
 instructions on the IPOPT documentation to compile the library. If you install
-to a location other than `/usr/local` you will likely have to set the
-``LD_LIBRARY_PATH`` so that you can link to IPOPT when installing ``cyipopt``.
+to a location other than `/usr/local` on Unix systems you will likely have to
+set the ``LD_LIBRARY_PATH`` so that you can link to IPOPT when installing
+``cyipopt``.
 
 Once Ipopt is installed and accessible, install conda then create an environment::
 
@@ -112,6 +117,6 @@ Usage
 
 There are several examples available in the ``examples`` directory. For
 example, the optimal torque to swing up a pendulum with minimal energy can be
-found with::
+run with::
 
    $ python examples/pendulum_swing_up.py
