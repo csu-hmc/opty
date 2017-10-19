@@ -38,4 +38,8 @@ for use in Python. The target audience are engineers and scientists interested
 in solving nonlinear optimal control and parameter identification problems with
 minimal overhead.
 
+This software is in use at the Cleveland State University Human Motion and
+Control Laboratory for research in the identification and prediction of human
+control in standing and locomotion.
+
 # References
