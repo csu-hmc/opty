@@ -29,7 +29,7 @@ opty operates on symbolic descriptions of ordinary differential equations to
 form the constraints needed to solve trajectory optimization and parameter
 identification problems using the direct collocation method [@Betts2010]. The
 direct collocation problem is then solved using non-linear programming through
-cyipopt [Cyipopt2017] and IPOPT [@Watcher2006]. The software allows the user to
+cyipopt [@Cyipopt2017] and IPOPT [@Watcher2006]. The software allows the user to
 describe the dynamical system of interest at a high level in symbolic form
 without needing to concern themselves with the numerical computation details.
 To do this, SymPy [@Meurer2017] and Cython [@Behnel2011] are utilized for code
@@ -38,24 +38,30 @@ for use in Python. The target audience are engineers and scientists interested
 in solving nonlinear optimal control and parameter identification problems with
 minimal overhead.
 
-Direct collocation methods have been especially successful in the
-field of human movement [@Ackermann2010, @vandenBogert2012] because those systems are
-highly nonlinear, dynamically stiff, and unstable with open loop control. Typically,
-closed-source tools were used for multibody dynamics
-(SD/Fast, Autolev), for optimization (SNOPT),
-and for the programming environment (Matlab).  Recently, promising work has
-been done with the Opensim/Simbody dynamics engine [@LeeUmberger2016, @LinPandy2017],
-but this requires that Jacobian matrices are approximated by finite derivatives.
-In contrast, opty provides symbolic differentiation which makes the code faster and
-prevents poor convergence when the severe nonlinearity causes finite differences
-to be inaccurate.  Furthermore, opty allows the system to be formulated using
-an implicit differential equation, which often results in far simpler equations and
-better numerical conditioning. The first application of opty was in the identification of
-feedback control parameters for human standing [@MooreTGCS2015]. It should be noted that opty can use any dynamic system model and is not limited to human movement.  
+Direct collocation methods have been especially successful in the field of
+human movement [@Ackermann2010, @vandenBogert2012] because those systems are
+highly nonlinear, dynamically stiff, and unstable with open loop control.
+Typically, closed-source tools were used for multibody dynamics (SD/Fast,
+Autolev), for optimization (SNOPT), and for the programming environment
+(Matlab). Recently, promising work has been done with the Opensim/Simbody
+dynamics engine [@LeeUmberger2016, @LinPandy2017], but this requires that
+Jacobian matrices are approximated by finite derivatives. In contrast, opty
+provides symbolic differentiation which makes the code faster and prevents poor
+convergence when the severe nonlinearity causes finite differences to be
+inaccurate. Furthermore, opty allows the system to be formulated using an
+implicit differential equation, which often results in far simpler equations
+and better numerical conditioning. The first application of opty was in the
+identification of feedback control parameters for human standing
+[@MooreTGCS2015]. It should be noted that opty can use any dynamic system model
+and is not limited to human movement.
 
-Presently, opty only implements first order (backward Euler) and second order (midpoint Euler)
-approximations of the dynamics. Higher accuracy and/or larger time steps can be achieved with higher order polynomials [@PattersonRao2014], and opty could be extended towards such capabilities. In our experience, however, the low order discretizations provide more robust convergence to the
-globally optimal trajectory in a nonlinear system when a good initial guess is not available [@Zarei2016].
+Presently, opty only implements first order (backward Euler) and second order
+(midpoint Euler) approximations of the dynamics. Higher accuracy and/or larger
+time steps can be achieved with higher order polynomials [@PattersonRao2014],
+and opty could be extended towards such capabilities. In our experience,
+however, the low order discretizations provide more robust convergence to the
+globally optimal trajectory in a nonlinear system when a good initial guess is
+not available [@Zarei2016].
 
 Feature comparison (this should be in a table if we do it)
 
