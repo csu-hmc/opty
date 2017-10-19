@@ -1,0 +1,11 @@
+Patches to the software are welcomed. Authors retain copyright of patches but
+release under the same license as opty on merge. It is preferable to submit
+patches as Github pull requests. There are no guidelines for issues and pull
+requests. Feel free to copy guidelines and patterns from other popular open
+source Python packages.
+
+The opty documentation can be found at http://opty.readthedocs.org.
+
+Any questions, concerns, bug reports, etc should be submitted as Github issues.
+
+Be nice :)
