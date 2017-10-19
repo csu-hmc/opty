@@ -120,3 +120,10 @@ example, the optimal torque to swing up a pendulum with minimal energy can be
 run with::
 
    $ python examples/pendulum_swing_up.py
+
+Funding
+=======
+
+The work was partially funded by the State of Ohio Third Frontier Commission
+through the Wright Center for Sensor Systems Engineering (WCSSE) and by the
+National Science Foundation under Grant No. 1344954.
