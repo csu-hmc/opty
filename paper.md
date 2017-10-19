@@ -20,7 +20,7 @@ affiliations:
  - name: Cleveland State University
    index: 2
 date: 04 June 2017
-bibliography: joss.bib
+bibliography: paper.bib
 ---
 
 # Summary
