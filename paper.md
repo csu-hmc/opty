@@ -75,6 +75,7 @@ not available [@Zarei2016].
 There are existing software packages that have similarities to opty. Below, is
 a feature comparison to opty:
 
+```
 +========+============+================+===========================+======+========================+==========+=============================+
 |        |            |                |                           |      |                        | Implicit |                             |
 | Name   | Language   | License        | Derivatives               | DAEs |  Discretization        | dynamics | Solvers                     |
@@ -100,6 +101,7 @@ a feature comparison to opty:
 +--------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
 | opty   | Python     | BSD 2-Clause   | Analytic                  | ?    | Euler, Midpoint        |          | IPOPT                       |
 +--------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
+```
 
 Data for the table:
 
