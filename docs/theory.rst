@@ -24,14 +24,15 @@ unknown quantities:
 
    \mathbf{r} = \left[ \mathbf{p}_k \quad \mathbf{p}_u \right]
 
-Then there are optimal trajectories :math:`\mathbf{r}_u` and optimal values of
-:math:`\mathbf{p}_u` if some cost function, :math:`J(\mathbf{r}_u, \mathbf{p})`
-is specified. In addition one may specify some constraints on the trajectories
-or parameters in the form of:
+Then there are optimal state trajectories :math:`\mathbf{x}`, optimal input
+trajectories :math:`\mathbf{r}_u` and optimal parameter values
+:math:`\mathbf{p}_u` if some cost function, :math:`J(\mathbf{x}, \mathbf{r}_u,
+\mathbf{p})` is specified. In addition one may specify some constraints on the
+trajectories or parameters in the form of:
 
 .. math::
 
-    \mathbf{c}^L \leq \mathbf{c} \leq \mathbf{c}^U \\
+    \mathbf{c}^L \leq \mathbf{c} \leq \mathbf{c}^U
 
 Constraints can be:
 
@@ -42,12 +43,15 @@ Constraints can be:
 This is typically called an optimal control problem where you are seeking the
 optimal open loop input trajectories and/or the optimal system parameters such
 that the dynamical system does a task in an optimal way. This problem can be
-rewritten as a non-linear programming problem using direct collocation methods.
-In addition to the above constraints the differential equations can be
+rewritten as a non-linear programming problem using direct collocation methods
+and solved using optimizers for NLP problems.
+
+In addition, to the above constraints the differential equations can be
 discretized using a variety of integration methods and appended as additional
 optimality constraints. This ensures that the dynamics are abided by at each
-discretized time instance. Using the backward Euler method of integration, the
-approximation of the derivative of the states is:
+discretized time instance and relieves the need to integrate the equations as
+one does in shooting methods. Using the backward Euler method of integration,
+the approximation of the derivative of the states is:
 
 .. math::
 
@@ -59,18 +63,25 @@ and using the midpoint formual:
 
 .. math::
 
-   \frac{d\mathbf{x}}{dt} \approx \frac{\mathbf{x}_{i+1} - \mathbf{x}_{i}}{h}
+   \frac{d\mathbf{x}}{dt} & \approx & \frac{\mathbf{x}_{i+1} - \mathbf{x}_{i}}{h} \\
+   \mathbf{x}(t) & \approx & \frac{\mathbf{x}_i + \mathbf{x}_{i+1}}{2} \\
+   \mathbf{u}(t) & \approx & \frac{\mathbf{u}_i + \mathbf{u}_{i+1}}{2}
 
-   \mathbf{x}(t) \approx \frac{\mathbf{x}_i + \mathbf{x}_{i+1}}{2}
-
-   \mathbf{u}(t) \approx \frac{\mathbf{u}_i + \mathbf{u}_{i+1}}{2}
-
-Using the Euler approximation :math:`f` can be discretized to become:
+Using the Euler approximation :math:`\mathbf{f}` can be discretized to become:
 
 .. math::
 
-   \mathbf{f}_i = f\left(\frac{\mathbf{x}_i - \mathbf{x}_{i-1}}{h},
-                         \mathbf{x}_i, \mathbf{u}_i, \mathbf{p}, t_i\right) = 0
+   \mathbf{f}_i = \mathbf{f}\left(\frac{\mathbf{x}_i - \mathbf{x}_{i-1}}{h},
+                                  \mathbf{x}_i, \mathbf{u}_i, \mathbf{p}, t_i\right) = 0
+
+Using the midpoint approximation :math:`\mathbf{f}` can be discretized to become:
+
+.. math::
+
+   \mathbf{f}_i = \mathbf{f}\left(\frac{\mathbf{x}_i - \mathbf{x}_{i-1}}{h},
+                                  \frac{\mathbf{x}_i + \mathbf{x}_{i+1}}{2},
+                                  \frac{\mathbf{u}_i + \mathbf{u}_{i+1}}{2},
+                                  \mathbf{p}, t_i\right) = 0
 
 This creates :math:`m` sets of :math:`n` constraints.
 
