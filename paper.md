@@ -78,11 +78,11 @@ a feature comparison to opty:
 ```
 +========+============+================+===========================+======+========================+==========+=============================+
 |        |            |                |                           |      |                        | Implicit |                             |
-| Name   | Language   | License        | Derivatives               | DAEs |  Discretization        | dynamics | Solvers                     |
+| Name   | Language   | License        | Derivatives               | DAEs |  Discretization        | dynamics | Solvers                     | URL |
 +========+============+================+===========================+======+========================+==========+=============================+
 | DIRCOL | Fortran    | Non-commercial | Finite differences        | Yes  | Piecewise linear/cubic | Yes      |                             |
 +--------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| GPOPSi | Matlab     | Commercial     | Automatic differentiation | No   | Pseudospectral         | No       | SNOPT                       |
+| GPOPS | Matlab     | Commercial     | Automatic differentiation | No   | Pseudospectral         | No       | SNOPT                       |
 +--------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
 | SOCS   | Fortran    | Commercial     | Finite differences        | Yes  | Euler, RK, & others    |          |                             |
 +--------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
@@ -147,10 +147,6 @@ DAE: probably not
 (tried this when it was available from TOMLAB, many years ago, and it ran out of memory for higher dimensional
 problems -- TOMLAB does not have it anymore, but PROPT may be the same thing)
 
-MUSCOD http://www.iwr.uni-heidelberg.de/~agbock/RESEARCH/muscod.php
-(multiple shooting, not collocation)
 
-RIOTS http://www.schwartz-home.com/riots/
-(looks like single shooting, quite old)
 
 # References
