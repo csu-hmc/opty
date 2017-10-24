@@ -80,17 +80,17 @@ a feature comparison to opty:
 |        |            |                |                           |      |                        | Implicit |                             |
 | Name   | Language   | License        | Derivatives               | DAEs |  Discretization        | dynamics | Solvers                     | URL |
 +========+============+================+===========================+======+========================+==========+=============================+
-| DIRCOL | Fortran    | Non-commercial | Finite differences        | Yes  | Piecewise linear/cubic | Yes      |                             |
+| DIRCOL | Fortran    | Non-commercial | Finite differences        | Yes  | Piecewise linear/cubic | Yes      | NPSOL, SNOPT                            |
 +--------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| GPOPS | Matlab     | Commercial     | Automatic differentiation | No   | Pseudospectral         | No       | SNOPT                       |
+| GPOPS  | Matlab     | Commercial     | Automatic differentiation | No   | Pseudospectral         | No       | SNOPT, IPOPT                       |
 +--------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| SOCS   | Fortran    | Commercial     | Finite differences        | Yes  | Euler, RK, & others    |          |                             |
+| SOCS   | Fortran    | Commercial     | Finite differences        | Yes  | Euler, RK, & others    | Yes      | built-in                            |
 +--------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| PROPT  | Matlab     | Commercial     | Analytic                  | Yes  | Pseudospectral         |          |                             |
+| PROPT  | Matlab     | Commercial     | Analytic                  | Yes  | Pseudospectral         | Yes      | SNOPT, KNITRO                            |
 +--------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| DIDO   | Matlab     | Commercial     | Analytic                  | No   | Pseduospectral         |          |                             |
+| DIDO   | Matlab     | Commercial     | Analytic                  | No   | Pseudospectral         | Yes      | built-in                            |
 +--------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| Casadi | C++/Python | LGPL           | Automatic differentiation | Yes  | ?                      | ?        | IPOPT, SNOPT, WORHP, KNITRO |
+| Casadi | C++/Python | LGPL           | Automatic differentiation | Yes  | ?                      | Yes      | IPOPT, SNOPT, WORHP, KNITRO |
 +--------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
 | PSOPT  | C++        | GPL            | Automatic differentiation |      | Pseudospectral         |          | IPOPT, SNOPT                |
 |        |            |                | Sparse finite differences |      |                        |          |                             |
@@ -103,49 +103,17 @@ a feature comparison to opty:
 +--------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
 ```
 
-Data for the table:
+Should we add URLs and references in the Table?
 
-DIRCOL [@vonStryk1993]
-Fortran
-Free license for non-commercial use
-Discretization: piecewise linear for controls, piecewise cubic for states
-Analytical derivatives: no, seems to do finite difference internally
-DAE (implicit dynamics): yes
+DIRCOL [@vonStryk1993] http://www.sim.informatik.tu-darmstadt.de/en/res/sw/dircol/
+GPOPS [@PattersonRao2014] http://www.gpops2.com/
+SOCS [@Betts2010] http://www.boeing.com/assets/pdf/phantom/socs/docs/SOCS_Users_Guide.pdf
+PROPT http://tomdyn.com/index.html
+DIDO [@Ross2002] http://www.elissarglobal.com/industry/products/software-3/
 
+What is unique about opty, and can we use the Table or text to show that?  The just in time compilation?  Scales well to high-dimensional dynamics?
 
-GPOPS [@PattersonRao2014]
-Matlab
-Commercial, closed source
-Discretization: pseudospectral
-Analytical derivatives: generated from user's functions by automatic differentiation
-DAE (implicit dynamics): no, explicit xdot only
-
-
-SOCS [@Betts2010]
-Fortran (Boeing)
-Commercial, closed source
-Discretization: Euler, RK and other ODE integration formulae
-Analytical derivatives: no.  tool for sparse finite differences is provided
-(Tomlab used to sell a Matlab interface, no longer available)
-DAE: yes
-
-
-PROPT
-Matlab (TOMLAB)
-Commercial, closed source
-Discretization: pseudospectral
-Analytical derivatives: yes, symbolic
-DAE: yes
-
-
-DIDO http://www.elissarglobal.com/industry/products/software-3/
-Matlab
-Commercial, closed source
-Discretization: pseudospectral
-Analytical derivatives: yes, symbolic
-DAE: probably not
-(tried this when it was available from TOMLAB, many years ago, and it ran out of memory for higher dimensional
-problems -- TOMLAB does not have it anymore, but PROPT may be the same thing)
+Casadi does not have collocation built in, so maybe does not belong in the table.  It is basically a NLP solver interface with automatic differentiation to generate jacobians and hessians.  Direct collocation is mentioned (very) briefly in the manual, and used in one of the examples: https://github.com/casadi/casadi/blob/master/docs/examples/matlab/direct_collocation.m
 
 
 
