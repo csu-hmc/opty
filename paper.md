@@ -72,62 +72,55 @@ however, the low order discretizations provide more robust convergence to the
 globally optimal trajectory in a nonlinear system when a good initial guess is
 not available [@Zarei2016].
 
-There are existing software packages that have similarities to opty. Below, is
-a feature comparison to opty:
+There are existing software packages that can solve optimal control problems
+and have have similarities to opty. Below, is a feature comparison:
 
 ```
-+========+=====================+============+================+===========================+======+========================+==========+=============================+
-|        |                     |            |                |                           |      |                        | Implicit |                             |
-| Name   | Citation            | Language   | License        | Derivatives               | DAEs |  Discretization        | dynamics | Solvers                     |
-+========+=====================+============+===========================+======+========================+==========+==============================================+
-| Casadi |                     | C++/Python | LGPL           | Automatic differentiation | Yes  | ?                      | Yes      | IPOPT, SNOPT, WORHP, KNITRO |
-+--------+---------------------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| DIDO   | [@Ross2002]         | Matlab     | Commercial     | Analytic                  | No   | Pseudospectral         | Yes      | built-in                    |
-+--------+---------------------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| DIRCOL | [@vonStryk1993]     | Fortran    | Non-commercial | Finite differences        | Yes  | Piecewise linear/cubic | Yes      | NPSOL, SNOPT                |
-+--------+---------------------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| DYNOPT |                     |            |                |                           |      |                        |          |                             |
-+--------+---------------------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| GESOP  |                     |            |                |                           |      |                        |          |                             |
-+--------+---------------------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| GPOPS  | [@PattersonRao2014] | Matlab     | Commercial     | Automatic differentiation | No   | Pseudospectral         | No       | SNOPT, IPOPT                |
-+--------+---------------------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| opty   |                     | Python     | BSD 2-Clause   | Analytic                  | Yes  | Euler, Midpoint        | Yes      | IPOPT                       |
-+--------+---------------------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| PROPT  |                     | Matlab     | Commercial     | Analytic                  | Yes  | Pseudospectral         | Yes      | SNOPT, KNITRO               |
-+--------+---------------------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| PSOPT  |                     | C++        | GPL            | Automatic differentiation |      | Pseudospectral         |          | IPOPT, SNOPT                |
-|        |                     |            |                | Sparse finite differences |      |                        |          |                             |
-+--------+---------------------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
-| SOCS   | [@Betts2010]        | Fortran    | Commercial     | Finite differences        | Yes  | Euler, RK, & others    | Yes      | built-in                    |
-+--------+---------------------+------------+----------------+---------------------------+------+------------------------+----------+-----------------------------+
++========+=====================+============+================+=============================+======+========================+==========+=================+=================================================================================================+
+|        |                     |            |                |                             |      |                        | Implicit |                 |                                                                                                 |
+| Name   | Citation            | Language   | License        | Derivatives                 | DAEs |  Discretization        | dynamics | Solvers         | Project Website                                                                                 |
++========+=====================+============+================+=============================+======+========================+==========+=================+=================================================================================================+
+| Casadi | [@Andersson2013]    | - C++      | LGPL           | Automatic differentiation   | Yes  | None                   | Yes      | - IPOPT, WORHP  |                                                                                                 |
+|        |                     | - Python   |                |                             |      |                        |          | - SNOPT, KNITRO |                                                                                                 |
+|        |                     | - Octave   |                |                             |      |                        |          |                 |                                                                                                 |
++--------+---------------------+------------+----------------+-----------------------------+------+------------------------+----------+-----------------+-------------------------------------------------------------------------------------------------+
+| DIDO   | [@Ross2002]         | Matlab     | Commercial     | Analytic                    | No   | Pseudospectral         | Yes      | built-in        | `DIDO Website <http://www.elissarglobal.com/industry/products/software-3/)>`_                   |
++--------+---------------------+------------+----------------+-----------------------------+------+------------------------+----------+-----------------+-------------------------------------------------------------------------------------------------+
+| DIRCOL | [@vonStryk1993]     | Fortran    | Non-commercial | Finite differences          | Yes  | Piecewise linear/cubic | Yes      | NPSOL, SNOPT    | `DIRCOL Website <http://www.sim.informatik.tu-darmstadt.de/en/res/sw/dircol/)>`_                |
++--------+---------------------+------------+----------------+-----------------------------+------+------------------------+----------+-----------------+-------------------------------------------------------------------------------------------------+
+| DYNOPT |                     |            |                |                             |      |                        |          |                 |                                                                                                 |
++--------+---------------------+------------+----------------+-----------------------------+------+------------------------+----------+-----------------+-------------------------------------------------------------------------------------------------+
+| GESOP  |                     |            |                |                             |      |                        |          |                 |                                                                                                 |
++--------+---------------------+------------+----------------+-----------------------------+------+------------------------+----------+-----------------+-------------------------------------------------------------------------------------------------+
+| GPOPS  | [@PattersonRao2014] | Matlab     | Commercial     | Automatic differentiation   | No   | Pseudospectral         | No       | SNOPT, IPOPT    | `GPOPS Website <http://www.gpops2.com/)>`_                                                      |
++--------+---------------------+------------+----------------+-----------------------------+------+------------------------+----------+-----------------+-------------------------------------------------------------------------------------------------+
+| opty   |                     | Python     | BSD 2-Clause   | Analytic                    | Yes  | Euler, Midpoint        | Yes      | IPOPT           | `opty Documentation <http://opty.readthedocs.io>`_                                              |
++--------+---------------------+------------+----------------+-----------------------------+------+------------------------+----------+-----------------+-------------------------------------------------------------------------------------------------+
+| PROPT  |                     | Matlab     | Commercial     | Analytic                    | Yes  | Pseudospectral         | Yes      | SNOPT, KNITRO   | `TOMDYN Website <http://tomdyn.com/index.html>`_                                                |
++--------+---------------------+------------+----------------+-----------------------------+------+------------------------+----------+-----------------+-------------------------------------------------------------------------------------------------+
+| PSOPT  | [@Becerra2010]      | C++        | GPL            | - Automatic differentiation |      | Pseudospectral         |          | IPOPT, SNOPT    |                                                                                                 |
+|        |                     |            |                | - Sparse finite differences |      |                        |          |                 |                                                                                                 |
++--------+---------------------+------------+----------------+-----------------------------+------+------------------------+----------+-----------------+-------------------------------------------------------------------------------------------------+
+| SOCS   | [@Betts2010]        | Fortran    | Commercial     | Finite differences          | Yes  | Euler, RK, & others    | Yes      | built-in        | `SOCS Documentation <http://www.boeing.com/assets/pdf/phantom/socs/docs/SOCS_Users_Guide.pdf>`_ |
++--------+---------------------+------------+----------------+-----------------------------+------+------------------------+----------+-----------------+-------------------------------------------------------------------------------------------------+
 ```
 
-Should we add URLs and references in the Table? Let's put the urls in the bib
-file and just a citation here.
-
-DIRCOL [@vonStryk1993] http://www.sim.informatik.tu-darmstadt.de/en/res/sw/dircol/
-GPOPS [@PattersonRao2014] http://www.gpops2.com/
-SOCS [@Betts2010] http://www.boeing.com/assets/pdf/phantom/socs/docs/SOCS_Users_Guide.pdf
-PROPT http://tomdyn.com/index.html
-DIDO [@Ross2002] http://www.elissarglobal.com/industry/products/software-3/
-
-What is unique about opty, and can we use the Table or text to show that? The
-just in time compilation?  Scales well to high-dimensional dynamics?
-
-Things I think make opty unique:
-
-- BSD license
-- High level language: Python
-- SymPy is core dependency: write problem description as SymPy expressions
-- Efficient sparse constraint eval (not sure how this compares to others)
-
-Casadi does not have collocation built in, so maybe does not belong in the
-table. It is basically a NLP solver interface with automatic differentiation
-to generate jacobians and hessians. Direct collocation is mentioned (very)
-briefly in the manual, and used in one of the examples:
-https://github.com/casadi/casadi/blob/master/docs/examples/matlab/direct_collocation.m
-
-Good catch.
+Each of these software packages offer a different combination of attributes and
+features that make it useful for different problems. opty is the only package
+that has a liberal open source license, following precedent set by other core
+scientific Python packages. This allows anyone to use and modify the code
+without having to share the source of their application. opty also is the only
+package, open source or not, that allows (in fact forces) the user to describe
+their problem via a high level symbolic mathematical description using the API
+of a widely used computer algebra system. This relieves the user from having to
+translate the much simpler continuous problem definition into a discretize NLP
+problem. opty leverages the popular Scientific Python core tools like NumPy,
+SymPy, and matplotlib allowing users to include opty code into Python programs.
+set of tools. Lastly, the numeric code generated by opty to evaluate the NLP
+constraints is highly optimized and provides extremely efficient [parallel]
+evaluation of the contraints. This becomes very valuable for high dimensional
+dynamics. opty currently does not offer a wide range of discretization methods
+nor support for solvers other than IPOPT, but those could relatively easily be
+added based on user need.
 
 # References
