@@ -137,7 +137,7 @@ For the midpoint method:
                                   \frac{\mathbf{r}_i + \mathbf{r}_{i+1}}{2},
                                   \mathbf{p}, t_i\right) = \mathbf{0}
 
-Then, defining :math:`\mathbf{x}` to be:
+Then, defining :math:`\mathbf{x}_i` to be:
 
 .. math::
 
