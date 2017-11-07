@@ -7,6 +7,7 @@ import tempfile
 import subprocess
 import importlib
 from functools import wraps
+import warnings
 
 import numpy as np
 import sympy as sm
@@ -178,6 +179,7 @@ int main() {
 
     compiler = os.getenv('CC', 'cc')
 
+    exit = 1
     try:
         with open(os.devnull, 'w') as fnull:
             exit = subprocess.call([compiler, '-fopenmp', filename],
@@ -251,7 +253,16 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
          'num_rows': expr.shape[0],
          'num_cols': expr.shape[1]}
 
-    if parallel and openmp_installed():
+    if parallel:
+        if openmp_installed():
+            openmp = True
+        else:
+            openmp = False
+            msg = ('openmp is not installed or not working properly, request '
+                   'for parallel execution ignored.')
+            warnings.warn(msg)
+
+    if parallel and openmp:
         d['loop_sig'] = "prange(n, nogil=True)"
         d['head_gil'] = " nogil"
         d['compile_args'] = "'-fopenmp'"
