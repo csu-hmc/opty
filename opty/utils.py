@@ -115,7 +115,7 @@ from cython.parallel import prange
 cimport numpy as np
 cimport cython
 
-cdef extern from "{file_prefix}_h.h" nogil:
+cdef extern from "{file_prefix}_h.h"{head_gil}:
     void {routine_name}(double matrix[{matrix_output_size}], {input_args})
 
 @cython.boundscheck(False)
@@ -126,7 +126,7 @@ def {routine_name}_loop(np.ndarray[np.double_t, ndim=2] matrix, {numpy_typed_inp
 
     cdef int i
 
-    for i in prange(n, nogil=True):
+    for i in {loop_sig}:
         {routine_name}(&matrix[i, 0], {indexed_input_args})
 
     return matrix.reshape(n, {num_rows}, {num_cols})
@@ -141,9 +141,8 @@ from Cython.Build import cythonize
 extension = Extension(name="{file_prefix}",
                       sources=["{file_prefix}.pyx",
                                "{file_prefix}_c.c"],
-                      #extra_compile_args=["-ffast-math"],
-                      extra_compile_args=['-fopenmp'],
-                      extra_link_args=['-fopenmp'],
+                      extra_compile_args=[{compile_args}],
+                      extra_link_args=[{link_args}],
                       include_dirs=[numpy.get_include()])
 
 setup(name="{routine_name}",
@@ -153,7 +152,46 @@ setup(name="{routine_name}",
 module_counter = 0
 
 
-def ufuncify_matrix(args, expr, const=None, tmp_dir=None):
+def openmp_installed():
+    """Returns true if openmp is installed, false if not.
+
+    Modified from:
+    https://stackoverflow.com/questions/16549893/programatically-testing-for-openmp-support-from-a-python-setup-script
+
+    """
+    tmpdir = tempfile.mkdtemp()
+    curdir = os.getcwd()
+    os.chdir(tmpdir)
+
+    filename = r'test.c'
+    contents = r"""\
+#include <omp.h>
+#include <stdio.h>
+int main() {
+    #pragma omp parallel
+    printf("Hello from thread %d, nthreads %d\n",
+           omp_get_thread_num(), omp_get_num_threads());
+}"""
+
+    with open(filename, 'w') as f:
+        f.write(contents)
+
+    compiler = os.getenv('CC', 'cc')
+
+    try:
+        with open(os.devnull, 'w') as fnull:
+            exit = subprocess.call([compiler, '-fopenmp', filename],
+                                   stdout=fnull, stderr=fnull)
+    except:
+        raise
+    finally:  # cleanup even if compilation fails
+        os.chdir(curdir)
+        shutil.rmtree(tmpdir)
+
+    return True if exit == 0 else False
+
+
+def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
     """Returns a function that evaluates a matrix of expressions in a tight
     loop.
 
@@ -171,6 +209,10 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None):
         The path to a directory in which to store the generated files. If
         None then the files will be not be retained after the function is
         compiled.
+    parallel : boolean, optional
+        If True and openmp is installed, the generated code will be
+        parallelized across threads. This is only useful when expr are
+        extremely large.
 
     """
 
@@ -209,6 +251,17 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None):
          'num_rows': expr.shape[0],
          'num_cols': expr.shape[1]}
 
+    if parallel and openmp_installed():
+        d['loop_sig'] = "prange(n, nogil=True)"
+        d['head_gil'] = " nogil"
+        d['compile_args'] = "'-fopenmp'"
+        d['link_args'] = "'-fopenmp'"
+    else:
+        d['loop_sig'] = "range(n)"
+        d['head_gil'] = ""
+        d['compile_args'] = ""
+        d['link_args'] = ""
+
     matrix_sym = sm.MatrixSymbol('matrix', expr.shape[0], expr.shape[1])
 
     sub_exprs, simple_mat = sm.cse(expr, sm.numbered_symbols('z_'))
@@ -218,7 +271,8 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None):
 
     matrix_code = sm.ccode(simple_mat[0], matrix_sym)
 
-    d['eval_code'] = '    ' + '\n    '.join((sub_expr_code + '\n' + matrix_code).split('\n'))
+    d['eval_code'] = '    ' + '\n    '.join((sub_expr_code + '\n' +
+                                             matrix_code).split('\n'))
 
     c_indent = len('void {routine_name}('.format(**d))
     c_arg_spacer = ',\n' + ' ' * c_indent
