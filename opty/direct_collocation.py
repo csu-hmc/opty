@@ -378,7 +378,7 @@ class ConstraintCollocator(object):
                  num_collocation_nodes, node_time_interval,
                  known_parameter_map={}, known_trajectory_map={},
                  instance_constraints=None, time_symbol=None, tmp_dir=None,
-                 integration_method='backward euler'):
+                 integration_method='backward euler', parallel=False):
         """Instantiates a ConstraintCollocator object.
 
         Parameters
@@ -407,9 +407,6 @@ class ConstraintCollocator(object):
             ndarrays of floats of shape(N,). Any time varying parameters in
             the equations of motion not provided in this dictionary will
             become free trajectories optimization variables.
-        integration_method : string, optional
-            The integration method to use, either `backward euler` or
-            `midpoint`.
         instance_constraints : iterable of SymPy expressions, optional
             These expressions are for constraints on the states at specific
             time points. They can be expressions with any state instance and
@@ -427,6 +424,13 @@ class ConstraintCollocator(object):
             If you want to see the generated Cython and C code for the
             constraint and constraint Jacobian evaluations, pass in a path
             to a directory here.
+        integration_method : string, optional
+            The integration method to use, either `backward euler` or
+            `midpoint`.
+        parallel : boolean, optional
+            If true and openmp is installed, constraints and the Jacobian of
+            the constraints will be executed across multiple threads. This is
+            only useful when the equations of motion are extremely large.
 
         """
         self.eom = equations_of_motion
@@ -452,6 +456,7 @@ class ConstraintCollocator(object):
         self.num_constraints = self.num_states * (num_collocation_nodes - 1)
 
         self.tmp_dir = tmp_dir
+        self.parallel = parallel
 
         self._sort_parameters()
         self._check_known_trajectories()
@@ -867,7 +872,7 @@ class ConstraintCollocator(object):
 
         f = ufuncify_matrix(args, self.discrete_eom,
                             const=constant_syms + (h_sym,),
-                            tmp_dir=self.tmp_dir)
+                            tmp_dir=self.tmp_dir, parallel=self.parallel)
 
         def constraints(state_values, specified_values, constant_values,
                         interval_value):
@@ -1212,7 +1217,8 @@ class ConstraintCollocator(object):
         # needed to build the sparse constraint Jacobian.
         eval_partials = ufuncify_matrix(args, symbolic_partials,
                                         const=constant_syms + (h_sym,),
-                                        tmp_dir=self.tmp_dir)
+                                        tmp_dir=self.tmp_dir,
+                                        parallel=self.parallel)
 
         result = np.empty((self.num_collocation_nodes - 1,
                            symbolic_partials.shape[0] *

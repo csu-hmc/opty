@@ -100,8 +100,8 @@ def test_ufuncify_matrix():
         result[:, 0, 0] = a_vals**2 * np.cos(b_vals)**c_vals
         result[:, 0, 1] = np.tan(b_vals) / np.sin(a_vals + b_vals) + c_vals**4
         result[:, 1, 0] = a_vals**2 + b_vals**2 - np.sqrt(c_vals)
-        result[:, 1, 1] = (((a_vals + b_vals + c_vals) * (a_vals + b_vals))
-                           / a_vals * np.sin(b_vals))
+        result[:, 1, 1] = (((a_vals + b_vals + c_vals) * (a_vals + b_vals)) /
+                           a_vals * np.sin(b_vals))
 
         return result
 
@@ -113,6 +113,13 @@ def test_ufuncify_matrix():
                             eval_matrix_loop_numpy(a_vals, b_vals, c_vals))
 
     f = utils.ufuncify_matrix((a, b, c), sym_mat, const=(c,))
+
+    result = np.empty((n, 4))
+
+    testing.assert_allclose(f(result, a_vals, b_vals, c_val),
+                            eval_matrix_loop_numpy(a_vals, b_vals, c_val))
+
+    f = utils.ufuncify_matrix((a, b, c), sym_mat, const=(c,), parallel=True)
 
     result = np.empty((n, 4))
 

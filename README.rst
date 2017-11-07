@@ -59,6 +59,7 @@ To run all of the examples the following additional dependencies are required:
 - pytables
 - pandas
 - yeadon
+- openmp
 
 **Currently only Linux and Mac are officially supported.** Although, it should
 be possible to install this on Windows with an appropriate Cython compilation
