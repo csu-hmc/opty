@@ -132,7 +132,7 @@ For the midpoint method:
 
 .. math::
 
-   \mathbf{f}_i = \mathbf{f}\left(\frac{\mathbf{y}_i - \mathbf{y}_{i-1}}{h},
+   \mathbf{f}_i = \mathbf{f}\left(\frac{\mathbf{y}_{i+1} - \mathbf{y}_{i}}{h},
                                   \frac{\mathbf{y}_i + \mathbf{y}_{i+1}}{2},
                                   \frac{\mathbf{r}_i + \mathbf{r}_{i+1}}{2},
                                   \mathbf{p}, t_i\right) = \mathbf{0}
