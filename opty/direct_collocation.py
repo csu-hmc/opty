@@ -275,10 +275,10 @@ class Problem(ipopt.problem):
             parse_free(vector, self.collocator.num_states,
                        self.collocator.num_unknown_input_trajectories,
                        self.collocator.num_collocation_nodes)
-        time = np.arange(0,
-                         self.collocator.num_collocation_nodes *
-                         self.collocator.node_time_interval,
-                         self.collocator.node_time_interval)[:-1]
+        time = np.linspace(0,
+                           self.collocator.num_collocation_nodes *
+                           self.collocator.node_time_interval,
+                           num=self.collocator.num_collocation_nodes)
 
         num_axes = (self.collocator.num_states +
                     self.collocator.num_input_trajectories)
