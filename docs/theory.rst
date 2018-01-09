@@ -16,7 +16,7 @@ where:
   :math:`t`
 - :math:`\mathbf{r}(t) \in \mathbb{R}^p` is the vector of specified
   (exongenous) inputs at time :math:`t`
-- :math:`\mathbf{p}(t) \in \mathbb{R}^q` is the vector of constant parameters
+- :math:`\mathbf{p} \in \mathbb{R}^q` is the vector of constant parameters
 
 From here on out, the notation :math:`(t)` will be dropped for convenience.
 
