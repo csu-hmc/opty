@@ -45,6 +45,10 @@ In SymPy, this would look like:
    >>> theta, omega, T = symbols('theta, omega, T', cls=Function)
    >>> f = Matrix([theta(t).diff() - omega(t),
    ...             I*omega(t).diff() + m*g*l*sin(theta(t)) - T(t)])
+   >>> f
+   ⎡        -ω + θ̇        ⎤
+   ⎢                      ⎥
+   ⎣I⋅ω̇ + g⋅l⋅m⋅sin(θ) - T⎦
 
 One can then break up :math:`\mathbf{r}` and :math:`\mathbf{p}` into known,
 :math:`k`, and unknown, :math:`u`, quantities.
