@@ -7,7 +7,7 @@ from collections import OrderedDict
 import numpy as np
 from scipy.interpolate import interp1d
 from scipy.linalg import solve_continuous_are
-from pydy.codegen.code import generate_ode_function
+from pydy.codegen.ode_function_generators import generate_ode_function
 from opty.utils import controllable, sum_of_sines
 
 # local
@@ -19,7 +19,8 @@ def constants_dict(constants):
     to numerical values. The cart spring is set to 10.0 N/m, the cart damper
     to 5.0 Ns/m and gravity is set to 9.81 m/s and the masses and lengths of
     the pendulums are all set to make the human sized."""
-    return OrderedDict(zip(constants, [10.0, 5.0, 9.81] + (len(constants) - 1) * [1.0]))
+    return OrderedDict(zip(constants, [10.0, 5.0, 9.81] +
+                           (len(constants) - 1) * [1.0]))
 
 
 def choose_initial_conditions(typ, x, gains):
@@ -171,9 +172,21 @@ def closed_loop_ode_func(system, time, set_point, gain_matrix, lateral_force):
             lateral_force = interp_func(t)
         return np.hstack((joint_torques, lateral_force))
 
-    rhs = generate_ode_function(*system, generator='cython')
+    mass_matrix = system[0]
+    forcing = system[1]
+    constants = system[2]
+    coordinates = system[3]
+    speeds = system[4]
+    specifieds = system[5]
 
-    args = {'constants': np.array(constants_dict(system[2]).values()),
-            'specified': controller}
+    rhs = generate_ode_function(forcing,
+                                coordinates,
+                                speeds,
+                                constants,
+                                mass_matrix=mass_matrix,
+                                specifieds=specifieds,
+                                generator='cython')
+
+    args = (controller, constants_dict(constants))
 
     return rhs, args
