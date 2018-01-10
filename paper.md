@@ -77,16 +77,16 @@ and have have similarities to opty. Below, is a feature comparison:
 
 <table border="1" class="docutils">
 <colgroup>
-<col width="3%" />
+<col width="5%" />
 <col width="8%" />
 <col width="5%" />
 <col width="6%" />
-<col width="12%" />
+<col width="11%" />
 <col width="2%" />
-<col width="10%" />
-<col width="8%" />
+<col width="9%" />
 <col width="7%" />
-<col width="39%" />
+<col width="7%" />
+<col width="38%" />
 </colgroup>
 <thead valign="bottom">
 <tr><th class="head">Name</th>
@@ -102,8 +102,7 @@ and have have similarities to opty. Below, is a feature comparison:
 </tr>
 </thead>
 <tbody valign="top">
-<tr><td>Casadi
-<a class="footnote-reference" href="#id4" id="id1">[1]</a></td>
+<tr><td>Casadi <a class="footnote-reference" href="#id4" id="id1">[1]</a></td>
 <td>[&#64;Andersson2013]</td>
 <td>C++,
 Python,
@@ -139,8 +138,8 @@ SNOPT, KNITRO</td>
 <td>NPSOL, SNOPT</td>
 <td><a class="reference external" href="http://www.sim.informatik.tu-darmstadt.de/en/res/sw/dircol/">DIRCOL Website</a></td>
 </tr>
-<tr><td>DYNOPT</td>
-<td><a class="footnote-reference" href="#id5" id="id2">[2]</a></td>
+<tr><td>DYNOPT <a class="footnote-reference" href="#id5" id="id2">[2]</a></td>
+<td>&nbsp;</td>
 <td>&nbsp;</td>
 <td>&nbsp;</td>
 <td>&nbsp;</td>
@@ -150,8 +149,20 @@ SNOPT, KNITRO</td>
 <td>&nbsp;</td>
 <td>&nbsp;</td>
 </tr>
-<tr><td>GESOP</td>
-<td><a class="footnote-reference" href="#id5" id="id3">[2]</a></td>
+<tr><td>FROST</td>
+<td>[&#64;Hereid2017]</td>
+<td>Matlab,
+Mathematica</td>
+<td>BSD 3-Clause</td>
+<td>Analytic</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>IPOPT, fmincon</td>
+<td><a class="reference external" href="http://ayonga.github.io/frost-dev/">FROST Documentation</a></td>
+</tr>
+<tr><td>GESOP <a class="footnote-reference" href="#id5" id="id3">[2]</a></td>
+<td>&nbsp;</td>
 <td>&nbsp;</td>
 <td>&nbsp;</td>
 <td>&nbsp;</td>
@@ -182,6 +193,19 @@ SNOPT, KNITRO</td>
 <td>Yes</td>
 <td>IPOPT</td>
 <td><a class="reference external" href="http://opty.readthedocs.io">opty Documentation</a></td>
+</tr>
+<tr><td>OTIS</td>
+<td>&nbsp;</td>
+<td>Fortran</td>
+<td>US Export
+Controlled</td>
+<td>?</td>
+<td>?</td>
+<td>Gauss-Labatto,
+Pseudospectral</td>
+<td>Yes</td>
+<td>SNOPT</td>
+<td><a class="reference external" href="https://otis.grc.nasa.gov">OTIS Website</a></td>
 </tr>
 <tr><td>PROPT</td>
 <td>[&#64;Rutquist2010]</td>
@@ -217,6 +241,19 @@ Sparse finite differences</td>
 <td>built-in</td>
 <td><a class="reference external" href="http://www.boeing.com/assets/pdf/phantom/socs/docs/SOCS_Users_Guide.pdf">SOCS Documentation</a></td>
 </tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="id4" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id1">[1]</a></td><td>Casadi does not have a built in direct collocation transcription but
+includes examples which show how to do so for specific problems.</td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="id5" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label">[2]</td><td><em>(<a class="fn-backref" href="#id2">1</a>, <a class="fn-backref" href="#id3">2</a>)</em> Not enough public information available but included for completeness.</td></tr>
 </tbody>
 </table>
 
