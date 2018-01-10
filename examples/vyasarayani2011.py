@@ -73,7 +73,6 @@ def main(initial_guess, do_plot=False):
         """Minimize the error in the angle, y1."""
         return interval * np.sum((y1_meas - free[:num_nodes])**2)
 
-
     def obj_grad(free):
         grad = np.zeros_like(free)
         grad[:num_nodes] = 2.0 * interval * (free[:num_nodes] - y1_meas)
@@ -82,30 +81,37 @@ def main(initial_guess, do_plot=False):
     # The midpoint integration method is preferable to the backward Euler
     # method because no artificial damping is introduced.
     prob = Problem(obj, obj_grad, eom, (y1, y2), num_nodes, interval,
-                integration_method='midpoint')
+                   integration_method='midpoint')
 
     num_states = len(y)
 
     if initial_guess == 'zero':
+        print('Using all zeros for the initial guess.')
         # All zeros.
         initial_guess = np.zeros(num_states * num_nodes + 1)
     elif initial_guess == 'randompar':
+        print(('Using all zeros for the trajectories initial guess and a '
+               'random positive value for the parameter.'))
         # Zeros for the state trajectories and a random positive value for
         # the parameter.
         initial_guess = np.hstack((np.zeros(num_states * num_nodes), 50.0 *
                                    np.random.random(1)))
     elif initial_guess == 'random':
+        print('Using random values for the initial guess.')
         # Random values for all unknowns.
         initial_guess = np.hstack((np.random.normal(scale=5.0,
                                                     size=num_states *
                                                     num_nodes), 50.0 *
                                    np.random.random(1)))
     elif initial_guess == 'sysid':
+        print(('Using noisy measurements for the trajectory initial guess and '
+               'a random positive value for the parameter.'))
         # Give noisy measurements as the initial state guess and a random
         # positive values as the parameter guess.
         initial_guess = np.hstack((y1_meas, y2_meas, 100.0 *
                                    np.random.random(1)))
     elif initial_guess == 'known':
+        print('Using the known solution as the initial guess.')
         # Known solution as initial guess.
         initial_guess = np.hstack((y1_meas, y2_meas, 10.0))
 
