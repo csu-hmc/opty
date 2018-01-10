@@ -81,7 +81,7 @@ prob.plot_constraint_violations(solution)
 prob.plot_objective_value()
 
 # Display animation
-if building_docs():
+if not building_docs():
     time = np.linspace(0.0, duration, num=num_nodes)
     angle = solution[:num_nodes]
 
