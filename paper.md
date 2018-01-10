@@ -39,7 +39,7 @@ the solution. opty uses this problem specification to derive the constraints
 needed to solve the optimization problem using the direct collocation method
 [@Betts2010]. This method maps the problem to a non-linear programming problem
 and the result is then solved numerically with an interior point optimizer,
-IPOPT [@Watcher2006] which is wrapped by cyipopt [@Cyipopt2017] for use in
+IPOPT [@Wachter2006] which is wrapped by cyipopt [@Cyipopt2017] for use in
 Python. The software allows the user to describe the dynamical system of
 interest at a high level in symbolic form without needing to concern themselves
 with the numerical computation details. This is made possible by utilizing
