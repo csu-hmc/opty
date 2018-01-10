@@ -139,15 +139,15 @@ SNOPT, KNITRO</td>
 <td><a class="reference external" href="http://www.sim.informatik.tu-darmstadt.de/en/res/sw/dircol/">DIRCOL Website</a></td>
 </tr>
 <tr><td>DYNOPT <a class="footnote-reference" href="#id5" id="id2">[2]</a></td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
+<td>[&#64;Cizniar2005]</td>
+<td>Matlab</td>
+<td>Custom open source</td>
+<td>Must be supplied by user</td>
+<td>Mass matrix</td>
+<td>Pseudospectral</td>
+<td>Mass matrix</td>
+<td>fmincon</td>
+<td><a class="reference external" href="https://bitbucket.org/dynopt/">DYNOPT code and documentation</a></td>
 </tr>
 <tr><td>FROST</td>
 <td>[&#64;Hereid2017]</td>
@@ -162,15 +162,15 @@ Mathematica</td>
 <td><a class="reference external" href="http://ayonga.github.io/frost-dev/">FROST Documentation</a></td>
 </tr>
 <tr><td>GESOP <a class="footnote-reference" href="#id5" id="id3">[2]</a></td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
-<td>&nbsp;</td>
+<td>[&#64;Gath2001]</td>
+<td>Matlab,C,Fortran,Ada</td>
+<td>Commercial</td>
+<td>?</td>
+<td>No</td>
+<td>Pseudospectral</td>
+<td>No</td>
+<td>SLLSQP, SNOPT, SOCS</td>
+<td><a class="reference external" href="https://www.astos.de/products/gesop">Astos Solutions Gmbh</a></td>
 </tr>
 <tr><td>GPOPS</td>
 <td>[&#64;PattersonRao2014]</td>
