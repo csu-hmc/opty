@@ -67,7 +67,7 @@ instance_constraints = (theta(0.0),
 prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
-               bounds={T(t): (-1.5, 1.5)})
+               bounds={T(t): (-2.0, 2.0)})
 
 # Use a random positive initial guess.
 initial_guess = np.random.randn(prob.num_free)
