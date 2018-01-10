@@ -187,7 +187,6 @@ def closed_loop_ode_func(system, time, set_point, gain_matrix, lateral_force):
                                 specifieds=specifieds,
                                 generator='cython')
 
-    args = {'constants': np.array(constants_dict(constants).values()),
-            'specified': controller}
+    args = (controller, constants_dict(constants))
 
     return rhs, args

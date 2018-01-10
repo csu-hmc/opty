@@ -11,11 +11,11 @@ reproduce the motion and ensure the dynamics are valid.
 
 Dependencies this runs with:
 
-    numpy 1.8.1
-    scipy 0.14.1
-    sympy 0.7.5
-    matplotlib 1.3.1
-    pydy 0.2.1
+    numpy 1.8+
+    scipy 0.14+
+    sympy 1.0+
+    matplotlib 1.3+
+    pydy 0.3+
     cyipopt 0.1.4
 
 N : number of discretization points
@@ -31,6 +31,7 @@ r : number of free specified inputs
 
 # standard lib
 import os
+import sys
 import datetime
 import hashlib
 import time
@@ -129,15 +130,15 @@ class Identifier():
         set_point = np.zeros(self.num_states)
 
         self.initial_conditions = np.zeros(self.num_states)
-        offset = 10.0 * np.random.random((self.num_states / 2) - 1)
-        self.initial_conditions[1:self.num_states / 2] = np.deg2rad(offset)
+        offset = 10.0 * np.random.random((self.num_states // 2) - 1)
+        self.initial_conditions[1:self.num_states // 2] = np.deg2rad(offset)
 
         rhs, args = simulate.closed_loop_ode_func(self.system, self.time,
                                                   set_point, self.gains,
                                                   self.lateral_force)
 
         start = time.clock()
-        self.x = odeint(rhs, self.initial_conditions, self.time, args=(args,))
+        self.x = odeint(rhs, self.initial_conditions, self.time, args=args)
         msg = 'Simulation of {} real time seconds took {} CPU seconds to compute.'
         print(msg.format(self.duration, time.clock() - start))
 
@@ -196,9 +197,16 @@ class Identifier():
                                known_trajectory_map={self.specified_inputs_syms[-1]: self.u})
 
         self.output_filename = 'ipopt_output.txt'
-        self.prob.addOption('output_file', self.output_filename)
-        self.prob.addOption('print_timing_statistics', 'yes')
-        self.prob.addOption('linear_solver', 'ma57')
+        if sys.version_info >= (3, 0):
+            self.prob.addOption(b'output_file', self.output_filename.encode())
+            self.prob.addOption(b'print_timing_statistics', b'yes')
+            # TODO : Not available in general.
+            #self.prob.addOption(b'linear_solver', b'ma57')
+        else:
+            self.prob.addOption('output_file', self.output_filename)
+            self.prob.addOption('print_timing_statistics', 'yes')
+            # TODO : Not available in general.
+            #self.prob.addOption('linear_solver', 'ma57')
 
     def optimize(self):
 
@@ -255,7 +263,10 @@ class Identifier():
 
         hasher = hashlib.sha1()
         string = ''.join([str(v) for v in results.values()])
-        hasher.update(string)
+        if sys.version_info >= (3, 0):
+            hasher.update(string.encode('utf-8'))
+        else:
+            hasher.update(string)
         results["run_id"] = hasher.hexdigest()
 
         known_solution = simulate.choose_initial_conditions('known', self.x,
@@ -277,7 +288,7 @@ class Identifier():
 
     def cleanup(self):
 
-        os.system('rm multibody_system*')
+        pass
 
     def identify(self):
         msg = """Running an identification for a {} link inverted pendulum with a {} second simulation discretized at {} hz."""
