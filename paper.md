@@ -81,12 +81,11 @@ and have have similarities to opty. Below, is a feature comparison:
 <col width="8%" />
 <col width="5%" />
 <col width="6%" />
-<col width="11%" />
-<col width="2%" />
-<col width="9%" />
+<col width="12%" />
+<col width="10%" />
+<col width="8%" />
 <col width="7%" />
-<col width="7%" />
-<col width="38%" />
+<col width="39%" />
 </colgroup>
 <thead valign="bottom">
 <tr><th class="head">Name</th>
@@ -94,7 +93,6 @@ and have have similarities to opty. Below, is a feature comparison:
 <th class="head">Language</th>
 <th class="head">License</th>
 <th class="head">Derivatives</th>
-<th class="head">DAEs</th>
 <th class="head">Discretization</th>
 <th class="head">Implicit Dynamics</th>
 <th class="head">Solvers</th>
@@ -109,7 +107,6 @@ Python,
 Octave,</td>
 <td>LGPL</td>
 <td>Automatic differentiation</td>
-<td>Yes</td>
 <td>None</td>
 <td>Yes</td>
 <td>IPOPT, WORHP,
@@ -121,7 +118,6 @@ SNOPT, KNITRO</td>
 <td>Matlab</td>
 <td>Commercial</td>
 <td>Analytic</td>
-<td>No</td>
 <td>Pseudospectral</td>
 <td>Yes</td>
 <td>built-in</td>
@@ -132,7 +128,6 @@ SNOPT, KNITRO</td>
 <td>Fortran</td>
 <td>Non-commercial</td>
 <td>Finite differences</td>
-<td>Yes</td>
 <td>Piecewise linear/cubic</td>
 <td>Yes</td>
 <td>NPSOL, SNOPT</td>
@@ -145,8 +140,6 @@ SNOPT, KNITRO</td>
 Source,
 Non-commercial</td>
 <td>Must be supplied by user</td>
-<td>Mass
-Mat</td>
 <td>Pseudospectral</td>
 <td>Mass matrix</td>
 <td>fmincon</td>
@@ -160,7 +153,6 @@ Mathematica</td>
 <td>Analytic</td>
 <td>?</td>
 <td>?</td>
-<td>?</td>
 <td>IPOPT, fmincon</td>
 <td><a class="reference external" href="http://ayonga.github.io/frost-dev/">FROST Documentation</a></td>
 </tr>
@@ -170,7 +162,6 @@ Mathematica</td>
 Fortan, Ada</td>
 <td>Commercial</td>
 <td>?</td>
-<td>No</td>
 <td>Pseudospectral</td>
 <td>No</td>
 <td>SLLSQP, SNOPT,
@@ -182,7 +173,6 @@ SOCS</td>
 <td>Matlab</td>
 <td>Commercial</td>
 <td>Automatic differentiation</td>
-<td>No</td>
 <td>Pseudospectral</td>
 <td>No</td>
 <td>SNOPT, IPOPT</td>
@@ -193,18 +183,16 @@ SOCS</td>
 <td>Python</td>
 <td>BSD 2-Clause</td>
 <td>Analytic</td>
-<td>Yes</td>
 <td>Euler, Midpoint</td>
 <td>Yes</td>
 <td>IPOPT</td>
 <td><a class="reference external" href="http://opty.readthedocs.io">opty Documentation</a></td>
 </tr>
 <tr><td>OTIS</td>
-<td>&nbsp;</td>
+<td>[&#64;Hargraves1987]</td>
 <td>Fortran</td>
 <td>US Export
 Controlled</td>
-<td>?</td>
 <td>?</td>
 <td>Gauss-Labatto,
 Pseudospectral</td>
@@ -217,7 +205,6 @@ Pseudospectral</td>
 <td>Matlab</td>
 <td>Commercial</td>
 <td>Analytic</td>
-<td>Yes</td>
 <td>Pseudospectral</td>
 <td>Yes</td>
 <td>SNOPT, KNITRO</td>
@@ -229,9 +216,8 @@ Pseudospectral</td>
 <td>GPL</td>
 <td>Automatic differentiation,
 Sparse finite differences</td>
-<td>Yes</td>
 <td>Pseudospectral, RK</td>
-<td>No</td>
+<td>Yes</td>
 <td>IPOPT, SNOPT</td>
 <td><a class="reference external" href="http://www.psopt.org/">PSOPT Website</a></td>
 </tr>
@@ -240,7 +226,6 @@ Sparse finite differences</td>
 <td>Fortran</td>
 <td>Commercial</td>
 <td>Finite differences</td>
-<td>Yes</td>
 <td>Euler, RK, &amp; others</td>
 <td>Yes</td>
 <td>built-in</td>
