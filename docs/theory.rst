@@ -91,7 +91,7 @@ parameters such that the dynamical system evolves in time in a way that
 minimizes the objective and enforces the constraints. This problem can be
 rewritten as a `nonlinear programming`_ (NLP) problem using `direct
 collocation`_ transcription methods and solved using a variety of optimization
-algorithms suitable for NLP problems.
+algorithms suitable for NLP problems [Betts2010]_.
 
 .. _optimal control: https://en.wikipedia.org/wiki/Optimal_control
 .. _nonlinear programming: https://en.wikipedia.org/wiki/Nonlinear_programming
@@ -179,3 +179,12 @@ function :math:`J` and it's gradient :math:`\frac{\partial J}{\partial
 \mathbf{x}_i}` must be specified by Python functions that return a scalar, or
 vector. Symbolic formulations of the cost function :math:`J` are not yet
 supported and must be written in terms of :math:`\mathbf{x}_i` manually.
+
+References
+==========
+
+.. [Betts2010] Betts, J. Practical Methods for Optimal Control and Estimation
+   Using Nonlinear Programming. Advances in Design and Control. Society for
+   Industrial and Applied Mathematics, 2010.
+   https://doi.org/10.1137/1.9780898718577.
+
