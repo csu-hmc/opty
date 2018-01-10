@@ -102,7 +102,7 @@ and have have similarities to opty. Below, is a feature comparison:
 </tr>
 </thead>
 <tbody valign="top">
-<tr><td>Casadi <a class="footnote-reference" href="#id4" id="id1">[1]</a></td>
+<tr><td>Casadi <a class="footnote-reference" href="#id2" id="id1">[1]</a></td>
 <td>[&#64;Andersson2013]</td>
 <td>C++,
 Python,
@@ -138,16 +138,19 @@ SNOPT, KNITRO</td>
 <td>NPSOL, SNOPT</td>
 <td><a class="reference external" href="http://www.sim.informatik.tu-darmstadt.de/en/res/sw/dircol/">DIRCOL Website</a></td>
 </tr>
-<tr><td>DYNOPT <a class="footnote-reference" href="#id5" id="id2">[2]</a></td>
+<tr><td>DYNOPT</td>
 <td>[&#64;Cizniar2005]</td>
 <td>Matlab</td>
-<td>Custom open source</td>
+<td>Custom Open
+Source,
+Non-commercial</td>
 <td>Must be supplied by user</td>
-<td>Mass matrix</td>
+<td>Mass
+Mat</td>
 <td>Pseudospectral</td>
 <td>Mass matrix</td>
 <td>fmincon</td>
-<td><a class="reference external" href="https://bitbucket.org/dynopt/">DYNOPT code and documentation</a></td>
+<td><a class="reference external" href="https://bitbucket.org/dynopt/">DYNOPT Code and Documentation</a></td>
 </tr>
 <tr><td>FROST</td>
 <td>[&#64;Hereid2017]</td>
@@ -161,15 +164,17 @@ Mathematica</td>
 <td>IPOPT, fmincon</td>
 <td><a class="reference external" href="http://ayonga.github.io/frost-dev/">FROST Documentation</a></td>
 </tr>
-<tr><td>GESOP <a class="footnote-reference" href="#id5" id="id3">[2]</a></td>
+<tr><td>GESOP</td>
 <td>[&#64;Gath2001]</td>
-<td>Matlab,C,Fortran,Ada</td>
+<td>Matlab, C,
+Fortan, Ada</td>
 <td>Commercial</td>
 <td>?</td>
 <td>No</td>
 <td>Pseudospectral</td>
 <td>No</td>
-<td>SLLSQP, SNOPT, SOCS</td>
+<td>SLLSQP, SNOPT,
+SOCS</td>
 <td><a class="reference external" href="https://www.astos.de/products/gesop">Astos Solutions Gmbh</a></td>
 </tr>
 <tr><td>GPOPS</td>
@@ -243,17 +248,10 @@ Sparse finite differences</td>
 </tr>
 </tbody>
 </table>
-<table class="docutils footnote" frame="void" id="id4" rules="none">
+<table class="docutils footnote" frame="void" id="id2" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id1">[1]</a></td><td>Casadi does not have a built in direct collocation transcription but
-includes examples which show how to do so for specific problems.</td></tr>
-</tbody>
-</table>
-<table class="docutils footnote" frame="void" id="id5" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label">[2]</td><td><em>(<a class="fn-backref" href="#id2">1</a>, <a class="fn-backref" href="#id3">2</a>)</em> Not enough public information available but included for completeness.</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id1">[1]</a></td><td>Casadi does not have a built in direct collocation transcription but includes examples which show how to do so for specific problems.</td></tr>
 </tbody>
 </table>
 
