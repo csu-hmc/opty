@@ -32,11 +32,13 @@ Features
 --------
 
 - Both implicit and explicit forms of the first order ordinary differential
-  equations are supported, i.e. there is no need to solve for x'.
+  equations and differential algebraic equations are supported, i.e. there is
+  no need to solve for the derivatives of the dependent variables.
 - Backward Euler or Midpoint integration methods.
 - Supports both trajectory optimization and parameter identification.
 - Easy specification of bounds on free variables.
 - Easily specify additional "instance" constraints.
+- Automatic parallel execution using openmp if installed.
 - Built with support of sympy.physics.mechanics and PyDy in mind.
 
 Installation
