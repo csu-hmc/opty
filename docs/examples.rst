@@ -24,5 +24,9 @@ Betts 2003
 Pendulum Parameter Identification
 =================================
 
+Identifies a single constant from measured pendulum swing data. The default
+initial guess for trajectories are the known continuous solution plus
+artificial Gaussian noise and a random positive value for the parameter.
+
 .. plot:: ../examples/vyasarayani2011.py
    :include-source:
