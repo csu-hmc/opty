@@ -76,170 +76,43 @@ There are existing software packages that can solve optimal control problems
 and have have similarities to opty. Below, is a feature comparison of those we
 are aware of:
 
-<table border="1" class="docutils">
-<colgroup>
-<col width="5%" />
-<col width="8%" />
-<col width="5%" />
-<col width="6%" />
-<col width="12%" />
-<col width="10%" />
-<col width="8%" />
-<col width="7%" />
-<col width="39%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th class="head">Name</th>
-<th class="head">Citation</th>
-<th class="head">Language</th>
-<th class="head">License</th>
-<th class="head">Derivatives</th>
-<th class="head">Discretization</th>
-<th class="head">Implicit Dynamics</th>
-<th class="head">Solvers</th>
-<th class="head">Project Website</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr><td>Casadi <a class="footnote-reference" href="#id2" id="id1">[1]</a></td>
-<td>[&#64;Andersson2013]</td>
-<td>C++,
-Python,
-Octave,</td>
-<td>LGPL</td>
-<td>Automatic differentiation</td>
-<td>None</td>
-<td>Yes</td>
-<td>IPOPT, WORHP,
-SNOPT, KNITRO</td>
-<td><a class="reference external" href="https://github.com/casadi/casadi/wiki">Casadi Website</a></td>
-</tr>
-<tr><td>DIDO</td>
-<td>[&#64;Ross2002]</td>
-<td>Matlab</td>
-<td>Commercial</td>
-<td>Analytic</td>
-<td>Pseudospectral</td>
-<td>Yes</td>
-<td>built-in</td>
-<td><a class="reference external" href="http://www.elissarglobal.com/industry/products/software-3/">DIDO Website</a></td>
-</tr>
-<tr><td>DIRCOL</td>
-<td>[&#64;vonStryk1993]</td>
-<td>Fortran</td>
-<td>Non-commercial</td>
-<td>Finite differences</td>
-<td>Piecewise linear/cubic</td>
-<td>Yes</td>
-<td>NPSOL, SNOPT</td>
-<td><a class="reference external" href="http://www.sim.informatik.tu-darmstadt.de/en/res/sw/dircol/">DIRCOL Website</a></td>
-</tr>
-<tr><td>DYNOPT</td>
-<td>[&#64;Cizniar2005]</td>
-<td>Matlab</td>
-<td>Custom Open
-Source,
-Non-commercial</td>
-<td>Must be supplied by user</td>
-<td>Pseudospectral</td>
-<td>Mass matrix</td>
-<td>fmincon</td>
-<td><a class="reference external" href="https://bitbucket.org/dynopt/">DYNOPT Code and Documentation</a></td>
-</tr>
-<tr><td>FROST</td>
-<td>[&#64;Hereid2017]</td>
-<td>Matlab,
-Mathematica</td>
-<td>BSD 3-Clause</td>
-<td>Analytic</td>
-<td>?</td>
-<td>?</td>
-<td>IPOPT, fmincon</td>
-<td><a class="reference external" href="http://ayonga.github.io/frost-dev/">FROST Documentation</a></td>
-</tr>
-<tr><td>GESOP</td>
-<td>[&#64;Gath2001]</td>
-<td>Matlab, C,
-Fortan, Ada</td>
-<td>Commercial</td>
-<td>?</td>
-<td>Pseudospectral</td>
-<td>No</td>
-<td>SLLSQP, SNOPT,
-SOCS</td>
-<td><a class="reference external" href="https://www.astos.de/products/gesop">Astos Solutions Gmbh</a></td>
-</tr>
-<tr><td>GPOPS</td>
-<td>[&#64;PattersonRao2014]</td>
-<td>Matlab</td>
-<td>Commercial</td>
-<td>Automatic differentiation</td>
-<td>Pseudospectral</td>
-<td>No</td>
-<td>SNOPT, IPOPT</td>
-<td><a class="reference external" href="http://www.gpops2.com/">GPOPS Website</a></td>
-</tr>
-<tr><td>opty</td>
-<td>NA</td>
-<td>Python</td>
-<td>BSD 2-Clause</td>
-<td>Analytic</td>
-<td>Euler, Midpoint</td>
-<td>Yes</td>
-<td>IPOPT</td>
-<td><a class="reference external" href="http://opty.readthedocs.io">opty Documentation</a></td>
-</tr>
-<tr><td>OTIS</td>
-<td>[&#64;Hargraves1987]</td>
-<td>Fortran</td>
-<td>US Export
-Controlled</td>
-<td>?</td>
-<td>Gauss-Labatto,
-Pseudospectral</td>
-<td>Yes</td>
-<td>SNOPT</td>
-<td><a class="reference external" href="https://otis.grc.nasa.gov">OTIS Website</a></td>
-</tr>
-<tr><td>PROPT</td>
-<td>[&#64;Rutquist2010]</td>
-<td>Matlab</td>
-<td>Commercial</td>
-<td>Analytic</td>
-<td>Pseudospectral</td>
-<td>Yes</td>
-<td>SNOPT, KNITRO</td>
-<td><a class="reference external" href="http://tomdyn.com/index.html">TOMDYN Website</a></td>
-</tr>
-<tr><td>PSOPT</td>
-<td>[&#64;Becerra2010]</td>
-<td>C++</td>
-<td>GPL</td>
-<td>Automatic differentiation,
-Sparse finite differences</td>
-<td>Pseudospectral, RK</td>
-<td>Yes</td>
-<td>IPOPT, SNOPT</td>
-<td><a class="reference external" href="http://www.psopt.org/">PSOPT Website</a></td>
-</tr>
-<tr><td>SOCS</td>
-<td>[&#64;Betts2010]</td>
-<td>Fortran</td>
-<td>Commercial</td>
-<td>Finite differences</td>
-<td>Euler, RK, &amp; others</td>
-<td>Yes</td>
-<td>built-in</td>
-<td><a class="reference external" href="http://www.boeing.com/assets/pdf/phantom/socs/docs/SOCS_Users_Guide.pdf">SOCS Documentation</a></td>
-</tr>
-</tbody>
-</table>
-<table class="docutils footnote" frame="void" id="id2" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id1">[1]</a></td><td>Casadi does not have a built in direct collocation transcription but includes examples which show how to do so for specific problems.</td></tr>
-</tbody>
-</table>
++-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
+| Name        | Citation            | Language    | License        | Derivatives                 |  Discretization        | Implicit Dynamics | Solvers         | Project Website                                                                                 |
++=============+=====================+=============+================+=============================+========================+===================+=================+=================================================================================================+
+| Casadi [^1] | [@Andersson2013]    | C++,        | LGPL           | Automatic differentiation   | None                   | Yes               | IPOPT, WORHP,   | [Casadi Website](https://github.com/casadi/casadi/wiki)                                         |
+|             |                     | Python,     |                |                             |                        |                   | SNOPT, KNITRO   |                                                                                                 |
+|             |                     | Octave,     |                |                             |                        |                   |                 |                                                                                                 |
++-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
+| DIDO        | [@Ross2002]         | Matlab      | Commercial     | Analytic                    | Pseudospectral         | Yes               | built-in        | [DIDO Website](http://www.elissarglobal.com/industry/products/software-3/)                      |
++-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
+| DIRCOL      | [@vonStryk1993]     | Fortran     | Non-commercial | Finite differences          | Piecewise linear/cubic | Yes               | NPSOL, SNOPT    | [DIRCOL Website](http://www.sim.informatik.tu-darmstadt.de/en/res/sw/dircol/)                   |
++-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
+| DYNOPT      | [@Cizniar2005]      | Matlab      | Custom Open    | Must be supplied by user    | Pseudospectral         | Mass matrix       | fmincon         | [DYNOPT Code and Documentation](https://bitbucket.org/dynopt/)                                  |
+|             |                     |             | Source,        |                             |                        |                   |                 |                                                                                                 |
+|             |                     |             | Non-commercial |                             |                        |                   |                 |                                                                                                 |
++-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
+| FROST       | [@Hereid2017]       | Matlab,     | BSD 3-Clause   | Analytic                    | ?                      | ?                 | IPOPT, fmincon  | [FROST Documentation](http://ayonga.github.io/frost-dev/)                                       |
+|             |                     | Mathematica |                |                             |                        |                   |                 |                                                                                                 |
++-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
+| GESOP       | [@Gath2001]         | Matlab, C,  | Commercial     | ?                           | Pseudospectral         | No                | SLLSQP, SNOPT,  | [Astos Solutions Gmbh](https://www.astos.de/products/gesop)                                     |
+|             |                     | Fortan, Ada |                |                             |                        |                   | SOCS            |                                                                                                 |
++-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
+| GPOPS       | [@PattersonRao2014] | Matlab      | Commercial     | Automatic differentiation   | Pseudospectral         | No                | SNOPT, IPOPT    | [GPOPS Website](http://www.gpops2.com/)                                                         |
++-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
+| opty        | NA                  | Python      | BSD 2-Clause   | Analytic                    | Euler, Midpoint        | Yes               | IPOPT           | [opty Documentation](http://opty.readthedocs.io)                                                |
++-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
+| OTIS        | [@Hargraves1987]    | Fortran     | US Export      | ?                           | Gauss-Labatto,         | Yes               | SNOPT           | [OTIS Website](https://otis.grc.nasa.gov)                                                       |
+|             |                     |             | Controlled     |                             | Pseudospectral         |                   |                 |                                                                                                 |
++-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
+| PROPT       | [@Rutquist2010]     | Matlab      | Commercial     | Analytic                    | Pseudospectral         | Yes               | SNOPT, KNITRO   | [TOMDYN Website](http://tomdyn.com/index.html)                                                  |
++-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
+| PSOPT       | [@Becerra2010]      | C++         | GPL            | Automatic differentiation,  | Pseudospectral, RK     | Yes               | IPOPT, SNOPT    | [PSOPT Website](http://www.psopt.org/)                                                          |
+|             |                     |             |                | Sparse finite differences   |                        |                   |                 |                                                                                                 |
++-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
+| SOCS        | [@Betts2010]        | Fortran     | Commercial     | Finite differences          | Euler, RK, & others    | Yes               | built-in        | [SOCS Documentation](http://www.boeing.com/assets/pdf/phantom/socs/docs/SOCS_Users_Guide.pdf)   |
++-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
+
+[^1]: Casadi does not have a built in direct collocation transcription but includes examples which show how to do so for specific problems.
 
 Each of these software packages offer a different combination of attributes and
 features that make it useful for different problems. opty is the only package
