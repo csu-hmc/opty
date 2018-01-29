@@ -76,6 +76,8 @@ There are existing software packages that can solve optimal control problems
 and have have similarities to opty. Below, is a feature comparison of those we
 are aware of:
 
+\footnotesize
+
 +-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
 | Name        | Citation            | Language    | License        | Derivatives                 |  Discretization        | Implicit Dynamics | Solvers         | Project Website                                                                                 |
 +=============+=====================+=============+================+=============================+========================+===================+=================+=================================================================================================+
@@ -113,6 +115,8 @@ are aware of:
 +-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+-------------------------------------------------------------------------------------------------+
 
 [^1]: Casadi does not have a built in direct collocation transcription but includes examples which show how to do so for specific problems.
+
+\normalsize
 
 Each of these software packages offer a different combination of attributes and
 features that make it useful for different problems. opty is the only package
