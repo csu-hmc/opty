@@ -76,7 +76,7 @@ There are existing software packages that can solve optimal control problems
 and have have similarities to opty. Below, is a feature comparison of those we
 are aware of:
 
-\tiny
+\scriptsize
 
 +-------------+---------------------+-------------+----------------+-----------------------------+------------------------+-------------------+-----------------+------------------------+
 | Name        | Citation            | Language    | License        | Derivatives                 |  Discretization        | Implicit Dynamics | Solvers         | Project Website        |
