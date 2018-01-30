@@ -10,6 +10,9 @@ Introduction
 .. image:: https://readthedocs.org/projects/opty/badge/?version=stable
    :target: http://opty.readthedocs.io
 
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1162870.svg
+   :target: https://doi.org/10.5281/zenodo.1162870
+
 .. image:: https://travis-ci.org/csu-hmc/opty.svg?branch=master
    :target: https://travis-ci.org/csu-hmc/opty
 
