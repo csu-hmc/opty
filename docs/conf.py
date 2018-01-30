@@ -53,7 +53,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'opty'
-copyright = '2017, Jason K. Moore'
+copyright = '2018, Jason K. Moore'
 author = 'Jason K. Moore'
 
 # The version info for the project you're documenting, acts as replacement for
