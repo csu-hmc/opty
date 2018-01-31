@@ -10,6 +10,9 @@ Introduction
 .. image:: https://readthedocs.org/projects/opty/badge/?version=stable
    :target: http://opty.readthedocs.io
 
+.. image:: http://joss.theoj.org/papers/10.21105/joss.00300/status.svg
+   :target: https://doi.org/10.21105/joss.00300
+
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1162870.svg
    :target: https://doi.org/10.5281/zenodo.1162870
 
