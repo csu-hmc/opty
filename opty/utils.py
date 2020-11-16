@@ -12,7 +12,7 @@ import warnings
 import numpy as np
 import sympy as sm
 plt = sm.external.import_module('matplotlib.pyplot',
-                                __import__kwargs={'fromlist': ['']},
+                                import_kwargs={'fromlist': ['']},
                                 catch=(RuntimeError,))
 
 
