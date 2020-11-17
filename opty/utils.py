@@ -11,9 +11,14 @@ import warnings
 
 import numpy as np
 import sympy as sm
-plt = sm.external.import_module('matplotlib.pyplot',
-                                import_kwargs={'fromlist': ['']},
-                                catch=(RuntimeError,))
+try:
+    plt = sm.external.import_module('matplotlib.pyplot',
+                                    __import_kwargs__={'fromlist': ['']},
+                                    catch=(RuntimeError,))
+except TypeError:  # SymPy >=1.6
+    plt = sm.external.import_module('matplotlib.pyplot',
+                                    import_kwargs={'fromlist': ['']},
+                                    catch=(RuntimeError,))
 
 
 def building_docs():
