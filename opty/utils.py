@@ -13,7 +13,7 @@ import numpy as np
 import sympy as sm
 try:
     plt = sm.external.import_module('matplotlib.pyplot',
-                                    __import_kwargs__={'fromlist': ['']},
+                                    __import__kwargs={'fromlist': ['']},
                                     catch=(RuntimeError,))
 except TypeError:  # SymPy >=1.6
     plt = sm.external.import_module('matplotlib.pyplot',

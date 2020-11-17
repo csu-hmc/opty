@@ -8,7 +8,7 @@ from sympy.physics import mechanics as me
 import ipopt
 try:
     plt = sm.external.import_module('matplotlib.pyplot',
-                                    __import_kwargs__={'fromlist': ['']},
+                                    __import__kwargs={'fromlist': ['']},
                                     catch=(RuntimeError,))
 except TypeError:  # SymPy >=1.6
     plt = sm.external.import_module('matplotlib.pyplot',
