@@ -194,7 +194,10 @@ int main() {
         raise
     finally:  # cleanup even if compilation fails
         os.chdir(curdir)
-        shutil.rmtree(tmpdir)
+        # NOTE : I can't figure out how to get rmtree to work on Windows, so I
+        # don't delete the directory on Windows.
+        if sys.platform != "win32":
+            shutil.rmtree(tmpdir)
 
     return True if exit == 0 else False
 
@@ -340,15 +343,9 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
         sys.path.remove(codedir)
         os.chdir(workingdir)
         if tmp_dir is None:
-            # NOTE : The temporary directory Python chooses on Windows can
-            # require adminstrator privledges to remove. Solution from:
-            # https://stackoverflow.com/questions/2656322/shutil-rmtree-fails-on-windows-with-access-is-denied
-            if sys.platform == "win32":
-                def remove_readonly(func, path, excinfo):
-                    os.chmod(path, stat.S_IWRITE)
-                    os.remove(path)
-                shutil.rmtree(codedir, onerror=remove_readonly)
-            else:
+            # NOTE : I can't figure out how to get rmtree to work on Windows,
+            # so I don't delete the directory on Windows.
+            if sys.platform != "win32":
                 shutil.rmtree(codedir)
 
     return getattr(cython_module, d['routine_name'] + '_loop')
