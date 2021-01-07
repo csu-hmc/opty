@@ -36,7 +36,7 @@ install:
   - "%PYTHON%\\Scripts\\conda.exe update --yes conda"
   - "%PYTHON%\\Scripts\\conda.exe update --yes --all"
   - "%PYTHON%\\Scripts\\conda.exe config --prepend channels conda-forge"
-  - "%PYTHON%\\Scripts\\conda.exe install --yes python=%PYTHON_VERSION% cyipopt>=0.3.0 sympy numpy scipy cython nose pywin32"
+  - "%PYTHON%\\Scripts\\conda.exe install --yes python=%PYTHON_VERSION% cyipopt>=0.3.0 sympy numpy scipy cython nose"
   - "%PYTHON%\\Scripts\\conda.exe update -y --all"
   - "%PYTHON%\\Scripts\\conda.exe info"
   - "%PYTHON%\\Scripts\\conda.exe list"
