@@ -234,7 +234,13 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
     file_prefix = '{}_{}'.format(file_prefix_base, module_counter)
 
     if tmp_dir is None:
-        codedir = tempfile.mkdtemp(".ufuncify_compile")
+        # NOTE : The temporary directory Python chooses on Windows can require
+        # adminstrator privledges, so just drop this in the current directory.
+        if sys.platform == "win32":
+            codedir = tempfile.mkdtemp(suffix=".ufuncify_compile",
+                                       dir=os.getcwd())
+        else:
+            codedir = tempfile.mkdtemp(".ufuncify_compile")
     else:
         codedir = os.path.abspath(tmp_dir)
 
