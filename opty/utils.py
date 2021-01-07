@@ -345,8 +345,8 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
             # https://stackoverflow.com/questions/2656322/shutil-rmtree-fails-on-windows-with-access-is-denied
             if sys.platform == "win32":
                 def remove_readonly(func, path, excinfo):
-                    os.chmod(path, stat.S_IWUSR)
-                    func(path)
+                    os.chmod(path, stat.S_IWRITE)
+                    os.remove(path)
                 shutil.rmtree(codedir, onerror=remove_readonly)
             else:
                 shutil.rmtree(codedir)
