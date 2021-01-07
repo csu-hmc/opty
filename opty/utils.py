@@ -8,6 +8,7 @@ import subprocess
 import importlib
 from functools import wraps
 import warnings
+import stat
 
 import numpy as np
 import sympy as sm
@@ -234,13 +235,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
     file_prefix = '{}_{}'.format(file_prefix_base, module_counter)
 
     if tmp_dir is None:
-        # NOTE : The temporary directory Python chooses on Windows can require
-        # adminstrator privledges, so just drop this in the current directory.
-        if sys.platform == "win32":
-            codedir = tempfile.mkdtemp(suffix=".ufuncify_compile",
-                                       dir=os.getcwd())
-        else:
-            codedir = tempfile.mkdtemp(".ufuncify_compile")
+        codedir = tempfile.mkdtemp(".ufuncify_compile")
     else:
         codedir = os.path.abspath(tmp_dir)
 
@@ -345,7 +340,16 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
         sys.path.remove(codedir)
         os.chdir(workingdir)
         if tmp_dir is None:
-            shutil.rmtree(codedir)
+            # NOTE : The temporary directory Python chooses on Windows can
+            # require adminstrator privledges to remove. Solution from:
+            # https://stackoverflow.com/questions/1889597/deleting-directory-in-python
+            if sys.platform == "win32":
+                def remove_readonly(func, path, excinfo):
+                    os.chmod(path, stat.S_IWRITE)
+                    func(path)
+                shutil.rmtree(codedir, onerror=remove_readonly)
+            else:
+                shutil.rmtree(codedir)
 
     return getattr(cython_module, d['routine_name'] + '_loop')
 
