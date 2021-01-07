@@ -342,10 +342,10 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
         if tmp_dir is None:
             # NOTE : The temporary directory Python chooses on Windows can
             # require adminstrator privledges to remove. Solution from:
-            # https://stackoverflow.com/questions/1889597/deleting-directory-in-python
+            # https://stackoverflow.com/questions/2656322/shutil-rmtree-fails-on-windows-with-access-is-denied
             if sys.platform == "win32":
                 def remove_readonly(func, path, excinfo):
-                    os.chmod(path, stat.S_IWRITE)
+                    os.chmod(path, stat.S_IWUSR)
                     func(path)
                 shutil.rmtree(codedir, onerror=remove_readonly)
             else:

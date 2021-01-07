@@ -54,9 +54,10 @@ build: false
 
 test_script:
   # Run test suite
-  - "nosetests -v"
+  - "nosetests -v opty/"
 
   # Test package install
   - "python setup.py install"
   - 'python -c "import opty"'
+  - "%PYTHON%\\Scripts\\conda.exe install --yes matplotlib"
   - 'python examples/vyasarayani2011.py'
