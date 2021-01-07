@@ -1,8 +1,15 @@
 #!/usr/bin/env python
 
+import sys
+
 from setuptools import setup, find_packages
 
 exec(open('opty/version.py').read())
+
+if sys.platform == "win32":
+    cyipopt_min_ver = '0.3.0'
+else:
+    cyipopt_min_ver = '0.1.7'
 
 setup(
     name='opty',
@@ -19,7 +26,7 @@ setup(
                       'scipy>=0.14.1',
                       'sympy>=1.0.0',
                       'cython>=0.20.1',
-                      'ipopt>=0.1.7',  # cyipopt
+                      'ipopt>={}'.format(cyipopt_min_ver),  # cyipopt
                       ],
     extras_require={'examples': ['pydy>=0.3.0',
                                  'matplotlib>=1.3.1',

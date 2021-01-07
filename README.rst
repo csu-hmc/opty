@@ -54,11 +54,11 @@ The required dependencies are as follows:
 
 - python 2.7 or 3.6+
 - sympy >= 1.0.0
-- ipopt >= 3.11
+- ipopt >= 3.11 (Linux & OSX), >= 3.13 (Windows)
 - numpy >= 1.8.1
 - scipy >= 0.14.1
 - cython >= 0.20.1
-- cyipopt >= 0.1.7
+- cyipopt >= 0.1.7 (Linux & OSX), >= 0.2.0 (Windows)
 
 To run all of the examples the following additional dependencies are required:
 
@@ -73,19 +73,20 @@ To run all of the examples the following additional dependencies are required:
 be possible to install this on Windows with an appropriate Cython compilation
 toolchain and IPOPT installed from binaries or custom compliation.
 
-If you are installing on Linux or Mac, the easiest way to get started is to
-install Anaconda_ (or Miniconda_) and use conda to install opty and any desired
-optional dependencies from the Conda Forge channel, e.g.::
+The easiest way to install opty is to first install Anaconda_ (or Miniconda_)
+and use the conda package manager to install opty and any desired optional
+dependencies from the Conda Forge channel, e.g.::
 
-   $ conda config --add channels conda-forge
-   $ conda install opty matplotlib pytables pandas yeadon pydy
+   $ conda install --channel conda-forge opty
+
+   $ conda install --channel conda-forge matplotlib pytables pandas yeadon pydy openmp
 
 .. _Anaconda: https://www.continuum.io/downloads
 .. _Miniconda: https://conda.io/miniconda.html
 
-If you are using Windows or want a custom installation of any of the
-dependencies, e.g. Ipopt, you must first install Ipopt along with it's headers.
-For example, on Debian based systems you can use the package manager::
+If you want a custom installation of any of the dependencies, e.g. Ipopt, you
+must first install Ipopt along with it's headers.  For example, on Debian based
+systems you can use the package manager::
 
    $ sudo apt-get install coinor-libipopt1v5 coinor-libipopt-dev
 
@@ -94,15 +95,15 @@ https://www.coin-or.org/download/binary/Ipopt/.
 
 For customized installation (usually desired for performance) follow the
 instructions on the IPOPT documentation to compile the library. If you install
-to a location other than `/usr/local` on Unix systems you will likely have to
+to a location other than ``/usr/local`` on Unix systems you will likely have to
 set the ``LD_LIBRARY_PATH`` so that you can link to IPOPT when installing
 ``cyipopt``.
 
 Once Ipopt is installed and accessible, install conda then create an environment::
 
-   $ conda create -n opty-custom pip numpy scipy cython sympy
+   $ conda create -n opty-custom -c conda-forge pip numpy scipy cython sympy
    $ source activate opty-custom
-   (opty-custom)$ pip install https://github.com/matthias-k/cyipopt/archive/v0.1.7.tar.gz
+   (opty-custom)$ pip install ipopt  # this will compile cyipopt
    (opty-custom)$ pip install opty
 
 If you want to develop opty, create a conda environment with all of the
@@ -113,10 +114,6 @@ dependencies installed::
    $ source activate opty-dev
 
 Next download the opty source files and install with::
-
-   (opty-dev)$ conda develop /path/to/opty
-
-or::
 
    (opty-dev)$ cd /path/to/opty
    (opty-dev)$ python setup.py develop
