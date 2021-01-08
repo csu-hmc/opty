@@ -8,7 +8,6 @@ import subprocess
 import importlib
 from functools import wraps
 import warnings
-import stat
 
 import numpy as np
 import sympy as sm
