@@ -91,9 +91,9 @@ class TestConstraintCollocator():
         assert self.collocator.num_states == 2
         assert self.collocator.num_collocation_nodes == 4
 
-    @raises(ValueError)
     def test_integration_method(self):
-        self.collocator.integration_method = 'booger'
+        with raises(ValueError):
+            self.collocator.integration_method = 'booger'
 
     def test_sort_parameters(self):
 
