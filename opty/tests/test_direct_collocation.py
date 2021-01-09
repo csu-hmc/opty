@@ -5,7 +5,7 @@ from collections import OrderedDict
 import numpy as np
 import sympy as sym
 from scipy import sparse
-from nose.tools import raises
+from pytest import raises
 
 from ..direct_collocation import Problem, ConstraintCollocator
 
