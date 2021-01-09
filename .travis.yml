@@ -17,10 +17,14 @@ install:
   - conda config --add channels conda-forge
   - conda update -q conda
   - conda info -a
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
-  - source activate test-environment
-  # NOTE : ipopt >= 3.13 may not work with Py 27
-  - conda install sympy cython cyipopt pytest pytest-cov coverage sphinx matplotlib openmp "ipopt<3.13"
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      conda env create -f conda/opty-dev-py27.yml;
+      source activate opty-dev-py27;
+    else
+      conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION;
+      source activate test-environment;
+      conda install sympy cython cyipopt pytest pytest-cov coverage sphinx matplotlib-base openmp;
+    fi
 script:
   - py.test --cov=opty opty/
   - python setup.py install
