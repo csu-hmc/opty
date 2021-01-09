@@ -171,7 +171,7 @@ def openmp_installed():
     contents = r"""\
 #include <omp.h>
 #include <stdio.h>
-int main() {
+int main(void) {
     #pragma omp parallel
     printf("Hello from thread %d, nthreads %d\n",
            omp_get_thread_num(), omp_get_num_threads());
