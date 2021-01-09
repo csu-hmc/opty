@@ -22,7 +22,7 @@ install:
   # NOTE : ipopt >= 3.13 may not work with Py 27
   - conda install sympy cython cyipopt pytest pytest-cov coverage sphinx matplotlib openmp "ipopt<3.13"
 script:
-  - py.test --cov=opty
+  - py.test --cov=opty opty/
   - python setup.py install
   # Make sure the docs build.
   - cd docs && make html && cd ..

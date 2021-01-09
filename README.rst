@@ -63,23 +63,21 @@ The required dependencies are as follows:
 To run all of the examples the following additional dependencies are required:
 
 - matplotlib >= 1.3.1
+- openmp
+- pandas
 - pydy >= 0.3.0
 - pytables
-- pandas
 - yeadon
-- openmp
-
-**Currently only Linux and Mac are officially supported.** Although, it should
-be possible to install this on Windows with an appropriate Cython compilation
-toolchain and IPOPT installed from binaries or custom compliation.
 
 The easiest way to install opty is to first install Anaconda_ (or Miniconda_)
 and use the conda package manager to install opty and any desired optional
-dependencies from the Conda Forge channel, e.g.::
+dependencies from the Conda Forge channel, e.g. opty::
 
    $ conda install --channel conda-forge opty
 
-   $ conda install --channel conda-forge matplotlib pytables pandas yeadon pydy openmp
+and the optional dependencies::
+
+   $ conda install --channel conda-forge matplotlib openmp pandas pydy pytables yeadon
 
 .. _Anaconda: https://www.continuum.io/downloads
 .. _Miniconda: https://conda.io/miniconda.html
@@ -101,16 +99,16 @@ set the ``LD_LIBRARY_PATH`` so that you can link to IPOPT when installing
 
 Once Ipopt is installed and accessible, install conda then create an environment::
 
-   $ conda create -n opty-custom -c conda-forge pip numpy scipy cython sympy
+   $ conda create -n opty-custom -c conda-forge cython numpy pip scipy sympy
    $ source activate opty-custom
-   (opty-custom)$ pip install ipopt  # this will compile cyipopt
+   (opty-custom)$ pip install ipopt  # this will compile cyipopt against the available ipopt
    (opty-custom)$ pip install opty
 
 If you want to develop opty, create a conda environment with all of the
 dependencies installed::
 
    $ conda config --add channels conda-forge
-   $ conda create -n opty-dev python sympy numpy scipy cython ipopt cyipopt matplotlib pytables pydy pandas
+   $ conda create -n opty-dev python sympy numpy scipy cython ipopt cyipopt matplotlib pytables pydy pandas pytest sphinx numpydoc
    $ source activate opty-dev
 
 Next download the opty source files and install with::
