@@ -37,7 +37,7 @@ from opty.utils import building_docs
 
 def main(initial_guess, do_plot=False):
 
-    if building_docs:
+    if building_docs():
         do_plot = True
 
     # Specify the symbolic equations of motion.
@@ -195,4 +195,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    main(args.initialguess, args.plot)
+    main(args.initialguess, do_plot=args.plot)
