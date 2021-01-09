@@ -8,6 +8,7 @@ dependencies:
   - cython  # hasn't dropped Python 2.7 yet
   - future
   - ipopt <3.13  # ipopt >= 3.13 may not work with Py 27
+  - matplotlib-base <3.0  # 3.0 dropped Python 2.7
   - numpy <1.17  # 1.17 dropped Python 2.7
   - numpydoc <1.0  # 1.0 dropped Python 2.7
   - pytest <4.7  # pytest 4.6 last to support Python 2.7
