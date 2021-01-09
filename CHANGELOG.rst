@@ -1,6 +1,7 @@
 Version 1.1.0
 =============
 
+- Added support for Windows.
 - Drop support for Python 3.5, add support for 3.7 and 3.8.
 
 Version 1.0.0
