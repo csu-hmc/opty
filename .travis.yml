@@ -20,9 +20,9 @@ install:
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
   # NOTE : ipopt >= 3.13 may not work with Py 27
-  - conda install sympy cython cyipopt nose coverage sphinx matplotlib openmp "ipopt<3.13"
+  - conda install sympy cython cyipopt pytest pytest-cov coverage sphinx matplotlib openmp "ipopt<3.13"
 script:
-  - nosetests -v --with-coverage --cover-package=opty
+  - py.test --cov=skijumpdesign
   - python setup.py install
   # Make sure the docs build.
   - cd docs && make html && cd ..
