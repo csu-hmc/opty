@@ -26,7 +26,11 @@ install:
       conda install sympy cython cyipopt pytest pytest-cov coverage sphinx matplotlib-base openmp;
     fi
 script:
-  - py.test --cov=opty opty/
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      py.test opty/;
+    else
+      py.test --cov=opty opty/;
+    fi
   - python setup.py install
   # Make sure the docs build.
   - cd docs && make html && cd ..
