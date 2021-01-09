@@ -64,4 +64,4 @@ test_script:
   - "python setup.py install"
   - 'python -c "import opty"'
   - "%PYTHON%\\Scripts\\conda.exe install --yes matplotlib"
-  - 'python examples/vyasarayani2011.py'
+  - "python examples/vyasarayani2011.py"
