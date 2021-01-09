@@ -8,6 +8,9 @@ import subprocess
 import importlib
 from functools import wraps
 import warnings
+from distutils.ccompiler import new_compiler
+from distutils.errors import CompileError
+from distutils.sysconfig import customize_compiler
 
 import numpy as np
 import sympy as sm
@@ -22,17 +25,12 @@ except TypeError:  # SymPy >=1.6
 
 
 def building_docs():
-    try:
-        os.eviron['READTHEDOCS']
-    except:
-        try:
-            os.environ['SPHINX']
-        except:
-            pass
-        else:
-            return True
-    else:
+    if 'READTHEDOCS' in os.environ:
         return True
+    elif 'SPHINX' in os.environ:
+        return True
+    else:
+        return False
 
 
 def _optional_plt_dep(func):
@@ -165,7 +163,7 @@ def openmp_installed():
     https://stackoverflow.com/questions/16549893/programatically-testing-for-openmp-support-from-a-python-setup-script
 
     """
-    tmpdir = tempfile.mkdtemp()
+    tmpdir = tempfile.mkdtemp(".opty_openmp_check")
     curdir = os.getcwd()
     os.chdir(tmpdir)
 
@@ -182,23 +180,22 @@ int main() {
     with open(filename, 'w') as f:
         f.write(contents)
 
-    compiler = os.getenv('CC', 'cc')
-
-    exit = 1
+    ccompiler = new_compiler()
+    customize_compiler(ccompiler)
     try:
-        with open(os.devnull, 'w') as fnull:
-            exit = subprocess.call([compiler, '-fopenmp', filename],
-                                   stdout=fnull, stderr=fnull)
-    except:
-        raise
-    finally:  # cleanup even if compilation fails
+        # .compile() should return ['test.o'] on linux
+        ccompiler.compile([filename], extra_postargs=['-fopenmp'])
+        exit = True
+    except CompileError:
+        exit = False
+    finally:
         os.chdir(curdir)
         # NOTE : I can't figure out how to get rmtree to work on Windows, so I
         # don't delete the directory on Windows.
         if sys.platform != "win32":
             shutil.rmtree(tmpdir)
 
-    return True if exit == 0 else False
+    return exit
 
 
 def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
@@ -237,7 +234,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
     file_prefix = '{}_{}'.format(file_prefix_base, module_counter)
 
     if tmp_dir is None:
-        codedir = tempfile.mkdtemp(".ufuncify_compile")
+        codedir = tempfile.mkdtemp(".opty_ufuncify_compile")
     else:
         codedir = os.path.abspath(tmp_dir)
 
