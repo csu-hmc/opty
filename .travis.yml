@@ -23,7 +23,7 @@ install:
     else
       conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION;
       source activate test-environment;
-      conda install sympy cython cyipopt pytest pytest-cov coverage sphinx matplotlib-base openmp;
+      conda install sympy cython scipy cyipopt pytest pytest-cov coverage sphinx matplotlib-base openmp;
     fi
 script:
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
