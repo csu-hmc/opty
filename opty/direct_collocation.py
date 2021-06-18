@@ -178,13 +178,21 @@ class Problem(ipopt.problem):
 
         Parameters
         ==========
-        free : ndarray, (n * N + m * M + q, )
+        free : ndarray, (n*N + q*N + r, )
             A solution to the optimization problem in the canonical form.
 
         Returns
         =======
         obj_val : float
             The value of the objective function.
+
+        Notes
+        =====
+
+        - N : number of collocation nodes
+        - n : number of unknown state trajectories
+        - q : number of unknown input trajectories
+        - r : number of unknown parameters
 
         """
         return self.obj(free)
@@ -195,13 +203,21 @@ class Problem(ipopt.problem):
 
         Parameters
         ==========
-        free : ndarray, (n * N + m * M + q, )
+        free : ndarray, (n*N + q*N + r, )
             A solution to the optimization problem in the canonical form.
 
         Returns
         =======
-        gradient_val : ndarray, shape(n * N + m * M + q, 1)
+        gradient_val : ndarray, shape(n*N + q*N + r, 1)
             The value of the gradient of the objective function.
+
+        Notes
+        =====
+
+        - N : number of collocation nodes
+        - n : number of unknown state trajectories
+        - q : number of unknown input trajectories
+        - r : number of unknown parameters
 
         """
         # This should return a column vector.
@@ -213,13 +229,22 @@ class Problem(ipopt.problem):
 
         Parameters
         ==========
-        free : ndarray, (n * N + m * M + q, )
+        free : ndarray, (n*N + q*N + r, )
             A solution to the optimization problem in the canonical form.
 
         Returns
         =======
-        constraints_val : ndarray, shape(n * N -1 + numinstance)
+        constraints_val : ndarray, shape(n*(N - 1) + o)
             The value of the constraint function.
+
+        Notes
+        =====
+
+        - N : number of collocation nodes
+        - n : number of unknown state trajectories
+        - q : number of unknown input trajectories
+        - r : number of unknown parameters
+        - o : number of instance constraints
 
         """
         # This should return a column vector.
@@ -231,7 +256,7 @@ class Problem(ipopt.problem):
 
         Returns
         =======
-        jac_row_idxs : ndarray, shape(2 * n + q + r,)
+        jac_row_idxs : ndarray, shape(2*n + q + r,)
             The row indices for the non-zero values in the Jacobian.
         jac_col_idxs : ndarray, shape(n,)
             The column indices for the non-zero values in the Jacobian.
@@ -240,7 +265,8 @@ class Problem(ipopt.problem):
         return (self.con_jac_rows, self.con_jac_cols)
 
     def jacobian(self, free):
-        """Returns the non-zero values of the Jacobian of the constraint function.
+        """Returns the non-zero values of the Jacobian of the constraint
+        function.
 
         Returns
         =======
@@ -263,8 +289,8 @@ class Problem(ipopt.problem):
 
         Parameters
         ==========
-        vector : ndarray, (n * N + m * M + q, )
-            The initial guess, solution, or nay other vector that is in the
+        vector : ndarray, (n*N + q*N + r, )
+            The initial guess, solution, or any other vector that is in the
             canonical form.
         axes : ndarray of AxesSubplot, shape(n + m, )
             An array of matplotlib axes to plot to.
@@ -273,6 +299,15 @@ class Problem(ipopt.problem):
         =======
         axes : ndarray of AxesSubplot
             A matplotlib axes with the state and input trajectories plotted.
+
+        Notes
+        =====
+
+        - N : number of collocation nodes
+        - n : number of unknown state trajectories
+        - m : number of input trajectories
+        - q : number of unknown input trajectories
+        - r : number of unknown parameters
 
         """
 
@@ -310,7 +345,7 @@ class Problem(ipopt.problem):
 
         Parameters
         ==========
-        vector : ndarray, (n * N + m * M + q, )
+        vector : ndarray, (n*N + q*N + r, )
             The initial guess, solution, or any other vector that is in the
             canonical form.
 
@@ -318,6 +353,14 @@ class Problem(ipopt.problem):
         =======
         axes : ndarray of AxesSubplot
             A matplotlib axes with the constraint violations plotted.
+
+        Notes
+        =====
+
+        - N : number of collocation nodes
+        - n : number of unknown state trajectories
+        - q : number of unknown input trajectories
+        - r : number of unknown parameters
 
         """
 
@@ -365,15 +408,17 @@ class ConstraintCollocator(object):
     constraints are defined from the equations of motion of the system.
 
     Notes
-    -----
+    =====
+
     - N : number of collocation nodes
-    - N - 1 + q: number of constraints
     - n : number of states
     - m : number of input trajectories
     - p : number of parameters
     - q : number of unknown input trajectories
     - r : number of unknown parameters
     - o : number of instance constraints
+    - nN + qN + r : number of free variables
+    - n(N - 1) + o : number of constraints
 
     """
 
@@ -435,7 +480,8 @@ class ConstraintCollocator(object):
         parallel : boolean, optional
             If true and openmp is installed, constraints and the Jacobian of
             the constraints will be executed across multiple threads. This is
-            only useful when the equations of motion are extremely large.
+            only useful when the equations of motion have an extremely large
+            number of operations.
 
         """
         self.eom = equations_of_motion
@@ -767,7 +813,7 @@ class ConstraintCollocator(object):
         Jacobian of the constraints."""
         idx_map = self.instance_constraints_free_index_map
 
-        num_eom_constraints = self.num_states * (self.num_collocation_nodes - 1)
+        num_eom_constraints = self.num_states*(self.num_collocation_nodes - 1)
 
         rows = []
         cols = []
@@ -956,7 +1002,7 @@ class ConstraintCollocator(object):
 
         Returns
         -------
-        jac_row_idxs : ndarray, shape(2 * n + q + r,)
+        jac_row_idxs : ndarray, shape(2*n + q + r,)
             The row indices for the non-zero values in the Jacobian.
         jac_col_idxs : ndarray, shape(n,)
             The column indices for the non-zero values in the Jacobian.
@@ -1258,13 +1304,13 @@ class ConstraintCollocator(object):
 
             Notes
             -----
-            N : number of collocation nodes
-            n : number of states
-            m : number of input trajectories
-            p : number of parameters
-            q : number of unknown input trajectories
-            r : number of unknown parameters
-            n * (N - 1) : number of constraints
+            - N : number of collocation nodes
+            - n : number of states
+            - m : number of input trajectories
+            - p : number of parameters
+            - q : number of unknown input trajectories
+            - r : number of unknown parameters
+            - n*(N - 1) : number of constraints
 
             """
             if state_values.shape[0] < 2:

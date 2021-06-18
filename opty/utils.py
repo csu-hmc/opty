@@ -59,14 +59,16 @@ def f_minus_ma(mass_matrix, forcing_vector, states):
     return mass_matrix * xdot - forcing_vector
 
 
-def parse_free(free, n, r, N):
+def parse_free(free, n, q, N):
     """Parses the free parameters vector and returns it's components.
 
-    free : ndarray, shape(n * N + m * M + q)
+    Parameters
+    ----------
+    free : ndarray, shape(n*N + q*N + r)
         The free parameters of the system.
     n : integer
         The number of states.
-    r : integer
+    q : integer
         The number of free specified inputs.
     N : integer
         The number of time steps.
@@ -83,16 +85,16 @@ def parse_free(free, n, r, N):
     """
 
     len_states = n * N
-    len_specified = r * N
+    len_specified = q * N
 
     free_states = free[:len_states].reshape((n, N))
 
-    if r == 0:
+    if q == 0:
         free_specified = None
     else:
         free_specified = free[len_states:len_states + len_specified]
-        if r > 1:
-            free_specified = free_specified.reshape((r, N))
+        if q > 1:
+            free_specified = free_specified.reshape((q, N))
 
     free_constants = free[len_states + len_specified:]
 
