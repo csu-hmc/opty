@@ -16,7 +16,7 @@ where:
   :math:`t`
 - :math:`\mathbf{r}(t) \in \mathbb{R}^m` is the vector of specified
   (exongenous) inputs at time :math:`t`
-- :math:`\mathbf{p} \in \mathbb{R}^r` is the vector of constant parameters
+- :math:`\mathbf{p} \in \mathbb{R}^p` is the vector of constant parameters
 
 From here on out, the notation :math:`(t)` will be dropped for convenience.
 
@@ -158,7 +158,7 @@ Then, defining :math:`\mathbf{x}_i` to be:
 
 .. math::
 
-   \mathbf{x}_i = [\mathbf{y}_i \quad \mathbf{r}_{ui} \quad \mathbf{p}_{ui}]^T
+   \mathbf{x}_i = [\mathbf{y}_i \quad \mathbf{r}_{ui} \quad \mathbf{p}_{u}]^T
 
 
 The above equations will create :math:`n(N-1)` constraint equations and the
@@ -166,7 +166,7 @@ optimization problem can formally be written as:
 
 .. math::
 
-   & \underset{\mathbf{x}_i \in \mathbb{R}^{(n + q)N + r}}
+   & \underset{\mathbf{x}_i \in \mathbb{R}^{n + q + r}}
               {\text{min}}
    & & J(\mathbf{x}_i) \\
    & \text{s.t.}

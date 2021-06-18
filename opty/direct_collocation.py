@@ -234,7 +234,7 @@ class Problem(ipopt.problem):
 
         Returns
         =======
-        constraints_val : ndarray, shape(n*(N - 1) + numinstance)
+        constraints_val : ndarray, shape(n*(N - 1) + o)
             The value of the constraint function.
 
         Notes
@@ -244,6 +244,7 @@ class Problem(ipopt.problem):
         - n : number of unknown state trajectories
         - q : number of unknown input trajectories
         - r : number of unknown parameters
+        - o : number of instance constraints
 
         """
         # This should return a column vector.
