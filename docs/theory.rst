@@ -14,9 +14,9 @@ where:
 - :math:`t` is time
 - :math:`\mathbf{y}(t) \in \mathbb{R}^n` the state vector at time
   :math:`t`
-- :math:`\mathbf{r}(t) \in \mathbb{R}^p` is the vector of specified
+- :math:`\mathbf{r}(t) \in \mathbb{R}^m` is the vector of specified
   (exongenous) inputs at time :math:`t`
-- :math:`\mathbf{p} \in \mathbb{R}^q` is the vector of constant parameters
+- :math:`\mathbf{p} \in \mathbb{R}^r` is the vector of constant parameters
 
 From here on out, the notation :math:`(t)` will be dropped for convenience.
 
@@ -58,6 +58,11 @@ One can then break up :math:`\mathbf{r}` and :math:`\mathbf{p}` into known,
    \mathbf{r} = \left[ \mathbf{r}_k \quad \mathbf{r}_u \right]^T
 
    \mathbf{p} = \left[ \mathbf{p}_k \quad \mathbf{p}_u \right]^T
+
+where the dimension of the unknown vectors are:
+
+- :math:`\mathbf{r}_u \in \mathbb{R}^q`
+- :math:`\mathbf{p}_u \in \mathbb{R}^r`
 
 Then there are optimal state trajectories :math:`\mathbf{y}`, optimal unknown
 input trajectories :math:`\mathbf{r}_u` and optimal unknown parameter values
@@ -111,7 +116,7 @@ Euler method`_ and the `midpoint method`_.
 .. _backward Euler method: https://en.wikipedia.org/wiki/Backward_Euler_method
 .. _midpoint method: https://en.wikipedia.org/wiki/Midpoint_method
 
-If :math:`h` is the time interval between the :math:`m`  discretized instances
+If :math:`h` is the time interval between the :math:`N` discretized instances
 of time :math:`t_i`, one can use the backward Euler method of integration to
 approximate the derivative of the state vector as:
 
@@ -156,12 +161,12 @@ Then, defining :math:`\mathbf{x}_i` to be:
    \mathbf{x}_i = [\mathbf{y}_i \quad \mathbf{r}_{ui} \quad \mathbf{p}_{ui}]^T
 
 
-The above equations will create :math:`nm` constraint equations and the
+The above equations will create :math:`n(N-1)` constraint equations and the
 optimization problem can formally be written as:
 
 .. math::
 
-   & \underset{\mathbf{x}_i \in \mathbb{R}^{(n + p)m + q}}
+   & \underset{\mathbf{x}_i \in \mathbb{R}^{(n + q)N + r}}
               {\text{min}}
    & & J(\mathbf{x}_i) \\
    & \text{s.t.}
