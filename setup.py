@@ -6,11 +6,6 @@ from setuptools import setup, find_packages
 
 exec(open('opty/version.py').read())
 
-if sys.version_info.major < 3:
-    cyipopt_version = 'ipopt>=0.2.0,<1.0.0'
-else:
-    cyipopt_version = 'cyipopt>=1.1.0'
-
 setup(
     name='opty',
     version=__version__,
@@ -26,7 +21,7 @@ setup(
                       'scipy>=1.5.0',
                       'sympy>=1.6.0',
                       'cython>=0.29.19',
-                      cyipopt_version,
+                      'cyipopt>=1.1.0',
                       ],
     extras_require={'examples': ['pydy>=0.5.0',
                                  'matplotlib>=3.2.0',
@@ -40,7 +35,6 @@ setup(
                     },
     tests_require=['pytest'],
     classifiers=['Programming Language :: Python',
-                 'Programming Language :: Python :: 2.7',
                  'Programming Language :: Python :: 3.6',
                  'Programming Language :: Python :: 3.7',
                  'Programming Language :: Python :: 3.8',

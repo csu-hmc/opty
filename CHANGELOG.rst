@@ -1,6 +1,8 @@
 Verion 1.2.0
 ============
 
+- Dropped support for Python 2.7.
+- Added support for Python 3.9.
 - Bumped minimum dependencies up to versions released around mid 2020, except
   fo cyipopt which is set to 1.1.0 since that is the first version released on
   PyPi under the name cyipopt (instead of ipopt).
