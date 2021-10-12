@@ -8,7 +8,7 @@ exec(open('opty/version.py').read())
 
 if sys.version_info.major < 3:
     cyipopt_version = 'ipopt>=0.2.0,<1.0.0'
-else
+else:
     cyipopt_version = 'cyipopt>=1.1.0'
 
 setup(
