@@ -6,11 +6,6 @@ from setuptools import setup, find_packages
 
 exec(open('opty/version.py').read())
 
-if sys.platform == "win32":
-    cyipopt_min_ver = '0.3.0'
-else:
-    cyipopt_min_ver = '0.1.7'
-
 setup(
     name='opty',
     version=__version__,
@@ -22,14 +17,14 @@ setup(
     description=('Tools for optimizing dynamic systems using direct '
                  'collocation.'),
     long_description=open('README.rst').read(),
-    install_requires=['numpy>=1.8.1',
-                      'scipy>=0.14.1',
-                      'sympy>=1.0.0',
-                      'cython>=0.20.1',
-                      'ipopt>={}'.format(cyipopt_min_ver),  # cyipopt
+    install_requires=['numpy>=1.19.0',
+                      'scipy>=1.5.0',
+                      'sympy>=1.6.0',
+                      'cython>=0.29.19',
+                      'cyipopt>=1.1.0',
                       ],
-    extras_require={'examples': ['pydy>=0.3.0',
-                                 'matplotlib>=1.3.1',
+    extras_require={'examples': ['pydy>=0.5.0',
+                                 'matplotlib>=3.2.0',
                                  'tables',
                                  'yeadon',
                                  'pandas',
@@ -44,6 +39,7 @@ setup(
                  'Programming Language :: Python :: 3.6',
                  'Programming Language :: Python :: 3.7',
                  'Programming Language :: Python :: 3.8',
+                 'Programming Language :: Python :: 3.9',
                  'Operating System :: OS Independent',
                  'Development Status :: 4 - Beta',
                  'Intended Audience :: Science/Research',
