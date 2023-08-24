@@ -11,9 +11,12 @@ import warnings
 from distutils.ccompiler import new_compiler
 from distutils.errors import CompileError
 from distutils.sysconfig import customize_compiler
+from collections import Counter
+from timeit import default_timer as timer
 
 import numpy as np
 import sympy as sm
+from sympy.utilities.iterables import numbered_symbols
 try:
     plt = sm.external.import_module('matplotlib.pyplot',
                                     __import__kwargs={'fromlist': ['']},
@@ -22,6 +25,123 @@ except TypeError:  # SymPy >=1.6
     plt = sm.external.import_module('matplotlib.pyplot',
                                     import_kwargs={'fromlist': ['']},
                                     catch=(RuntimeError,))
+
+
+def forward_jacobian(expr, wrt):
+
+    def add_to_cache(node):
+        if node in expr_to_replacement_cache:
+            replacement_symbol = expr_to_replacement_cache[node]
+            return replacement_symbol, replacement_to_reduced_expr_cache[replacement_symbol]
+        elif node in replacement_to_reduced_expr_cache:
+            return node, replacement_to_reduced_expr_cache[node]
+        elif isinstance(node, sm.Tuple):
+            return None, None
+        elif not node.free_symbols:
+            return node, node
+
+        replacement_symbol = replacement_symbols.__next__()
+        replaced_subexpr = node.xreplace(expr_to_replacement_cache)
+        replacement_to_reduced_expr_cache[replacement_symbol] = replaced_subexpr
+        expr_to_replacement_cache[node] = replacement_symbol
+        return replacement_symbol, replaced_subexpr
+
+    if not isinstance(expr, sm.ImmutableDenseMatrix):
+        msg = (
+            'The forward Jacobian differentiation algorithm can only be used '
+            'to differentiate a single matrix expression at a time.'
+        )
+        raise NotImplementedError(msg)
+    elif expr.shape[1] != 1:
+        msg = 'Can only compute the Jacobian for column matrices.'
+        raise NotImplementedError(msg)
+    elif not isinstance(wrt, sm.ImmutableDenseMatrix) or wrt.shape[1] != 1:
+        msg = (
+            'The forward Jacobian differentiation algorithm can compute '
+            'Jacobians with respect to column matrices.'
+        )
+
+    replacement_symbols = numbered_symbols(
+        prefix='_z',
+        cls=sm.Symbol,
+        exclude=expr.free_symbols,
+    )
+
+    expr_to_replacement_cache = {}
+    replacement_to_reduced_expr_cache = {}
+
+    print('Adding expression nodes to cache...')
+    start = timer()
+    for node in sm.postorder_traversal(expr.args[2], keys=True):
+        if isinstance(node, sm.ImmutableDenseMatrix):
+            break
+        add_to_cache(node)
+    finish = timer()
+    print(f'Completed in {finish - start:.2f}s')
+
+    reduced_matrix = node.xreplace(expr_to_replacement_cache)
+    reduced_exprs = [reduced_matrix]
+    replacements = list(replacement_to_reduced_expr_cache.items())
+
+    partial_derivative_mapping = {}
+    absolute_derivative_mapping = {}
+    for i, wrt_symbol in enumerate(wrt.args[2]):
+        absolute_derivative = [sm.S.Zero] * len(wrt)
+        absolute_derivative[i] = sm.S.One
+        absolute_derivative_mapping[wrt_symbol] = sm.ImmutableDenseMatrix([absolute_derivative])
+    new_replacements_mapping = {}
+
+    print('Differentiating expression nodes...')
+    start = timer()
+    zeros = sm.ImmutableDenseMatrix.zeros(1, len(wrt))
+    for symbol, subexpr in replacements:
+        free_symbols = subexpr.free_symbols
+        absolute_derivative = zeros
+        for free_symbol in free_symbols:
+            replacement_symbol, partial_derivative = add_to_cache(subexpr.diff(free_symbol))
+            absolute_derivative += partial_derivative * absolute_derivative_mapping.get(free_symbol, zeros)
+        absolute_derivative_mapping[symbol] = sm.ImmutableDenseMatrix([[add_to_cache(a)[0] for a in absolute_derivative]])
+
+    replaced_jacobian = sm.ImmutableDenseMatrix.vstack(*[absolute_derivative_mapping[e] for e in reduced_matrix])
+    finish = timer()
+    print(f'Completed in {finish - start:.2f}s')
+
+    print('Determining required replacements...')
+    start = timer()
+    required_replacement_symbols = set()
+    stack = [entry for entry in replaced_jacobian if entry.free_symbols]
+    while stack:
+        entry = stack.pop()
+        if entry in required_replacement_symbols or entry in wrt:
+            continue
+        children = list(replacement_to_reduced_expr_cache.get(entry, entry).free_symbols)
+        stack.extend(children)
+        required_replacement_symbols.add(entry)
+    finish = timer()
+    print(f'Completed in {finish - start:.2f}s')
+
+    required_replacements_dense = {
+        replacement_symbol: replaced_subexpr
+        for replacement_symbol, replaced_subexpr in replacement_to_reduced_expr_cache.items()
+        if replacement_symbol in required_replacement_symbols
+    }
+
+    counter = Counter(replaced_jacobian.free_symbols)
+    for replaced_subexpr in required_replacements_dense.values():
+        counter.update(replaced_subexpr.free_symbols)
+
+    print('Substituting required replacements...')
+    required_replacements = {}
+    unrequired_replacements = {}
+    for replacement_symbol, replaced_subexpr in required_replacements_dense.items():
+        if isinstance(replaced_subexpr, sm.Symbol) or counter[replacement_symbol] == 1:
+            unrequired_replacements[replacement_symbol] = replaced_subexpr.xreplace(unrequired_replacements)
+        else:
+            required_replacements[replacement_symbol] = replaced_subexpr.xreplace(unrequired_replacements)
+    finish = timer()
+    print(f'Completed in {finish - start:.2f}s')
+
+    return (list(required_replacements.items()), [replaced_jacobian.xreplace(unrequired_replacements)])
 
 
 def building_docs():
