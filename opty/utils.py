@@ -350,7 +350,14 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
     # not sure if this current version counts sequentially.
     global module_counter
 
-    matrix_size = expr.shape[0] * expr.shape[1]
+    if hasattr(expr, 'shape'):
+        num_rows = expr.shape[0]
+        num_cols = expr.shape[1]
+    else:
+        num_rows = expr[1][0].shape[0]
+        num_cols = expr[1][0].shape[1]
+
+    matrix_size = num_rows * num_cols
 
     file_prefix_base = 'ufuncify_matrix'
     file_prefix = '{}_{}'.format(file_prefix_base, module_counter)
@@ -377,8 +384,8 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
     d = {'routine_name': 'eval_matrix',
          'file_prefix': file_prefix,
          'matrix_output_size': matrix_size,
-         'num_rows': expr.shape[0],
-         'num_cols': expr.shape[1]}
+         'num_rows': num_rows,
+         'num_cols': num_cols}
 
     if parallel:
         if openmp_installed():
@@ -400,9 +407,12 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
         d['compile_args'] = ""
         d['link_args'] = ""
 
-    matrix_sym = sm.MatrixSymbol('matrix', expr.shape[0], expr.shape[1])
+    matrix_sym = sm.MatrixSymbol('matrix', num_rows, num_cols)
 
-    sub_exprs, simple_mat = sm.cse(expr, sm.numbered_symbols('z_'))
+    if isinstance(expr, tuple) and len(expr) == 2:
+        sub_exprs, simple_mat = expr
+    else:
+        sub_exprs, simple_mat = sm.cse(expr, sm.numbered_symbols('z_'))
 
     sub_expr_code = '\n'.join(['double ' + sm.ccode(sub_expr[1], sub_expr[0])
                                for sub_expr in sub_exprs])
