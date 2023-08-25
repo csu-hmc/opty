@@ -1267,7 +1267,7 @@ class ConstraintCollocator(object):
         # symbolic_partials = self.discrete_eom.jacobian(wrt)
         discrete_eom_matrix = sm.ImmutableDenseMatrix(self.discrete_eom)
         wrt_matrix = sm.ImmutableDenseMatrix([list(wrt)])
-        symbolic_partials = forward_jacobian(discrete_eom_matrix, wrt_matrix)
+        symbolic_partials = forward_jacobian(discrete_eom_matrix, wrt_matrix.T)
         print('Jacobian differentiation finished.')
 
         # This generates a numerical function that evaluates the matrix of
