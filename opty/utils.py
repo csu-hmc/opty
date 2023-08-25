@@ -60,6 +60,7 @@ def forward_jacobian(expr, wrt):
             'The forward Jacobian differentiation algorithm can compute '
             'Jacobians with respect to column matrices.'
         )
+        raise NotImplementedError
 
     replacement_symbols = numbered_symbols(
         prefix='_z',
