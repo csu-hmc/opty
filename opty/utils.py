@@ -72,15 +72,20 @@ def forward_jacobian(expr, wrt):
 
     print('Adding expression nodes to cache...')
     start = timer()
-    for node in sm.postorder_traversal(expr.args[2], keys=True):
-        if isinstance(node, sm.ImmutableDenseMatrix):
-            break
-        add_to_cache(node)
+    replacements, reduced_exprs = sm.cse(expr.args[2], replacement_symbols)
+    for replacement_symbol, reduced_subexpr in replacements:
+        replaced_subexpr = reduced_subexpr.xreplace(expr_to_replacement_cache)
+        replacement_to_reduced_expr_cache[replacement_symbol] = replaced_subexpr
+        expr_to_replacement_cache[reduced_subexpr] = replacement_symbol
+        for node in sm.postorder_traversal(reduced_subexpr):
+            _ = add_to_cache(node)
+    for reduced_expr in reduced_exprs:
+        for node in reduced_expr:
+            _ = add_to_cache(node)
     finish = timer()
     print(f'Completed in {finish - start:.2f}s')
 
-    reduced_matrix = node.xreplace(expr_to_replacement_cache)
-    reduced_exprs = [reduced_matrix]
+    reduced_matrix = sm.ImmutableDenseMatrix(reduced_exprs).xreplace(expr_to_replacement_cache)
     replacements = list(replacement_to_reduced_expr_cache.items())
 
     partial_derivative_mapping = {}
@@ -89,7 +94,6 @@ def forward_jacobian(expr, wrt):
         absolute_derivative = [sm.S.Zero] * len(wrt)
         absolute_derivative[i] = sm.S.One
         absolute_derivative_mapping[wrt_symbol] = sm.ImmutableDenseMatrix([absolute_derivative])
-    new_replacements_mapping = {}
 
     print('Differentiating expression nodes...')
     start = timer()
@@ -115,7 +119,9 @@ def forward_jacobian(expr, wrt):
         if entry in required_replacement_symbols or entry in wrt:
             continue
         children = list(replacement_to_reduced_expr_cache.get(entry, entry).free_symbols)
-        stack.extend(children)
+        for child in children:
+            if child not in required_replacement_symbols and child not in wrt:
+                stack.append(child)
         required_replacement_symbols.add(entry)
     finish = timer()
     print(f'Completed in {finish - start:.2f}s')
