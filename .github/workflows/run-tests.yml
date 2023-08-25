@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: [3.6, 3.7, 3.8, 3.9, "3.10"]
 
     steps:
     - uses: actions/checkout@v2
@@ -31,6 +31,8 @@ jobs:
         conda config --set always_yes yes --set changeps1 no
         conda config --add channels conda-forge
         conda update -q conda
+        conda install -n base conda-libmamba-solver
+        conda config --set solver libmamba
         conda create -q -n test-env python=${{ matrix.python-version }}
         conda activate test-env
         conda install -y -q sympy cython scipy cyipopt pytest pytest-cov coverage sphinx matplotlib-base openmp
