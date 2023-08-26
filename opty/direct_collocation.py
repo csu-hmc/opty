@@ -5,7 +5,7 @@ from functools import wraps
 import numpy as np
 import sympy as sm
 from sympy.physics import mechanics as me
-import ipopt
+import cyipopt
 try:
     plt = sm.external.import_module('matplotlib.pyplot',
                                     __import__kwargs={'fromlist': ['']},
@@ -81,7 +81,7 @@ class _DocInherit(object):
 _doc_inherit = _DocInherit
 
 
-class Problem(ipopt.problem):
+class Problem(cyipopt.Problem):
     """This class allows the user to instantiate a problem object with the
     essential data required to solve a direct collocation optinal control or
     parameter identification problem."""
