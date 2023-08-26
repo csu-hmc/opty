@@ -52,7 +52,7 @@ Installation
 
 The required dependencies are as follows:
 
-- python 3.6-3.9
+- python 3.8-3.11
 - sympy >= 1.6.0
 - ipopt >= 3.11 (Linux & OSX), >= 3.13 (Windows)
 - numpy >= 1.19.0

@@ -1,13 +1,12 @@
 name: opty-dev
 channels:
-- defaults
-- conda-forge
+  - conda-forge
 dependencies:
-- opty
-- numpy
-- scipy
-- sympy
-- cython
-- cyipopt
-- matplotlib
-- sphinx >=1.4
+  - opty
+  - numpy
+  - scipy
+  - sympy
+  - cython
+  - cyipopt
+  - matplotlib
+  - sphinx >=1.4
