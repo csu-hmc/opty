@@ -829,7 +829,7 @@ class ConstraintCollocator(object):
         return np.array(rows), np.array(cols)
 
     def _instance_constraints_jacobian_values_func(self):
-        """Retruns the non-zero values of the constraint Jacobian associated
+        """Returns the non-zero values of the constraint Jacobian associated
         with the instance constraints."""
         free = sm.DeferredVector('FREE')
 
