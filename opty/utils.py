@@ -26,6 +26,8 @@ except TypeError:  # SymPy >=1.6
                                     import_kwargs={'fromlist': ['']},
                                     catch=(RuntimeError,))
 
+pycompilation = sm.external.import_module('pycompilation')
+
 
 def forward_jacobian(expr, wrt):
 
@@ -461,27 +463,43 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
     files[d['file_prefix'] + '.pyx'] = _cython_template.format(**d)
     files[d['file_prefix'] + '_setup.py'] = _setup_template.format(**d)
 
-    workingdir = os.getcwd()
-    os.chdir(codedir)
+    if pycompilation:
+        sources = [
+            (d['file_prefix'] + '_h.h', files[d['file_prefix'] + '_h.h']),
+            (d['file_prefix'] + '_c.c', files[d['file_prefix'] + '_c.c']),
+            (d['file_prefix'] + '.pyx', files[d['file_prefix'] + '.pyx']),
+        ]
 
-    try:
-        sys.path.append(codedir)
-        for filename, code in files.items():
-            with open(filename, 'w') as f:
-                f.write(code)
-        cmd = [sys.executable, d['file_prefix'] + '_setup.py', 'build_ext',
-               '--inplace']
-        subprocess.call(cmd, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
-        cython_module = importlib.import_module(d['file_prefix'])
-    finally:
-        module_counter += 1
-        sys.path.remove(codedir)
-        os.chdir(workingdir)
-        if tmp_dir is None:
-            # NOTE : I can't figure out how to get rmtree to work on Windows,
-            # so I don't delete the directory on Windows.
-            if sys.platform != "win32":
-                shutil.rmtree(codedir)
+        options = ['warn', 'pic']
+        if parallel:
+            options += ['openmp']
+
+        cython_module = pycompilation.compile_link_import_strings(
+            sources, options=options, std='c99', logger=True,
+            include_dirs=[np.get_include()], build_dir=codedir)
+    else:
+        workingdir = os.getcwd()
+        os.chdir(codedir)
+
+        try:
+            sys.path.append(codedir)
+            for filename, code in files.items():
+                with open(filename, 'w') as f:
+                    f.write(code)
+            cmd = [sys.executable, d['file_prefix'] + '_setup.py', 'build_ext',
+                   '--inplace']
+            subprocess.call(cmd, stderr=subprocess.STDOUT,
+                            stdout=subprocess.PIPE)
+            cython_module = importlib.import_module(d['file_prefix'])
+        finally:
+            module_counter += 1
+            sys.path.remove(codedir)
+            os.chdir(workingdir)
+            if tmp_dir is None:
+                # NOTE : I can't figure out how to get rmtree to work on Windows,
+                # so I don't delete the directory on Windows.
+                if sys.platform != "win32":
+                    shutil.rmtree(codedir)
 
     return getattr(cython_module, d['routine_name'] + '_loop')
 
