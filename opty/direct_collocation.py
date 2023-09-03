@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from functools import wraps
+import logging
 
 import numpy as np
 import sympy as sm
@@ -732,6 +733,7 @@ class ConstraintCollocator(object):
             The column vector of the discretized equations of motion.
 
         """
+        logging.info('Discretizing the equations of motion.')
         x = self.state_symbols
         xd = self.state_derivative_symbols
         u = self.input_trajectories
@@ -921,6 +923,7 @@ class ConstraintCollocator(object):
             adjacent_start = 1
             adjacent_stop = None
 
+        logging.info('Compiling the constraint function.')
         f = ufuncify_matrix(args, self.discrete_eom,
                             const=constant_syms + (h_sym,),
                             tmp_dir=self.tmp_dir, parallel=self.parallel)
@@ -1261,11 +1264,13 @@ class ConstraintCollocator(object):
 
         # This creates a matrix with all of the symbolic partial derivatives
         # necessary to compute the full Jacobian.
+        logging.info('Differentiating the constraint function.')
         symbolic_partials = self.discrete_eom.jacobian(wrt)
 
         # This generates a numerical function that evaluates the matrix of
         # partial derivatives. This function returns the non-zero elements
         # needed to build the sparse constraint Jacobian.
+        logging.info('Compiling the Jacobian function.')
         eval_partials = ufuncify_matrix(args, symbolic_partials,
                                         const=constant_syms + (h_sym,),
                                         tmp_dir=self.tmp_dir,
