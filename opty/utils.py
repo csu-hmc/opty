@@ -105,16 +105,11 @@ def parse_free(free, n, q, N):
 
 _c_template = """\
 #include <math.h>
-#include "{file_prefix}_h.h"
 
 void {routine_name}(double matrix[{matrix_output_size}], {input_args})
 {{
 {eval_code}
 }}
-"""
-
-_h_template = """\
-void {routine_name}(double matrix[{matrix_output_size}], {input_args});
 """
 
 _cython_template = """\
@@ -123,8 +118,7 @@ from cython.parallel import prange
 cimport numpy as np
 cimport cython
 
-cdef extern from "{file_prefix}_h.h"{head_gil}:
-    void {routine_name}(double matrix[{matrix_output_size}], {input_args})
+cdef extern void c_{routine_name} "{routine_name}" (double matrix[{matrix_output_size}], {input_args}){head_gil}
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -135,7 +129,7 @@ def {routine_name}_loop(np.ndarray[np.double_t, ndim=2] matrix, {numpy_typed_inp
     cdef int i
 
     for i in {loop_sig}:
-        {routine_name}(&matrix[i, 0], {indexed_input_args})
+        c_{routine_name}(&matrix[i, 0], {indexed_input_args})
 
     return matrix.reshape(n, {num_rows}, {num_cols})
 """
@@ -322,23 +316,21 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
 
     files = {}
     files[d['file_prefix'] + '_c.c'] = _c_template.format(**d)
-    files[d['file_prefix'] + '_h.h'] = _h_template.format(**d)
     files[d['file_prefix'] + '.pyx'] = _cython_template.format(**d)
     files[d['file_prefix'] + '_setup.py'] = _setup_template.format(**d)
 
     if pycompilation:
         sources = [
-            (d['file_prefix'] + '_h.h', files[d['file_prefix'] + '_h.h']),
             (d['file_prefix'] + '_c.c', files[d['file_prefix'] + '_c.c']),
             (d['file_prefix'] + '.pyx', files[d['file_prefix'] + '.pyx']),
         ]
 
-        options = ['warn', 'pic']
+        options = []
         if parallel:
             options += ['openmp']
 
         cython_module = pycompilation.compile_link_import_strings(
-            sources, options=options, std='c99', logger=True,
+            sources, options=options, std='c99',
             include_dirs=[np.get_include()], build_dir=codedir)
     else:
         workingdir = os.getcwd()
