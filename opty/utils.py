@@ -8,6 +8,7 @@ import subprocess
 import importlib
 from functools import wraps
 import warnings
+import logging
 from distutils.ccompiler import new_compiler
 from distutils.errors import CompileError
 from distutils.sysconfig import customize_compiler
@@ -23,7 +24,7 @@ except TypeError:  # SymPy >=1.6
                                     import_kwargs={'fromlist': ['']},
                                     catch=(RuntimeError,))
 
-pycompilation = sm.external.import_module('pycompilation')
+from sympy.utilities._compilation import compilation as pycompilation
 
 
 def building_docs():
@@ -319,7 +320,8 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
     files[d['file_prefix'] + '.pyx'] = _cython_template.format(**d)
     files[d['file_prefix'] + '_setup.py'] = _setup_template.format(**d)
 
-    if pycompilation:
+    try:
+        logging.info('opty:Compiling with sympy.utilities._compilation module.')
         sources = [
             (d['file_prefix'] + '_c.c', files[d['file_prefix'] + '_c.c']),
             (d['file_prefix'] + '.pyx', files[d['file_prefix'] + '.pyx']),
@@ -327,12 +329,18 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
 
         options = []
         if parallel:
-            options += ['openmp']
+            options += ['-fopenmp']
 
-        cython_module = pycompilation.compile_link_import_strings(
-            sources, options=options, std='c99',
-            include_dirs=[np.get_include()], build_dir=codedir)
-    else:
+        cython_module, info = pycompilation.compile_link_import_strings(
+            sources,
+            compile_kwargs={
+                "std": 'c99',
+                "include_dirs": [np.get_include()],
+                'flags': options},
+            link_kwargs={'flags': options},
+            build_dir=codedir)
+    except:
+        logging.info("opty:Compiling with Opty's compilation functions.")
         workingdir = os.getcwd()
         os.chdir(codedir)
 
