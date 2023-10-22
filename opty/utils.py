@@ -27,7 +27,7 @@ except TypeError:  # SymPy >=1.6
                                     catch=(RuntimeError,))
 
 
-def forward_jacobian(expr, wrt):
+def _forward_jacobian(expr, wrt):
 
     def add_to_cache(node):
         if node in expr_to_replacement_cache:

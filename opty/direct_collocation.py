@@ -15,7 +15,8 @@ except TypeError:  # SymPy >=1.6
                                     import_kwargs={'fromlist': ['']},
                                     catch=(RuntimeError,))
 
-from .utils import ufuncify_matrix, parse_free, _optional_plt_dep, forward_jacobian
+from .utils import (ufuncify_matrix, parse_free, _optional_plt_dep,
+                    _forward_jacobian)
 
 __all__ = ['Problem', 'ConstraintCollocator']
 
@@ -1267,7 +1268,8 @@ class ConstraintCollocator(object):
         # symbolic_partials = self.discrete_eom.jacobian(wrt)
         discrete_eom_matrix = sm.ImmutableDenseMatrix(self.discrete_eom)
         wrt_matrix = sm.ImmutableDenseMatrix([list(wrt)])
-        symbolic_partials = forward_jacobian(discrete_eom_matrix, wrt_matrix.T)
+        symbolic_partials = _forward_jacobian(discrete_eom_matrix,
+                                              wrt_matrix.T)
         print('Jacobian differentiation finished.')
 
         # This generates a numerical function that evaluates the matrix of
