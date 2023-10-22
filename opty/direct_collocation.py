@@ -16,7 +16,8 @@ except TypeError:  # SymPy >=1.6
                                     import_kwargs={'fromlist': ['']},
                                     catch=(RuntimeError,))
 
-from .utils import ufuncify_matrix, parse_free, _optional_plt_dep
+from .utils import (ufuncify_matrix, parse_free, _optional_plt_dep,
+                    _forward_jacobian)
 
 __all__ = ['Problem', 'ConstraintCollocator']
 
@@ -116,7 +117,9 @@ class Problem(cyipopt.Problem):
         self.obj = obj
         self.obj_grad = obj_grad
         self.con = self.collocator.generate_constraint_function()
+        logging.info('Constraint function generated.')
         self.con_jac = self.collocator.generate_jacobian_function()
+        logging.info('Jacobian function generated.')
 
         self.con_jac_rows, self.con_jac_cols = \
             self.collocator.jacobian_indices()
@@ -1265,7 +1268,10 @@ class ConstraintCollocator(object):
         # This creates a matrix with all of the symbolic partial derivatives
         # necessary to compute the full Jacobian.
         logging.info('Differentiating the constraint function.')
-        symbolic_partials = self.discrete_eom.jacobian(wrt)
+        discrete_eom_matrix = sm.ImmutableDenseMatrix(self.discrete_eom)
+        wrt_matrix = sm.ImmutableDenseMatrix([list(wrt)])
+        symbolic_partials = _forward_jacobian(discrete_eom_matrix,
+                                              wrt_matrix.T)
 
         # This generates a numerical function that evaluates the matrix of
         # partial derivatives. This function returns the non-zero elements
@@ -1276,9 +1282,14 @@ class ConstraintCollocator(object):
                                         tmp_dir=self.tmp_dir,
                                         parallel=self.parallel)
 
+        if isinstance(symbolic_partials, tuple) and len(symbolic_partials) == 2:
+            num_rows = symbolic_partials[1][0].shape[0]
+            num_cols = symbolic_partials[1][0].shape[1]
+        else:
+            num_rows = symbolic_partials.shape[0]
+            num_cols = symbolic_partials.shape[1]
         result = np.empty((self.num_collocation_nodes - 1,
-                           symbolic_partials.shape[0] *
-                           symbolic_partials.shape[1]))
+                           num_rows * num_cols))
 
         def constraints_jacobian(state_values, specified_values,
                                  parameter_values, interval_value):
@@ -1448,11 +1459,13 @@ class ConstraintCollocator(object):
     def generate_constraint_function(self):
         """Returns a function which evaluates the constraints given the
         array of free optimization variables."""
+        logging.info('Generating constraint function.')
         self._gen_multi_arg_con_func()
         return self._wrap_constraint_funcs(self._multi_arg_con_func, 'con')
 
     def generate_jacobian_function(self):
         """Returns a function which evaluates the Jacobian of the
         constraints given the array of free optimization variables."""
+        logging.info('Generating jacobian function.')
         self._gen_multi_arg_con_jac_func()
         return self._wrap_constraint_funcs(self._multi_arg_con_jac_func, 'jac')
