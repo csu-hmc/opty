@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from functools import wraps
+import logging
 
 import numpy as np
 import sympy as sm
@@ -116,9 +117,9 @@ class Problem(cyipopt.Problem):
         self.obj = obj
         self.obj_grad = obj_grad
         self.con = self.collocator.generate_constraint_function()
-        print('Constraint function generated.')
+        logging.info('Constraint function generated.')
         self.con_jac = self.collocator.generate_jacobian_function()
-        print('Jacobian function generated.')
+        logging.info('Jacobian function generated.')
 
         self.con_jac_rows, self.con_jac_cols = \
             self.collocator.jacobian_indices()
@@ -735,6 +736,7 @@ class ConstraintCollocator(object):
             The column vector of the discretized equations of motion.
 
         """
+        logging.info('Discretizing the equations of motion.')
         x = self.state_symbols
         xd = self.state_derivative_symbols
         u = self.input_trajectories
@@ -832,7 +834,7 @@ class ConstraintCollocator(object):
         return np.array(rows), np.array(cols)
 
     def _instance_constraints_jacobian_values_func(self):
-        """Retruns the non-zero values of the constraint Jacobian associated
+        """Returns the non-zero values of the constraint Jacobian associated
         with the instance constraints."""
         free = sm.DeferredVector('FREE')
 
@@ -924,6 +926,7 @@ class ConstraintCollocator(object):
             adjacent_start = 1
             adjacent_stop = None
 
+        logging.info('Compiling the constraint function.')
         f = ufuncify_matrix(args, self.discrete_eom,
                             const=constant_syms + (h_sym,),
                             tmp_dir=self.tmp_dir, parallel=self.parallel)
@@ -1264,23 +1267,20 @@ class ConstraintCollocator(object):
 
         # This creates a matrix with all of the symbolic partial derivatives
         # necessary to compute the full Jacobian.
-        print('Starting the Jacobian differentiation.')
-        # symbolic_partials = self.discrete_eom.jacobian(wrt)
+        logging.info('Differentiating the constraint function.')
         discrete_eom_matrix = sm.ImmutableDenseMatrix(self.discrete_eom)
         wrt_matrix = sm.ImmutableDenseMatrix([list(wrt)])
         symbolic_partials = _forward_jacobian(discrete_eom_matrix,
                                               wrt_matrix.T)
-        print('Jacobian differentiation finished.')
 
         # This generates a numerical function that evaluates the matrix of
         # partial derivatives. This function returns the non-zero elements
         # needed to build the sparse constraint Jacobian.
-        print('Starting the Jacobian compilation.')
+        logging.info('Compiling the Jacobian function.')
         eval_partials = ufuncify_matrix(args, symbolic_partials,
                                         const=constant_syms + (h_sym,),
                                         tmp_dir=self.tmp_dir,
                                         parallel=self.parallel)
-        print('Jacobian compilation finished.')
 
         if isinstance(symbolic_partials, tuple) and len(symbolic_partials) == 2:
             num_rows = symbolic_partials[1][0].shape[0]
@@ -1459,13 +1459,13 @@ class ConstraintCollocator(object):
     def generate_constraint_function(self):
         """Returns a function which evaluates the constraints given the
         array of free optimization variables."""
-        print('Generating constraint function.')
+        logging.info('Generating constraint function.')
         self._gen_multi_arg_con_func()
         return self._wrap_constraint_funcs(self._multi_arg_con_func, 'con')
 
     def generate_jacobian_function(self):
         """Returns a function which evaluates the Jacobian of the
         constraints given the array of free optimization variables."""
-        print('Generating jacobian function.')
+        logging.info('Generating jacobian function.')
         self._gen_multi_arg_con_jac_func()
         return self._wrap_constraint_funcs(self._multi_arg_con_jac_func, 'jac')
