@@ -19,17 +19,17 @@ Introduction
 .. image:: https://travis-ci.org/csu-hmc/opty.svg?branch=master
    :target: https://travis-ci.org/csu-hmc/opty
 
-``opty`` utilizes symbolic descriptions of ordinary differential equations
+``opty`` utilizes symbolic descriptions of differential algebraic equations
 expressed with SymPy_ to form the constraints needed to solve optimal control
 and parameter identification problems using the direct collocation method and
 non-linear programming. In general, if one can express the continuous first
-order ordinary differential equations of the system as symbolic expressions
+order differential algebraic equations of the system as symbolic expressions
 ``opty`` will automatically generate a function to efficiently evaluate the
 dynamical constraints and a function that evaluates the sparse Jacobian of the
 constraints, which have been optimized for speed and memory consumption. The
 translation of the dynamical system description to the NLP form, primarily the
-formation of the constraints and the Jacobian of the constraints, manually is
-a time consuming and error prone process. ``opty`` eliminates both of those
+formation of the constraints and the Jacobian of the constraints, manually is a
+time consuming and error prone process. ``opty`` eliminates both of those
 issues.
 
 .. _SymPy: http://www.sympy.org
@@ -101,7 +101,7 @@ Once Ipopt is installed and accessible, install conda then create an environment
 
    $ conda create -n opty-custom -c conda-forge cython numpy pip scipy sympy
    $ source activate opty-custom
-   (opty-custom)$ pip install ipopt  # this will compile cyipopt against the available ipopt
+   (opty-custom)$ pip install cyipopt  # this will compile cyipopt against the available ipopt
    (opty-custom)$ pip install opty
 
 If you want to develop opty, create a conda environment with all of the
