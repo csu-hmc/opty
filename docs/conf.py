@@ -53,7 +53,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'opty'
-copyright = '2020, opty authors'
+copyright = '2014-2023, opty authors'
 author = 'Jason K. Moore'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -160,6 +160,3 @@ texinfo_documents = [
      author, 'opty', 'One line description of project.',
      'Miscellaneous'),
 ]
-
-
-
