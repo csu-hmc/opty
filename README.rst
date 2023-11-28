@@ -129,7 +129,9 @@ Funding
 =======
 
 The work was partially funded by the State of Ohio Third Frontier Commission
-through the Wright Center for Sensor Systems Engineering (WCSSE), by the
+through the Wright Center for Sensor Systems Engineering (WCSSE), by the USA
 National Science Foundation under Grant No. 1344954, and by National Center of
 Simulation in Rehabilitation Research 2014 Visiting Scholarship at Stanford
-University.
+University, and the CZI grant CZIF2021-006198 and grant DOI
+https://doi.org/10.37921/240361looxoj from the Chan Zuckerberg Initiative
+Foundation (funder DOI 10.13039/100014989).
