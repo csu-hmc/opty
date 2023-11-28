@@ -1,2 +1,14 @@
+version: 2
+build:
+  os: "ubuntu-22.04"
+  tools:
+    python: "mambaforge-22.9"
+sphinx:
+  configuration: docs/conf.py
+formats: all
 conda:
-    file: rtd-environment.yml
+  environment: opty-dev-env.yml
+python:
+  install:
+    - method: setuptools
+      path: .
