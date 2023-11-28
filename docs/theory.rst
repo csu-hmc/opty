@@ -192,4 +192,3 @@ References
    Using Nonlinear Programming. Advances in Design and Control. Society for
    Industrial and Applied Mathematics, 2010.
    https://doi.org/10.1137/1.9780898718577.
-

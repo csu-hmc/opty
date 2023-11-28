@@ -1,11 +1,16 @@
-Verion 1.2.0
-============
+Version 1.2.0
+=============
 
-- Dropped support for Python 2.7.
-- Added support for Python 3.9.
+- Dropped support for Python 2.7, 3.6, & 3.7.
+- Added support for Python 3.9, 3.10, & 3.11.
 - Bumped minimum dependencies up to versions released around mid 2020, except
-  fo cyipopt which is set to 1.1.0 since that is the first version released on
+  for cyipopt which is set to 1.1.0 since that is the first version released on
   PyPi under the name cyipopt (instead of ipopt).
+- Much faster symbolic Jacobian algorithm introduced. For constraints made up
+  of hundreds of thousands SymPy operations there can be greater than 200X
+  performance increase.
+- logging.info() used for providing information to the user.
+- Moved to Github Actions continous integration.
 
 Version 1.1.0
 =============
