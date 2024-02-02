@@ -5,6 +5,7 @@ import sys
 import shutil
 import tempfile
 import subprocess
+import textwrap
 import importlib
 from functools import wraps
 import warnings
@@ -17,6 +18,7 @@ import logging
 
 import numpy as np
 import sympy as sm
+import sympy.physics.mechanics as me
 from sympy.utilities.iterables import numbered_symbols
 try:
     plt = sm.external.import_module('matplotlib.pyplot',
@@ -227,6 +229,81 @@ def parse_free(free, n, q, N):
     free_constants = free[len_states + len_specified:]
 
     return free_states, free_specified, free_constants
+
+
+def create_objective_function(objective, state_symbols, input_symbols,
+                              unknown_symbols, N, node_time_interval=1.0):
+    """Creates function to evaluate the objective and objective gradient.
+
+    Parameters
+    ----------
+    objective : sympy.Expr
+        The objective function to be minimized, which is a function of the
+        states and inputs.
+    state_symbols : iterable of symbols
+        The state variables.
+    input_symbols : iterable of symbols
+        The input variables.
+    unknown_symbols : iterable of symbols
+        The unknown parameters.
+    N : int
+        Number of collocation nodes, i.e. the number of time steps.
+    node_time_interval : float
+        The value of the time interval. The default is 1.0, as this term only
+        appears in the objective function as a scaling factor.
+
+    """
+
+    states = sm.ImmutableMatrix(state_symbols)
+    inputs = sm.ImmutableMatrix(sort_sympy(input_symbols))
+    params = sm.ImmutableMatrix(sort_sympy(unknown_symbols))
+    if states.shape[1] != 1 or inputs.shape[1] != 1 or params.shape[1] != 1:
+        raise ValueError(
+            'The state, input, and unknown symbols must be column matrices.')
+    if (objective.free_symbols.intersection(params) and 
+        me.find_dynamicsymbols(objective).intersection(states.col_join(inputs))
+        ):
+        raise NotImplementedError(textwrap.dedent("""\
+            The objective function cannot be a function both of unknown
+            parameters and of the states or inputs. This could give unexpected
+            results. An example of this would be f(t) ** 2 + m ** 2
+            This would be interpreted as sum(f(ti) ** 2 + m ** 2 for ti in time)
+            instead of the intended sum(f(ti) ** 2 for ti in time) + m ** 2
+            An option would be to create it as two separate objective functions
+            and take the sum, e.g. obj = lambda free: obj1(free) + obj2(free)
+        """))
+    n, q, r = states.shape[0], inputs.shape[0], params.shape[0]
+    state_idx = n * N
+    input_idx = state_idx + q * N
+
+    objective_grad = sm.ImmutableMatrix([objective]).jacobian(
+        states.col_join(inputs).col_join(params))
+    # Replace zeros with an array of zeros, otherwise lambdify will return a
+    # scalar zero instead of an array of zeros.
+    objective_grad = tuple(
+        np.zeros(N) if grad == 0 else grad for grad in objective_grad[:n + q]
+        ) + tuple(objective_grad[-r:])
+
+    eval_objective = sm.lambdify((states, inputs, params), objective, cse=True)
+    eval_objective_grad = sm.lambdify((states, inputs, params), objective_grad,
+                                      cse=True)
+
+    def obj(free):
+        return node_time_interval * eval_objective(
+            free[:state_idx].reshape((n, N)),
+            free[state_idx:input_idx].reshape((q, N)),
+            free[input_idx:],
+            ).sum()
+
+    def obj_grad(free):
+        return node_time_interval * np.hstack(
+            eval_objective_grad(
+                free[:state_idx].reshape((n, N)),
+                free[state_idx:input_idx].reshape((q, N)),
+                free[input_idx:],
+            ))
+
+    return obj, obj_grad
 
 
 def sort_sympy(seq):
