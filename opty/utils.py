@@ -229,6 +229,16 @@ def parse_free(free, n, q, N):
     return free_states, free_specified, free_constants
 
 
+def sort_sympy(seq):
+    """Returns a sorted list of the symbols."""
+    seq = list(seq)
+    try:  # symbols
+        seq.sort(key=lambda x: x.name)
+    except AttributeError:  # functions
+        seq.sort(key=lambda x: x.__class__.__name__)
+    return seq
+
+
 _c_template = """\
 #include <math.h>
 #include "{file_prefix}_h.h"
