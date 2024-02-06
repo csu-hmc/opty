@@ -306,16 +306,12 @@ def create_objective_function(
             objective_grad[n + q:], np.hstack((0, np.ones(N - 1))), True)
         def obj(free):
             states = free[:i_idx].reshape((n, N))
-            states[:, 0] = 0
             inputs = free[i_idx:r_idx].reshape((q, N))
-            inputs[:, 0] = 0
             return obj_expr_eval(states, inputs, free[r_idx:])
         
         def obj_grad(free):
             states = free[:i_idx].reshape((n, N))
-            states[:, 0] = 0
             inputs = free[i_idx:r_idx].reshape((q, N))
-            inputs[:, 0] = 0
             return np.hstack((
                 *obj_grad_time_expr_eval(states, inputs, free[r_idx:]),
                 obj_grad_param_expr_eval(states, inputs, free[r_idx:])
