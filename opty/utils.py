@@ -5,7 +5,6 @@ import sys
 import shutil
 import tempfile
 import subprocess
-import textwrap
 import importlib
 from functools import wraps
 import warnings
@@ -231,8 +230,9 @@ def parse_free(free, n, q, N):
     return free_states, free_specified, free_constants
 
 
-def create_objective_function(objective, state_symbols, input_symbols,
-                              unknown_symbols, N, node_time_interval=1.0):
+def create_objective_function(
+    objective, state_symbols, input_symbols, unknown_symbols,
+    N, node_time_interval=1.0, integration_method="backward euler"):
     """Creates function to evaluate the objective and objective gradient.
 
     Parameters
@@ -251,57 +251,105 @@ def create_objective_function(objective, state_symbols, input_symbols,
     node_time_interval : float
         The value of the time interval. The default is 1.0, as this term only
         appears in the objective function as a scaling factor.
+    integration_method : str, optional
+        The method used to integrate the system. The default is "backward
+        euler".
 
     """
+    def lambdify_function(expr, multiplication_array, take_sum):
+        if take_sum:
+            def integration_function(x):
+                return node_time_interval * np.sum(x * multiplication_array)
+        else:
+            def integration_function(x):
+                return node_time_interval * x * multiplication_array
+        return sm.lambdify(
+            (states, inputs, params), expr,
+            modules=[{int_placeholder.name: integration_function}, "numpy"],
+            cse=True)
 
+    # Parse function arguments
     states = sm.ImmutableMatrix(state_symbols)
     inputs = sm.ImmutableMatrix(sort_sympy(input_symbols))
     params = sm.ImmutableMatrix(sort_sympy(unknown_symbols))
-    if states.shape[1] != 1 or inputs.shape[1] != 1 or params.shape[1] != 1:
+    if states.shape[1] > 1 or inputs.shape[1] > 1 or params.shape[1] > 1:
         raise ValueError(
             'The state, input, and unknown symbols must be column matrices.')
-    if (objective.free_symbols.intersection(params) and 
-        me.find_dynamicsymbols(objective).intersection(states.col_join(inputs))
-        ):
-        raise NotImplementedError(textwrap.dedent("""\
-            The objective function cannot be a function both of unknown
-            parameters and of the states or inputs. This could give unexpected
-            results. An example of this would be f(t) ** 2 + m ** 2
-            This would be interpreted as sum(f(ti) ** 2 + m ** 2 for ti in time)
-            instead of the intended sum(f(ti) ** 2 for ti in time) + m ** 2
-            An option would be to create it as two separate objective functions
-            and take the sum, e.g. obj = lambda free: obj1(free) + obj2(free)
-        """))
-    n, q, r = states.shape[0], inputs.shape[0], params.shape[0]
-    state_idx = n * N
-    input_idx = state_idx + q * N
+    n, q = states.shape[0], inputs.shape[0]
+    i_idx, r_idx = n * N, (n + q) * N
 
+    # Compute analytical gradient of the objective function
     objective_grad = sm.ImmutableMatrix([objective]).jacobian(
-        states.col_join(inputs).col_join(params))
+        states[:] + inputs[:] + params[:])
+
+    # Replace the integral with a custom function
+    int_placeholder = sm.Function("_IntegralFunction")
+    wild_expr = sm.Wild("expr")
+    repl = (sm.Integral(wild_expr, (me.dynamicsymbols._t)),
+            int_placeholder(wild_expr))
+    objective = objective.replace(*repl)
+    objective_grad = tuple(objective_grad.replace(*repl))
+
     # Replace zeros with an array of zeros, otherwise lambdify will return a
     # scalar zero instead of an array of zeros.
     objective_grad = tuple(
         np.zeros(N) if grad == 0 else grad for grad in objective_grad[:n + q]
-        ) + tuple(objective_grad[-r:])
+        ) + tuple(objective_grad[n + q:])
 
-    eval_objective = sm.lambdify((states, inputs, params), objective, cse=True)
-    eval_objective_grad = sm.lambdify((states, inputs, params), objective_grad,
-                                      cse=True)
+    # Define evaluation functions based on the integration method
+    if integration_method == "backward euler":
+        obj_expr_eval = lambdify_function(
+            objective, np.hstack((0, np.ones(N - 1))), True)
+        obj_grad_time_expr_eval = lambdify_function(
+            objective_grad[:n + q], np.hstack((0, np.ones(N - 1))), False)
+        obj_grad_param_expr_eval = lambdify_function(
+            objective_grad[n + q:], np.hstack((0, np.ones(N - 1))), True)
+        def obj(free):
+            states = free[:i_idx].reshape((n, N))
+            states[:, 0] = 0
+            inputs = free[i_idx:r_idx].reshape((q, N))
+            inputs[:, 0] = 0
+            return obj_expr_eval(states, inputs, free[r_idx:])
+        
+        def obj_grad(free):
+            states = free[:i_idx].reshape((n, N))
+            states[:, 0] = 0
+            inputs = free[i_idx:r_idx].reshape((q, N))
+            inputs[:, 0] = 0
+            return np.hstack((
+                *obj_grad_time_expr_eval(states, inputs, free[r_idx:]),
+                obj_grad_param_expr_eval(states, inputs, free[r_idx:])
+             ))
 
-    def obj(free):
-        return node_time_interval * eval_objective(
-            free[:state_idx].reshape((n, N)),
-            free[state_idx:input_idx].reshape((q, N)),
-            free[input_idx:],
-            ).sum()
-
-    def obj_grad(free):
-        return node_time_interval * np.hstack(
-            eval_objective_grad(
-                free[:state_idx].reshape((n, N)),
-                free[state_idx:input_idx].reshape((q, N)),
-                free[input_idx:],
+    elif integration_method == "midpoint":
+        obj_expr_eval = lambdify_function(
+            objective, np.ones(N - 1), True)
+        obj_grad_time_expr_eval = lambdify_function(
+            objective_grad[:n + q], np.hstack((0.5, np.ones(N - 2), 0.5)),
+            False)
+        obj_grad_param_expr_eval = lambdify_function(
+            objective_grad[n + q:], np.ones(N - 1), True)
+        def obj(free):
+            states = free[:i_idx].reshape((n, N))
+            states_mid = 0.5 * (states[:, :-1] + states[:, 1:])
+            inputs = free[i_idx:r_idx].reshape((q, N))
+            inputs_mid = 0.5 * (inputs[:, :-1] + inputs[:, 1:])
+            print(obj_expr_eval.__doc__)
+            return obj_expr_eval(states_mid, inputs_mid, free[r_idx:])
+        
+        def obj_grad(free):
+            states = free[:i_idx].reshape((n, N))
+            states_mid = 0.5 * (states[:, :-1] + states[:, 1:])
+            inputs = free[i_idx:r_idx].reshape((q, N))
+            inputs_mid = 0.5 * (inputs[:, :-1] + inputs[:, 1:])
+            print(inputs_mid.shape)
+            return np.hstack((
+                *obj_grad_time_expr_eval(states, inputs, free[r_idx:]),
+                obj_grad_param_expr_eval(states_mid, inputs_mid, free[r_idx:])
             ))
+
+    else:
+        raise ValueError("Invalid integration method.")
 
     return obj, obj_grad
 

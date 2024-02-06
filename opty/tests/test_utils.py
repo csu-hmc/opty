@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import pytest
 import numpy as np
 from numpy import testing
 import sympy as sym
@@ -45,91 +46,146 @@ def test_f_minus_ma():
     assert sym.simplify(constraint - expected) == sym.Matrix([0, 0])
 
 
-def test_create_objective_function():
-    t = sym.symbols('t')
-    x, v = sym.symbols('x, v', cls=sym.Function)
-    m, c, k = sym.symbols('m, c, k')
-    f1, f2 = sym.symbols('f1:3', cls=sym.Function)
+class TestCreateObjectiveFunction(object):
+    @pytest.fixture(autouse=True)
+    def setup_method(self):
+        self.t = sym.symbols('t')
+        self.x, self.v = sym.symbols('x, v', cls=sym.Function)
+        self.m, self.c, self.k = sym.symbols('m, c, k')
+        self.f1, self.f2 = sym.symbols('f1:3', cls=sym.Function)
 
-    x = x(t)
-    v = v(t)
-    f1, f2 = f1(t), f2(t)
+        self.x = self.x(self.t)
+        self.v = self.v(self.t)
+        self.f1, self.f2 = self.f1(self.t), self.f2(self.t)
 
-    state_symbols = [x, v]
-    input_symbols = [f2, f1]  # Should be sorted
-    unknown_symbols = [m, c, k]  # Should be sorted
-    n, q, r = len(state_symbols), len(input_symbols), len(unknown_symbols)
-    N = 20
+        self.state_symbols = [self.x, self.v]
+        self.input_symbols = [self.f2, self.f1]  # Should be sorted
+        self.unknown_symbols = [self.m, self.c, self.k]  # Should be sorted
+        self.n = len(self.state_symbols)
+        self.q = len(self.input_symbols)
+        self.r = len(self.unknown_symbols)
+        self.N = 20
+        
+        self.x_vals = np.random.random(self.N)
+        self.v_vals = np.random.random(self.N)
+        self.f1_vals = np.random.random(self.N)
+        self.f2_vals = np.random.random(self.N)
+        self.m_val, self.c_val, self.k_val = np.random.random(3)
+        self.free = np.hstack((self.x_vals, self.v_vals, self.f1_vals,
+                               self.f2_vals, self.c_val, self.k_val,
+                               self.m_val))
 
-    x_vals = np.random.random(N)
-    v_vals = np.random.random(N)
-    f1_vals = np.random.random(N)
-    f2_vals = np.random.random(N)
-    m_val, c_val, k_val = np.random.random(3)
-    free = np.hstack((x_vals, v_vals, f1_vals, f2_vals, c_val, k_val, m_val))
-
-    # Test objective function based on a single state
-    obj_expr = x ** 2
-    obj, obj_grad = utils.create_objective_function(
-        obj_expr, state_symbols, input_symbols, unknown_symbols, N, 1)
-    np.testing.assert_allclose(obj(free), (x_vals ** 2).sum())
-    np.testing.assert_allclose(obj_grad(free), np.hstack((
-        2 * x_vals, np.zeros(N * (q + 1) + r))))
-
-    # Test objective function based on a single input
-    obj_expr = f1 ** 2
-    obj, obj_grad = utils.create_objective_function(
-        obj_expr, state_symbols, input_symbols, unknown_symbols, N, 1)
-    np.testing.assert_allclose(obj(free), (f1_vals ** 2).sum())
-    np.testing.assert_allclose(obj_grad(free), np.hstack((
-        np.zeros(N * n), 2 * f1_vals, np.zeros(N * 1 + r))))
-
-    # Test objective function based on a single unknown, and check sorting
-    obj_expr = m ** 2
-    obj, obj_grad = utils.create_objective_function(
-        obj_expr, state_symbols, input_symbols, unknown_symbols, N, 1)
-    np.testing.assert_allclose(obj(free), m_val ** 2)
-    np.testing.assert_allclose(obj_grad(free), np.hstack((
-        np.zeros(N * (n + q)), np.zeros(2), 2 * m_val)))
-
-    # Test objective function based on states and inputs
-    obj_expr = 1 * x ** 2 + 2 * v ** 2 + 3 * f1 ** 2 + 4 * f2 ** 2
-    obj, obj_grad = utils.create_objective_function(
-            obj_expr, state_symbols, input_symbols, unknown_symbols, N, 1)
-    np.testing.assert_allclose(
-        obj(free),
-        (x_vals ** 2).sum() + 2 * (v_vals ** 2).sum() +
-        3 * (f1_vals ** 2).sum() + 4 * (f2_vals ** 2).sum())
-    np.testing.assert_allclose(obj_grad(free), np.hstack((
-        2 * x_vals, 4 * v_vals, 6 * f1_vals, 8 * f2_vals, np.zeros(3)))
-    )
-
-    # Test objective function based on everything
-    obj_expr = (
-        1 * x ** 2 +
-        2 * v ** 2 +
-        3 * f1 ** 2 +
-        4 * f2 ** 2 +
-        5 * sym.sin(m) ** 2 +
-        6 * c ** 2 +
-        7 * k ** 2
-    )
-    try:
+    def test_backward_single_state(self):
+        obj_expr = sym.Integral(self.x ** 2, (self.t,))
         obj, obj_grad = utils.create_objective_function(
-            obj_expr, state_symbols, input_symbols, unknown_symbols, N, 1)
-    except NotImplementedError:
-        # This is a known issue, and the test is not essential.
-        pass
-    else:
+            obj_expr, self.state_symbols, self.input_symbols,
+            self.unknown_symbols, self.N, 0.5)
+        np.testing.assert_allclose(obj(self.free),
+                                   0.5 * (self.x_vals[1:] ** 2).sum())
+        np.testing.assert_allclose(obj_grad(self.free), np.hstack((
+            0, 0.5 * 2 * self.x_vals[1:],
+            np.zeros(self.N * (1 + self.q) + self.r))))
+
+    def test_backward_single_input(self):
+        obj_expr = sym.Integral(self.f1 ** 2, (self.t,))
+        obj, obj_grad = utils.create_objective_function(
+            obj_expr, self.state_symbols, self.input_symbols,
+            self.unknown_symbols, self.N, 1)
+        np.testing.assert_allclose(obj(self.free), (self.f1_vals[1:] ** 2).sum())
+        np.testing.assert_allclose(obj_grad(self.free), np.hstack((
+            np.zeros(self.N * self.n + 1), 2 * self.f1_vals[1:],
+            np.zeros(self.N * 1 + self.r))))
+
+    def test_backward_single_unknown(self):
+        obj_expr = self.m ** 2
+        obj, obj_grad = utils.create_objective_function(
+            obj_expr, self.state_symbols, self.input_symbols,
+            self.unknown_symbols, self.N, 0.3)
+        np.testing.assert_allclose(obj(self.free), self.m_val ** 2)
+        np.testing.assert_allclose(obj_grad(self.free), np.hstack((
+            np.zeros(self.N * (self.n + self.q) + 2), 2 * self.m_val)))
+
+    def test_backward_all(self):
+        obj_expr = (
+            sym.Integral(self.x ** 2 + self.m ** 2, (self.t,)) +
+            sym.Integral(self.c ** 2 * self.f2 ** 2 , (self.t,)) +
+            sym.sin(self.k) ** 2            
+        )
+        obj, obj_grad = utils.create_objective_function(
+            obj_expr, self.state_symbols, self.input_symbols,
+            self.unknown_symbols, self.N, 0.3)
         np.testing.assert_allclose(
-            obj(free),
-            (x_vals ** 2).sum() + 2 * (v_vals ** 2).sum() +
-            3 * (f1_vals ** 2).sum() + 4 * (f2_vals ** 2).sum() +
-            5 * (np.sin(m_val) ** 2) + 6 * (c_val ** 2) + 7 * (k_val ** 2))
+            obj(self.free),
+            0.3 * ((self.x_vals[1:] ** 2).sum() +
+                   (self.N - 1) * self.m_val ** 2 +
+                   (self.c_val ** 2 * self.f2_vals[1:] ** 2).sum()) +
+            np.sin(self.k_val) ** 2
+        )
+        np.testing.assert_allclose(obj_grad(self.free), np.hstack((
+            0, 0.3 * 2 * self.x_vals[1:], np.zeros(self.N * 2 + 1),
+            0.3 * 2 * self.c_val ** 2 * self.f2_vals[1:],
+            0.3 * 2 * self.c_val * (self.f2_vals[1:] ** 2).sum(),
+            2 * np.sin(self.k_val) * np.cos(self.k_val),
+            0.3 * (self.N - 1) * 2 * self.m_val
+            )))
+
+    def test_no_states(self):
+        free = self.free[self.n * self.N:]
+        obj_expr = sym.Integral(self.f1 ** 2, (self.t,))
+        obj, obj_grad = utils.create_objective_function(
+            obj_expr, [], self.input_symbols, self.unknown_symbols, self.N, 1)
+        np.testing.assert_allclose(obj(free), (self.f1_vals[1:] ** 2).sum())
         np.testing.assert_allclose(obj_grad(free), np.hstack((
-            2 * x_vals, 4 * v_vals, 6 * f1_vals, 8 * f2_vals,
-            10 * np.sin(m_val) * np.cos(m_val), 12 * c_val, 14 * k_val)))
-    
+            0, 2 * self.f1_vals[1:], np.zeros(self.N + self.r)))
+        )
+
+    def test_no_inputs(self):
+        free = np.hstack((self.free[:self.n * self.N], self.free[-self.r:]))
+        obj_expr = sym.Integral(self.x ** 2, (self.t,))
+        obj, obj_grad = utils.create_objective_function(
+            obj_expr, self.state_symbols, [], self.unknown_symbols, self.N, 1)
+        np.testing.assert_allclose(obj(free), (self.x_vals[1:] ** 2).sum())
+        np.testing.assert_allclose(obj_grad(free), np.hstack((
+            0, 2 * self.x_vals[1:], np.zeros(self.N + self.r)))
+        )
+
+    def test_no_unknowns(self):
+        free = self.free[:-self.r]
+        obj_expr = sym.Integral(self.x ** 2, (self.t,))
+        obj, obj_grad = utils.create_objective_function(
+            obj_expr, self.state_symbols, self.input_symbols, [], self.N, 1)
+        np.testing.assert_allclose(obj(free), (self.x_vals[1:] ** 2).sum())
+        np.testing.assert_allclose(obj_grad(free), np.hstack((
+            0, 2 * self.x_vals[1:], np.zeros(self.N * (self.n - 1 + self.q)))
+        ))
+
+    def test_midpoint_all(self):
+        obj_expr = (
+            sym.Integral(self.x ** 2 + self.m ** 2, (self.t,)) +
+            sym.Integral(self.c ** 2 * self.f2 ** 2 , (self.t,)) +
+            sym.sin(self.k) ** 2            
+        )
+        x_mid = (self.x_vals[1:] + self.x_vals[:-1]) / 2
+        f2_mid = (self.f2_vals[1:] + self.f2_vals[:-1]) / 2
+        obj, obj_grad = utils.create_objective_function(
+            obj_expr, self.state_symbols, self.input_symbols,
+            self.unknown_symbols, self.N, 0.3, integration_method='midpoint')
+        np.testing.assert_allclose(
+            obj(self.free),
+            0.3 * ((x_mid ** 2).sum() + (self.N - 1) * self.m_val ** 2 +
+                   (self.c_val ** 2 * f2_mid ** 2).sum()) +
+            np.sin(self.k_val) ** 2
+        )
+        np.testing.assert_allclose(obj_grad(self.free), np.hstack((
+            0.3 * self.x_vals[0], 0.3 * 2 * self.x_vals[1:-1],
+            0.3 * self.x_vals[-1], np.zeros(self.N * 2),
+            0.3 * self.c_val ** 2 * self.f2_vals[0],
+            0.3 * 2 * self.c_val ** 2 * self.f2_vals[1:-1],
+            0.3 * self.c_val ** 2 * self.f2_vals[-1],
+            0.3 * 2 * self.c_val * (f2_mid ** 2).sum(),
+            2 * np.sin(self.k_val) * np.cos(self.k_val),
+            0.3 * (self.N - 1) * 2 * self.m_val
+            )))
 
 
 def test_parse_free():
