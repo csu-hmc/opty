@@ -48,7 +48,7 @@ def test_Problem():
 
 class TestConstraintCollocator():
 
-    def setup(self):
+    def setup_method(self):
 
         m, c, k, t = sym.symbols('m, c, k, t')
         x, v, f = [s(t) for s in sym.symbols('x, v, f', cls=sym.Function)]
@@ -389,7 +389,7 @@ class TestConstraintCollocator():
 
 class TestConstraintCollocatorUnknownTrajectories():
 
-    def setup(self):
+    def setup_method(self):
 
         # constant parameters
         m, c, t = sym.symbols('m, c, t')
@@ -769,7 +769,7 @@ def test_merge_fixed_free_trajectories():
 
 class TestConstraintCollocatorInstanceConstraints():
 
-    def setup(self):
+    def setup_method(self):
 
         I, m, g, d, t = sym.symbols('I, m, g, d, t')
         theta, omega, T = [f(t) for f in sym.symbols('theta, omega, T',
