@@ -187,6 +187,20 @@ class TestCreateObjectiveFunction(object):
             0.3 * (self.N - 1) * 2 * self.m_val
             )))
 
+    def test_not_existing_method(self):
+        with pytest.raises(NotImplementedError):
+            utils.create_objective_function(
+                sym.Integral(self.x ** 2, (self.t,)), self.state_symbols,
+                self.input_symbols, self.unknown_symbols, self.N, 1,
+                integration_method='not_existing_method')
+
+    def test_invalid_integration_limits(self):
+        with pytest.raises(Exception):
+            obj, obj_grad = utils.create_objective_function(
+                sym.Integral(self.x ** 2, (self.t, 0, 1)), self.state_symbols,
+                self.input_symbols, self.unknown_symbols, self.N, 1)
+            obj(self.free)
+
 
 def test_parse_free():
 
