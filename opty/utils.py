@@ -205,10 +205,10 @@ def parse_free(free, n, q, N):
     -------
     states : ndarray, shape(n, N)
         The array of n states through N time steps.
-    specified_values : ndarray, shape(r, N) or shape(N,), or None
-        The array of r specified inputs through N time steps.
-    constant_values : ndarray, shape(q,)
-        The array of q constants.
+    specified_values : ndarray, shape(q, N) or shape(N,), or None
+        The array of q specified inputs through N time steps.
+    constant_values : ndarray, shape(r,)
+        The array of r constants.
 
     """
 
