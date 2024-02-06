@@ -76,7 +76,7 @@ class TestCreateObjectiveFunction(object):
                                self.m_val))
 
     def test_backward_single_state(self):
-        obj_expr = sym.Integral(self.x ** 2, (self.t,))
+        obj_expr = sym.Integral(self.x ** 2, self.t)
         obj, obj_grad = utils.create_objective_function(
             obj_expr, self.state_symbols, self.input_symbols,
             self.unknown_symbols, self.N, 0.5)
@@ -87,7 +87,7 @@ class TestCreateObjectiveFunction(object):
             np.zeros(self.N * (1 + self.q) + self.r))))
 
     def test_backward_single_input(self):
-        obj_expr = sym.Integral(self.f1 ** 2, (self.t,))
+        obj_expr = sym.Integral(self.f1 ** 2, self.t)
         obj, obj_grad = utils.create_objective_function(
             obj_expr, self.state_symbols, self.input_symbols,
             self.unknown_symbols, self.N, 1)
@@ -107,8 +107,8 @@ class TestCreateObjectiveFunction(object):
 
     def test_backward_all(self):
         obj_expr = (
-            sym.Integral(self.x ** 2 + self.m ** 2, (self.t,)) +
-            sym.Integral(self.c ** 2 * self.f2 ** 2 , (self.t,)) +
+            sym.Integral(self.x ** 2 + self.m ** 2, self.t) +
+            sym.Integral(self.c ** 2 * self.f2 ** 2 , self.t) +
             sym.sin(self.k) ** 2            
         )
         obj, obj_grad = utils.create_objective_function(
@@ -131,7 +131,7 @@ class TestCreateObjectiveFunction(object):
 
     def test_no_states(self):
         free = self.free[self.n * self.N:]
-        obj_expr = sym.Integral(self.f1 ** 2, (self.t,))
+        obj_expr = sym.Integral(self.f1 ** 2, self.t)
         obj, obj_grad = utils.create_objective_function(
             obj_expr, [], self.input_symbols, self.unknown_symbols, self.N, 1)
         np.testing.assert_allclose(obj(free), (self.f1_vals[1:] ** 2).sum())
@@ -141,7 +141,7 @@ class TestCreateObjectiveFunction(object):
 
     def test_no_inputs(self):
         free = np.hstack((self.free[:self.n * self.N], self.free[-self.r:]))
-        obj_expr = sym.Integral(self.x ** 2, (self.t,))
+        obj_expr = sym.Integral(self.x ** 2, self.t)
         obj, obj_grad = utils.create_objective_function(
             obj_expr, self.state_symbols, [], self.unknown_symbols, self.N, 1)
         np.testing.assert_allclose(obj(free), (self.x_vals[1:] ** 2).sum())
@@ -151,7 +151,7 @@ class TestCreateObjectiveFunction(object):
 
     def test_no_unknowns(self):
         free = self.free[:-self.r]
-        obj_expr = sym.Integral(self.x ** 2, (self.t,))
+        obj_expr = sym.Integral(self.x ** 2, self.t)
         obj, obj_grad = utils.create_objective_function(
             obj_expr, self.state_symbols, self.input_symbols, [], self.N, 1)
         np.testing.assert_allclose(obj(free), (self.x_vals[1:] ** 2).sum())
@@ -161,8 +161,8 @@ class TestCreateObjectiveFunction(object):
 
     def test_midpoint_all(self):
         obj_expr = (
-            sym.Integral(self.x ** 2 + self.m ** 2, (self.t,)) +
-            sym.Integral(self.c ** 2 * self.f2 ** 2 , (self.t,)) +
+            sym.Integral(self.x ** 2 + self.m ** 2, self.t) +
+            sym.Integral(self.c ** 2 * self.f2 ** 2 , self.t) +
             sym.sin(self.k) ** 2            
         )
         x_mid = (self.x_vals[1:] + self.x_vals[:-1]) / 2
@@ -190,16 +190,15 @@ class TestCreateObjectiveFunction(object):
     def test_not_existing_method(self):
         with pytest.raises(NotImplementedError):
             utils.create_objective_function(
-                sym.Integral(self.x ** 2, (self.t,)), self.state_symbols,
+                sym.Integral(self.x ** 2, self.t), self.state_symbols,
                 self.input_symbols, self.unknown_symbols, self.N, 1,
                 integration_method='not_existing_method')
 
     def test_invalid_integration_limits(self):
-        with pytest.raises(Exception):
+        with pytest.raises(NotImplementedError):
             obj, obj_grad = utils.create_objective_function(
                 sym.Integral(self.x ** 2, (self.t, 0, 1)), self.state_symbols,
                 self.input_symbols, self.unknown_symbols, self.N, 1)
-            obj(self.free)
 
 
 def test_parse_free():

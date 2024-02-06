@@ -268,6 +268,18 @@ def create_objective_function(
             modules=[{int_placeholder.name: integration_function}, "numpy"],
             cse=True)
 
+    def parse_expr(expr, in_integral=False):
+        if not expr.args:
+            return expr
+        if isinstance(expr, sm.Integral):
+            if in_integral:
+                raise NotImplementedError("Nested integrals are not supported.")
+            if expr.limits != ((me.dynamicsymbols._t,),):
+                raise NotImplementedError(
+                    "Only indefinite integrals of time are supported.")
+            return int_placeholder(parse_expr(expr.function, True))
+        return expr.func(*(parse_expr(arg) for arg in expr.args))
+
     # Parse function arguments
     states = sm.ImmutableMatrix(state_symbols)
     inputs = sm.ImmutableMatrix(sort_sympy(input_symbols))
@@ -284,11 +296,8 @@ def create_objective_function(
 
     # Replace the integral with a custom function
     int_placeholder = sm.Function("_IntegralFunction")
-    wild_expr = sm.Wild("expr")
-    repl = (sm.Integral(wild_expr, (me.dynamicsymbols._t)),
-            int_placeholder(wild_expr))
-    objective = objective.replace(*repl)
-    objective_grad = tuple(objective_grad.replace(*repl))
+    objective = parse_expr(objective)
+    objective_grad = tuple(parse_expr(objective_grad))
 
     # Replace zeros with an array of zeros, otherwise lambdify will return a
     # scalar zero instead of an array of zeros.
