@@ -345,7 +345,8 @@ def create_objective_function(
             ))
 
     else:
-        raise ValueError("Invalid integration method.")
+        raise NotImplementedError(
+            f"Integration method '{integration_method}' is not implemented.")
 
     return obj, obj_grad
 
