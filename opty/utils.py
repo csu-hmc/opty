@@ -340,7 +340,6 @@ def create_objective_function(
             states_mid = 0.5 * (states[:, :-1] + states[:, 1:])
             inputs = free[i_idx:r_idx].reshape((q, N))
             inputs_mid = 0.5 * (inputs[:, :-1] + inputs[:, 1:])
-            print(obj_expr_eval.__doc__)
             return obj_expr_eval(states_mid, inputs_mid, free[r_idx:])
         
         def obj_grad(free):
@@ -348,7 +347,6 @@ def create_objective_function(
             states_mid = 0.5 * (states[:, :-1] + states[:, 1:])
             inputs = free[i_idx:r_idx].reshape((q, N))
             inputs_mid = 0.5 * (inputs[:, :-1] + inputs[:, 1:])
-            print(inputs_mid.shape)
             return np.hstack((
                 *obj_grad_time_expr_eval(states, inputs, free[r_idx:]),
                 obj_grad_param_expr_eval(states_mid, inputs_mid, free[r_idx:])
