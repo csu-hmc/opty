@@ -239,7 +239,8 @@ def create_objective_function(
     ----------
     objective : sympy.Expr
         The objective function to be minimized, which is a function of the
-        states and inputs.
+        states and inputs. The objective function can contain non-nested
+        indefinite integrals of time, e.g. ``Integral(f(t)**2, t)``.
     state_symbols : iterable of symbols
         The state variables.
     input_symbols : iterable of symbols
