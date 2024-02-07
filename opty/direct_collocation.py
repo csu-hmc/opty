@@ -17,7 +17,7 @@ except TypeError:  # SymPy >=1.6
                                     catch=(RuntimeError,))
 
 from .utils import (ufuncify_matrix, parse_free, _optional_plt_dep,
-                    _forward_jacobian)
+                    _forward_jacobian, sort_sympy)
 
 __all__ = ['Problem', 'ConstraintCollocator']
 
@@ -574,14 +574,6 @@ class ConstraintCollocator(object):
         """
         all_syms = set(all_syms)
         known_syms = known_syms
-
-        def sort_sympy(seq):
-            seq = list(seq)
-            try:  # symbols
-                seq.sort(key=lambda x: x.name)
-            except AttributeError:  # functions
-                seq.sort(key=lambda x: x.__class__.__name__)
-            return seq
 
         if not all_syms:  # if empty sequence
             if known_syms:

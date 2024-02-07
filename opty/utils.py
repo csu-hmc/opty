@@ -17,6 +17,7 @@ import logging
 
 import numpy as np
 import sympy as sm
+import sympy.physics.mechanics as me
 from sympy.utilities.iterables import numbered_symbols
 try:
     plt = sm.external.import_module('matplotlib.pyplot',
@@ -227,6 +228,145 @@ def parse_free(free, n, q, N):
     free_constants = free[len_states + len_specified:]
 
     return free_states, free_specified, free_constants
+
+
+def create_objective_function(
+    objective, state_symbols, input_symbols, unknown_symbols,
+    N, node_time_interval=1.0, integration_method="backward euler"):
+    """Creates function to evaluate the objective and objective gradient.
+
+    Parameters
+    ----------
+    objective : sympy.Expr
+        The objective function to be minimized, which is a function of the
+        states and inputs. The objective function can contain non-nested
+        indefinite integrals of time, e.g. ``Integral(f(t)**2, t)``.
+    state_symbols : iterable of symbols
+        The state variables.
+    input_symbols : iterable of symbols
+        The input variables.
+    unknown_symbols : iterable of symbols
+        The unknown parameters.
+    N : int
+        Number of collocation nodes, i.e. the number of time steps.
+    node_time_interval : float
+        The value of the time interval. The default is 1.0, as this term only
+        appears in the objective function as a scaling factor.
+    integration_method : str, optional
+        The method used to integrate the system. The default is "backward
+        euler".
+
+    """
+    def lambdify_function(expr, multiplication_array, take_sum):
+        if take_sum:
+            def integration_function(x):
+                return node_time_interval * np.sum(x * multiplication_array)
+        else:
+            def integration_function(x):
+                return node_time_interval * x * multiplication_array
+        return sm.lambdify(
+            (states, inputs, params), expr,
+            modules=[{int_placeholder.name: integration_function}, "numpy"],
+            cse=True)
+
+    def parse_expr(expr, in_integral=False):
+        if not expr.args:
+            return expr
+        if isinstance(expr, sm.Integral):
+            if in_integral:
+                raise NotImplementedError("Nested integrals are not supported.")
+            if expr.limits != ((me.dynamicsymbols._t,),):
+                raise NotImplementedError(
+                    "Only indefinite integrals of time are supported.")
+            return int_placeholder(parse_expr(expr.function, True))
+        return expr.func(*(parse_expr(arg) for arg in expr.args))
+
+    # Parse function arguments
+    states = sm.ImmutableMatrix(state_symbols)
+    inputs = sm.ImmutableMatrix(sort_sympy(input_symbols))
+    params = sm.ImmutableMatrix(sort_sympy(unknown_symbols))
+    if states.shape[1] > 1 or inputs.shape[1] > 1 or params.shape[1] > 1:
+        raise ValueError(
+            'The state, input, and unknown symbols must be column matrices.')
+    n, q = states.shape[0], inputs.shape[0]
+    i_idx, r_idx = n * N, (n + q) * N
+
+    # Compute analytical gradient of the objective function
+    objective_grad = sm.ImmutableMatrix([objective]).jacobian(
+        states[:] + inputs[:] + params[:])
+
+    # Replace the integral with a custom function
+    int_placeholder = sm.Function("_IntegralFunction")
+    objective = parse_expr(objective)
+    objective_grad = tuple(parse_expr(objective_grad))
+
+    # Replace zeros with an array of zeros, otherwise lambdify will return a
+    # scalar zero instead of an array of zeros.
+    objective_grad = tuple(
+        np.zeros(N) if grad == 0 else grad for grad in objective_grad[:n + q]
+        ) + tuple(objective_grad[n + q:])
+
+    # Define evaluation functions based on the integration method
+    if integration_method == "backward euler":
+        obj_expr_eval = lambdify_function(
+            objective, np.hstack((0, np.ones(N - 1))), True)
+        obj_grad_time_expr_eval = lambdify_function(
+            objective_grad[:n + q], np.hstack((0, np.ones(N - 1))), False)
+        obj_grad_param_expr_eval = lambdify_function(
+            objective_grad[n + q:], np.hstack((0, np.ones(N - 1))), True)
+        def obj(free):
+            states = free[:i_idx].reshape((n, N))
+            inputs = free[i_idx:r_idx].reshape((q, N))
+            return obj_expr_eval(states, inputs, free[r_idx:])
+        
+        def obj_grad(free):
+            states = free[:i_idx].reshape((n, N))
+            inputs = free[i_idx:r_idx].reshape((q, N))
+            return np.hstack((
+                *obj_grad_time_expr_eval(states, inputs, free[r_idx:]),
+                obj_grad_param_expr_eval(states, inputs, free[r_idx:])
+             ))
+
+    elif integration_method == "midpoint":
+        obj_expr_eval = lambdify_function(
+            objective, np.ones(N - 1), True)
+        obj_grad_time_expr_eval = lambdify_function(
+            objective_grad[:n + q], np.hstack((0.5, np.ones(N - 2), 0.5)),
+            False)
+        obj_grad_param_expr_eval = lambdify_function(
+            objective_grad[n + q:], np.ones(N - 1), True)
+        def obj(free):
+            states = free[:i_idx].reshape((n, N))
+            states_mid = 0.5 * (states[:, :-1] + states[:, 1:])
+            inputs = free[i_idx:r_idx].reshape((q, N))
+            inputs_mid = 0.5 * (inputs[:, :-1] + inputs[:, 1:])
+            return obj_expr_eval(states_mid, inputs_mid, free[r_idx:])
+        
+        def obj_grad(free):
+            states = free[:i_idx].reshape((n, N))
+            states_mid = 0.5 * (states[:, :-1] + states[:, 1:])
+            inputs = free[i_idx:r_idx].reshape((q, N))
+            inputs_mid = 0.5 * (inputs[:, :-1] + inputs[:, 1:])
+            return np.hstack((
+                *obj_grad_time_expr_eval(states, inputs, free[r_idx:]),
+                obj_grad_param_expr_eval(states_mid, inputs_mid, free[r_idx:])
+            ))
+
+    else:
+        raise NotImplementedError(
+            f"Integration method '{integration_method}' is not implemented.")
+
+    return obj, obj_grad
+
+
+def sort_sympy(seq):
+    """Returns a sorted list of the symbols."""
+    seq = list(seq)
+    try:  # symbols
+        seq.sort(key=lambda x: x.name)
+    except AttributeError:  # functions
+        seq.sort(key=lambda x: x.__class__.__name__)
+    return seq
 
 
 _c_template = """\
