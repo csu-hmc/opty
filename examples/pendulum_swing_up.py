@@ -13,7 +13,7 @@ from collections import OrderedDict
 import numpy as np
 import sympy as sym
 from opty.direct_collocation import Problem
-from opty.utils import building_docs
+from opty.utils import building_docs, create_objective_function
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
@@ -43,18 +43,11 @@ par_map[g] = 9.81
 par_map[d] = 1.0
 
 # Specify the objective function and it's gradient.
-
-
-def obj(free):
-    """Minimize the sum of the squares of the control torque."""
-    T = free[2 * num_nodes:]
-    return interval_value * np.sum(T**2)
-
-
-def obj_grad(free):
-    grad = np.zeros_like(free)
-    grad[2 * num_nodes:] = 2.0 * interval_value * free[2 * num_nodes:]
-    return grad
+obj_func = sym.Integral(T(t)**2, t)
+obj, obj_grad = create_objective_function(obj_func, state_symbols,
+                                          specified_symbols, tuple(),
+                                          num_nodes,
+                                          node_time_interval=interval_value)
 
 # Specify the symbolic instance constraints, i.e. initial and end
 # conditions.
