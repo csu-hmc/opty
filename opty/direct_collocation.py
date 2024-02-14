@@ -377,7 +377,8 @@ class Problem(cyipopt.Problem):
         con_nodes = range(1, self.collocator.num_collocation_nodes)
 
         plot_inst_viols = self.collocator.instance_constraints is not None
-        fig, axes = plt.subplots(1 + plot_inst_viols)
+        fig, axes = plt.subplots(1 + plot_inst_viols, squeeze=False)
+        axes = axes.ravel()
         
         axes[0].plot(con_nodes, state_violations.T)
         axes[0].set_title('Constraint violations')
