@@ -91,7 +91,12 @@ class Problem(cyipopt.Problem):
     INF = 10e19
 
     @_doc_inherit
-    def __init__(self, obj, obj_grad, *args, **kwargs):
+    def __init__(self, obj, obj_grad, equations_of_motion, state_symbols,
+                 num_collocation_nodes, node_time_interval,
+                 known_parameter_map={}, known_trajectory_map={},
+                 instance_constraints=None, time_symbol=None, tmp_dir=None,
+                 integration_method='backward euler', parallel=False,
+                 bounds=None):
         """
 
         Parameters
@@ -110,10 +115,14 @@ class Problem(cyipopt.Problem):
 
         """
 
-        self.bounds = kwargs.pop('bounds', None)
+        self.collocator = ConstraintCollocator(
+            equations_of_motion, state_symbols, num_collocation_nodes,
+            node_time_interval, known_parameter_map, known_trajectory_map,
+            instance_constraints, time_symbol, tmp_dir, integration_method,
+            parallel
+            )
 
-        self.collocator = ConstraintCollocator(*args, **kwargs)
-
+        self.bounds = bounds
         self.obj = obj
         self.obj_grad = obj_grad
         self.con = self.collocator.generate_constraint_function()
