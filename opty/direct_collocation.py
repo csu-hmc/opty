@@ -376,27 +376,31 @@ class Problem(cyipopt.Problem):
         - r : number of unknown parameters
 
         """
-
+        N = self.collocator.num_collocation_nodes
         con_violations = self.con(vector)
-        con_nodes = range(self.collocator.num_states,
-                          self.collocator.num_collocation_nodes + 1)
-        N = len(con_nodes)
-        fig, axes = plt.subplots(self.collocator.num_states + 1)
+        state_violations = con_violations[
+            :(N - 1) * len(self.collocator.state_symbols)]
+        instance_violations = con_violations[len(state_violations):]
+        state_violations = state_violations.reshape(
+            (len(self.collocator.state_symbols), N - 1))
+        con_nodes = range(1, self.collocator.num_collocation_nodes)
 
-        for i, (ax, symbol) in enumerate(zip(axes[:-1],
-                                             self.collocator.state_symbols)):
-            ax.plot(con_nodes, con_violations[i * N:i * N + N])
-            ax.set_ylabel(sm.latex(symbol, mode='inline'))
+        plot_inst_viols = self.collocator.instance_constraints is not None
+        fig, axes = plt.subplots(1 + plot_inst_viols, squeeze=False)
+        axes = axes.ravel()
+        
+        axes[0].plot(con_nodes, state_violations.T)
+        axes[0].set_title('Constraint violations')
+        axes[0].set_xlabel('Node Number')
+        axes[0].set_ylabel('EoM violation')
 
-        axes[0].set_title('Constraint Violations')
-        axes[-2].set_xlabel('Node Number')
-
-        left = range(len(con_violations[self.collocator.num_states * N:]))
-        axes[-1].bar(left, con_violations[self.collocator.num_states * N:],
-                     tick_label=[sm.latex(s, mode='inline')
-                                 for s in self.collocator.instance_constraints])
-        axes[-1].set_ylabel('Instance')
-        axes[-1].set_xticklabels(axes[-1].get_xticklabels(), rotation=-10)
+        if plot_inst_viols:
+            axes[-1].bar(
+                range(len(instance_violations)), instance_violations,
+                tick_label=[sm.latex(s, mode='inline')
+                            for s in self.collocator.instance_constraints])
+            axes[-1].set_ylabel('Instance')
+            axes[-1].set_xticklabels(axes[-1].get_xticklabels(), rotation=-10)
 
         return axes
 
