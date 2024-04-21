@@ -8,6 +8,7 @@ import subprocess
 import importlib
 from functools import wraps
 import warnings
+import logging
 from distutils.ccompiler import new_compiler
 from distutils.errors import CompileError
 from distutils.sysconfig import customize_compiler
@@ -27,6 +28,8 @@ except TypeError:  # SymPy >=1.6
     plt = sm.external.import_module('matplotlib.pyplot',
                                     import_kwargs={'fromlist': ['']},
                                     catch=(RuntimeError,))
+
+from sympy.utilities._compilation import compilation as pycompilation
 
 
 def _forward_jacobian(expr, wrt):
@@ -372,16 +375,11 @@ def sort_sympy(seq):
 
 _c_template = """\
 #include <math.h>
-#include "{file_prefix}_h.h"
 
 void {routine_name}(double matrix[{matrix_output_size}], {input_args})
 {{
 {eval_code}
 }}
-"""
-
-_h_template = """\
-void {routine_name}(double matrix[{matrix_output_size}], {input_args});
 """
 
 _cython_template = """\
@@ -390,8 +388,7 @@ from cython.parallel import prange
 cimport numpy as np
 cimport cython
 
-cdef extern from "{file_prefix}_h.h"{head_gil}:
-    void {routine_name}(double matrix[{matrix_output_size}], {input_args})
+cdef extern void c_{routine_name} "{routine_name}" (double matrix[{matrix_output_size}], {input_args}){head_gil}
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -402,7 +399,7 @@ def {routine_name}_loop(np.ndarray[np.double_t, ndim=2] matrix, {numpy_typed_inp
     cdef int i
 
     for i in {loop_sig}:
-        {routine_name}(&matrix[i, 0], {indexed_input_args})
+        c_{routine_name}(&matrix[i, 0], {indexed_input_args})
 
     return matrix.reshape(n, {num_rows}, {num_cols})
 """
@@ -599,31 +596,52 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
 
     files = {}
     files[d['file_prefix'] + '_c.c'] = _c_template.format(**d)
-    files[d['file_prefix'] + '_h.h'] = _h_template.format(**d)
     files[d['file_prefix'] + '.pyx'] = _cython_template.format(**d)
     files[d['file_prefix'] + '_setup.py'] = _setup_template.format(**d)
 
-    workingdir = os.getcwd()
-    os.chdir(codedir)
-
     try:
-        sys.path.append(codedir)
-        for filename, code in files.items():
-            with open(filename, 'w') as f:
-                f.write(code)
-        cmd = [sys.executable, d['file_prefix'] + '_setup.py', 'build_ext',
-               '--inplace']
-        subprocess.call(cmd, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
-        cython_module = importlib.import_module(d['file_prefix'])
-    finally:
-        module_counter += 1
-        sys.path.remove(codedir)
-        os.chdir(workingdir)
-        if tmp_dir is None:
-            # NOTE : I can't figure out how to get rmtree to work on Windows,
-            # so I don't delete the directory on Windows.
-            if sys.platform != "win32":
-                shutil.rmtree(codedir)
+        logging.info('opty:Compiling with sympy.utilities._compilation module.')
+        sources = [
+            (d['file_prefix'] + '_c.c', files[d['file_prefix'] + '_c.c']),
+            (d['file_prefix'] + '.pyx', files[d['file_prefix'] + '.pyx']),
+        ]
+
+        options = []
+        if parallel:
+            options += ['-fopenmp']
+
+        cython_module, info = pycompilation.compile_link_import_strings(
+            sources,
+            compile_kwargs={
+                "std": 'c99',
+                "include_dirs": [np.get_include()],
+                'flags': options},
+            link_kwargs={'flags': options},
+            build_dir=codedir)
+    except:
+        logging.info("opty:Compiling with Opty's compilation functions.")
+        workingdir = os.getcwd()
+        os.chdir(codedir)
+
+        try:
+            sys.path.append(codedir)
+            for filename, code in files.items():
+                with open(filename, 'w') as f:
+                    f.write(code)
+            cmd = [sys.executable, d['file_prefix'] + '_setup.py', 'build_ext',
+                   '--inplace']
+            subprocess.call(cmd, stderr=subprocess.STDOUT,
+                            stdout=subprocess.PIPE)
+            cython_module = importlib.import_module(d['file_prefix'])
+        finally:
+            module_counter += 1
+            sys.path.remove(codedir)
+            os.chdir(workingdir)
+            if tmp_dir is None:
+                # NOTE : I can't figure out how to get rmtree to work on Windows,
+                # so I don't delete the directory on Windows.
+                if sys.platform != "win32":
+                    shutil.rmtree(codedir)
 
     return getattr(cython_module, d['routine_name'] + '_loop')
 
