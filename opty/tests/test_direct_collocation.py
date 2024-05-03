@@ -16,7 +16,6 @@ def test_pendulum():
     target_angle = np.pi
     duration = 10.0
     num_nodes = 500
-
     interval_value = duration / (num_nodes - 1)
 
     # Symbolic equations of motion
@@ -1052,6 +1051,320 @@ class TestConstraintCollocatorInstanceConstraints():
              [     0, d * g * m * np.cos(theta[1]),                            0,                            0, -I / h,  I / h,      0,      0,    0, -1,  0,  0],  # 1
              [     0,                            0, d * g * m * np.cos(theta[2]),                            0,      0, -I / h,  I / h,      0,    0,  0, -1,  0],  # 2
              [     0,                            0,                            0, d * g * m * np.cos(theta[3]),      0,      0, -I / h,  I / h,    0,  0,  0, -1]], # 3
+            dtype=float)
+
+        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+
+    def test_generate_constraint_function(self):
+
+        constrain = self.collocator.generate_constraint_function()
+
+        result = constrain(self.free)
+
+        expected_dynamic = np.zeros(3)
+        expected_kinematic = np.zeros(3)
+
+        I, m, g, d = self.constant_values
+        h = self.interval_value
+
+        expected_dynamic = np.zeros(3)
+        expected_kinematic = np.zeros(3)
+
+        for i in [1, 2, 3]:
+
+            thetai, omegai = self.state_values[:, i]
+            thetap, omegap = self.state_values[:, i - 1]
+            Ti = self.specified_values[i]
+
+            expected_kinematic[i - 1] = (thetai - thetap) / h - omegai
+            expected_dynamic[i - 1] = (I * (omegai - omegap) / h + m * g * d
+                                       * sym.sin(thetai) - Ti)
+        theta_values = self.state_values[0]
+        omega_values = self.state_values[1]
+
+        expected_node_constraints = np.array([2.0 * theta_values[0],
+                                              3.0 * theta_values[3] - np.pi,
+                                              4.0 * omega_values[0],
+                                              5.0 * omega_values[3]])
+
+        expected = np.hstack((expected_kinematic, expected_dynamic,
+                              expected_node_constraints))
+
+        np.testing.assert_allclose(result, expected)
+
+    def test_generate_jacobian_function(self):
+
+        jacobian = self.collocator.generate_jacobian_function()
+
+        jac_vals = jacobian(self.free)
+
+        row_idxs, col_idxs = self.collocator.jacobian_indices()
+
+        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+
+        theta = self.state_values[0]
+        I, m, g, d = self.constant_values
+        h = self.interval_value
+
+        expected_jacobian = np.array(
+            # theta0,                       theta1,                       theta2,                       theta3, omega0, omega1, omega2, omega3,   T0, T1, T2, T3
+            [[-1 / h,                        1 / h,                            0,                            0,      0,     -1,      0,      0,    0,  0,  0,  0],  # 1
+             [     0,                       -1 / h,                        1 / h,                            0,      0,      0,     -1,      0,    0,  0,  0,  0],  # 2
+             [     0,                            0,                       -1 / h,                        1 / h,      0,      0,      0,     -1,    0,  0,  0,  0],  # 3
+             [     0, d * g * m * np.cos(theta[1]),                            0,                            0, -I / h,  I / h,      0,      0,    0, -1,  0,  0],  # 1
+             [     0,                            0, d * g * m * np.cos(theta[2]),                            0,      0, -I / h,  I / h,      0,    0,  0, -1,  0],  # 2
+             [     0,                            0,                            0, d * g * m * np.cos(theta[3]),      0,      0, -I / h,  I / h,    0,  0,  0, -1],  # 3
+             [   2.0,                            0,                            0,                            0,      0,      0,      0,      0,    0,  0,  0,  0],
+             [     0,                            0,                            0,                          3.0,      0,      0,      0,      0,    0,  0,  0,  0],
+             [     0,                            0,                            0,                            0,    4.0,      0,      0,      0,    0,  0,  0,  0],
+             [     0,                            0,                            0,                            0,      0,      0,      0,    5.0,    0,  0,  0,  0]],
+            dtype=float)
+
+        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+
+
+class TestConstraintCollocatorVariableDuration():
+
+    def setup_method(self):
+
+        m, g, d, t, h = sym.symbols('m, g, d, t, h')
+        theta, omega, T = [f(t) for f in sym.symbols('theta, omega, T',
+                                                     cls=sym.Function)]
+
+        self.state_symbols = (theta, omega)
+        self.constant_symbols = (m, g, d)
+        self.specified_symbols = (T,)
+        self.discrete_symbols = sym.symbols(
+            'thetai, omegai, thetap, omegap, Ti', real=True)
+        self.interval_symbol = h
+
+        self.state_values = np.array([[1.0, 2.0, 3.0, 4.0],
+                                      [5.0, 6.0, 7.0, 8.0]])
+        self.specified_values = np.array([9.0, 10.0, 11.0, 12.0])
+        self.constant_values = np.array([1.0, 9.81, 1.0])
+        self.interval_value = 0.01
+        self.time = np.array([0.0, 0.01, 0.02, 0.03])
+        self.free = np.array([1.0, 2.0, 3.0, 4.0,  # theta
+                              5.0, 6.0, 7.0, 8.0,  # omega
+                              9.0, 10.0, 11.0, 12.0,  # T
+                              1.0,  # m
+                              9.81,  # g
+                              1.0,  # d
+                              0.01])  # h
+
+        self.eom = sym.Matrix([theta.diff() - omega,
+                               m*d**2*omega.diff() + m*g*d*sym.sin(theta) - T])
+
+        par_map = OrderedDict(zip(self.constant_symbols,
+                                  self.constant_values))
+
+        num_nodes = 4
+
+        # Additional node equality contraints.
+        theta, omega = sym.symbols('theta, omega', cls=sym.Function)
+        instance_constraints = (theta(0),
+                                theta((num_nodes - 1)*h) - sym.pi,
+                                omega(0),
+                                omega((num_nodes - 1)*h))
+
+        self.collocator = \
+            ConstraintCollocator(equations_of_motion=self.eom,
+                                 state_symbols=self.state_symbols,
+                                 num_collocation_nodes=num_nodes,
+                                 node_time_interval=self.interval_symbol,
+                                 known_parameter_map=par_map,
+                                 instance_constraints=instance_constraints,
+                                 time_symbol=t)
+
+    def test_init(self):
+
+        assert self.collocator.state_symbols == self.state_symbols
+        assert (self.collocator.state_derivative_symbols ==
+                tuple([s.diff() for s in self.state_symbols]))
+        assert self.collocator.num_states == 2
+
+    def test_sort_parameters(self):
+
+        self.collocator._sort_parameters()
+
+        assert self.collocator.known_parameters == self.constant_symbols
+        assert self.collocator.num_known_parameters == 3
+
+        assert self.collocator.unknown_parameters == tuple()
+        assert self.collocator.num_unknown_parameters == 0
+
+    def test_sort_trajectories(self):
+
+        self.collocator._sort_trajectories()
+
+        assert self.collocator.known_input_trajectories == tuple()
+        assert self.collocator.num_known_input_trajectories == 0
+
+        assert (self.collocator.unknown_input_trajectories ==
+                self.specified_symbols)
+        assert self.collocator.num_unknown_input_trajectories == 1
+
+    def test_discrete_symbols(self):
+
+        self.collocator._discrete_symbols()
+
+        thetai, omegai, thetap, omegap, Ti = self.discrete_symbols
+
+        assert self.collocator.current_discrete_state_symbols == (thetai,
+                                                                  omegai)
+        assert self.collocator.previous_discrete_state_symbols == (thetap,
+                                                                   omegap)
+        assert self.collocator.current_discrete_specified_symbols == (Ti,)
+
+    def test_discretize_eom(self):
+
+        m, g, d = self.constant_symbols
+        thetai, omegai, thetap, omegap, Ti = self.discrete_symbols
+        h = self.collocator.time_interval_symbol
+
+        expected = sym.Matrix([
+            (thetai - thetap)/h - omegai,
+            m*d**2*(omegai - omegap)/h + m*g*d*sym.sin(thetai) - Ti])
+
+        self.collocator._discretize_eom()
+
+        zero = sym.simplify(self.collocator.discrete_eom - expected)
+
+        assert zero == sym.Matrix([0, 0])
+
+    def test_identify_function_in_instance_constraints(self):
+
+        self.collocator._identify_functions_in_instance_constraints()
+
+        theta, omega = sym.symbols('theta, omega', cls=sym.Function)
+
+        expected = set((theta(0.0), theta(0.03), omega(0.0), omega(0.03)))
+
+        assert self.collocator.instance_constraint_function_atoms == expected
+
+    def test_find_free_index(self):
+
+        theta, omega = sym.symbols('theta, omega', cls=sym.Function)
+
+        self.collocator._identify_functions_in_instance_constraints()
+        self.collocator._find_closest_free_index()
+
+        expected = {theta(0.0): 0,
+                    theta(0.03): 3,
+                    omega(0.0): 4,
+                    omega(0.03): 7}
+
+        assert self.collocator.instance_constraints_free_index_map == expected
+
+    def test_lambdify_instance_constraints(self):
+
+        f = self.collocator._instance_constraints_func()
+
+        extra_constraints = f(self.free)
+
+        expected = np.array([2.0, 12.0 - np.pi, 20.0, 40.0])
+
+        np.testing.assert_allclose(extra_constraints, expected)
+
+    def test_instance_constraints_jacobian_indices(self):
+
+        rows, cols = self.collocator._instance_constraints_jacobian_indices()
+
+        np.testing.assert_allclose(rows, np.array([6, 7, 8, 9]))
+        np.testing.assert_allclose(cols, np.array([0, 3, 4, 7]))
+
+    def test_instance_constraints_jacobian_values(self):
+
+        f = self.collocator._instance_constraints_jacobian_values_func()
+
+        vals = f(self.free)
+
+        np.testing.assert_allclose(vals, np.array([2.0, 3.0, 4.0, 5.0]))
+
+    def test_gen_multi_arg_con_func(self):
+
+        self.collocator._gen_multi_arg_con_func()
+
+        # Make sure the parameters are in the correct order.
+        constant_values = np.array([
+            self.constant_values[self.constant_symbols.index(c)]
+            for c in self.collocator.parameters])
+
+        result = self.collocator._multi_arg_con_func(self.state_values,
+                                                     self.specified_values,
+                                                     constant_values,
+                                                     self.interval_value)
+
+        m, g, d = self.constant_values
+        h = self.interval_value
+
+        expected_dynamic = np.zeros(3)
+        expected_kinematic = np.zeros(3)
+
+        for i in [1, 2, 3]:
+
+            thetai, omegai = self.state_values[:, i]
+            thetap, omegap = self.state_values[:, i - 1]
+            Ti = self.specified_values[i]
+
+            expected_kinematic[i - 1] = (thetai - thetap)/h - omegai
+            expected_dynamic[i - 1] = (m*d**2*(omegai - omegap)/h +
+                                       m*g*d*sym.sin(thetai) - Ti)
+
+        expected = np.hstack((expected_kinematic, expected_dynamic))
+
+        np.testing.assert_allclose(result, expected)
+
+    def test_jacobian_indices(self):
+
+        row_idxs, col_idxs = self.collocator.jacobian_indices()
+
+        expected_row_idxs = np.array([0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 1, 1, 1,
+                                      1, 1, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 5,
+                                      5, 5, 5, 5, 6, 7, 8, 9])
+
+        expected_col_idxs = np.array([1, 5, 0, 4, 9, 1, 5, 0, 4, 9, 2, 6, 1,
+                                      5, 10, 2, 6, 1, 5, 10, 3, 7, 2, 6, 11,
+                                      3, 7, 2, 6, 11, 0, 3, 4, 7])
+
+        np.testing.assert_allclose(row_idxs, expected_row_idxs)
+        np.testing.assert_allclose(col_idxs, expected_col_idxs)
+
+    def test_gen_multi_arg_con_jac_func(self):
+
+        self.collocator._gen_multi_arg_con_jac_func()
+
+        # Make sure the parameters are in the correct order.
+        constant_values = np.array([
+            self.constant_values[self.constant_symbols.index(c)]
+            for c in self.collocator.parameters])
+
+        jac_vals = self.collocator._multi_arg_con_jac_func(
+            self.state_values, self.specified_values, constant_values,
+            self.interval_value)
+
+        row_idxs, col_idxs = self.collocator.jacobian_indices()
+        row_idxs = row_idxs[:-4]
+        col_idxs = col_idxs[:-4]
+
+        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+
+        #                   thetai, omegai, thetap, omegap, Ti
+        # theta : [            1/h,     -1,   -1/h,      0,  0],
+        # omega : [g*m*cos(thetai),    I/h,      0,   -I/h, -1]])
+
+        theta = self.state_values[0]
+        m, g, d = self.constant_values
+        h = self.interval_value
+
+        expected_jacobian = np.array(
+            # theta0,                 theta1,                 theta2,               # theta3,    omega0,    omega1,    omega2,   omega3, T0, T1, T2, T3, h
+            [[  -1/h,                    1/h,                      0,                      0,         0,        -1,         0,        0,  0,  0,  0,  0, -(theta[1] - theta[0])/h**2],  # 1
+             [     0,                   -1/h,                    1/h,                      0,         0,         0,        -1,        0,  0,  0,  0,  0, -(theta[2] - theta[1])/h**2],  # 2
+             [     0,                      0,                   -1/h,                    1/h,         0,         0,         0,       -1,  0,  0,  0,  0, -(theta[3] - theta[2])/h**2],  # 3
+             [     0, d*g*m*np.cos(theta[1]),                      0,                      0, -m*d**2/h,  m*d**2/h,         0,        0,  0, -1,  0,  0, -d**2*m*(omega[1] - omega[0])/h**2],  # 1
+             [     0,                      0, d*g*m*np.cos(theta[2]),                      0,         0, -m*d**2/h,  m*d**2/h,        0,  0,  0, -1,  0, -d**2*m*(omega[2] - omega[1])/h**2],  # 2
+             [     0,                      0,                      0, d*g*m*np.cos(theta[3]),         0,         0, -m*d**2/h, m*d**2/h,  0,  0,  0, -1, -d**2*m*(omega[3] - omega[2])/h**2]], # 3
             dtype=float)
 
         np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
