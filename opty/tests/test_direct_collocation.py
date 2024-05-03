@@ -8,6 +8,54 @@ from scipy import sparse
 from pytest import raises
 
 from ..direct_collocation import Problem, ConstraintCollocator
+from ..utils import create_objective_function
+
+
+def test_pendulum():
+
+    target_angle = np.pi
+    duration = 10.0
+    num_nodes = 500
+
+    interval_value = duration / (num_nodes - 1)
+
+    # Symbolic equations of motion
+    I, m, g, d, t = sym.symbols('I, m, g, d, t')
+    theta, omega, T = sym.symbols('theta, omega, T', cls=sym.Function)
+
+    state_symbols = (theta(t), omega(t))
+    specified_symbols = (T(t),)
+
+    eom = sym.Matrix([theta(t).diff() - omega(t),
+                     I*omega(t).diff() + m*g*d*sym.sin(theta(t)) - T(t)])
+
+    # Specify the known system parameters.
+    par_map = OrderedDict()
+    par_map[I] = 1.0
+    par_map[m] = 1.0
+    par_map[g] = 9.81
+    par_map[d] = 1.0
+
+    # Specify the objective function and it's gradient.
+    obj_func = sym.Integral(T(t)**2, t)
+    obj, obj_grad = create_objective_function(obj_func, state_symbols,
+                                              specified_symbols, tuple(),
+                                              num_nodes,
+                                              node_time_interval=interval_value)
+
+    # Specify the symbolic instance constraints, i.e. initial and end
+    # conditions.
+    instance_constraints = (theta(0.0),
+                            theta(duration) - target_angle,
+                            omega(0.0),
+                            omega(duration))
+
+    # This will test that a compilation works.
+    Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+            bounds={T(t): (-2.0, 2.0)},
+            show_compile_output=True)
 
 
 def test_Problem():
