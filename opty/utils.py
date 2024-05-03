@@ -469,7 +469,8 @@ int main(void) {
     return exit
 
 
-def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
+def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
+                    show_compile_output=False):
     """Returns a function that evaluates a matrix of expressions in a tight
     loop.
 
@@ -491,6 +492,8 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
         If True and openmp is installed, the generated code will be
         parallelized across threads. This is only useful when expr are
         extremely large.
+    show_compile_output : boolean, optional
+        If True, STDOUT of the Cython compilation call will be shown.
 
     """
 
@@ -613,8 +616,18 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False):
                 f.write(code)
         cmd = [sys.executable, d['file_prefix'] + '_setup.py', 'build_ext',
                '--inplace']
-        subprocess.call(cmd, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
-        cython_module = importlib.import_module(d['file_prefix'])
+        proc = subprocess.Popen(cmd, stderr=subprocess.STDOUT,
+                                stdout=subprocess.PIPE)
+        if show_compile_output:
+            for line in iter(proc.stdout.readline, b''):
+                print(line.rstrip())
+        try:
+            cython_module = importlib.import_module(d['file_prefix'])
+        except ImportError as error:
+            msg = ('Unable to import the compiled Cython module {}, '
+                   'compilation likely failed. Set show_compile_output=True '
+                   'or compile manually from the tmp_dir to investigate.')
+            raise ImportError(msg.format(d['file_prefix'])) from error
     finally:
         module_counter += 1
         sys.path.remove(codedir)

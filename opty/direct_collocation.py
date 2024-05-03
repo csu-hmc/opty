@@ -96,7 +96,7 @@ class Problem(cyipopt.Problem):
                  known_parameter_map={}, known_trajectory_map={},
                  instance_constraints=None, time_symbol=None, tmp_dir=None,
                  integration_method='backward euler', parallel=False,
-                 bounds=None):
+                 bounds=None, show_compile_output=False):
         """
 
         Parameters
@@ -119,8 +119,7 @@ class Problem(cyipopt.Problem):
             equations_of_motion, state_symbols, num_collocation_nodes,
             node_time_interval, known_parameter_map, known_trajectory_map,
             instance_constraints, time_symbol, tmp_dir, integration_method,
-            parallel
-            )
+            parallel, show_compile_output=show_compile_output)
 
         self.bounds = bounds
         self.obj = obj
@@ -388,7 +387,7 @@ class Problem(cyipopt.Problem):
         plot_inst_viols = self.collocator.instance_constraints is not None
         fig, axes = plt.subplots(1 + plot_inst_viols, squeeze=False)
         axes = axes.ravel()
-        
+
         axes[0].plot(con_nodes, state_violations.T)
         axes[0].set_title('Constraint violations')
         axes[0].set_xlabel('Node Number')
@@ -445,7 +444,8 @@ class ConstraintCollocator(object):
                  num_collocation_nodes, node_time_interval,
                  known_parameter_map={}, known_trajectory_map={},
                  instance_constraints=None, time_symbol=None, tmp_dir=None,
-                 integration_method='backward euler', parallel=False):
+                 integration_method='backward euler', parallel=False,
+                 show_compile_output=False):
         """Instantiates a ConstraintCollocator object.
 
         Parameters
@@ -499,6 +499,8 @@ class ConstraintCollocator(object):
             the constraints will be executed across multiple threads. This is
             only useful when the equations of motion have an extremely large
             number of operations.
+        show_compile_output : boolean, optional
+            If True, STDOUT of the Cython compilation call will be shown.
 
         """
         self.eom = equations_of_motion
@@ -525,6 +527,7 @@ class ConstraintCollocator(object):
 
         self.tmp_dir = tmp_dir
         self.parallel = parallel
+        self.show_compile_output = show_compile_output
 
         self._sort_parameters()
         self._check_known_trajectories()
@@ -934,7 +937,8 @@ class ConstraintCollocator(object):
         logging.info('Compiling the constraint function.')
         f = ufuncify_matrix(args, self.discrete_eom,
                             const=constant_syms + (h_sym,),
-                            tmp_dir=self.tmp_dir, parallel=self.parallel)
+                            tmp_dir=self.tmp_dir, parallel=self.parallel,
+                            show_compile_output=self.show_compile_output)
 
         def constraints(state_values, specified_values, constant_values,
                         interval_value):
