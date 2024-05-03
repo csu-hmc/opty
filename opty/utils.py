@@ -493,7 +493,8 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         parallelized across threads. This is only useful when expr are
         extremely large.
     show_compile_output : boolean, optional
-        If True, STDOUT of the Cython compilation call will be shown.
+        If True, STDOUT and STDERR of the Cython compilation call will be
+        shown.
 
     """
 

@@ -500,7 +500,8 @@ class ConstraintCollocator(object):
             only useful when the equations of motion have an extremely large
             number of operations.
         show_compile_output : boolean, optional
-            If True, STDOUT of the Cython compilation call will be shown.
+            If True, STDOUT and STDERR of the Cython compilation call will be
+            shown.
 
         """
         self.eom = equations_of_motion
