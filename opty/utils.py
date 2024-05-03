@@ -625,9 +625,10 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
             cython_module = importlib.import_module(d['file_prefix'])
         except ImportError as error:
             msg = ('Unable to import the compiled Cython module {}, '
-                   'compilation likely failed. Set show_compile_output=True '
-                   'or compile manually from the tmp_dir to investigate.')
-            raise ImportError(msg.format(d['file_prefix'])) from error
+                   'compilation likely failed. STDERR output from '
+                   'compilation:\n{}')
+            raise ImportError(msg.format(d['file_prefix'],
+                              proc.stderr)) from error
     finally:
         module_counter += 1
         sys.path.remove(codedir)
