@@ -616,11 +616,10 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
                 f.write(code)
         cmd = [sys.executable, d['file_prefix'] + '_setup.py', 'build_ext',
                '--inplace']
-        proc = subprocess.Popen(cmd, stderr=subprocess.STDOUT,
-                                stdout=subprocess.PIPE)
+        proc = subprocess.run(cmd, capture_output=True, text=True)
         if show_compile_output:
-            for line in iter(proc.stdout.readline, b''):
-                print(line.rstrip())
+            print(proc.stdout)
+            print(proc.stderr)
         try:
             cython_module = importlib.import_module(d['file_prefix'])
         except ImportError as error:
