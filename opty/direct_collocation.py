@@ -334,15 +334,18 @@ class Problem(cyipopt.Problem):
 
         """
 
-        state_traj, input_traj, constants = parse_free(
-            vector, self.collocator.num_states,
-            self.collocator.num_unknown_input_trajectories,
-            self.collocator.num_collocation_nodes)
-
         if self.collocator._variable_duration:
-            node_time_interval = constants[-1]
-            constants = constants[:-1]
+            state_traj, input_traj, constants, node_time_interval = parse_free(
+                vector, self.collocator.num_states,
+                self.collocator.num_unknown_input_trajectories,
+                self.collocator.num_collocation_nodes,
+                variable_duration=self.collocator._variable_duration)
         else:
+            state_traj, input_traj, constants = parse_free(
+                vector, self.collocator.num_states,
+                self.collocator.num_unknown_input_trajectories,
+                self.collocator.num_collocation_nodes,
+                variable_duration=self.collocator._variable_duration)
             node_time_interval = self.collocator.node_time_interval
 
         time = np.linspace(0,
@@ -1477,16 +1480,18 @@ class ConstraintCollocator(object):
 
         def constraints(free):
 
-            free_states, free_specified, free_constants = parse_free(
-                free, self.num_states, self.num_unknown_input_trajectories,
-                self.num_collocation_nodes)
-
-            # TODO : Probably best to modify parse free, but that may require
-            # backwards incompatible change.
             if self._variable_duration:
-                time_interval = free_constants[-1]
-                free_constants = free_constants[:-1]
+                (free_states, free_specified, free_constants,
+                 time_interval) = parse_free(
+                     free, self.num_states,
+                     self.num_unknown_input_trajectories,
+                     self.num_collocation_nodes,
+                     variable_duration=self._variable_duration)
             else:
+                free_states, free_specified, free_constants = parse_free(
+                    free, self.num_states, self.num_unknown_input_trajectories,
+                    self.num_collocation_nodes,
+                    variable_duration=self._variable_duration)
                 time_interval = self.node_time_interval
 
             all_specified = self._merge_fixed_free(self.input_trajectories,
