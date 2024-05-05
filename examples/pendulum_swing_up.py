@@ -18,11 +18,10 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 target_angle = np.pi
-duration = 10.0
 num_nodes = 500
 save_animation = False
 
-interval_value = duration / (num_nodes - 1)
+interval_value = sym.symbols('h')
 
 # Symbolic equations of motion
 I, m, g, d, t = sym.symbols('I, m, g, d, t')
@@ -42,19 +41,28 @@ par_map[m] = 1.0
 par_map[g] = 9.81
 par_map[d] = 1.0
 
+
 # Specify the objective function and it's gradient.
-obj_func = sym.Integral(T(t)**2, t)
-obj, obj_grad = create_objective_function(obj_func, state_symbols,
-                                          specified_symbols, tuple(),
-                                          num_nodes,
-                                          node_time_interval=interval_value)
+def obj(free):
+    """Minimize the sum of the squares of the control torque."""
+    T = free[2 * num_nodes:]
+    return free[-1] * np.sum(T**2)
+
+
+def obj_grad(free):
+    T = free[2 * num_nodes:]
+    grad = np.zeros_like(free)
+    grad[2 * num_nodes:] = 2.0 * free[-1] * free[2 * num_nodes:]
+    grad[-1] = np.sum(T**2)
+    return grad
+
 
 # Specify the symbolic instance constraints, i.e. initial and end
 # conditions.
-instance_constraints = (theta(0.0),
-                        theta(duration) - target_angle,
-                        omega(0.0),
-                        omega(duration))
+instance_constraints = (theta(1),
+                        theta(num_nodes) - target_angle,
+                        omega(1),
+                        omega(num_nodes))
 
 # Create an optimization problem.
 prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
@@ -64,6 +72,8 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
 
 # Use a random positive initial guess.
 initial_guess = np.random.randn(prob.num_free)
+initial_guess = np.zeros(prob.num_free)
+initial_guess[-1] = 0.01
 
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
@@ -75,7 +85,9 @@ prob.plot_objective_value()
 
 # Display animation
 if not building_docs():
-    time = np.linspace(0.0, duration, num=num_nodes)
+    #time = np.linspace(0.0, duration, num=num_nodes)
+    interval_value = solution[-1]
+    time = np.linspace(0.0, num_nodes*solution[-1], num=num_nodes)
     angle = solution[:num_nodes]
 
     fig = plt.figure()
