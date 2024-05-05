@@ -369,6 +369,8 @@ class Problem(cyipopt.Problem):
         axes[0].set_title('State Trajectories')
         axes[self.collocator.num_states].set_title('Input Trajectories')
 
+        fig.tight_layout()
+
         return axes
 
     @_optional_plt_dep
@@ -422,6 +424,8 @@ class Problem(cyipopt.Problem):
                             for s in self.collocator.instance_constraints])
             axes[-1].set_ylabel('Instance')
             axes[-1].set_xticklabels(axes[-1].get_xticklabels(), rotation=-10)
+
+        fig.tight_layout()
 
         return axes
 
