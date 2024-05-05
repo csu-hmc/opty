@@ -1164,10 +1164,10 @@ class TestConstraintCollocatorVariableDuration():
         theta, omega = sym.symbols('theta, omega', cls=sym.Function)
         # If it is variable duration then use values 1 to N to specify instance
         # constraints instead of time.
-        instance_constraints = (theta(1),
-                                theta(4) - sym.pi,
-                                omega(1),
-                                omega(4))
+        instance_constraints = (theta(1),  # theta(t0)
+                                theta(4) - sym.pi,  # theta(tf)
+                                omega(1),  # omega(t0)
+                                omega(4))  # omega(tf)
 
         self.collocator = \
             ConstraintCollocator(equations_of_motion=self.eom,
@@ -1356,14 +1356,11 @@ class TestConstraintCollocatorVariableDuration():
             self.interval_value)
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
+        # skip instance constraints
         row_idxs = row_idxs[:-4]
         col_idxs = col_idxs[:-4]
 
         jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
-
-        #                   thetai, omegai, thetap, omegap, Ti
-        # theta : [            1/h,     -1,   -1/h,      0,  0],
-        # omega : [g*m*cos(thetai),    I/h,      0,   -I/h, -1]])
 
         theta = self.state_values[0]
         omega = self.state_values[1]
@@ -1380,7 +1377,8 @@ class TestConstraintCollocatorVariableDuration():
              [     0,                      0,                      0, d*g*m*np.cos(theta[3]),         0,         0, -m*d**2/h, m*d**2/h,  0,  0,  0, -1, -d**2*m*(omega[3] - omega[2])/h**2]], # 3
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix.todense(),
+                                   expected_jacobian)
 
     def test_generate_constraint_function(self):
 
@@ -1430,23 +1428,24 @@ class TestConstraintCollocatorVariableDuration():
 
         jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
 
-        theta = self.state_values[0]
-        omega = self.state_values[1]
+        th = self.state_values[0]
+        om = self.state_values[1]
         m, g, d = self.constant_values
         h = self.interval_value
 
         expected_jacobian = np.array(
-            # theta0,                       theta1,                       theta2,                       theta3, omega0, omega1, omega2, omega3,   T0, T1, T2, T3
-            [[-1 / h,                        1 / h,                            0,                            0,      0,     -1,      0,      0,    0,  0,  0,  0, -(theta[1] - theta[0])/h**2],  # 1
-             [     0,                       -1 / h,                        1 / h,                            0,      0,      0,     -1,      0,    0,  0,  0,  0, -(theta[2] - theta[1])/h**2],  # 2
-             [     0,                            0,                       -1 / h,                        1 / h,      0,      0,      0,     -1,    0,  0,  0,  0, -(theta[3] - theta[2])/h**2],  # 3
-             [     0, d*g*m*np.cos(theta[1]),                            0,                            0, -m*d**2 / h,  m*d**2 / h,      0,      0,    0, -1,  0,  0, -d**2*m*(omega[1] - omega[0])/h**2],  # 1
-             [     0,                            0, d*g*m*np.cos(theta[2]),                            0,      0, -m*d**2 / h,  m*d**2 / h,      0,    0,  0, -1,  0, -d**2*m*(omega[2] - omega[1])/h**2],  # 2
-             [     0,                            0,                            0, d*g*m*np.cos(theta[3]),      0,      0, -m*d**2 / h,  m*d**2 / h,    0,  0,  0, -1, -d**2*m*(omega[3] - omega[2])/h**2],  # 3
-             [   1.0,                            0,                            0,                            0,      0,      0,      0,      0,    0,  0,  0,  0, 0],
-             [     0,                            0,                            0,                          1.0,      0,      0,      0,      0,    0,  0,  0,  0, 0],
-             [     0,                            0,                            0,                            0,    1.0,      0,      0,      0,    0,  0,  0,  0, 0],
-             [     0,                            0,                            0,                            0,      0,      0,      0,    1.0,    0,  0,  0,  0, 0]],
+            #  th0,                 th1,                 th2,                th3,        om0,       om1,       om2,      om3, T0, T1, T2, T3,                             h
+            [[-1/h,                 1/h,                   0,                  0,          0,        -1,         0,        0,  0,  0,  0,  0,        -(th[1] - th[0])/h**2],  # 1
+             [   0,                -1/h,                 1/h,                  0,          0,         0,        -1,        0,  0,  0,  0,  0,        -(th[2] - th[1])/h**2],  # 2
+             [   0,                   0,                -1/h,                1/h,          0,         0,         0,       -1,  0,  0,  0,  0,        -(th[3] - th[2])/h**2],  # 3
+             [   0, d*g*m*np.cos(th[1]),                   0,                   0, -m*d**2/h,  m*d**2/h,         0,        0,  0, -1,  0,  0, -d**2*m*(om[1] - om[0])/h**2],  # 1
+             [   0,                   0, d*g*m*np.cos(th[2]),                   0,         0, -m*d**2/h,  m*d**2/h,        0,  0,  0, -1,  0, -d**2*m*(om[2] - om[1])/h**2],  # 2
+             [   0,                   0,                   0, d*g*m*np.cos(th[3]),         0,         0, -m*d**2/h, m*d**2/h,  0,  0,  0, -1, -d**2*m*(om[3] - om[2])/h**2],  # 3
+             [ 1.0,                   0,                   0,                   0,         0,         0,         0,        0,  0,  0,  0,  0,                            0],
+             [   0,                   0,                   0,                 1.0,         0,         0,         0,        0,  0,  0,  0,  0,                            0],
+             [   0,                   0,                   0,                   0,       1.0,         0,         0,        0,  0,  0,  0,  0,                            0],
+             [   0,                   0,                   0,                   0,         0,         0,         0,      1.0,  0,  0,  0,  0,                            0]],
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix.todense(),
+                                   expected_jacobian)
