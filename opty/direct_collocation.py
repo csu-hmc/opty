@@ -180,6 +180,13 @@ class Problem(cyipopt.Problem):
                     idx = num_non_par_nodes + i
                     lb[idx] = bounds[0]
                     ub[idx] = bounds[1]
+                elif (self.collocator._variable_duration and
+                      var == self.collocator.time_interval_symbol):
+                    lb[-1] = bounds[0]
+                    ub[-1] = bounds[1]
+                else:
+                    msg = 'Bound variable {} not present in free variables.'
+                    raise ValueError(msg.format(var))
 
         self.lower_bound = lb
         self.upper_bound = ub
