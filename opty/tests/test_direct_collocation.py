@@ -1162,10 +1162,12 @@ class TestConstraintCollocatorVariableDuration():
 
         # Additional node equality contraints.
         theta, omega = sym.symbols('theta, omega', cls=sym.Function)
-        instance_constraints = (theta(0),
-                                theta((num_nodes - 1)*h) - sym.pi,
-                                omega(0),
-                                omega((num_nodes - 1)*h))
+        # If it is variable duration then use values 1 to N to specify instance
+        # constraints instead of time.
+        instance_constraints = (theta(1),
+                                theta(4) - sym.pi,
+                                omega(1),
+                                omega(4))
 
         self.collocator = \
             ConstraintCollocator(equations_of_motion=self.eom,
@@ -1238,7 +1240,7 @@ class TestConstraintCollocatorVariableDuration():
 
         theta, omega = sym.symbols('theta, omega', cls=sym.Function)
 
-        expected = set((theta(0.0), theta(0.03), omega(0.0), omega(0.03)))
+        expected = set((theta(1), theta(4), omega(1), omega(4)))
 
         assert self.collocator.instance_constraint_function_atoms == expected
 
@@ -1249,10 +1251,12 @@ class TestConstraintCollocatorVariableDuration():
         self.collocator._identify_functions_in_instance_constraints()
         self.collocator._find_closest_free_index()
 
-        expected = {theta(0.0): 0,
-                    theta(0.03): 3,
-                    omega(0.0): 4,
-                    omega(0.03): 7}
+        expected = {
+            theta(1): 0,
+            theta(4): 3,
+            omega(1): 4,
+            omega(4): 7,
+        }
 
         assert self.collocator.instance_constraints_free_index_map == expected
 
@@ -1262,7 +1266,7 @@ class TestConstraintCollocatorVariableDuration():
 
         extra_constraints = f(self.free)
 
-        expected = np.array([2.0, 12.0 - np.pi, 20.0, 40.0])
+        expected = np.array([1.0, 4.0 - np.pi, 5.0, 8.0])
 
         np.testing.assert_allclose(extra_constraints, expected)
 
@@ -1279,7 +1283,7 @@ class TestConstraintCollocatorVariableDuration():
 
         vals = f(self.free)
 
-        np.testing.assert_allclose(vals, np.array([2.0, 3.0, 4.0, 5.0]))
+        np.testing.assert_allclose(vals, np.array([1.0, 1.0, 1.0, 1.0]))
 
     def test_gen_multi_arg_con_func(self):
 
@@ -1319,13 +1323,21 @@ class TestConstraintCollocatorVariableDuration():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        expected_row_idxs = np.array([0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 1, 1, 1,
-                                      1, 1, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 5,
-                                      5, 5, 5, 5, 6, 7, 8, 9])
+        expected_row_idxs = np.array([0, 0, 0, 0, 0, 0,
+                                      3, 3, 3, 3, 3, 3,
+                                      1, 1, 1, 1, 1, 1,
+                                      4, 4, 4, 4, 4, 4,
+                                      2, 2, 2, 2, 2, 2,
+                                      5, 5, 5, 5, 5, 5,
+                                      6, 7, 8, 9])
 
-        expected_col_idxs = np.array([1, 5, 0, 4, 9, 1, 5, 0, 4, 9, 2, 6, 1,
-                                      5, 10, 2, 6, 1, 5, 10, 3, 7, 2, 6, 11,
-                                      3, 7, 2, 6, 11, 0, 3, 4, 7])
+        expected_col_idxs = np.array([1, 5, 0, 4, 9, 12,
+                                      1, 5, 0, 4, 9, 12,
+                                      2, 6, 1, 5, 10, 12,
+                                      2, 6, 1, 5, 10, 12,
+                                      3, 7, 2, 6, 11, 12,
+                                      3, 7, 2, 6, 11, 12,
+                                      0, 3, 4, 7])
 
         np.testing.assert_allclose(row_idxs, expected_row_idxs)
         np.testing.assert_allclose(col_idxs, expected_col_idxs)
@@ -1354,6 +1366,7 @@ class TestConstraintCollocatorVariableDuration():
         # omega : [g*m*cos(thetai),    I/h,      0,   -I/h, -1]])
 
         theta = self.state_values[0]
+        omega = self.state_values[1]
         m, g, d = self.constant_values
         h = self.interval_value
 
@@ -1378,7 +1391,7 @@ class TestConstraintCollocatorVariableDuration():
         expected_dynamic = np.zeros(3)
         expected_kinematic = np.zeros(3)
 
-        I, m, g, d = self.constant_values
+        m, g, d = self.constant_values
         h = self.interval_value
 
         expected_dynamic = np.zeros(3)
@@ -1390,16 +1403,17 @@ class TestConstraintCollocatorVariableDuration():
             thetap, omegap = self.state_values[:, i - 1]
             Ti = self.specified_values[i]
 
-            expected_kinematic[i - 1] = (thetai - thetap) / h - omegai
-            expected_dynamic[i - 1] = (I * (omegai - omegap) / h + m * g * d
-                                       * sym.sin(thetai) - Ti)
+            expected_kinematic[i - 1] = (thetai - thetap)/h - omegai
+            expected_dynamic[i - 1] = (m*d**2*(omegai - omegap)/h +
+                                       m*g*d*sym.sin(thetai) - Ti)
+
         theta_values = self.state_values[0]
         omega_values = self.state_values[1]
 
-        expected_node_constraints = np.array([2.0 * theta_values[0],
-                                              3.0 * theta_values[3] - np.pi,
-                                              4.0 * omega_values[0],
-                                              5.0 * omega_values[3]])
+        expected_node_constraints = np.array([theta_values[0],
+                                              theta_values[3] - np.pi,
+                                              omega_values[0],
+                                              omega_values[3]])
 
         expected = np.hstack((expected_kinematic, expected_dynamic,
                               expected_node_constraints))
@@ -1417,21 +1431,22 @@ class TestConstraintCollocatorVariableDuration():
         jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
 
         theta = self.state_values[0]
-        I, m, g, d = self.constant_values
+        omega = self.state_values[1]
+        m, g, d = self.constant_values
         h = self.interval_value
 
         expected_jacobian = np.array(
             # theta0,                       theta1,                       theta2,                       theta3, omega0, omega1, omega2, omega3,   T0, T1, T2, T3
-            [[-1 / h,                        1 / h,                            0,                            0,      0,     -1,      0,      0,    0,  0,  0,  0],  # 1
-             [     0,                       -1 / h,                        1 / h,                            0,      0,      0,     -1,      0,    0,  0,  0,  0],  # 2
-             [     0,                            0,                       -1 / h,                        1 / h,      0,      0,      0,     -1,    0,  0,  0,  0],  # 3
-             [     0, d * g * m * np.cos(theta[1]),                            0,                            0, -I / h,  I / h,      0,      0,    0, -1,  0,  0],  # 1
-             [     0,                            0, d * g * m * np.cos(theta[2]),                            0,      0, -I / h,  I / h,      0,    0,  0, -1,  0],  # 2
-             [     0,                            0,                            0, d * g * m * np.cos(theta[3]),      0,      0, -I / h,  I / h,    0,  0,  0, -1],  # 3
-             [   2.0,                            0,                            0,                            0,      0,      0,      0,      0,    0,  0,  0,  0],
-             [     0,                            0,                            0,                          3.0,      0,      0,      0,      0,    0,  0,  0,  0],
-             [     0,                            0,                            0,                            0,    4.0,      0,      0,      0,    0,  0,  0,  0],
-             [     0,                            0,                            0,                            0,      0,      0,      0,    5.0,    0,  0,  0,  0]],
+            [[-1 / h,                        1 / h,                            0,                            0,      0,     -1,      0,      0,    0,  0,  0,  0, -(theta[1] - theta[0])/h**2],  # 1
+             [     0,                       -1 / h,                        1 / h,                            0,      0,      0,     -1,      0,    0,  0,  0,  0, -(theta[2] - theta[1])/h**2],  # 2
+             [     0,                            0,                       -1 / h,                        1 / h,      0,      0,      0,     -1,    0,  0,  0,  0, -(theta[3] - theta[2])/h**2],  # 3
+             [     0, d*g*m*np.cos(theta[1]),                            0,                            0, -m*d**2 / h,  m*d**2 / h,      0,      0,    0, -1,  0,  0, -d**2*m*(omega[1] - omega[0])/h**2],  # 1
+             [     0,                            0, d*g*m*np.cos(theta[2]),                            0,      0, -m*d**2 / h,  m*d**2 / h,      0,    0,  0, -1,  0, -d**2*m*(omega[2] - omega[1])/h**2],  # 2
+             [     0,                            0,                            0, d*g*m*np.cos(theta[3]),      0,      0, -m*d**2 / h,  m*d**2 / h,    0,  0,  0, -1, -d**2*m*(omega[3] - omega[2])/h**2],  # 3
+             [   1.0,                            0,                            0,                            0,      0,      0,      0,      0,    0,  0,  0,  0, 0],
+             [     0,                            0,                            0,                          1.0,      0,      0,      0,      0,    0,  0,  0,  0, 0],
+             [     0,                            0,                            0,                            0,    1.0,      0,      0,      0,    0,  0,  0,  0, 0],
+             [     0,                            0,                            0,                            0,      0,      0,      0,    1.0,    0,  0,  0,  0, 0]],
             dtype=float)
 
         np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)

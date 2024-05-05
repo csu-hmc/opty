@@ -193,7 +193,7 @@ def parse_free(free, n, q, N):
 
     Parameters
     ----------
-    free : ndarray, shape(n*N + q*N + r)
+    free : ndarray, shape(n*N + q*N + r + s)
         The free parameters of the system.
     n : integer
         The number of states.
