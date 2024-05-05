@@ -85,7 +85,7 @@ _doc_inherit = _DocInherit
 
 class Problem(cyipopt.Problem):
     """This class allows the user to instantiate a problem object with the
-    essential data required to solve a direct collocation optinal control or
+    essential data required to solve a direct collocation optimal control or
     parameter identification problem."""
 
     INF = 10e19
@@ -154,9 +154,9 @@ class Problem(cyipopt.Problem):
         ub = self.INF * np.ones(self.num_free)
 
         N = self.collocator.num_collocation_nodes
-        num_state_nodes = N * self.collocator.num_states
-        num_non_par_nodes = N * (self.collocator.num_states +
-                                 self.collocator.num_unknown_input_trajectories)
+        num_state_nodes = N*self.collocator.num_states
+        num_non_par_nodes = N*(self.collocator.num_states +
+                               self.collocator.num_unknown_input_trajectories)
         state_syms = self.collocator.state_symbols
         unk_traj = self.collocator.unknown_input_trajectories
         unk_par = self.collocator.unknown_parameters
@@ -190,7 +190,7 @@ class Problem(cyipopt.Problem):
 
         Parameters
         ==========
-        free : ndarray, (n*N + q*N + r + s, )
+        free : ndarray, shape(n*N + q*N + r + s, )
             A solution to the optimization problem in the canonical form.
 
         Returns
@@ -243,12 +243,12 @@ class Problem(cyipopt.Problem):
 
         Parameters
         ==========
-        free : ndarray, (n*N + q*N + r, )
+        free : ndarray, (n*N + q*N + r + s, )
             A solution to the optimization problem in the canonical form.
 
         Returns
         =======
-        constraints_val : ndarray, shape(n*(N - 1) + o)
+        constraints_val : ndarray, shape(n*(N - 1) + o, )
             The value of the constraint function.
 
         Notes
@@ -258,6 +258,7 @@ class Problem(cyipopt.Problem):
         - n : number of unknown state trajectories
         - q : number of unknown input trajectories
         - r : number of unknown parameters
+        - s : number of unknown time intervals
         - o : number of instance constraints
 
         """
@@ -265,14 +266,14 @@ class Problem(cyipopt.Problem):
         return self.con(free)
 
     def jacobianstructure(self):
-        """Returns the sparsity structur of the Jacobian of the constraint
+        """Returns the sparsity structure of the Jacobian of the constraint
         function.
 
         Returns
         =======
-        jac_row_idxs : ndarray, shape(2*n + q + r,)
+        jac_row_idxs : ndarray, shape(2*n + q + r + s, )
             The row indices for the non-zero values in the Jacobian.
-        jac_col_idxs : ndarray, shape(n,)
+        jac_col_idxs : ndarray, shape(n*(N - 1) + o, )
             The column indices for the non-zero values in the Jacobian.
 
         """
@@ -284,8 +285,8 @@ class Problem(cyipopt.Problem):
 
         Returns
         =======
-        jac_vals = ndarray, shape()
-
+        jac_vals : ndarray, shape((2*n + q + r + s)*(n*(N - 1) + o), )
+            Non-zero Jacobian values in triplet format.
 
         """
         return self.con_jac(free)
@@ -298,12 +299,12 @@ class Problem(cyipopt.Problem):
     @_optional_plt_dep
     def plot_trajectories(self, vector, axes=None):
         """Returns the axes for two plots. The first plot displays the state
-        trajectories versuse time and the second plot displays the input
-        trjaectories versus time.
+        trajectories versus time and the second plot displays the input
+        trajectories versus time.
 
         Parameters
         ==========
-        vector : ndarray, (n*N + q*N + r, )
+        vector : ndarray, (n*N + q*N + r + s, )
             The initial guess, solution, or any other vector that is in the
             canonical form.
         axes : ndarray of AxesSubplot, shape(n + m, )
@@ -322,18 +323,20 @@ class Problem(cyipopt.Problem):
         - m : number of input trajectories
         - q : number of unknown input trajectories
         - r : number of unknown parameters
+        - s : number of unknown time intervals
 
         """
 
-        state_traj, input_traj, constants = \
-            parse_free(vector, self.collocator.num_states,
-                       self.collocator.num_unknown_input_trajectories,
-                       self.collocator.num_collocation_nodes)
+        state_traj, input_traj, constants = parse_free(
+            vector, self.collocator.num_states,
+            self.collocator.num_unknown_input_trajectories,
+            self.collocator.num_collocation_nodes)
+
         if self.collocator._variable_duration:
             node_time_interval = constants[-1]
             constants = constants[:-1]
         else:
-            node_time_interval = self.collocator.node_time_interval,
+            node_time_interval = self.collocator.node_time_interval
 
         time = np.linspace(0,
                            self.collocator.num_collocation_nodes *
@@ -365,7 +368,7 @@ class Problem(cyipopt.Problem):
 
         Parameters
         ==========
-        vector : ndarray, (n*N + q*N + r, )
+        vector : ndarray, (n*N + q*N + r + s, )
             The initial guess, solution, or any other vector that is in the
             canonical form.
 
@@ -381,6 +384,7 @@ class Problem(cyipopt.Problem):
         - n : number of unknown state trajectories
         - q : number of unknown input trajectories
         - r : number of unknown parameters
+        - s : number of unknown time intervals
 
         """
         N = self.collocator.num_collocation_nodes
@@ -426,10 +430,10 @@ class Problem(cyipopt.Problem):
 
 
 class ConstraintCollocator(object):
-    """This class is responsible for generating the constraint function and
-    the sparse Jacobian of the constraint function using direct collocation
-    methods for a non-linear programming problem where the essential
-    constraints are defined from the equations of motion of the system.
+    """This class is responsible for generating the constraint function and the
+    sparse Jacobian of the constraint function using direct collocation methods
+    for a non-linear programming problem where the essential constraints are
+    defined from the equations of motion of the system.
 
     Notes
     =====
@@ -440,8 +444,9 @@ class ConstraintCollocator(object):
     - p : number of parameters
     - q : number of unknown input trajectories
     - r : number of unknown parameters
+    - s : number of unknown time intervals (0 or 1 if fixed duration or
+      variable duration)
     - o : number of instance constraints
-    - s : 0 or 1 if fixed duration or variable duration
     - nN + qN + r + s : number of free variables
     - n(N - 1) + o : number of constraints
 
@@ -475,39 +480,44 @@ class ConstraintCollocator(object):
             resulting in a variable duration solution.
         known_parameter_map : dictionary, optional
             A dictionary that maps the SymPy symbols representing the known
-            constant parameters to floats. Any parameters in the equations
-            of motion not provided in this dictionary will become free
+            constant parameters to floats. Any parameters in the equations of
+            motion not provided in this dictionary will become free
             optimization variables.
         known_trajectory_map : dictionary, optional
             A dictionary that maps the non-state SymPy functions of time to
-            ndarrays of floats of shape(N,). Any time varying parameters in
-            the equations of motion not provided in this dictionary will
-            become free trajectories optimization variables.
+            ndarrays of floats of shape(N,). Any time varying parameters in the
+            equations of motion not provided in this dictionary will become
+            free trajectories optimization variables. If solving a variable
+            duration problem, note that the values here are fixed at each node
+            and will not scale with varying time interva and will not scale
+            with varying time interval.
         instance_constraints : iterable of SymPy expressions, optional
             These expressions are for constraints on the states at specific
-            time points. They can be expressions with any state instance and
-            any of the known parameters found in the equations of motion.
-            All states should be evaluated at a specific instant of time.
-            For example, the constraint x(0) = 5.0 would be specified as
-            x(0) - 5.0 and the constraint x(0) = x(5.0) would be specified
-            as  x(0) - x(5.0). Unknown parameters and time varying
-            parameters other than the states are currently not supported.
+            time points or at specific nodes. They can be expressions with any
+            state instance and any of the known parameters found in the
+            equations of motion. All states should be evaluated at a specific
+            instant of time for fixed duration problems or at a specific node
+            (1 to N) for variable duration problems. For example, the
+            constraint x(0) = 5.0 would be specified as x(0) - 5.0 and the
+            constraint x(0) = x(5.0) would be specified as x(0) - x(5.0).
+            Unknown parameters and time varying parameters other than the
+            states are currently not supported.
         time_symbol : SymPy Symbol, optional
-            The symbol representating time in the equations of motion. If
-            not given, it is assumed to be the default stored in
-            dynamicsymbols._t.
+            The symbol representating time in the equations of motion. If not
+            given, it is assumed to be the default stored in
+            ``sympy.physics.vector.dynamicsymbols._t``.
         tmp_dir : string, optional
             If you want to see the generated Cython and C code for the
-            constraint and constraint Jacobian evaluations, pass in a path
-            to a directory here.
+            constraint and constraint Jacobian evaluations, pass in a path to a
+            directory here.
         integration_method : string, optional
-            The integration method to use, either `backward euler` or
-            `midpoint`.
+            The integration method to use, either ``backward euler`` or
+            ``midpoint``.
         parallel : boolean, optional
             If true and openmp is installed, constraints and the Jacobian of
             the constraints will be executed across multiple threads. This is
-            only useful when the equations of motion have an extremely large
-            number of operations.
+            only useful for performance when the equations of motion have an
+            extremely large number of operations.
         show_compile_output : boolean, optional
             If True, STDOUT and STDERR of the Cython compilation call will be
             shown.
@@ -517,6 +527,7 @@ class ConstraintCollocator(object):
 
         if time_symbol is not None:
             self.time_symbol = time_symbol
+            me.dynamicsymbols._t = time_symbol
         else:
             self.time_symbol = me.dynamicsymbols._t
 
@@ -526,6 +537,13 @@ class ConstraintCollocator(object):
         self.num_states = len(self.state_symbols)
 
         self.num_collocation_nodes = num_collocation_nodes
+
+        if isinstance(node_time_interval, sm.Symbol):
+            self.time_interval_symbol = node_time_interval
+            self._variable_duration = True
+        else:
+            self.time_interval_symbol = sm.Symbol('h', real=True)
+            self._variable_duration = False
         self.node_time_interval = node_time_interval
 
         self.known_parameter_map = known_parameter_map
@@ -542,12 +560,6 @@ class ConstraintCollocator(object):
         self._sort_parameters()
         self._check_known_trajectories()
         self._sort_trajectories()
-        if isinstance(self.node_time_interval, sm.Symbol):
-            self.time_interval_symbol = self.node_time_interval
-            self._variable_duration = True
-        else:
-            self.time_interval_symbol = sm.Symbol('h', real=True)
-            self._variable_duration = False
         self.num_free = ((self.num_states +
                           self.num_unknown_input_trajectories) *
                          self.num_collocation_nodes +
@@ -561,8 +573,7 @@ class ConstraintCollocator(object):
             self.num_constraints += self.num_instance_constraints
             self._identify_functions_in_instance_constraints()
             self._find_closest_free_index()
-            self.eval_instance_constraints = \
-                self._instance_constraints_func()
+            self.eval_instance_constraints = self._instance_constraints_func()
             self.eval_instance_constraints_jacobian_values = \
                 self._instance_constraints_jacobian_values_func()
 
@@ -658,18 +669,18 @@ class ConstraintCollocator(object):
 
         for k, v in self.known_trajectory_map.items():
             if len(v) != N:
-                msg = 'The known parameter {} is not length {}'
+                msg = 'The known parameter {} is not length {}.'
                 raise ValueError(msg.format(k, N))
 
     def _sort_trajectories(self):
         """Finds and counts all of the non-state, time varying parameters in
-        the equations of motion and categorizes them based on which
-        parameters the user supplies. The unknown parameters are sorted by
-        name."""
+        the equations of motion and categorizes them based on which parameters
+        the user supplies. The unknown parameters are sorted by name."""
 
         states = set(self.state_symbols)
         states_derivatives = set(self.state_derivative_symbols)
 
+        # TODO : Add tests for time symbols that are not `t`.
         time_varying_symbols = me.find_dynamicsymbols(self.eom)
         state_related = states.union(states_derivatives)
         non_states = time_varying_symbols.difference(state_related)
@@ -686,8 +697,8 @@ class ConstraintCollocator(object):
         self.num_input_trajectories = len(self.input_trajectories)
 
     def _discrete_symbols(self):
-        """Instantiates discrete symbols for each time varying variable in
-        the equations of motion.
+        """Instantiates discrete symbols for each time varying variable in the
+        equations of motion.
 
         Instantiates
         ------------
@@ -744,16 +755,16 @@ class ConstraintCollocator(object):
             tuple([sm.Symbol(f.__class__.__name__ + 'n', real=True)
                    for f in self.unknown_input_trajectories])
 
-        self.current_discrete_specified_symbols = \
-            (self.current_known_discrete_specified_symbols +
-             self.current_unknown_discrete_specified_symbols)
-        self.next_discrete_specified_symbols = \
-            (self.next_known_discrete_specified_symbols +
-             self.next_unknown_discrete_specified_symbols)
+        self.current_discrete_specified_symbols = (
+            self.current_known_discrete_specified_symbols +
+            self.current_unknown_discrete_specified_symbols)
+        self.next_discrete_specified_symbols = (
+            self.next_known_discrete_specified_symbols +
+            self.next_unknown_discrete_specified_symbols)
 
     def _discretize_eom(self):
         """Instantiates the constraint equations in a discretized form using
-        backward Euler discretization.
+        backward Euler or midpoint discretization.
 
         Instantiates
         ------------
@@ -879,10 +890,10 @@ class ConstraintCollocator(object):
                                       list(self.known_parameter_map.keys())),
                                      jac, modules=[{'ImmutableMatrix':
                                                     np.array}, "numpy"]))
-        l = np.sum(num_vals_per_func)
+        length = np.sum(num_vals_per_func)
 
         def wrapped(free):
-            arr = np.zeros(l)
+            arr = np.zeros(length)
             j = 0
             for i, (f, num) in enumerate(zip(funcs, num_vals_per_func)):
                 arr[j:j + num] = f(free, *self.known_parameter_map.values())
@@ -892,9 +903,9 @@ class ConstraintCollocator(object):
         return wrapped
 
     def _gen_multi_arg_con_func(self):
-        """Instantiates a function that evaluates the constraints given all
-        of the arguments of the functions, i.e. not just the free
-        optimization variables.
+        """Instantiates a function that evaluates the constraints given all of
+        the arguments of the functions, i.e. not just the free optimization
+        variables.
 
         Instantiates
         ------------
@@ -990,26 +1001,26 @@ class ConstraintCollocator(object):
 
             assert state_values.shape == (self.num_states,
                                           self.num_collocation_nodes)
-
-            x_current = state_values[:, current_start:current_stop]  # n x N - 1
-            x_adjacent = state_values[:, adjacent_start:adjacent_stop]  # n x N - 1
+            # n x N - 1
+            x_current = state_values[:, current_start:current_stop]
+            # n x N - 1
+            x_adjacent = state_values[:, adjacent_start:adjacent_stop]
 
             # 2n x N - 1
             args = [x for x in x_current] + [x for x in x_adjacent]
 
             # 2n + m x N - 1
             if len(specified_values.shape) == 2:
-                assert specified_values.shape == \
-                    (self.num_input_trajectories,
-                     self.num_collocation_nodes)
+                assert specified_values.shape == (self.num_input_trajectories,
+                                                  self.num_collocation_nodes)
                 si = specified_values[:, current_start:current_stop]
                 args += [s for s in si]
                 if self.integration_method == 'midpoint':
                     sn = specified_values[:, adjacent_start:adjacent_stop]
                     args += [s for s in sn]
-            elif len(specified_values.shape) == 1 and specified_values.size != 0:
-                assert specified_values.shape == \
-                    (self.num_collocation_nodes,)
+            elif (len(specified_values.shape) == 1 and
+                  specified_values.size != 0):
+                assert specified_values.shape == (self.num_collocation_nodes,)
                 si = specified_values[current_start:current_stop]
                 args += [si]
                 if self.integration_method == 'midpoint':
@@ -1036,9 +1047,9 @@ class ConstraintCollocator(object):
 
         Returns
         -------
-        jac_row_idxs : ndarray, shape(2*n + q + r,)
+        jac_row_idxs : ndarray, shape(2*n + q + r + s,)
             The row indices for the non-zero values in the Jacobian.
-        jac_col_idxs : ndarray, shape(n,)
+        jac_col_idxs : ndarray, shape(n + o,)
             The column indices for the non-zero values in the Jacobian.
 
         """
@@ -1325,8 +1336,7 @@ class ConstraintCollocator(object):
         else:
             num_rows = symbolic_partials.shape[0]
             num_cols = symbolic_partials.shape[1]
-        result = np.empty((self.num_collocation_nodes - 1,
-                           num_rows * num_cols))
+        result = np.empty((self.num_collocation_nodes - 1, num_rows*num_cols))
 
         def constraints_jacobian(state_values, specified_values,
                                  parameter_values, interval_value):
@@ -1349,8 +1359,8 @@ class ConstraintCollocator(object):
             Returns
             -------
             constraint_jacobian_values : ndarray, shape(see below,)
-                backward euler: shape((N - 1) * n * (2*n + q + r),)
-                midpoint: shape((N - 1) * n * (2*n + 2*q + r),)
+                backward euler: shape((N - 1) * n * (2*n + q + r + s),)
+                midpoint: shape((N - 1) * n * (2*n + 2*q + r + s),)
                 The values of the non-zero entries of the constraints
                 Jacobian. These correspond to the triplet formatted indices
                 returned from jacobian_indices.
@@ -1406,9 +1416,9 @@ class ConstraintCollocator(object):
 
     @staticmethod
     def _merge_fixed_free(syms, fixed, free, typ):
-        """Returns an array with the fixed and free values combined. This
-        just takes the known and unknown values and combines them for the
-        function evaluation.
+        """Returns an array with the fixed and free values combined. This just
+        takes the known and unknown values and combines them for the function
+        evaluation.
 
         This assumes that you have the free constants in the correct order.
 
@@ -1421,7 +1431,6 @@ class ConstraintCollocator(object):
             An array
         typ : string
             traj or par
-
 
         """
 
