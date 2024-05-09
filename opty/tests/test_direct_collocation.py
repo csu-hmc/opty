@@ -1131,6 +1131,7 @@ class TestConstraintCollocatorVariableDuration():
         theta, omega, T = [f(t) for f in sym.symbols('theta, omega, T',
                                                      cls=sym.Function)]
 
+        self.num_nodes = 4
         self.state_symbols = (theta, omega)
         self.constant_symbols = (m, g, d)
         self.specified_symbols = (T,)
@@ -1158,25 +1159,23 @@ class TestConstraintCollocatorVariableDuration():
         par_map = OrderedDict(zip(self.constant_symbols,
                                   self.constant_values))
 
-        num_nodes = 4
-
         # Additional node equality contraints.
         theta, omega = sym.symbols('theta, omega', cls=sym.Function)
         # If it is variable duration then use values 1 to N to specify instance
         # constraints instead of time.
-        instance_constraints = (theta(1),  # theta(t0)
-                                theta(4) - sym.pi,  # theta(tf)
-                                omega(1),  # omega(t0)
-                                omega(4))  # omega(tf)
+        instance_constraints = (theta(1*h),  # theta(t0)
+                                theta(self.num_nodes*h) - sym.pi,  # theta(tf)
+                                omega(1*h),  # omega(t0)
+                                omega(self.num_nodes*h))  # omega(tf)
 
-        self.collocator = \
-            ConstraintCollocator(equations_of_motion=self.eom,
-                                 state_symbols=self.state_symbols,
-                                 num_collocation_nodes=num_nodes,
-                                 node_time_interval=self.interval_symbol,
-                                 known_parameter_map=par_map,
-                                 instance_constraints=instance_constraints,
-                                 time_symbol=t)
+        self.collocator = ConstraintCollocator(
+            equations_of_motion=self.eom,
+            state_symbols=self.state_symbols,
+            num_collocation_nodes=self.num_nodes,
+            node_time_interval=self.interval_symbol,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+            time_symbol=t)
 
     def test_init(self):
 
@@ -1240,7 +1239,10 @@ class TestConstraintCollocatorVariableDuration():
 
         theta, omega = sym.symbols('theta, omega', cls=sym.Function)
 
-        expected = set((theta(1), theta(4), omega(1), omega(4)))
+        expected = set((theta(1*self.interval_symbol),
+                        theta(self.num_nodes*self.interval_symbol),
+                        omega(1*self.interval_symbol),
+                        omega(self.num_nodes*self.interval_symbol)))
 
         assert self.collocator.instance_constraint_function_atoms == expected
 
@@ -1252,10 +1254,10 @@ class TestConstraintCollocatorVariableDuration():
         self.collocator._find_closest_free_index()
 
         expected = {
-            theta(1): 0,
-            theta(4): 3,
-            omega(1): 4,
-            omega(4): 7,
+            theta(1*self.interval_symbol): 0,
+            theta(self.num_nodes*self.interval_symbol): 3,
+            omega(1*self.interval_symbol): 4,
+            omega(self.num_nodes*self.interval_symbol): 7,
         }
 
         assert self.collocator.instance_constraints_free_index_map == expected

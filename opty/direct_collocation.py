@@ -510,12 +510,14 @@ class ConstraintCollocator(object):
             time points or at specific nodes. They can be expressions with any
             state instance and any of the known parameters found in the
             equations of motion. All states should be evaluated at a specific
-            instant of time for fixed duration problems or at a specific node
-            (1 to N) for variable duration problems. For example, the
-            constraint x(0) = 5.0 would be specified as x(0) - 5.0 and the
-            constraint x(0) = x(5.0) would be specified as x(0) - x(5.0).
-            Unknown parameters and time varying parameters other than the
-            states are currently not supported.
+            instant of time. For example, the constraint x(0) = 5.0 would be
+            specified as x(0) - 5.0 and the constraint x(0) = x(5.0) would be
+            specified as x(0) - x(5.0). For variable duration problems you must
+            specify time as an integer multiple of the node time interval
+            symbol, for example ``x(1*h) - 5.0``. The integer must be a value
+            from 1 to ``num_collocation_nodes``. Unknown parameters and time
+            varying parameters other than the states are currently not
+            supported.
         time_symbol : SymPy Symbol, optional
             The symbol representating time in the equations of motion. If not
             given, it is assumed to be the default stored in
@@ -840,12 +842,19 @@ class ConstraintCollocator(object):
         node_map = {}
         for func in self.instance_constraint_function_atoms:
             if self._variable_duration:
-                time_index = func.args[0] - 1
+                msg = ('Instance constraint {} is not a correct integer '
+                       'multiple of the time interval.')
+                try:
+                    time_idx = int(func.args[0]/self.time_interval_symbol) - 1
+                except TypeError as err:  # can't convert to integer
+                    raise TypeError(msg.format(func)) from err
+                if time_idx not in range(self.num_collocation_nodes):
+                    raise ValueError(msg.format(func))
             else:
                 time_value = func.args[0]
                 time_vector = np.linspace(0.0, duration, num=N)
-                time_index = np.argmin(np.abs(time_vector - time_value))
-            free_index = determine_free_index(time_index,
+                time_idx = np.argmin(np.abs(time_vector - time_value))
+            free_index = determine_free_index(time_idx,
                                               func.__class__(self.time_symbol))
             node_map[func] = free_index
 
