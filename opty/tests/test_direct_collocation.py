@@ -1161,12 +1161,13 @@ class TestConstraintCollocatorVariableDuration():
 
         # Additional node equality contraints.
         theta, omega = sym.symbols('theta, omega', cls=sym.Function)
-        # If it is variable duration then use values 1 to N to specify instance
-        # constraints instead of time.
-        instance_constraints = (theta(1*h),  # theta(t0)
-                                theta(self.num_nodes*h) - sym.pi,  # theta(tf)
-                                omega(1*h),  # omega(t0)
-                                omega(self.num_nodes*h))  # omega(tf)
+        # If it is variable duration then use values 0 to N - 1 to specify
+        # instance constraints instead of time.
+        t0, tf = 0*h, (self.num_nodes - 1)*h
+        instance_constraints = (theta(t0),
+                                theta(tf) - sym.pi,
+                                omega(t0),
+                                omega(tf))
 
         self.collocator = ConstraintCollocator(
             equations_of_motion=self.eom,
@@ -1239,10 +1240,10 @@ class TestConstraintCollocatorVariableDuration():
 
         theta, omega = sym.symbols('theta, omega', cls=sym.Function)
 
-        expected = set((theta(1*self.interval_symbol),
-                        theta(self.num_nodes*self.interval_symbol),
-                        omega(1*self.interval_symbol),
-                        omega(self.num_nodes*self.interval_symbol)))
+        expected = set((theta(0*self.interval_symbol),
+                        theta((self.num_nodes - 1)*self.interval_symbol),
+                        omega(0*self.interval_symbol),
+                        omega((self.num_nodes - 1)*self.interval_symbol)))
 
         assert self.collocator.instance_constraint_function_atoms == expected
 
@@ -1254,10 +1255,10 @@ class TestConstraintCollocatorVariableDuration():
         self.collocator._find_closest_free_index()
 
         expected = {
-            theta(1*self.interval_symbol): 0,
-            theta(self.num_nodes*self.interval_symbol): 3,
-            omega(1*self.interval_symbol): 4,
-            omega(self.num_nodes*self.interval_symbol): 7,
+            theta(0*self.interval_symbol): 0,
+            theta((self.num_nodes - 1)*self.interval_symbol): 3,
+            omega(0*self.interval_symbol): 4,
+            omega((self.num_nodes - 1)*self.interval_symbol): 7,
         }
 
         assert self.collocator.instance_constraints_free_index_map == expected

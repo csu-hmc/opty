@@ -58,11 +58,11 @@ def obj_grad(free):
 
 
 # Specify the symbolic instance constraints, i.e. initial and end conditions
-# using node numbers 1 to N.
-instance_constraints = (theta(1*h),
-                        theta(num_nodes*h) - target_angle,
-                        omega(1*h),
-                        omega(num_nodes*h))
+# using node numbers 0 to N - 1
+instance_constraints = (theta(0*h),
+                        theta((num_nodes - 1)*h) - target_angle,
+                        omega(0*h),
+                        omega((num_nodes - 1)*h))
 
 # Create an optimization problem.
 prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, h,

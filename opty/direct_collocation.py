@@ -107,11 +107,11 @@ class Problem(cyipopt.Problem):
             Returns the gradient of the objective function given the free
             vector.
         bounds : dictionary, optional
-            This dictionary should contain a mapping from any of the
-            symbolic states, unknown trajectories, or unknown parameters to
-            a 2-tuple of floats, the first being the lower bound and the
-            second the upper bound for that free variable, e.g. ``{x(t):
-            (-1.0, 5.0)}``.
+            This dictionary should contain a mapping from any of the symbolic
+            states, unknown trajectories, unknown parameters, or unknown time
+            interval to a 2-tuple of floats, the first being the lower bound
+            and the second the upper bound for that free variable, e.g.
+            ``{x(t): (-1.0, 5.0)}``.
 
         """
 
@@ -464,6 +464,13 @@ class ConstraintCollocator(object):
     - nN + qN + r + s : number of free variables
     - n(N - 1) + o : number of constraints
 
+    [x11, ... x1N,
+     xn1, ... xnN,
+     u11, ... u1N,
+     uq1, ... xqN,
+     p1, ... pp,
+     h]
+
     """
 
     def __init__(self, equations_of_motion, state_symbols,
@@ -514,9 +521,9 @@ class ConstraintCollocator(object):
             specified as x(0) - 5.0 and the constraint x(0) = x(5.0) would be
             specified as x(0) - x(5.0). For variable duration problems you must
             specify time as an integer multiple of the node time interval
-            symbol, for example ``x(1*h) - 5.0``. The integer must be a value
-            from 1 to ``num_collocation_nodes``. Unknown parameters and time
-            varying parameters other than the states are currently not
+            symbol, for example ``x(0*h) - 5.0``. The integer must be a value
+            from 0 to ``num_collocation_nodes - 1``. Unknown parameters and
+            time varying parameters other than the states are currently not
             supported.
         time_symbol : SymPy Symbol, optional
             The symbol representating time in the equations of motion. If not
@@ -842,14 +849,20 @@ class ConstraintCollocator(object):
         node_map = {}
         for func in self.instance_constraint_function_atoms:
             if self._variable_duration:
-                msg = ('Instance constraint {} is not a correct integer '
-                       'multiple of the time interval.')
-                try:
-                    time_idx = int(func.args[0]/self.time_interval_symbol) - 1
-                except TypeError as err:  # can't convert to integer
-                    raise TypeError(msg.format(func)) from err
+                if func.args[0] == 0:
+                    time_idx = 0
+                else:
+                    try:
+                        time_idx = int(func.args[0]/self.time_interval_symbol)
+                    except TypeError as err:  # can't convert to integer
+                        msg = ('Instance constraint {} is not a correct '
+                               'integer multiple of the time interval.')
+                        raise TypeError(msg.format(func)) from err
                 if time_idx not in range(self.num_collocation_nodes):
-                    raise ValueError(msg.format(func))
+                    msg = ('Instance constraint {} gives an index of {} which '
+                           'is not between 0 and {}.')
+                    raise ValueError(msg.format(
+                        func, time_idx, self.num_collocation_nodes - 1))
             else:
                 time_value = func.args[0]
                 time_vector = np.linspace(0.0, duration, num=N)
