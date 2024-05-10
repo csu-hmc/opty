@@ -1,23 +1,29 @@
 Introduction
 ============
 
-.. image:: https://img.shields.io/pypi/v/opty.svg
-   :target: https://pypi.org/project/opty
+.. list-table::
 
-.. image:: https://anaconda.org/conda-forge/opty/badges/version.svg
-   :target: https://anaconda.org/conda-forge/opty
-
-.. image:: https://readthedocs.org/projects/opty/badge/?version=stable
-   :target: http://opty.readthedocs.io
-
-.. image:: http://joss.theoj.org/papers/10.21105/joss.00300/status.svg
-   :target: https://doi.org/10.21105/joss.00300
-
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1162870.svg
-   :target: https://doi.org/10.5281/zenodo.1162870
-
-.. image:: https://travis-ci.org/csu-hmc/opty.svg?branch=master
-   :target: https://travis-ci.org/csu-hmc/opty
+   * - PyPi
+     - .. image:: https://img.shields.io/pypi/v/opty.svg
+          :target: https://pypi.org/project/opty
+       .. image:: https://pepy.tech/badge/cyipopt
+          :target: https://pypi.org/project/cyipopt
+   * - Anaconda
+     - .. image:: https://anaconda.org/conda-forge/opty/badges/version.svg
+          :target: https://anaconda.org/conda-forge/opty
+       .. image:: https://anaconda.org/conda-forge/cyipopt/badges/downloads.svg
+          :target: https://anaconda.org/conda-forge/cyipopt
+   * - Documentation
+     - .. image:: https://readthedocs.org/projects/opty/badge/?version=stable
+          :target: http://opty.readthedocs.io
+   * - JOSS Paper
+     - .. image:: http://joss.theoj.org/papers/10.21105/joss.00300/status.svg
+          :target: https://doi.org/10.21105/joss.00300
+   * - Zenodo Archive
+     - .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1162870.svg
+          :target: https://doi.org/10.5281/zenodo.1162870
+   * - Continous Integration
+     - .. image:: https://github.com/csu-hmc/opty/actions/workflows/tests.yml/badge.svg
 
 ``opty`` utilizes symbolic descriptions of differential algebraic equations
 expressed with SymPy_ to form the constraints needed to solve optimal control
