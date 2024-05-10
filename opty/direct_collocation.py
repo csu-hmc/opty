@@ -86,7 +86,41 @@ _doc_inherit = _DocInherit
 class Problem(cyipopt.Problem):
     """This class allows the user to instantiate a problem object with the
     essential data required to solve a direct collocation optimal control or
-    parameter identification problem."""
+    parameter identification problem.
+
+    Notes
+    =====
+
+    - N : number of collocation nodes
+    - n : number of states
+    - m : number of input trajectories
+    - q : number of unknown input trajectories
+    - r : number of unknown parameters
+    - s : number of unknown time intervals (0 or 1 if fixed duration or
+      variable duration)
+    - o : number of instance constraints
+    - nN + qN + r + s : number of free variables
+    - n(N - 1) + o : number of constraints
+
+    If ``x`` are the state variables, ``u`` are the unknown input trajectories,
+    and ``p`` are the unknown parameters, and ``h`` is the unknown time
+    interval then the free optimization variables are in this order::
+
+       free = [x11, ... x1N,
+               xn1, ... xnN,
+               u11, ... u1N,
+               uq1, ... xqN,
+               p1, ... pr,
+               h]
+
+    If the equations of motion are equations ``eom1`` to ``eomn`` and  instance
+    constraints are ``c``,  the constraint array is ordered as::
+
+       constraints = [eom12, ... eom1N,
+                      eomn2, ... eomnN,
+                      c1, ..., co]
+
+    """
 
     INF = 10e19
 
@@ -455,7 +489,6 @@ class ConstraintCollocator(object):
     - N : number of collocation nodes
     - n : number of states
     - m : number of input trajectories
-    - p : number of parameters
     - q : number of unknown input trajectories
     - r : number of unknown parameters
     - s : number of unknown time intervals (0 or 1 if fixed duration or
@@ -463,13 +496,6 @@ class ConstraintCollocator(object):
     - o : number of instance constraints
     - nN + qN + r + s : number of free variables
     - n(N - 1) + o : number of constraints
-
-    [x11, ... x1N,
-     xn1, ... xnN,
-     u11, ... u1N,
-     uq1, ... xqN,
-     p1, ... pp,
-     h]
 
     """
 
@@ -484,16 +510,17 @@ class ConstraintCollocator(object):
         Parameters
         ==========
         equations_of_motion : sympy.Matrix, shape(n, 1)
-            A column matrix of SymPy expressions defining the right hand
-            side of the equations of motion when the left hand side is zero,
-            e.g. 0 = x'(t) - f(x(t), u(t), p) or 0 = f(x'(t), x(t), u(t),
-            p). These should be in first order form but not necessairly
-            explicit.
+            A column matrix of SymPy expressions defining the right hand side
+            of the equations of motion when the left hand side is zero, e.g.
+            ``0 = x'(t) - f(x(t), u(t), p)`` or ``0 = f(x'(t), x(t), u(t),
+            p)``. These should be in first order form but not necessairly
+            explicit. They can be ordinary differential equations or
+            differential algebraic equations.
         state_symbols : iterable
-            An iterable containing all of the SymPy functions of time which
-            represent the states in the equations of motion.
+            An iterable containing all ``n` of the SymPy functions of time
+            which represent the states in the equations of motion.
         num_collocation_nodes : integer
-            The number of collocation nodes, N. All known trajectory arrays
+            The number of collocation nodes, ``N``. All known trajectory arrays
             should be of this length.
         node_time_interval : float or Symbol
             The time interval between collocation nodes. If a SymPy symbol is
@@ -506,25 +533,22 @@ class ConstraintCollocator(object):
             optimization variables.
         known_trajectory_map : dictionary, optional
             A dictionary that maps the non-state SymPy functions of time to
-            ndarrays of floats of shape(N,). Any time varying parameters in the
-            equations of motion not provided in this dictionary will become
+            ndarrays of floats of ``shape(N,)``. Any time varying parameters in
+            the equations of motion not provided in this dictionary will become
             free trajectories optimization variables. If solving a variable
             duration problem, note that the values here are fixed at each node
-            and will not scale with varying time interva and will not scale
-            with varying time interval.
+            and will not scale with a varying time interval.
         instance_constraints : iterable of SymPy expressions, optional
             These expressions are for constraints on the states at specific
-            time points or at specific nodes. They can be expressions with any
-            state instance and any of the known parameters found in the
-            equations of motion. All states should be evaluated at a specific
-            instant of time. For example, the constraint x(0) = 5.0 would be
-            specified as x(0) - 5.0 and the constraint x(0) = x(5.0) would be
-            specified as x(0) - x(5.0). For variable duration problems you must
-            specify time as an integer multiple of the node time interval
-            symbol, for example ``x(0*h) - 5.0``. The integer must be a value
-            from 0 to ``num_collocation_nodes - 1``. Unknown parameters and
-            time varying parameters other than the states are currently not
-            supported.
+            times. They can be expressions with any state instance and any of
+            the known parameters found in the equations of motion. All states
+            should be evaluated at a specific instant of time. For example, the
+            constraint ``x(0) = 5.0`` would be specified as ``x(0) - 5.0``. For
+            variable duration problems you must specify time as an integer
+            multiple of the node time interval symbol, for example ``x(0*h) -
+            5.0``. The integer must be a value from 0 to
+            ``num_collocation_nodes - 1``. Unknown parameters and time varying
+            parameters other than the states are currently not supported.
         time_symbol : SymPy Symbol, optional
             The symbol representating time in the equations of motion. If not
             given, it is assumed to be the default stored in
