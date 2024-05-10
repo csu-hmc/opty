@@ -4,7 +4,7 @@ Fixed Duration Pendulum Swing Up
 
 Given a compound pendulum that is driven by a torque about its joint axis,
 swing the pendulum from hanging down to standing up in a fixed amount of time
-using minimal input energy with a bounded torque magnitude.
+using minimal input torque with a bounded torque magnitude.
 
 """
 
@@ -45,7 +45,7 @@ par_map = {
 
 # %%
 # Specify the objective function and it's gradient, in this case it calculates
-# the input energy over the simulation.
+# the area under the input torque curve over the simulation.
 obj_func = sm.Integral(T(t)**2, t)
 sm.pprint(obj_func)
 obj, obj_grad = create_objective_function(obj_func, state_symbols,
