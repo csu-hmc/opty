@@ -46,7 +46,8 @@ par_map = {
 # %%
 # Specify the objective function and it's gradient, in this case it calculates
 # the input energy over the simulation.
-obj_func = sm.Integral(T(t)*omega(t), t)
+obj_func = sm.Integral(T(t)**2, t)
+sm.pprint(obj_func)
 obj, obj_grad = create_objective_function(obj_func, state_symbols,
                                           specified_symbols, tuple(),
                                           num_nodes,
@@ -104,8 +105,8 @@ time = np.linspace(0.0, duration, num=num_nodes)
 angle = solution[:num_nodes]
 
 fig = plt.figure()
-ax = fig.add_subplot(111, aspect='equal', autoscale_on=False, xlim=(-2, 2),
-                     ylim=(-2, 2))
+ax = fig.add_subplot(111, aspect='equal', autoscale_on=False,
+                     xlim=(-2, 2), ylim=(-2, 2))
 ax.grid()
 
 line, = ax.plot([], [], 'o-', lw=2)
