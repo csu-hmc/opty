@@ -34,7 +34,8 @@ def _forward_jacobian(expr, wrt):
     def add_to_cache(node):
         if node in expr_to_replacement_cache:
             replacement_symbol = expr_to_replacement_cache[node]
-            return replacement_symbol, replacement_to_reduced_expr_cache[replacement_symbol]
+            return (replacement_symbol,
+                    replacement_to_reduced_expr_cache[replacement_symbol])
         elif node in replacement_to_reduced_expr_cache:
             return node, replacement_to_reduced_expr_cache[node]
         elif isinstance(node, sm.Tuple):
@@ -88,7 +89,8 @@ def _forward_jacobian(expr, wrt):
     finish = timer()
     logging.info(f'Completed in {finish - start:.2f}s')
 
-    reduced_matrix = sm.ImmutableDenseMatrix(reduced_exprs).xreplace(expr_to_replacement_cache)
+    reduced_matrix = sm.ImmutableDenseMatrix(reduced_exprs).xreplace(
+        expr_to_replacement_cache)
     replacements = list(replacement_to_reduced_expr_cache.items())
 
     partial_derivative_mapping = {}
@@ -96,7 +98,8 @@ def _forward_jacobian(expr, wrt):
     for i, wrt_symbol in enumerate(wrt.args[2]):
         absolute_derivative = [sm.S.Zero] * len(wrt)
         absolute_derivative[i] = sm.S.One
-        absolute_derivative_mapping[wrt_symbol] = sm.ImmutableDenseMatrix([absolute_derivative])
+        absolute_derivative_mapping[wrt_symbol] = sm.ImmutableDenseMatrix(
+            [absolute_derivative])
 
     logging.info('Differentiating expression nodes...')
     start = timer()
@@ -105,11 +108,16 @@ def _forward_jacobian(expr, wrt):
         free_symbols = subexpr.free_symbols
         absolute_derivative = zeros
         for free_symbol in free_symbols:
-            replacement_symbol, partial_derivative = add_to_cache(subexpr.diff(free_symbol))
-            absolute_derivative += partial_derivative * absolute_derivative_mapping.get(free_symbol, zeros)
-        absolute_derivative_mapping[symbol] = sm.ImmutableDenseMatrix([[add_to_cache(a)[0] for a in absolute_derivative]])
+            replacement_symbol, partial_derivative = add_to_cache(
+                subexpr.diff(free_symbol))
+            absolute_derivative += (
+                partial_derivative *
+                absolute_derivative_mapping.get(free_symbol, zeros))
+        absolute_derivative_mapping[symbol] = sm.ImmutableDenseMatrix(
+            [[add_to_cache(a)[0] for a in absolute_derivative]])
 
-    replaced_jacobian = sm.ImmutableDenseMatrix.vstack(*[absolute_derivative_mapping[e] for e in reduced_matrix])
+    replaced_jacobian = sm.ImmutableDenseMatrix.vstack(*[
+        absolute_derivative_mapping[e] for e in reduced_matrix])
     finish = timer()
     logging.info(f'Completed in {finish - start:.2f}s')
 
@@ -121,7 +129,8 @@ def _forward_jacobian(expr, wrt):
         entry = stack.pop()
         if entry in required_replacement_symbols or entry in wrt:
             continue
-        children = list(replacement_to_reduced_expr_cache.get(entry, entry).free_symbols)
+        children = list(
+            replacement_to_reduced_expr_cache.get(entry, entry).free_symbols)
         for child in children:
             if child not in required_replacement_symbols and child not in wrt:
                 stack.append(child)
@@ -131,7 +140,8 @@ def _forward_jacobian(expr, wrt):
 
     required_replacements_dense = {
         replacement_symbol: replaced_subexpr
-        for replacement_symbol, replaced_subexpr in replacement_to_reduced_expr_cache.items()
+        for replacement_symbol, replaced_subexpr in
+        replacement_to_reduced_expr_cache.items()
         if replacement_symbol in required_replacement_symbols
     }
 
@@ -143,14 +153,16 @@ def _forward_jacobian(expr, wrt):
     required_replacements = {}
     unrequired_replacements = {}
     for replacement_symbol, replaced_subexpr in required_replacements_dense.items():
-        if isinstance(replaced_subexpr, sm.Symbol) or counter[replacement_symbol] == 1:
+        if (isinstance(replaced_subexpr, sm.Symbol) or
+            counter[replacement_symbol] == 1):
             unrequired_replacements[replacement_symbol] = replaced_subexpr.xreplace(unrequired_replacements)
         else:
             required_replacements[replacement_symbol] = replaced_subexpr.xreplace(unrequired_replacements)
     finish = timer()
     logging.info(f'Completed in {finish - start:.2f}s')
 
-    return (list(required_replacements.items()), [replaced_jacobian.xreplace(unrequired_replacements)])
+    return (list(required_replacements.items()),
+            [replaced_jacobian.xreplace(unrequired_replacements)])
 
 
 def building_docs():
@@ -188,12 +200,12 @@ def f_minus_ma(mass_matrix, forcing_vector, states):
     return mass_matrix * xdot - forcing_vector
 
 
-def parse_free(free, n, q, N):
+def parse_free(free, n, q, N, variable_duration=False):
     """Parses the free parameters vector and returns it's components.
 
     Parameters
     ----------
-    free : ndarray, shape(n*N + q*N + r)
+    free : ndarray, shape(n*N + q*N + r + s)
         The free parameters of the system.
     n : integer
         The number of states.
@@ -201,6 +213,9 @@ def parse_free(free, n, q, N):
         The number of free specified inputs.
     N : integer
         The number of time steps.
+    variable_duration : boolean, optional
+        If True, the last value in ``free`` is the node time interval and it
+        will be returned.
 
     Returns
     -------
@@ -210,6 +225,9 @@ def parse_free(free, n, q, N):
         The array of q specified inputs through N time steps.
     constant_values : ndarray, shape(r,)
         The array of r constants.
+    time_interval : float
+        The time between collocation nodes. Only returned if
+        ``variable_duration`` is ``True``.
 
     """
 
@@ -225,9 +243,13 @@ def parse_free(free, n, q, N):
         if q > 1:
             free_specified = free_specified.reshape((q, N))
 
-    free_constants = free[len_states + len_specified:]
-
-    return free_states, free_specified, free_constants
+    if variable_duration:
+        free_time_interval = free[-1]
+        free_constants = free[len_states + len_specified:-1]
+        return free_states, free_specified, free_constants, free_time_interval
+    else:
+        free_constants = free[len_states + len_specified:]
+        return free_states, free_specified, free_constants
 
 
 def create_objective_function(

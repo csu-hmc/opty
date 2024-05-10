@@ -89,6 +89,12 @@ Example console output::
 
    EXIT: Optimal Solution Found.
 
+Single Pendulum Swing Up: Variable Duration
+===========================================
+
+.. plot:: ../examples/pendulum_swing_up_variable_duration.py
+   :include-source:
+
 Betts 2003
 ==========
 
