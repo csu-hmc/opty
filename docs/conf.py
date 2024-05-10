@@ -22,6 +22,9 @@ import sys
 sys.path.insert(0, os.path.abspath('..'))
 import opty
 
+DOCS_CONF_PATH = os.path.realpath(__file__)
+DOCS_DIR = os.path.dirname(DOCS_CONF_PATH)
+REPO_DIR = os.path.realpath(os.path.join(DOCS_DIR, '..'))
 
 # -- General configuration ------------------------------------------------
 
@@ -32,12 +35,15 @@ import opty
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc',
-              'sphinx.ext.autosummary',
-              'sphinx.ext.mathjax',
-              'sphinx.ext.viewcode',
-              'sphinx.ext.napoleon',
-              'matplotlib.sphinxext.plot_directive']
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.viewcode',
+    'matplotlib.sphinxext.plot_directive',
+    'sphinx_gallery.gen_gallery',
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -53,7 +59,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'opty'
-copyright = '2014-2023, opty authors'
+copyright = '2014-2024, opty authors'
 author = 'Jason K. Moore'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -70,7 +76,7 @@ release = opty.__version__
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -85,6 +91,13 @@ todo_include_todos = False
 
 # Show the __init__ docstring on classes.
 autoclass_content = 'both'
+
+# sphinx-gallery settings
+sphinx_gallery_conf = {
+    'examples_dirs': os.path.join(REPO_DIR, 'examples-gallery'),
+    'gallery_dirs': 'examples',
+    'matplotlib_animations': True,
+}
 
 # -- Options for HTML output ----------------------------------------------
 

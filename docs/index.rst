@@ -14,7 +14,7 @@ Contents
 
    index
    theory
-   examples
+   examples/index.rst
    api
 
 .. include:: ../README.rst
