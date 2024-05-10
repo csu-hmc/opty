@@ -6,13 +6,13 @@ Introduction
    * - PyPi
      - .. image:: https://img.shields.io/pypi/v/opty.svg
           :target: https://pypi.org/project/opty
-       .. image:: https://pepy.tech/badge/cyipopt
-          :target: https://pypi.org/project/cyipopt
+       .. image:: https://pepy.tech/badge/opty
+          :target: https://pypi.org/project/opty
    * - Anaconda
      - .. image:: https://anaconda.org/conda-forge/opty/badges/version.svg
           :target: https://anaconda.org/conda-forge/opty
-       .. image:: https://anaconda.org/conda-forge/cyipopt/badges/downloads.svg
-          :target: https://anaconda.org/conda-forge/cyipopt
+       .. image:: https://anaconda.org/conda-forge/opty/badges/downloads.svg
+          :target: https://anaconda.org/conda-forge/opty
    * - Documentation
      - .. image:: https://readthedocs.org/projects/opty/badge/?version=stable
           :target: http://opty.readthedocs.io
