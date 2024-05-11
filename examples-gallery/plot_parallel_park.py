@@ -116,6 +116,7 @@ specified_symbols = (T, F)
 # %%
 # Specify the objective function and it's gradient, in this case it calculates
 # the area under the input torque curve over the simulation.
+#obj_func = sm.Integral(F*vx + T*beta, t)
 obj_func = sm.Integral(F**2 + T**2, t)
 sm.pprint(obj_func)
 obj, obj_grad = create_objective_function(obj_func,
