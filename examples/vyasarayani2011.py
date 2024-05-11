@@ -81,6 +81,7 @@ def main(initial_guess, do_plot=False):
     # The midpoint integration method is preferable to the backward Euler
     # method because no artificial damping is introduced.
     prob = Problem(obj, obj_grad, eom, (y1, y2), num_nodes, interval,
+                   time_symbol=t,
                    integration_method='midpoint')
 
     num_states = len(y)
