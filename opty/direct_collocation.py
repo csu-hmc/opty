@@ -403,7 +403,7 @@ class Problem(cyipopt.Problem):
         axes[0].set_title('State Trajectories')
         axes[self.collocator.num_states].set_title('Input Trajectories')
 
-        fig.tight_layout()
+        #fig.tight_layout()
 
         return axes
 
@@ -459,7 +459,7 @@ class Problem(cyipopt.Problem):
             axes[-1].set_ylabel('Instance')
             axes[-1].set_xticklabels(axes[-1].get_xticklabels(), rotation=-10)
 
-        fig.tight_layout()
+        #fig.tight_layout()
 
         return axes
 
