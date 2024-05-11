@@ -10,4 +10,5 @@ dependencies:
   - openmp
   - scipy >=1.5.0
   - sphinx
+  - sphinx-gallery
   - sympy >=1.6.0

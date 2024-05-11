@@ -14,6 +14,7 @@ Contents
 
    index
    theory
+   examples/index.rst
    examples
    api
 
