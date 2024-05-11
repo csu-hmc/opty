@@ -116,7 +116,7 @@ If you want to develop opty, create a conda environment with all of the
 dependencies installed::
 
    $ conda config --add channels conda-forge
-   $ conda create -n opty-dev python sympy numpy scipy cython ipopt cyipopt matplotlib pytables pydy pandas pytest sphinx numpydoc
+   $ conda create -n opty-dev python sympy numpy scipy cython ipopt cyipopt matplotlib pytables pydy pandas pytest sphinx sphinx-gallery numpydoc
    $ source activate opty-dev
 
 Next download the opty source files and install with::
@@ -127,11 +127,11 @@ Next download the opty source files and install with::
 Usage
 =====
 
-There are several examples available in the ``examples`` directory. For
-example, the optimal torque to swing up a pendulum with minimal energy can be
-run with::
+There are several examples available in the ``examples`` and
+``examples-gallery`` directories. For example, the optimal torque to swing up a
+pendulum with minimal energy can be run with::
 
-   $ python examples/pendulum_swing_up.py
+   $ python examples-gallery/plot_pendulum_swing_up_fixed_duration.py
 
 Funding
 =======

@@ -33,6 +33,7 @@ setup(
         'doc': [
             'numpydoc',
             'sphinx',
+            'sphinx-gallery',
         ],
     },
     tests_require=['pytest'],
