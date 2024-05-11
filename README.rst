@@ -131,7 +131,7 @@ There are several examples available in the ``examples`` and
 ``examples-gallery`` directories. For example, the optimal torque to swing up a
 pendulum with minimal energy can be run with::
 
-   $ python examples-gallery/pendulum_swing_up.py
+   $ python examples-gallery/plot_pendulum_swing_up_fixed_duration.py
 
 Funding
 =======
