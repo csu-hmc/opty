@@ -695,7 +695,8 @@ class ConstraintCollocator(object):
         The unknown parameters are sorted by name."""
 
         parameters = self.eom.free_symbols.copy()
-        parameters.remove(self.time_symbol)
+        if self.time_symbol in parameters:
+            parameters.remove(self.time_symbol)
 
         res = self._parse_inputs(parameters,
                                  self.known_parameter_map.keys())
