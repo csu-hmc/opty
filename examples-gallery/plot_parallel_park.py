@@ -209,7 +209,7 @@ xs, us, ps = parse_free(solution, len(state_symbols), len(specified_symbols),
 fig, ax = plt.subplots()
 ax.plot(xs[0], xs[1])
 ax.set_xlabel(r'$x$ [m]')
-ax.set_ylabel(r'$y$ [m]')
+ax.set_ylabel(r'$y$ [m]');
 
 # %%
 # Animate the motion of the car.
@@ -266,6 +266,7 @@ ani = animation.FuncAnimation(fig, animate, len(time),
 
 # %%
 # A frame from the animation.
+
 # sphinx_gallery_thumbnail_number = 7
 frame(450)
 
