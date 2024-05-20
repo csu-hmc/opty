@@ -29,7 +29,7 @@ jobs:
           environment-file: opty-dev-env.yml
           activate-environment: opty-dev
           python-version: ${{ matrix.python-version }}
-          miniforge-variant: latest
+          miniforge-version: latest
       - name: Run an example
         run: |
           cd docs
