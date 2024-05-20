@@ -31,7 +31,7 @@ jobs:
           miniforge-variant: Mambaforge
       - name: Install basic dependencies
         run: |
-          mamba install -q -y sympy cython scipy cyipopt pytest pytest-cov coverage matplotlib-base openmp
+          mamba install -y sympy cython scipy cyipopt pytest pytest-cov coverage sphinx matplotlib-base openmp
       - name: Test with pytest
         run: |
           mamba list
