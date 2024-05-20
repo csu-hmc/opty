@@ -29,7 +29,6 @@ jobs:
           environment-file: opty-dev-env.yml
           activate-environment: opty-dev
           python-version: ${{ matrix.python-version }}
-          miniforge-version: latest
       - name: Test with pytest
         run: |
           conda list
@@ -44,5 +43,5 @@ jobs:
           python examples/vyasarayani2011.py
       - name: Run an openmp example
         run: |
-          conda install openmp pydy
+          conda install pydy
           python examples/parallel_example.py
