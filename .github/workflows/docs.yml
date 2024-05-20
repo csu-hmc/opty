@@ -30,7 +30,7 @@ jobs:
           activate-environment: opty-dev
           python-version: ${{ matrix.python-version }}
           miniforge-version: latest
-      - name: Run an example
+      - name: Build Docs
         run: |
           cd docs
           make html
