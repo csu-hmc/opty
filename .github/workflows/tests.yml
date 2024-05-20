@@ -44,5 +44,5 @@ jobs:
           python examples/vyasarayani2011.py
       - name: Run an openmp example
         run: |
-          conda install openmp
+          conda install openmp pydy
           python examples/parallel_example.py
