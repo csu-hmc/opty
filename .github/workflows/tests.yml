@@ -28,22 +28,23 @@ jobs:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
+          miniforge-variant: Mambaforge
       - name: Install basic dependencies
         run: |
-          conda install -q -y sympy cython scipy cyipopt pytest pytest-cov coverage matplotlib-base openmp
+          mamba install -q -y sympy cython scipy cyipopt pytest pytest-cov coverage matplotlib-base openmp
       - name: Test with pytest
         run: |
-          conda list
+          mamba list
           pytest --cov=opty opty/
       - name: Install Opty and test import
         run: |
           python -m pip install .
-          conda list
+          mamba list
           python -c "import opty"
       - name: Run an example
         run: |
           python examples/vyasarayani2011.py
       - name: Run an openmp example
         run: |
-          conda install pydy
+          mamba install pydy
           python examples/parallel_example.py
