@@ -27,6 +27,7 @@ jobs:
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
+          channels: conda-forge
       - name: Install basic dependencies
         run: |
           conda install -q -y sympy cython scipy cyipopt pytest pytest-cov coverage matplotlib-base openmp
