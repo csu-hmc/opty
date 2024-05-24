@@ -580,6 +580,9 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         if sys.platform == "win32":
             d['compile_args'] = "'\openmp'"
             d['link_args'] = ""
+        elif sys.platform == "darwin":
+            d['compile_args'] = "'-fopenmp'"
+            d['link_args'] = "'-lmpi', '-lomp'"
         else:
             d['compile_args'] = "'-fopenmp'"
             d['link_args'] = "'-fopenmp'"
