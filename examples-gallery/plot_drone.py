@@ -156,7 +156,7 @@ instance_constraints = (
     q1.func(0.0),
     q2.func(0.0),
     q3.func(0.0),
-    # rotated 180 degrees about x at midpoint in time
+    # rotate 90 degrees about x at midpoint in time
     q0.func(duration/2) - np.cos(np.pi/4),
     q1.func(duration/2) - np.sin(np.pi/4),
     q2.func(duration/2),
