@@ -30,18 +30,21 @@ jobs:
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
           environment-file: opty-dev-env.yml
-      - name: Install openmp
+      - name: Install openmp and pydy
         if: runner.os == 'Linux'
         run: |
-          conda install libgomp
-      - name: Install openmp
+          conda list
+          conda install libgomp pydy
+      - name: Install openmp and pydy
         if: runner.os == 'macOS'
         run: |
+          conda list
           conda install llvm-openmp
-      - name: Install openmp
+      - name: Install openmp and pydy
         if: runner.os == 'Windows'
         run: |
-          conda install llvm-openmp
+          conda list
+          conda install llvm-openmp pydy
       - name: Test with pytest
         run: |
           conda list
@@ -56,5 +59,4 @@ jobs:
           python examples/vyasarayani2011.py
       - name: Run an openmp example
         run: |
-          conda install pydy
           python examples/parallel_example.py
