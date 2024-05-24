@@ -40,6 +40,8 @@ jobs:
         run: |
           conda list
           conda install llvm-openmp pydy
+      # llvm-openmp fails to install because it is incompatible with ipopt, but
+      # openmp "installs", nonetheless the openmp example fails to compile.
       - name: Install openmp and pydy
         if: runner.os == 'Windows'
         run: |
@@ -57,6 +59,7 @@ jobs:
       - name: Run an example
         run: |
           python examples/vyasarayani2011.py
+      # This example only seems to work on the linux builds.
       - name: Run an openmp example
         run: |
           python examples/parallel_example.py
