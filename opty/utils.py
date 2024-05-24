@@ -578,7 +578,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         d['loop_sig'] = "prange(n, nogil=True)"
         d['head_gil'] = " nogil"
         if sys.platform == "win32":
-            d['compile_args'] = "'\openmp'"
+            d['compile_args'] = r"'\openmp'"
             d['link_args'] = ""
         else:
             d['compile_args'] = "'-fopenmp'"
