@@ -39,7 +39,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           conda list
-          conda install llvm-openmp
+          conda install llvm-openmp pydy
       - name: Install openmp and pydy
         if: runner.os == 'Windows'
         run: |
