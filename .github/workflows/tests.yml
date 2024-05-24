@@ -44,7 +44,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           conda list
-          conda install llvm-openmp pydy
+          conda install openmp pydy
       - name: Test with pytest
         run: |
           conda list
