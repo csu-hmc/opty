@@ -112,7 +112,7 @@ sm.pprint(eom)
 # %%
 # Set up the time discretization.
 duration = 10.0  # seconds
-num_nodes = 501
+num_nodes = 301
 interval_value = duration/(num_nodes - 1)
 time = np.linspace(0.0, duration, num=num_nodes)
 
@@ -156,7 +156,7 @@ instance_constraints = (
     q1.func(0.0),
     q2.func(0.0),
     q3.func(0.0),
-    # rotated 90 degrees about x at midpoint in time
+    # rotated 180 degrees about x at midpoint in time
     q0.func(duration/2) - np.cos(np.pi/4),
     q1.func(duration/2) - np.sin(np.pi/4),
     q2.func(duration/2),
@@ -295,7 +295,7 @@ ani = animation.FuncAnimation(fig, animate, len(time),
 # %%
 # A frame from the animation.
 
-# sphinx_gallery_thumbnail_number = 7
-frame(400)
+# sphinx_gallery_thumbnail_number = 6
+frame(num_nodes - num_nodes//4)
 
 plt.show()
