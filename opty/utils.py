@@ -582,9 +582,12 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         if sys.platform == "win32":
             d['compile_args'] = "'\openmp'"
             d['link_args'] = ""
+<<<<<<< HEAD
         elif sys.platform == "darwin":
             d['compile_args'] = "'-Xpreprocessor -fopenmp'"
             d['link_args'] = "'-lomp'"
+=======
+>>>>>>> parent of 77c237c (Try link args for macosx.)
         else:
             d['compile_args'] = "'-fopenmp'"
             d['link_args'] = "'-fopenmp'"
