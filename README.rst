@@ -60,18 +60,21 @@ Installation
 
 The required dependencies are as follows:
 
-- python 3.8-3.11
-- sympy >= 1.6.0
+- cyipopt >= 1.1.0
+- cython >= 0.29.19
 - ipopt >= 3.11 (Linux & OSX), >= 3.13 (Windows)
 - numpy >= 1.19.0
+- python 3.8-3.12
 - scipy >= 1.5.0
-- cython >= 0.29.19
-- cyipopt >= 1.1.0
+- sympy >= 1.6.0
 
-To run all of the examples the following additional dependencies are required:
+The optional dependencies are as follows:
 
 - matplotlib >= 3.2.0
 - openmp
+
+To run all of the examples the following additional dependencies are required:
+
 - pandas
 - pydy >= 0.5.0
 - pytables

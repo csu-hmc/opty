@@ -14,33 +14,52 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ['3.8', '3.9', '3.10', '3.11']
+        # macos-13 is the last intel based runner
+        os: [ubuntu-latest, macos-13, macos-latest, windows-latest]
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
     defaults:
       run:
-        shell: bash -l {0}
+        shell: bash -el {0}
     steps:
       - name: Checkout Opty
-        uses: actions/checkout@v3
-      - uses: conda-incubator/setup-miniconda@v2
+        uses: actions/checkout@v4
+      - name: Setup Conda environment
+        uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-          activate-environment: test-environment
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
-          miniforge-variant: Mambaforge
-      - name: Install basic dependencies
+          environment-file: opty-dev-env.yml
+      - name: Install openmp and pydy
+        if: runner.os == 'Linux'
         run: |
-          mamba install -q -y sympy cython scipy cyipopt pytest pytest-cov coverage sphinx matplotlib-base openmp
+          conda list
+          conda install libgomp pydy
+      - name: Install openmp and pydy
+        if: runner.os == 'macOS'
+        run: |
+          conda list
+          conda install llvm-openmp pydy
+      # llvm-openmp fails to install because it is incompatible with ipopt, but
+      # openmp "installs", nonetheless the openmp example fails to compile.
+      - name: Install openmp and pydy
+        if: runner.os == 'Windows'
+        run: |
+          conda list
+          conda install openmp pydy
+      - name: Test with pytest
+        run: |
+          conda list
+          pytest --cov=opty opty/
       - name: Install Opty and test import
         run: |
           python -m pip install .
-          mamba list
+          conda list
           python -c "import opty"
-      - name: Test with pytest
-        run: |
-          mamba list
-          pytest --cov=opty opty/
       - name: Run an example
         run: |
           python examples/vyasarayani2011.py
+      # This example only seems to work on the linux builds.
+      - name: Run an openmp example
+        run: |
+          python examples/parallel_example.py

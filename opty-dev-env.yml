@@ -2,12 +2,14 @@ name: opty-dev
 channels:
   - conda-forge
 dependencies:
+  - coverage
   - cyipopt >=1.1.0
   - cython >=0.29.19
   - matplotlib >=3.2.0
   - numpy >=1.19.0
   - numpydoc
-  - openmp
+  - pytest
+  - pytest-cov
   - scipy >=1.5.0
   - sphinx
   - sphinx-gallery

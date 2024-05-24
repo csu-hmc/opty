@@ -477,7 +477,10 @@ int main(void) {
     customize_compiler(ccompiler)
     try:
         # .compile() should return ['test.o'] on linux
-        ccompiler.compile([filename], extra_postargs=['-fopenmp'])
+        if sys.platform == "win32":
+            ccompiler.compile([filename], extra_postargs=['/openmp'])
+        else:
+            ccompiler.compile([filename], extra_postargs=['-fopenmp'])
         exit = True
     except CompileError:
         exit = False
@@ -574,8 +577,12 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     if parallel and openmp:
         d['loop_sig'] = "prange(n, nogil=True)"
         d['head_gil'] = " nogil"
-        d['compile_args'] = "'-fopenmp'"
-        d['link_args'] = "'-fopenmp'"
+        if sys.platform == "win32":
+            d['compile_args'] = "'\openmp'"
+            d['link_args'] = ""
+        else:
+            d['compile_args'] = "'-fopenmp'"
+            d['link_args'] = "'-fopenmp'"
     else:
         d['loop_sig'] = "range(n)"
         d['head_gil'] = ""
