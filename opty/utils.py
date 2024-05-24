@@ -477,12 +477,16 @@ int main(void) {
     customize_compiler(ccompiler)
     try:
         # .compile() should return ['test.o'] on linux
+<<<<<<< HEAD
         if sys.platform == "win32":
             ccompiler.compile([filename], extra_postargs=['/openmp'])
         elif sys.platform == "darwin":
             ccompiler.compile([filename], extra_postargs=['-Xpreprocessor -fopenmp'])
         else:
             ccompiler.compile([filename], extra_postargs=['-fopenmp'])
+=======
+        ccompiler.compile([filename], extra_postargs=['-fopenmp'])
+>>>>>>> parent of e9728f9 (Adjust compile args for Windows.)
         exit = True
     except CompileError:
         exit = False
@@ -579,6 +583,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     if parallel and openmp:
         d['loop_sig'] = "prange(n, nogil=True)"
         d['head_gil'] = " nogil"
+<<<<<<< HEAD
         if sys.platform == "win32":
             d['compile_args'] = "'\openmp'"
             d['link_args'] = ""
@@ -591,6 +596,10 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         else:
             d['compile_args'] = "'-fopenmp'"
             d['link_args'] = "'-fopenmp'"
+=======
+        d['compile_args'] = "'-fopenmp'"
+        d['link_args'] = "'-fopenmp'"
+>>>>>>> parent of e9728f9 (Adjust compile args for Windows.)
     else:
         d['loop_sig'] = "range(n)"
         d['head_gil'] = ""
