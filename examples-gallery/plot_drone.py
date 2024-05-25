@@ -289,8 +289,8 @@ def animate(i):
     P4_path.set_data_3d(coords[:i, 0, 7], coords[:i, 1, 7], coords[:i, 2, 7])
 
 
-ani = animation.FuncAnimation(fig, animate, len(time),
-                              interval=int(interval_value*1000))
+ani = animation.FuncAnimation(fig, animate, range(0, len(time), 2),
+                              interval=int(interval_value*2000))
 
 # %%
 # A frame from the animation.
