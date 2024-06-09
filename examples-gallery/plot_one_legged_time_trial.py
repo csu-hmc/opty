@@ -1,3 +1,16 @@
+"""
+Single human leg with four driving lumped muscles. The crank inertia and
+resistance mimic the torque felt if accelerating the whole bicycle with rider
+on flat ground.
+
+The goal will be travel a specific distance in the shortest amount of time
+given that the leg muscles have to coordinate and can only be excited from 0 to
+1.
+
+Second goal will then be to solve for crank length and seat height that gives
+optimal performance.
+
+"""
 import sympy as sm
 import sympy.physics.mechanics as me
 import sympy.physics.biomechanics as bm
@@ -46,7 +59,7 @@ Co.set_pos(P3, ll/2*C.x)  # lower leg mass center
 P4.set_pos(P3, ll*C.x)  # knee
 Do.set_pos(P4, lu/2*D.x)  # upper leg mass center
 P5.set_pos(P4, lu*D.x)  # hip
-P6.set_pos(P1, -ls*sm.sin(lam)*N.x + ls*sm.cos(lam)*N.y)  # seat
+P6.set_pos(P1, -ls*sm.cos(lam)*N.x + ls*sm.sin(lam)*N.y)  # seat
 
 P1.set_vel(N, 0)
 P6.set_vel(N, 0)
@@ -80,6 +93,7 @@ gravB = me.Force(Bo, -mB*g*N.y)
 gravC = me.Force(Co, -mC*g*N.y)
 gravD = me.Force(Do, -mD*g*N.y)
 
+# TODO : Check why gear ratio is not applied to rolling resistance.
 resistance = me.Torque(
     crank,
     (-Cr*m*g*rw - sm.sign(G*u1*rw)*CD*rho*Ar*G**2*u1**2*rw**3/2)*N.z
@@ -241,3 +255,12 @@ kane = me.KanesMethod(
 )
 bodies = (crank, foot, lower_leg, upper_leg)
 Fr, Frs = kane.kanes_equations(bodies, loads)
+
+muscle_diff_eq = sm.Matrix([
+    knee_top_mus.x[0, 0].diff() - knee_top_mus.rhs()[0, 0],
+    knee_bot_mus.x[0, 0].diff() - knee_bot_mus.rhs()[0, 0],
+    ankle_top_mus.x[0, 0].diff() - ankle_top_mus.rhs()[0, 0],
+    ankle_bot_mus.x[0, 0].diff() - ankle_bot_mus.rhs()[0, 0],
+])
+
+eoms = kindiff.col_join(Fr + Frs).col_join(muscle_diff_eq).col_join(holonomic)
