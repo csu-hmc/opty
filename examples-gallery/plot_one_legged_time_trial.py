@@ -11,9 +11,11 @@ Second goal will then be to solve for crank length and seat height that gives
 optimal performance.
 
 """
+import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 import sympy.physics.biomechanics as bm
+import opty
 
 # bike frame, crank, pedal/foot, lower leg, upper leg
 N, A, B, C, D = sm.symbols('N, A, B, C, D', cls=me.ReferenceFrame)
@@ -263,4 +265,87 @@ muscle_diff_eq = sm.Matrix([
     ankle_bot_mus.x[0, 0].diff() - ankle_bot_mus.rhs()[0, 0],
 ])
 
-eoms = kindiff.col_join(Fr + Frs).col_join(muscle_diff_eq).col_join(holonomic)
+eom = kindiff.col_join(Fr + Frs).col_join(muscle_diff_eq).col_join(holonomic)
+
+state_vars = (
+    q1, q2, q3, q4, u1, u2, u3, u4,
+    knee_top_mus.x[0, 0],
+    knee_bot_mus.x[0, 0],
+    ankle_top_mus.x[0, 0],
+    ankle_bot_mus.x[0, 0],
+)
+
+num_nodes = 200
+h = sm.symbols('h', real=True, positive=True)
+
+# objective
+# minimize h
+# gradient of h wrt free variables: states, unknown_inputs, unknown_pars, h
+# so then there would be all zeros and a single 1 in the gradient for the last
+# entry
+
+
+def obj(free):
+    return free[-1]
+
+
+def gradient(free):
+    grad = np.zeros_like(free)
+    grad[-1] = 1.0
+    return grad
+
+
+# body segment inertia from https://nbviewer.org/github/pydy/pydy-tutorial-human-standing/blob/master/notebooks/n07_simulation.ipynb
+par_vals = {
+    Ar: 0.55,  # m^2, Tab 5.1, pg 188 Wilson 2004, Upright commuting bike
+    CD: 1.15,  # unitless, Tab 5.1, pg 188 Wilson 2004, Upright commuting bike
+    Cr: 0.006,  # unitless, Tab 5.1, pg 188 Wilson 2004, Upright commuting bike
+    G: 2.0,
+    IAzz: 0.0,
+    IBzz: 0.01,  # guess, TODO
+    ICzz: 0.101,  # lower_leg_inertia [kg*m^2]
+    IDzz: 0.282,  # upper_leg_inertia [kg*m^2],
+    J: 2*0.1524,  # from Browser Jason's thesis (rear wheel times 2)
+    g: 9.81,
+    lam: np.deg2rad(75.0),
+    lc: 0.175,
+    lf: 0.2,  # guess TODO
+    ll: 0.611,  # lower_leg_length [m]
+    ls: 0.6,  # guess TODO
+    lu: 0.424,  # upper_leg_length [m],
+    m: 175.0,  # kg
+    mA: 0.0,
+    mB: 1.0,  # guess TODO
+    mC: 6.769,  # lower_leg_mass [kg]
+    mD: 17.01,  # upper_leg_mass [kg],
+    rho: 1.204,  # kg/m^3
+    rk: 0.04,  # m
+    rw: 0.3,  # m
+}
+
+# TODO : Solve for dependent q's so that config is correct at start.
+instance_constraints = (
+    q1(0*h),  # crank starts horizontal
+    q2(0*h),  # foot/pedal aligned with crank
+    u1(0*h),  # start stationary
+    u2(0*h),  # start stationary
+    u3(0*h),  # start stationary
+    u4(0*h),  # start stationary
+)
+
+# TODO bounds
+# excitations should be bound 0 to 1
+# only allow forward motion
+
+
+#problem = opty.Problem(
+    #obj,
+    #gradient,
+    #eom,
+    #state_vars,
+    #num_nodes,
+    #h,
+    #known_parameter_map=par_vals,
+    #instance_constraints=instance_constraints,
+    #bounds=bounds,
+#)
