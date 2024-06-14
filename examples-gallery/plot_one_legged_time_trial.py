@@ -15,18 +15,20 @@ import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 import sympy.physics.biomechanics as bm
-import opty
+from opty.direct_collocation import Problem
+
+t = me.dynamicsymbols._t
 
 # bike frame, crank, pedal/foot, lower leg, upper leg
 N, A, B, C, D = sm.symbols('N, A, B, C, D', cls=me.ReferenceFrame)
 
-q1, q2, q3, q4 = me.dynamicsymbols('q1, q2, q3, q4')
-u1, u2, u3, u4 = me.dynamicsymbols('u1, u2, u3, u4')
+q1, q2, q3, q4 = me.dynamicsymbols('q1, q2, q3, q4', real=True)
+u1, u2, u3, u4 = me.dynamicsymbols('u1, u2, u3, u4', real=True)
 q = sm.Matrix([q1, q2, q3, q4])
 u = sm.Matrix([u1, u2, u3, u4])
 
 ls, lc, lf, ll, lu = sm.symbols('ls, lc, lf, ll, lu', real=True, positive=True)
-lam, g, rk = sm.symbols('lambda, g, rk', real=True)
+lam, g, rk = sm.symbols('lam, g, rk', real=True)
 mA, mB, mC, mD = sm.symbols('mA, mB, mC, mD')
 IAzz, IBzz, ICzz, IDzz = sm.symbols('IAzz, IBzz, ICzz, IDzz')
 J, m, rw, G, Cr, CD, rho, Ar = sm.symbols('J, m, rw, G, Cr, CD, rho, Ar')
@@ -98,7 +100,9 @@ gravD = me.Force(Do, -mD*g*N.y)
 # TODO : Check why gear ratio is not applied to rolling resistance.
 resistance = me.Torque(
     crank,
-    (-Cr*m*g*rw - sm.sign(G*u1*rw)*CD*rho*Ar*G**2*u1**2*rw**3/2)*N.z
+    # remove sign...causes derivative in jacobian
+    #(-Cr*m*g*rw - sm.sign(G*u1*rw)*CD*rho*Ar*G**2*u1**2*rw**3/2)*N.z
+    (-Cr*m*g*rw - CD*rho*Ar*G**2*u1**2*rw**3/2)*N.z
 )
 
 # add inertia due to bike and wheels to crank
@@ -116,6 +120,7 @@ class ExtensorPathway(me.PathwayBase):
         This is intended to be used for extensor muscles. For example, a
         triceps wrapping around the elbow joint to extend the upper arm at
         the elbow.
+
         Parameters
         ==========
         origin : Point
@@ -137,9 +142,11 @@ class ExtensorPathway(me.PathwayBase):
         coordinate : sympfiable function of time
             Joint angle, zero when parent and child frames align. Positive
             rotation about the pin joint axis, B with respect to A.
+
         Notes
         =====
         Only valid for coordinate >= 0.
+
         """
         super().__init__(origin, insertion)
         self.origin = origin
@@ -211,6 +218,7 @@ class ExtensorPathway(me.PathwayBase):
 
 
 # four muscles
+# NOTE : pathway only valid for q4>=0
 knee_top_pathway = ExtensorPathway(P5, Co, P4, C.z, D.x, -C.x, rk, q4)
 knee_top_act = bm.FirstOrderActivationDeGroote2016.with_defaults('knee_top')
 knee_top_mus = bm.MusculotendonDeGroote2016.with_defaults('knee_top',
@@ -240,43 +248,43 @@ loads = (
     [resistance, gravB, gravC, gravD]
 )
 
+qd_repl = {q1.diff(): u1, q2.diff(): u2, q3.diff(): u3, q4.diff(): u4}
+
 kane = me.KanesMethod(
     N,
     (q1, q2),
     (u1, u2),
-    kd_eqs=(
-        u1 - q1.diff(),
-        u2 - q2.diff(),
-        u3 - q3.diff(),
-        u4 - q4.diff(),
-    ),
+    kd_eqs=kindiff[:],
     q_dependent=(q3, q4),
     configuration_constraints=holonomic,
-    velocity_constraints=holonomic.diff(me.dynamicsymbols._t),
+    velocity_constraints=me.msubs(holonomic.diff(me.dynamicsymbols._t),
+                                  qd_repl),
     u_dependent=(u3, u4),
+    constraint_solver='CRAMER',
 )
 bodies = (crank, foot, lower_leg, upper_leg)
 Fr, Frs = kane.kanes_equations(bodies, loads)
 
 muscle_diff_eq = sm.Matrix([
-    knee_top_mus.x[0, 0].diff() - knee_top_mus.rhs()[0, 0],
-    knee_bot_mus.x[0, 0].diff() - knee_bot_mus.rhs()[0, 0],
-    ankle_top_mus.x[0, 0].diff() - ankle_top_mus.rhs()[0, 0],
-    ankle_bot_mus.x[0, 0].diff() - ankle_bot_mus.rhs()[0, 0],
+    knee_top_mus.a.diff() - knee_top_mus.rhs()[0, 0],
+    knee_bot_mus.a.diff() - knee_bot_mus.rhs()[0, 0],
+    ankle_top_mus.a.diff() - ankle_top_mus.rhs()[0, 0],
+    ankle_bot_mus.a.diff() - ankle_bot_mus.rhs()[0, 0],
 ])
 
 eom = kindiff.col_join(Fr + Frs).col_join(muscle_diff_eq).col_join(holonomic)
+#eom = me.msubs(eom, qd_repl)
 
 state_vars = (
     q1, q2, q3, q4, u1, u2, u3, u4,
-    knee_top_mus.x[0, 0],
-    knee_bot_mus.x[0, 0],
-    ankle_top_mus.x[0, 0],
-    ankle_bot_mus.x[0, 0],
+    knee_top_mus.a,
+    knee_bot_mus.a,
+    ankle_top_mus.a,
+    ankle_bot_mus.a,
 )
 
 num_nodes = 200
-h = sm.symbols('h', real=True, positive=True)
+h = sm.symbols('h', real=True)
 
 # objective
 # minimize h
@@ -314,38 +322,63 @@ par_vals = {
     ls: 0.6,  # guess TODO
     lu: 0.424,  # upper_leg_length [m],
     m: 175.0,  # kg
-    mA: 0.0,
+    #mA: 0.0,  # not in eom
     mB: 1.0,  # guess TODO
     mC: 6.769,  # lower_leg_mass [kg]
     mD: 17.01,  # upper_leg_mass [kg],
     rho: 1.204,  # kg/m^3
     rk: 0.04,  # m
     rw: 0.3,  # m
+    ankle_bot_mus.F_M_max: 500.0,
+    ankle_bot_mus.l_M_opt: 0.31,
+    ankle_bot_mus.l_T_slack: 0.3,
+    ankle_top_mus.F_M_max: 500.0,
+    ankle_top_mus.l_M_opt: 0.31,
+    ankle_top_mus.l_T_slack: 0.3,
+    knee_bot_mus.F_M_max: 500.0,
+    knee_bot_mus.l_M_opt: 0.9,
+    knee_bot_mus.l_T_slack: 0.8,
+    knee_top_mus.F_M_max: 500.0,
+    knee_top_mus.l_M_opt: 1.1,
+    knee_top_mus.l_T_slack: 1.0,
 }
 
 # TODO : Solve for dependent q's so that config is correct at start.
 instance_constraints = (
-    q1(0*h),  # crank starts horizontal
-    q2(0*h),  # foot/pedal aligned with crank
-    u1(0*h),  # start stationary
-    u2(0*h),  # start stationary
-    u3(0*h),  # start stationary
-    u4(0*h),  # start stationary
+    q1.replace(t, 0*h),  # crank starts horizontal
+    q2.replace(t, 0*h) - np.pi,  # foot/pedal aligned with crank
+    u1.replace(t, 0*h),  # start stationary
+    u2.replace(t, 0*h),  # start stationary
+    u3.replace(t, 0*h),  # start stationary
+    u4.replace(t, 0*h),  # start stationary
 )
 
-# TODO bounds
-# excitations should be bound 0 to 1
-# only allow forward motion
+bounds = {
+    q1: (-np.inf, 0.0),  # can only pedal forward
+    # ankle angle, q3=0: ankle maximally plantar flexed, q3=-3*pi/2: ankle
+    # maximally dorsiflexed
+    q3: (-3*np.pi/2, 0.0),
+    # knee angle, q4 = 0: upper and lower leg aligned, q4 = pi/2: knee is
+    # flexed 90 degs
+    q4: (0.0, 3*np.pi/2),
+    u1: (-20.0, 0.0),  # about 200 rpm
+    ankle_bot_mus.e: (0.0, 1.0),
+    ankle_top_mus.e: (0.0, 1.0),
+    knee_bot_mus.e: (0.0, 1.0),
+    knee_top_mus.e: (0.0, 1.0),
+}
+
+problem = Problem(
+    obj,
+    gradient,
+    eom,
+    state_vars,
+    num_nodes,
+    h,
+    known_parameter_map=par_vals,
+    instance_constraints=instance_constraints,
+    bounds=bounds,
+)
 
 
-#problem = opty.Problem(
-    #obj,
-    #gradient,
-    #eom,
-    #state_vars,
-    #num_nodes,
-    #h,
-    #known_parameter_map=par_vals,
-    #instance_constraints=instance_constraints,
-    #bounds=bounds,
-#)
+solution, info = problem.solve(np.random.random(problem.num_free))
