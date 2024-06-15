@@ -12,7 +12,9 @@ optimal performance.
 
 """
 from opty.direct_collocation import Problem
+from opty.utils import parse_free
 from scipy.optimize import fsolve
+import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sm
@@ -286,7 +288,7 @@ state_vars = (
     ankle_bot_mus.a,
 )
 
-num_nodes = 200
+num_nodes = 201
 h = sm.symbols('h', real=True)
 
 # objective
@@ -359,38 +361,6 @@ q3_ext, q4_ext = fsolve(lambda x: eval_holonomic([q1_ext, q2_ext, x[0], x[1]],
                         x0=np.deg2rad([-100.0, 20.0]))
 q_ext = np.array([q1_ext, q2_ext, q3_ext, q4_ext])
 
-plot_points = [P1, P2, P7, P3, P4, P5, P1]
-coordinates = P1.pos_from(P1).to_matrix(N)
-for Pi in plot_points[1:]:
-    coordinates = coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
-eval_coordinates = sm.lambdify((q, p), coordinates)
-
-mus_points = [P7, Co, Co, P5]
-mus_coordinates = P7.pos_from(P1).to_matrix(N)
-for Pi in mus_points[1:]:
-    mus_coordinates = mus_coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
-eval_mus_coordinates = sm.lambdify((q, p), mus_coordinates)
-
-
-def plot_configuration(q_vals, p_vals, ax=None):
-    if ax is None:
-        fig, ax = plt.subplots(layout='constrained')
-
-    x, y, _ = eval_coordinates(q_vals, p_vals)
-    xm, ym, _ = eval_mus_coordinates(q_vals, p_vals)
-    ax.plot(x, y, 'o-')
-    ax.plot(xm, ym, 'o-', color='red',)
-    crank_circle = plt.Circle((0.0, 0.0), par_map[lc], fill=False,
-                              linestyle='--')
-    knee_circle = plt.Circle((x[4], y[4]), par_map[rk], color='red',
-                             fill=False)
-    ax.add_patch(crank_circle)
-    ax.add_patch(knee_circle)
-    ax.set_aspect('equal')
-    return ax
-
-
-plot_configuration(q_ext, p_vals)
 
 
 eval_ankle_top_len = sm.lambdify((q, p), ankle_top_pathway.length)
@@ -415,11 +385,6 @@ q3_0, q4_0 = fsolve(lambda x: eval_holonomic([q1_0, q2_0, x[0], x[1]],
                                              p_vals).squeeze(),
                     x0=np.deg2rad([-90.0, 90.0]))
 q_0 = np.array([q1_0, q2_0, q3_0, q4_0])
-
-plot_configuration(q_0, p_vals)
-plt.show()
-
-pause
 
 crank_revs = 10
 
@@ -466,4 +431,69 @@ problem = Problem(
     bounds=bounds,
 )
 
-solution, info = problem.solve(np.random.random(problem.num_free))
+initial_guess = np.random.random(problem.num_free)
+q1_guess = np.linspace(0.0, -crank_revs*2*np.pi, num=num_nodes)
+q2_guess = np.linspace(0.0, crank_revs*2*np.pi, num=num_nodes)
+u1_guess = -3.0*np.ones(num_nodes)
+u2_guess = 3.0*np.ones(num_nodes)
+initial_guess[0*num_nodes:1*num_nodes] = q1_guess
+initial_guess[1*num_nodes:2*num_nodes] = q2_guess
+initial_guess[4*num_nodes:5*num_nodes] = u1_guess
+initial_guess[5*num_nodes:6*num_nodes] = u2_guess
+
+solution, info = problem.solve(initial_guess)
+
+problem.plot_objective_value()
+problem.plot_constraint_violations(solution)
+problem.plot_trajectories(solution)
+
+xs, us, ps = parse_free(solution, len(state_vars), 4, num_nodes)
+
+plot_points = [P1, P2, P7, P3, P4, P5, P1]
+coordinates = P1.pos_from(P1).to_matrix(N)
+for Pi in plot_points[1:]:
+    coordinates = coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
+eval_coordinates = sm.lambdify((q, p), coordinates)
+
+mus_points = [P7, Co, Co, P5]
+mus_coordinates = P7.pos_from(P1).to_matrix(N)
+for Pi in mus_points[1:]:
+    mus_coordinates = mus_coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
+eval_mus_coordinates = sm.lambdify((q, p), mus_coordinates)
+
+
+def plot_configuration(q_vals, p_vals, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots(layout='constrained')
+
+    x, y, _ = eval_coordinates(q_vals, p_vals)
+    xm, ym, _ = eval_mus_coordinates(q_vals, p_vals)
+    leg_lines, = ax.plot(x, y, 'o-')
+    mus_lines, = ax.plot(xm, ym, 'o-', color='red',)
+    crank_circle = plt.Circle((0.0, 0.0), par_map[lc], fill=False,
+                              linestyle='--')
+    knee_circle = plt.Circle((x[4], y[4]), par_map[rk], color='red',
+                             fill=False)
+    ax.add_patch(crank_circle)
+    ax.add_patch(knee_circle)
+    ax.set_aspect('equal')
+    return ax, fig, leg_lines, mus_lines
+
+
+plot_configuration(q_ext, p_vals)
+ax, fig, leg_lines, mus_lines = plot_configuration(q_0, p_vals)
+
+
+def animate(i):
+    qi = xs[0:4, i]
+    x, y, _ = eval_coordinates(qi, p_vals)
+    xm, ym, _ = eval_mus_coordinates(qi, p_vals)
+    leg_lines.set_data(x, y)
+    mus_lines.set_data(xm, ym)
+
+
+interval_value = solution[-1]
+ani = animation.FuncAnimation(fig, animate, num_nodes,
+                              interval=int(interval_value*1000))
+
+plt.show()
