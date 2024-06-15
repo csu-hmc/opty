@@ -406,9 +406,9 @@ instance_constraints = (
 
 bounds = {
     q1: (-crank_revs*2*np.pi, 0.0),  # can only pedal forward
-    # ankle angle, q3=0: ankle maximally plantar flexed, q3=-3*pi/2: ankle
-    # maximally dorsiflexed
-    q3: (-3*np.pi/2, 0.0),
+    # ankle angle, q3=-np.pi/4: ankle maximally plantar flexed, q3=-3*pi/2:
+    # ankle maximally dorsiflexed
+    q3: (-np.pi/2, -np.pi/4),
     # knee angle, q4 = 0: upper and lower leg aligned, q4 = pi/2: knee is
     # flexed 90 degs
     q4: (0.0, 3*np.pi/2),
@@ -455,7 +455,7 @@ for Pi in plot_points[1:]:
     coordinates = coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
 eval_coordinates = sm.lambdify((q, p), coordinates)
 
-mus_points = [P7, Co, Co, P5]
+mus_points = [P7, Co, P2, Co, P5]
 mus_coordinates = P7.pos_from(P1).to_matrix(N)
 for Pi in mus_points[1:]:
     mus_coordinates = mus_coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
