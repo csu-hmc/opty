@@ -54,8 +54,8 @@ D.set_ang_vel(C, u4*C.z)
 # P5 : hip
 # P6 : seat center
 # P7 : heel
-P1, P2, P3, P4, P5, P6, P7 = sm.symbols('P1, P2, P3, P4, P5, P6, P7',
-                                        cls=me.Point)
+P1, P2, P3, P4, P5, P6, P7, P8, P9 = sm.symbols(
+    'P1, P2, P3, P4, P5, P6, P7, P8, P9', cls=me.Point)
 Ao, Bo, Co, Do = sm.symbols('Ao, Bo, Co, Do', cls=me.Point)
 
 Ao.set_pos(P1, 0*A.x)
@@ -68,6 +68,9 @@ P4.set_pos(P3, ll*C.x)  # knee
 Do.set_pos(P4, lu/2*D.x)  # upper leg mass center
 P5.set_pos(P4, lu*D.x)  # hip
 P6.set_pos(P1, -ls*sm.cos(lam)*N.x + ls*sm.sin(lam)*N.y)  # seat
+P8.set_pos(P3, ll/4*C.x)
+P9.set_pos(P4, -2*rk*C.x)
+
 
 P1.set_vel(N, 0)
 P6.set_vel(N, 0)
@@ -77,6 +80,8 @@ P7.v2pt_theory(P2, N, B)
 Bo.v2pt_theory(P2, N, B)
 P3.v2pt_theory(P2, N, B)
 Co.v2pt_theory(P3, N, C)
+P8.v2pt_theory(P3, N, C)
+P9.v2pt_theory(P3, N, C)
 P4.v2pt_theory(P3, N, C)
 Do.v2pt_theory(P4, N, D)
 P5.v2pt_theory(P4, N, D)
@@ -225,22 +230,22 @@ class ExtensorPathway(me.PathwayBase):
 
 # four muscles
 # NOTE : pathway only valid for q4>=0
-knee_top_pathway = ExtensorPathway(Co, P5, P4, C.z, -C.x, D.x, rk, q4)
+knee_top_pathway = ExtensorPathway(P9, P5, P4, C.z, -C.x, D.x, rk, q4)
 knee_top_act = bm.FirstOrderActivationDeGroote2016.with_defaults('knee_top')
 knee_top_mus = bm.MusculotendonDeGroote2016.with_defaults('knee_top',
                                                           knee_top_pathway,
                                                           knee_top_act)
-knee_bot_pathway = me.LinearPathway(Co, P5)
+knee_bot_pathway = me.LinearPathway(P9, P5)
 knee_bot_act = bm.FirstOrderActivationDeGroote2016.with_defaults('knee_bot')
 knee_bot_mus = bm.MusculotendonDeGroote2016.with_defaults('knee_bot',
                                                           knee_bot_pathway,
                                                           knee_bot_act)
-ankle_top_pathway = me.LinearPathway(Co, P2)
+ankle_top_pathway = me.LinearPathway(P8, P2)
 ankle_top_act = bm.FirstOrderActivationDeGroote2016.with_defaults('ankle_top')
 ankle_top_mus = bm.MusculotendonDeGroote2016.with_defaults('ankle_top',
                                                            ankle_top_pathway,
                                                            ankle_top_act)
-ankle_bot_pathway = me.LinearPathway(Co, P7)
+ankle_bot_pathway = me.LinearPathway(P8, P7)
 ankle_bot_act = bm.FirstOrderActivationDeGroote2016.with_defaults('ankle_bot')
 ankle_bot_mus = bm.MusculotendonDeGroote2016.with_defaults('ankle_bot',
                                                            ankle_bot_pathway,
@@ -475,7 +480,7 @@ for Pi in plot_points[1:]:
     coordinates = coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
 eval_coordinates = sm.lambdify((q, p), coordinates)
 
-mus_points = [P7, Co, P2, Co, P6]
+mus_points = [P7, P8, P2, P8, P9, P6]
 mus_coordinates = P7.pos_from(P1).to_matrix(N)
 for Pi in mus_points[1:]:
     mus_coordinates = mus_coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
@@ -497,11 +502,11 @@ def plot_configuration(q_vals, p_vals, ax=None):
     ax.add_patch(crank_circle)
     ax.add_patch(knee_circle)
     ax.set_aspect('equal')
-    return ax, fig, leg_lines, mus_lines
+    return ax, fig, leg_lines, mus_lines, knee_circle
 
 
 plot_configuration(q_ext, p_vals)
-ax, fig, leg_lines, mus_lines = plot_configuration(q_0, p_vals)
+ax, fig, leg_lines, mus_lines, knee_circle = plot_configuration(q_0, p_vals)
 
 
 def animate(i):
@@ -510,6 +515,7 @@ def animate(i):
     xm, ym, _ = eval_mus_coordinates(qi, p_vals)
     leg_lines.set_data(x, y)
     mus_lines.set_data(xm, ym)
+    knee_circle.set_center((x[4], y[4]))
 
 
 ani = animation.FuncAnimation(fig, animate, num_nodes,
