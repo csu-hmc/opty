@@ -293,7 +293,8 @@ state_vars = (
     ankle_bot_mus.a,
 )
 
-num_nodes = 401
+crank_revs = 10
+num_nodes = crank_revs*50 + 1
 h = sm.symbols('h', real=True)
 
 # objective
@@ -391,7 +392,6 @@ q3_0, q4_0 = fsolve(lambda x: eval_holonomic([q1_0, q2_0, x[0], x[1]],
                     x0=np.deg2rad([-90.0, 90.0]))
 q_0 = np.array([q1_0, q2_0, q3_0, q4_0])
 
-crank_revs = 10
 
 instance_constraints = (
     q1.replace(t, 0*h) - q1_0,  # crank starts horizontal
