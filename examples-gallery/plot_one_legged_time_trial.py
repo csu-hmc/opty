@@ -339,16 +339,16 @@ par_map = {
     rho: 1.204,  # kg/m^3
     rk: 0.04,  # m
     rw: 0.3,  # m
-    ankle_bot_mus.F_M_max: 200.0,
+    ankle_bot_mus.F_M_max: 100.0,
     ankle_bot_mus.l_M_opt: np.nan,
     ankle_bot_mus.l_T_slack: np.nan,
-    ankle_top_mus.F_M_max: 200.0,
+    ankle_top_mus.F_M_max: 100.0,
     ankle_top_mus.l_M_opt: np.nan,
     ankle_top_mus.l_T_slack: np.nan,
-    knee_bot_mus.F_M_max: 500.0,
+    knee_bot_mus.F_M_max: 300.0,
     knee_bot_mus.l_M_opt: np.nan,
     knee_bot_mus.l_T_slack: np.nan,
-    knee_top_mus.F_M_max: 1000.0,
+    knee_top_mus.F_M_max: 600.0,
     knee_top_mus.l_M_opt: np.nan,
     knee_top_mus.l_T_slack: np.nan,
 }
@@ -435,7 +435,9 @@ problem = Problem(
     known_parameter_map=par_map,
     instance_constraints=instance_constraints,
     bounds=bounds,
+    #integration_method='midpoint',
 )
+problem.add_option('nlp_scaling_method', 'gradient-based')
 
 # segmentation fault if I set initial guess to zero
 initial_guess = np.random.random(problem.num_free)
@@ -449,6 +451,7 @@ initial_guess[0*num_nodes:1*num_nodes] = q1_guess
 initial_guess[1*num_nodes:2*num_nodes] = q2_guess
 initial_guess[4*num_nodes:5*num_nodes] = u1_guess
 initial_guess[5*num_nodes:6*num_nodes] = u2_guess
+initial_guess[8*num_nodes:] = 0.5  # e
 initial_guess[-1] = 0.1
 
 solution, info = problem.solve(initial_guess)
@@ -459,17 +462,19 @@ problem.plot_trajectories(solution)
 
 xs, us, ps, h_val= parse_free(solution, len(state_vars), 4, num_nodes,
                               variable_duration=True)
-interval_value = h_val
 
 
 def plot_sim_compact():
-    fig, axes = plt.subplots(3, 1, sharex=True)
-    time = np.linspace(0, num_nodes*interval_value, num=num_nodes)
+    fig, axes = plt.subplots(4, 1, sharex=True)
+    time = np.linspace(0, num_nodes*h_val, num=num_nodes)
     axes[0].plot(time, xs[0:4, :].T)
     axes[0].legend(q)
-    axes[1].plot(time, xs[4:8, :].T)
-    axes[1].legend(u)
-    axes[2].plot(time, us.T)
+    axes[1].plot(time, -xs[4, :]*60/2/np.pi, time, xs[5, :]*60/2/np.pi)
+    axes[1].legend(['Cadence', 'Pedal Cadence'])
+    axes[2].plot(time, us[0:2, :].T)
+    axes[2].legend(problem.collocator.unknown_input_trajectories[0:2])
+    axes[3].plot(time, us[2:4, :].T)
+    axes[3].legend(problem.collocator.unknown_input_trajectories[2:4])
 
 
 plot_sim_compact()
@@ -519,6 +524,6 @@ def animate(i):
 
 
 ani = animation.FuncAnimation(fig, animate, num_nodes,
-                              interval=int(interval_value*1000))
+                              interval=int(h_val*1000))
 
 plt.show()
