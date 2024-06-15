@@ -288,7 +288,7 @@ state_vars = (
     ankle_bot_mus.a,
 )
 
-num_nodes = 201
+num_nodes = 401
 h = sm.symbols('h', real=True)
 
 # objective
@@ -313,7 +313,7 @@ par_map = {
     Ar: 0.55,  # m^2, Tab 5.1, pg 188 Wilson 2004, Upright commuting bike
     CD: 1.15,  # unitless, Tab 5.1, pg 188 Wilson 2004, Upright commuting bike
     Cr: 0.006,  # unitless, Tab 5.1, pg 188 Wilson 2004, Upright commuting bike
-    G: 2.0,
+    G: 3.0,
     IAzz: 0.0,
     IBzz: 0.01,  # guess, TODO
     ICzz: 0.101,  # lower_leg_inertia [kg*m^2]
@@ -417,6 +417,7 @@ bounds = {
     ankle_top_mus.e: (0.0, 1.0),
     knee_bot_mus.e: (0.0, 1.0),
     knee_top_mus.e: (0.0, 1.0),
+    h: (0.0, 0.2),
 }
 
 problem = Problem(
@@ -443,6 +444,7 @@ initial_guess[0*num_nodes:1*num_nodes] = q1_guess
 initial_guess[1*num_nodes:2*num_nodes] = q2_guess
 initial_guess[4*num_nodes:5*num_nodes] = u1_guess
 initial_guess[5*num_nodes:6*num_nodes] = u2_guess
+initial_guess[-1] = 0.1
 
 solution, info = problem.solve(initial_guess)
 
@@ -450,7 +452,22 @@ problem.plot_objective_value()
 problem.plot_constraint_violations(solution)
 problem.plot_trajectories(solution)
 
-xs, us, ps = parse_free(solution, len(state_vars), 4, num_nodes)
+xs, us, ps, h_val= parse_free(solution, len(state_vars), 4, num_nodes,
+                              variable_duration=True)
+interval_value = h_val
+
+
+def plot_sim_compact():
+    fig, axes = plt.subplots(3, 1, sharex=True)
+    time = np.linspace(0, num_nodes*interval_value, num=num_nodes)
+    axes[0].plot(time, xs[0:4, :].T)
+    axes[0].legend(q)
+    axes[1].plot(time, xs[4:8, :].T)
+    axes[1].legend(u)
+    axes[2].plot(time, us.T)
+
+
+plot_sim_compact()
 
 plot_points = [P1, P2, P7, P3, P4, P6, P1]
 coordinates = P1.pos_from(P1).to_matrix(N)
@@ -495,7 +512,6 @@ def animate(i):
     mus_lines.set_data(xm, ym)
 
 
-interval_value = solution[-1]
 ani = animation.FuncAnimation(fig, animate, num_nodes,
                               interval=int(interval_value*1000))
 
