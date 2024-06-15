@@ -320,9 +320,9 @@ par_map = {
     g: 9.81,
     lam: np.deg2rad(75.0),
     lc: 0.175,  # crank length [m]
-    lf: 0.14,  # pedal to ankle [m]
+    lf: 0.08,  # pedal to ankle [m]
     ll: 0.611,  # lower_leg_length [m]
-    ls: 0.7,  # seat tube length [m]
+    ls: 0.8,  # seat tube length [m]
     lu: 0.424,  # upper_leg_length [m],
     m: 175.0,  # kg
     #mA: 0.0,  # not in eom
@@ -349,6 +349,7 @@ par_map = {
 p = np.array(list(par_map.keys()))
 p_vals = np.array(list(par_map.values()))
 
+
 # solve for maximal knee extension and flat foot
 q1_ext = -par_map[lam]  # aligned with seat post
 q2_ext = 3*np.pi/2  # foot perpendicular to crank
@@ -357,6 +358,40 @@ q3_ext, q4_ext = fsolve(lambda x: eval_holonomic([q1_ext, q2_ext, x[0], x[1]],
                                                  p_vals).squeeze(),
                         x0=np.deg2rad([-100.0, 20.0]))
 q_ext = np.array([q1_ext, q2_ext, q3_ext, q4_ext])
+
+plot_points = [P1, P2, P7, P3, P4, P5, P1]
+coordinates = P1.pos_from(P1).to_matrix(N)
+for Pi in plot_points[1:]:
+    coordinates = coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
+eval_coordinates = sm.lambdify((q, p), coordinates)
+
+mus_points = [P7, Co, Co, P5]
+mus_coordinates = P7.pos_from(P1).to_matrix(N)
+for Pi in mus_points[1:]:
+    mus_coordinates = mus_coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
+eval_mus_coordinates = sm.lambdify((q, p), mus_coordinates)
+
+
+def plot_configuration(q_vals, p_vals, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots(layout='constrained')
+
+    x, y, _ = eval_coordinates(q_vals, p_vals)
+    xm, ym, _ = eval_mus_coordinates(q_vals, p_vals)
+    ax.plot(x, y, 'o-')
+    ax.plot(xm, ym, 'o-', color='red',)
+    crank_circle = plt.Circle((0.0, 0.0), par_map[lc], fill=False,
+                              linestyle='--')
+    knee_circle = plt.Circle((x[4], y[4]), par_map[rk], color='red',
+                             fill=False)
+    ax.add_patch(crank_circle)
+    ax.add_patch(knee_circle)
+    ax.set_aspect('equal')
+    return ax
+
+
+plot_configuration(q_ext, p_vals)
+
 
 eval_ankle_top_len = sm.lambdify((q, p), ankle_top_pathway.length)
 eval_ankle_bot_len = sm.lambdify((q, p), ankle_bot_pathway.length)
@@ -380,6 +415,11 @@ q3_0, q4_0 = fsolve(lambda x: eval_holonomic([q1_0, q2_0, x[0], x[1]],
                                              p_vals).squeeze(),
                     x0=np.deg2rad([-90.0, 90.0]))
 q_0 = np.array([q1_0, q2_0, q3_0, q4_0])
+
+plot_configuration(q_0, p_vals)
+plt.show()
+
+pause
 
 crank_revs = 10
 
