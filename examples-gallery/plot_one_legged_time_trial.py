@@ -11,11 +11,13 @@ Second goal will then be to solve for crank length and seat height that gives
 optimal performance.
 
 """
+from opty.direct_collocation import Problem
+from scipy.optimize import fsolve
+import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sm
-import sympy.physics.mechanics as me
 import sympy.physics.biomechanics as bm
-from opty.direct_collocation import Problem
+import sympy.physics.mechanics as me
 
 t = me.dynamicsymbols._t
 
@@ -100,9 +102,11 @@ gravD = me.Force(Do, -mD*g*N.y)
 # TODO : Check why gear ratio is not applied to rolling resistance.
 resistance = me.Torque(
     crank,
-    # remove sign...causes derivative in jacobian
-    #(-Cr*m*g*rw - sm.sign(G*u1*rw)*CD*rho*Ar*G**2*u1**2*rw**3/2)*N.z
-    (-Cr*m*g*rw - CD*rho*Ar*G**2*u1**2*rw**3/2)*N.z
+    # NOTE : we enforce later that u1 < 0 (forward pedaling), thus the
+    # resistance should be a posistive torque to resist the negative speed
+    # NOTE : using sm.sign() will break the constraing jacobian due taking the
+    # derivative of sm.sign().
+    (Cr*m*g*rw + CD*rho*Ar*G**2*u1**2*rw**3/2)*N.z
 )
 
 # add inertia due to bike and wheels to crank
@@ -219,12 +223,12 @@ class ExtensorPathway(me.PathwayBase):
 
 # four muscles
 # NOTE : pathway only valid for q4>=0
-knee_top_pathway = ExtensorPathway(P5, Co, P4, C.z, D.x, -C.x, rk, q4)
+knee_top_pathway = ExtensorPathway(Co, P5, P4, C.z, -C.x, D.x, rk, q4)
 knee_top_act = bm.FirstOrderActivationDeGroote2016.with_defaults('knee_top')
 knee_top_mus = bm.MusculotendonDeGroote2016.with_defaults('knee_top',
                                                           knee_top_pathway,
                                                           knee_top_act)
-knee_bot_pathway = me.LinearPathway(P5, Co)
+knee_bot_pathway = me.LinearPathway(Co, P5)
 knee_bot_act = bm.FirstOrderActivationDeGroote2016.with_defaults('knee_bot')
 knee_bot_mus = bm.MusculotendonDeGroote2016.with_defaults('knee_bot',
                                                           knee_bot_pathway,
@@ -273,7 +277,6 @@ muscle_diff_eq = sm.Matrix([
 ])
 
 eom = kindiff.col_join(Fr + Frs).col_join(muscle_diff_eq).col_join(holonomic)
-#eom = me.msubs(eom, qd_repl)
 
 state_vars = (
     q1, q2, q3, q4, u1, u2, u3, u4,
@@ -304,7 +307,7 @@ def gradient(free):
 
 
 # body segment inertia from https://nbviewer.org/github/pydy/pydy-tutorial-human-standing/blob/master/notebooks/n07_simulation.ipynb
-par_vals = {
+par_map = {
     Ar: 0.55,  # m^2, Tab 5.1, pg 188 Wilson 2004, Upright commuting bike
     CD: 1.15,  # unitless, Tab 5.1, pg 188 Wilson 2004, Upright commuting bike
     Cr: 0.006,  # unitless, Tab 5.1, pg 188 Wilson 2004, Upright commuting bike
@@ -316,45 +319,88 @@ par_vals = {
     J: 2*0.1524,  # from Browser Jason's thesis (rear wheel times 2)
     g: 9.81,
     lam: np.deg2rad(75.0),
-    lc: 0.175,
-    lf: 0.2,  # guess TODO
+    lc: 0.175,  # crank length [m]
+    lf: 0.14,  # pedal to ankle [m]
     ll: 0.611,  # lower_leg_length [m]
-    ls: 0.6,  # guess TODO
+    ls: 0.7,  # seat tube length [m]
     lu: 0.424,  # upper_leg_length [m],
     m: 175.0,  # kg
     #mA: 0.0,  # not in eom
-    mB: 1.0,  # guess TODO
+    mB: 1.0,  # foot mass [kg] guess TODO
     mC: 6.769,  # lower_leg_mass [kg]
     mD: 17.01,  # upper_leg_mass [kg],
     rho: 1.204,  # kg/m^3
     rk: 0.04,  # m
     rw: 0.3,  # m
-    ankle_bot_mus.F_M_max: 500.0,
-    ankle_bot_mus.l_M_opt: 0.31,
-    ankle_bot_mus.l_T_slack: 0.3,
-    ankle_top_mus.F_M_max: 500.0,
-    ankle_top_mus.l_M_opt: 0.31,
-    ankle_top_mus.l_T_slack: 0.3,
+    ankle_bot_mus.F_M_max: 200.0,
+    ankle_bot_mus.l_M_opt: np.nan,
+    ankle_bot_mus.l_T_slack: np.nan,
+    ankle_top_mus.F_M_max: 200.0,
+    ankle_top_mus.l_M_opt: np.nan,
+    ankle_top_mus.l_T_slack: np.nan,
     knee_bot_mus.F_M_max: 500.0,
-    knee_bot_mus.l_M_opt: 0.9,
-    knee_bot_mus.l_T_slack: 0.8,
-    knee_top_mus.F_M_max: 500.0,
-    knee_top_mus.l_M_opt: 1.1,
-    knee_top_mus.l_T_slack: 1.0,
+    knee_bot_mus.l_M_opt: np.nan,
+    knee_bot_mus.l_T_slack: np.nan,
+    knee_top_mus.F_M_max: 1000.0,
+    knee_top_mus.l_M_opt: np.nan,
+    knee_top_mus.l_T_slack: np.nan,
 }
 
-# TODO : Solve for dependent q's so that config is correct at start.
+p = np.array(list(par_map.keys()))
+p_vals = np.array(list(par_map.values()))
+
+# solve for maximal knee extension and flat foot
+q1_ext = -par_map[lam]  # aligned with seat post
+q2_ext = 3*np.pi/2  # foot perpendicular to crank
+eval_holonomic = sm.lambdify((q, p), holonomic)
+q3_ext, q4_ext = fsolve(lambda x: eval_holonomic([q1_ext, q2_ext, x[0], x[1]],
+                                                 p_vals).squeeze(),
+                        x0=np.deg2rad([-100.0, 20.0]))
+q_ext = np.array([q1_ext, q2_ext, q3_ext, q4_ext])
+
+eval_ankle_top_len = sm.lambdify((q, p), ankle_top_pathway.length)
+eval_ankle_bot_len = sm.lambdify((q, p), ankle_bot_pathway.length)
+eval_knee_top_len = sm.lambdify((q, p), knee_top_pathway.length)
+eval_knee_bot_len = sm.lambdify((q, p), knee_bot_pathway.length)
+# length of muscle path when fully extended
+par_map[ankle_top_mus.l_T_slack] = eval_ankle_top_len(q_ext, p_vals)
+par_map[ankle_bot_mus.l_T_slack] = eval_ankle_bot_len(q_ext, p_vals)
+par_map[knee_top_mus.l_T_slack] = eval_knee_top_len(q_ext, p_vals)
+par_map[knee_bot_mus.l_T_slack] = eval_knee_bot_len(q_ext, p_vals)
+par_map[ankle_top_mus.l_M_opt] = par_map[ankle_top_mus.l_T_slack] + 0.01
+par_map[ankle_bot_mus.l_M_opt] = par_map[ankle_bot_mus.l_T_slack] + 0.01
+par_map[knee_top_mus.l_M_opt] = par_map[knee_top_mus.l_T_slack] + 0.01
+par_map[knee_bot_mus.l_M_opt] = par_map[knee_bot_mus.l_T_slack] + 0.01
+
+# solve for initial configuration
+q1_0 = 0.0  # horizontal and forward
+q2_0 = np.pi  # toe forward and foot aligned with the crank (horizontal)
+eval_holonomic = sm.lambdify((q, p), holonomic)
+q3_0, q4_0 = fsolve(lambda x: eval_holonomic([q1_0, q2_0, x[0], x[1]],
+                                             p_vals).squeeze(),
+                    x0=np.deg2rad([-90.0, 90.0]))
+q_0 = np.array([q1_0, q2_0, q3_0, q4_0])
+
+crank_revs = 10
+
 instance_constraints = (
-    q1.replace(t, 0*h),  # crank starts horizontal
-    q2.replace(t, 0*h) - np.pi,  # foot/pedal aligned with crank
+    q1.replace(t, 0*h) - q1_0,  # crank starts horizontal
+    q2.replace(t, 0*h) - q2_0,  # foot/pedal aligned with crank
+    q3.replace(t, 0*h) - q3_0,
+    q4.replace(t, 0*h) - q4_0,
+    q1.replace(t, (num_nodes - 1)*h) + crank_revs*2*np.pi,  # travel number of revolutions
     u1.replace(t, 0*h),  # start stationary
     u2.replace(t, 0*h),  # start stationary
     u3.replace(t, 0*h),  # start stationary
     u4.replace(t, 0*h),  # start stationary
+    knee_top_mus.a.replace(t, 0*h),
+    knee_bot_mus.a.replace(t, 0*h),
+    ankle_top_mus.a.replace(t, 0*h),
+    ankle_bot_mus.a.replace(t, 0*h),
 )
 
 bounds = {
-    q1: (-np.inf, 0.0),  # can only pedal forward
+    q1: (-crank_revs*2*np.pi, 0.0),  # can only pedal forward
     # ankle angle, q3=0: ankle maximally plantar flexed, q3=-3*pi/2: ankle
     # maximally dorsiflexed
     q3: (-3*np.pi/2, 0.0),
@@ -375,10 +421,9 @@ problem = Problem(
     state_vars,
     num_nodes,
     h,
-    known_parameter_map=par_vals,
+    known_parameter_map=par_map,
     instance_constraints=instance_constraints,
     bounds=bounds,
 )
-
 
 solution, info = problem.solve(np.random.random(problem.num_free))
