@@ -394,7 +394,7 @@ instance_constraints = (
     q3.replace(t, 0*h) - q3_0,
     q4.replace(t, 0*h) - q4_0,
     q1.replace(t, (num_nodes - 1)*h) + crank_revs*2*np.pi,  # travel number of revolutions
-    u1.replace(t, 0*h),  # start stationary
+    #u1.replace(t, 0*h),  # start stationary
     u2.replace(t, 0*h),  # start stationary
     u3.replace(t, 0*h),  # start stationary
     u4.replace(t, 0*h),  # start stationary
@@ -431,11 +431,14 @@ problem = Problem(
     bounds=bounds,
 )
 
+# segmentation fault if I set initial guess to zero
 initial_guess = np.random.random(problem.num_free)
 q1_guess = np.linspace(0.0, -crank_revs*2*np.pi, num=num_nodes)
 q2_guess = np.linspace(0.0, crank_revs*2*np.pi, num=num_nodes)
-u1_guess = -3.0*np.ones(num_nodes)
-u2_guess = 3.0*np.ones(num_nodes)
+u1_guess = np.linspace(0.0, -6.0, num=num_nodes)
+u1_guess[num_nodes//2:] = -3.0
+u2_guess = np.linspace(0.0, 6.0, num=num_nodes)
+u2_guess[num_nodes//2:] = 3.0
 initial_guess[0*num_nodes:1*num_nodes] = q1_guess
 initial_guess[1*num_nodes:2*num_nodes] = q2_guess
 initial_guess[4*num_nodes:5*num_nodes] = u1_guess
@@ -449,13 +452,13 @@ problem.plot_trajectories(solution)
 
 xs, us, ps = parse_free(solution, len(state_vars), 4, num_nodes)
 
-plot_points = [P1, P2, P7, P3, P4, P5, P1]
+plot_points = [P1, P2, P7, P3, P4, P6, P1]
 coordinates = P1.pos_from(P1).to_matrix(N)
 for Pi in plot_points[1:]:
     coordinates = coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
 eval_coordinates = sm.lambdify((q, p), coordinates)
 
-mus_points = [P7, Co, P2, Co, P5]
+mus_points = [P7, Co, P2, Co, P6]
 mus_coordinates = P7.pos_from(P1).to_matrix(N)
 for Pi in mus_points[1:]:
     mus_coordinates = mus_coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
