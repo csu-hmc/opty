@@ -563,9 +563,9 @@ instance_constraints = (
 # muscle excitations should be bound between 0 and 1.
 bounds = {
     q1: (-(crank_revs + 2)*2*np.pi, 0.0),  # can only pedal forward
-    # ankle angle, q3=-130 deg: ankle maximally plantar flexed, q3=-20 deg:
+    # ankle angle, q3=-105 deg: ankle maximally plantar flexed, q3=-30 deg:
     # ankle maximally dorsiflexed
-    q3: (-np.deg2rad(100.0), -np.deg2rad(40.)),
+    q3: (-np.deg2rad(105.0), -np.deg2rad(30.)),
     # knee angle, q4 = 0: upper and lower leg aligned, q4 = pi/2: knee is
     # flexed 90 degs
     q4: (0.0, 3*np.pi/2),
