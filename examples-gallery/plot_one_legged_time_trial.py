@@ -543,12 +543,8 @@ instance_constraints = (
     # set the initial configuration
     q1.replace(t, 0*h) - q1_0,
     q2.replace(t, 0*h) - q2_0,
-    # May not be necessary to set q3 and q4, since the holonomic constraint is
-    # enforced.
     q3.replace(t, 0*h) - q3_0,
     q4.replace(t, 0*h) - q4_0,
-    # TODO : Not sure why we can't start from a standstill, constraint doesn't
-    # hold ever.
     u1.replace(t, 0*h),  # start stationary
     u2.replace(t, 0*h),  # start stationary
     u3.replace(t, 0*h),  # start stationary
@@ -597,7 +593,6 @@ problem = Problem(
 problem.add_option('nlp_scaling_method', 'gradient-based')
 problem.add_option('max_iter', 1000)
 
-# segmentation fault if I set initial guess to zero
 initial_guess = np.random.random(problem.num_free)
 
 q1_guess = np.linspace(0.0, -crank_revs*2*np.pi, num=num_nodes)
@@ -689,6 +684,8 @@ def plot_sim_compact():
 _ = plot_sim_compact()
 
 # %%
+# Plot Configuration
+# ==================
 plot_points = [P1, P2, P7, P3, P4, P6, P1]
 coordinates = P1.pos_from(P1).to_matrix(N)
 for Pi in plot_points[1:]:
@@ -729,6 +726,8 @@ def plot_configuration(q_vals, p_vals, ax=None):
 _ = plot_configuration(q_ext, p_vals)
 
 # %%
+# Animation
+# =========
 ax, fig, leg_lines, mus_lines, knee_circle, title_text = \
     plot_configuration(q_0, p_vals)
 
