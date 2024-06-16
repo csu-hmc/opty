@@ -234,7 +234,7 @@ resistance = me.Torque(
 # other muscles act on linear pathways.
 
 
-class _ExtensorPathway(me.PathwayBase):
+class ExtensorPathway(me.PathwayBase):
     def __init__(self, origin, insertion, axis_point, axis, parent_axis,
                  child_axis, radius, coordinate):
         """A custom pathway that wraps a circular arc around a pin joint.
@@ -593,7 +593,7 @@ problem = Problem(
     #integration_method='midpoint',
 )
 problem.add_option('nlp_scaling_method', 'gradient-based')
-problem.add_option('max_iter', 1000)
+problem.add_option('max_iter', 400)
 
 # segmentation fault if I set initial guess to zero
 initial_guess = np.random.random(problem.num_free)
@@ -627,6 +627,8 @@ problem.plot_constraint_violations(solution)
 problem.plot_trajectories(solution)
 
 # %%
+
+
 def plot_sim_compact():
     fig, axes = plt.subplots(4, 1, sharex=True)
     time = np.linspace(0, num_nodes*h_val, num=num_nodes)
