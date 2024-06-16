@@ -651,7 +651,7 @@ akb_len, akt_len, knb_len, knt_len = eval_mus_lens(xs, p_vals)
 
 
 def plot_sim_compact():
-    fig, axes = plt.subplots(5, 1, sharex=True)
+    fig, axes = plt.subplots(5, 1, sharex=True, layout='constrained')
     time = np.linspace(0, num_nodes*h_val, num=num_nodes)
     axes[0].plot(time, akb_force, time, akt_force, time, knb_force, time,
                  knt_force)
@@ -705,6 +705,7 @@ def plot_configuration(q_vals, p_vals, ax=None):
     return ax, fig, leg_lines, mus_lines, knee_circle, title_text
 
 
+# sphinx_gallery_thumbnail_number = 6
 plot_configuration(q_ext, p_vals)
 
 # %%
