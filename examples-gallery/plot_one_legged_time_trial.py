@@ -397,10 +397,10 @@ eval_ankle_bot_len = sm.lambdify((q, p), ankle_bot_pathway.length)
 eval_knee_top_len = sm.lambdify((q, p), knee_top_pathway.length)
 eval_knee_bot_len = sm.lambdify((q, p), knee_bot_pathway.length)
 # length of muscle path when fully extended
-par_map[ankle_top_mus.l_T_slack] = eval_ankle_top_len(q_ext, p_vals)
-par_map[ankle_bot_mus.l_T_slack] = eval_ankle_bot_len(q_ext, p_vals)
-par_map[knee_top_mus.l_T_slack] = eval_knee_top_len(q_ext, p_vals)
-par_map[knee_bot_mus.l_T_slack] = eval_knee_bot_len(q_ext, p_vals)
+par_map[ankle_top_mus.l_T_slack] = eval_ankle_top_len(q_ext, p_vals)/2
+par_map[ankle_bot_mus.l_T_slack] = eval_ankle_bot_len(q_ext, p_vals)/2
+par_map[knee_top_mus.l_T_slack] = eval_knee_top_len(q_ext, p_vals)/2
+par_map[knee_bot_mus.l_T_slack] = eval_knee_bot_len(q_ext, p_vals)/2
 par_map[ankle_top_mus.l_M_opt] = par_map[ankle_top_mus.l_T_slack] + 0.01
 par_map[ankle_bot_mus.l_M_opt] = par_map[ankle_bot_mus.l_T_slack] + 0.01
 par_map[knee_top_mus.l_M_opt] = par_map[knee_top_mus.l_T_slack] + 0.01
@@ -426,7 +426,7 @@ q_0 = np.array([q1_0, q2_0, q3_0, q4_0])
 # Crank revolutions are proportional to distance traveled so the race distance
 # is defined by number of crank revolutions.
 crank_revs = 10
-samples_per_rev = 50
+samples_per_rev = 80
 num_nodes = crank_revs*samples_per_rev + 1
 
 h = sm.symbols('h', real=True)
