@@ -72,10 +72,11 @@ u = sm.Matrix([u1, u2, u3, u4])
 # - :math:`\rho`: density of air
 # - :math:`A_r`: frontal area of bicycle and cyclist
 ls, lc, lf, ll, lu = sm.symbols('ls, lc, lf, ll, lu', real=True, positive=True)
-lam, g, rk = sm.symbols('lam, g, rk', real=True)
-mA, mB, mC, mD = sm.symbols('mA, mB, mC, mD')
-IAzz, IBzz, ICzz, IDzz = sm.symbols('IAzz, IBzz, ICzz, IDzz')
-J, m, rw, G, Cr, CD, rho, Ar = sm.symbols('J, m, rw, G, Cr, CD, rho, Ar')
+lam, g, rk = sm.symbols('lam, g, rk', real=True, nonnegative=True)
+mA, mB, mC, mD = sm.symbols('mA, mB, mC, mD', nonnegative=True)
+IAzz, IBzz, ICzz, IDzz = sm.symbols('IAzz, IBzz, ICzz, IDzz', nonnegative=True)
+J, m, rw, G, Cr, CD, rho, Ar = sm.symbols('J, m, rw, G, Cr, CD, rho, Ar',
+                                          nonnegative=True)
 
 # %%
 # Reference Frames
@@ -467,16 +468,16 @@ par_map = {
     rho: 1.204,  # kg/m^3, air density
     rk: 0.04,  # m, knee radius
     rw: 0.3,  # m, wheel radius
-    ankle_bot_mus.F_M_max: 100.0,
+    ankle_bot_mus.F_M_max: 1000.0,
     ankle_bot_mus.l_M_opt: np.nan,
     ankle_bot_mus.l_T_slack: np.nan,
-    ankle_top_mus.F_M_max: 100.0,
+    ankle_top_mus.F_M_max: 1000.0,
     ankle_top_mus.l_M_opt: np.nan,
     ankle_top_mus.l_T_slack: np.nan,
-    knee_bot_mus.F_M_max: 300.0,
+    knee_bot_mus.F_M_max: 1000.0,
     knee_bot_mus.l_M_opt: np.nan,
     knee_bot_mus.l_T_slack: np.nan,
-    knee_top_mus.F_M_max: 600.0,
+    knee_top_mus.F_M_max: 1000.0,
     knee_top_mus.l_M_opt: np.nan,
     knee_top_mus.l_T_slack: np.nan,
 }
@@ -497,6 +498,7 @@ q3_ext, q4_ext = fsolve(lambda x: eval_holonomic([q1_ext, q2_ext, x[0], x[1]],
                         x0=np.deg2rad([-100.0, 20.0]))
 q_ext = np.array([q1_ext, q2_ext, q3_ext, q4_ext])
 
+# TODO : duplicated below
 eval_ankle_top_len = sm.lambdify((q, p), ankle_top_pathway.length)
 eval_ankle_bot_len = sm.lambdify((q, p), ankle_bot_pathway.length)
 eval_knee_top_len = sm.lambdify((q, p), knee_top_pathway.length)
@@ -530,7 +532,7 @@ q_0 = np.array([q1_0, q2_0, q3_0, q4_0])
 
 # Crank revolutions are proportional to distance traveled so the race distance
 # is defined by number of crank revolutions.
-crank_revs = 10
+crank_revs = 4
 samples_per_rev = 80
 num_nodes = crank_revs*samples_per_rev + 1
 
@@ -593,7 +595,7 @@ problem = Problem(
     #integration_method='midpoint',
 )
 problem.add_option('nlp_scaling_method', 'gradient-based')
-problem.add_option('max_iter', 100)
+problem.add_option('max_iter', 1000)
 
 # segmentation fault if I set initial guess to zero
 initial_guess = np.random.random(problem.num_free)
@@ -631,18 +633,37 @@ problem.plot_trajectories(solution)
 
 # %%
 
+eval_mus_forces = sm.lambdify((state_vars, p),
+                              (ankle_bot_mus.force.doit().xreplace(qd_repl),
+                               ankle_top_mus.force.doit().xreplace(qd_repl),
+                               knee_bot_mus.force.doit().xreplace(qd_repl),
+                               knee_top_mus.force.doit().xreplace(qd_repl)),
+                              cse=True)
+akb_force, akt_force, knb_force, knt_force = eval_mus_forces(xs, p_vals)
+
+eval_mus_lens = sm.lambdify((state_vars, p),
+                            (ankle_bot_mus.pathway.length.doit().xreplace(qd_repl),
+                             ankle_top_mus.pathway.length.doit().xreplace(qd_repl),
+                             knee_bot_mus.pathway.length.doit().xreplace(qd_repl),
+                             knee_top_mus.pathway.length.doit().xreplace(qd_repl)),
+                            cse=True)
+akb_len, akt_len, knb_len, knt_len = eval_mus_lens(xs, p_vals)
+
 
 def plot_sim_compact():
-    fig, axes = plt.subplots(4, 1, sharex=True)
+    fig, axes = plt.subplots(5, 1, sharex=True)
     time = np.linspace(0, num_nodes*h_val, num=num_nodes)
-    axes[0].plot(time, xs[0:4, :].T)
-    axes[0].legend(q)
+    axes[0].plot(time, akb_force, time, akt_force, time, knb_force, time,
+                 knt_force)
+    axes[0].legend(['Ankle Bottom', 'Ankle Top', 'Knee Bottom', 'Knee Top'])
     axes[1].plot(time, -xs[4, :]*60/2/np.pi, time, xs[5, :]*60/2/np.pi)
     axes[1].legend(['Cadence', 'Pedal Cadence'])
     axes[2].plot(time, us[0:2, :].T)
     axes[2].legend(problem.collocator.unknown_input_trajectories[0:2])
     axes[3].plot(time, us[2:4, :].T)
     axes[3].legend(problem.collocator.unknown_input_trajectories[2:4])
+    axes[4].plot(time, akb_len, time, akt_len, time, knb_len, time, knt_len)
+    axes[4].legend(['Ankle Bottom', 'Ankle Top', 'Knee Bottom', 'Knee Top'])
 
 
 plot_sim_compact()
