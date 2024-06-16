@@ -597,12 +597,15 @@ problem.add_option('max_iter', 100)
 
 # segmentation fault if I set initial guess to zero
 initial_guess = np.random.random(problem.num_free)
+
 q1_guess = np.linspace(0.0, -crank_revs*2*np.pi, num=num_nodes)
 q2_guess = np.linspace(0.0, crank_revs*2*np.pi, num=num_nodes)
-u1_guess = np.linspace(0.0, -20.0, num=num_nodes)
+
+u1_guess = np.linspace(0.0, -40.0, num=num_nodes)
 u1_guess[num_nodes//2:] = -20.0
 u2_guess = np.linspace(0.0, 40.0, num=num_nodes)
 u2_guess[num_nodes//2:] = 20.0
+
 initial_guess[0*num_nodes:1*num_nodes] = q1_guess
 initial_guess[1*num_nodes:2*num_nodes] = q2_guess
 initial_guess[4*num_nodes:5*num_nodes] = u1_guess
