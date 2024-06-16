@@ -468,10 +468,10 @@ par_map = {
     rho: 1.204,  # kg/m^3, air density
     rk: 0.04,  # m, knee radius
     rw: 0.3,  # m, wheel radius
-    ankle_bot_mus.F_M_max: 1000.0,
+    ankle_bot_mus.F_M_max: 1600.0,
     ankle_bot_mus.l_M_opt: np.nan,
     ankle_bot_mus.l_T_slack: np.nan,
-    ankle_top_mus.F_M_max: 1000.0,
+    ankle_top_mus.F_M_max: 1600.0,
     ankle_top_mus.l_M_opt: np.nan,
     ankle_top_mus.l_T_slack: np.nan,
     knee_bot_mus.F_M_max: 1000.0,
@@ -548,7 +548,7 @@ instance_constraints = (
     q4.replace(t, 0*h) - q4_0,
     # TODO : Not sure why we can't start from a standstill, constraint doesn't
     # hold ever.
-    #u1.replace(t, 0*h),  # start stationary
+    u1.replace(t, 0*h),  # start stationary
     u2.replace(t, 0*h),  # start stationary
     u3.replace(t, 0*h),  # start stationary
     u4.replace(t, 0*h),  # start stationary
@@ -595,7 +595,7 @@ problem = Problem(
     #integration_method='midpoint',
 )
 problem.add_option('nlp_scaling_method', 'gradient-based')
-problem.add_option('max_iter', 1000)
+problem.add_option('max_iter', 3000)
 
 # segmentation fault if I set initial guess to zero
 initial_guess = np.random.random(problem.num_free)
