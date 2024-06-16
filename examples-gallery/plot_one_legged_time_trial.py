@@ -442,7 +442,8 @@ def gradient(free):
 # Define Numerical Constants
 # ==========================
 
-# body segment inertia from https://nbviewer.org/github/pydy/pydy-tutorial-human-standing/blob/master/notebooks/n07_simulation.ipynb
+# body segment inertia from:
+# https://nbviewer.org/github/pydy/pydy-tutorial-human-standing/blob/master/notebooks/n07_simulation.ipynb
 par_map = {
     Ar: 0.55,  # m^2, Tab 5.1, pg 188 Wilson 2004, Upright commuting bike
     CD: 1.15,  # unitless, Tab 5.1, pg 188 Wilson 2004, Upright commuting bike
@@ -533,7 +534,7 @@ q_0 = np.array([q1_0, q2_0, q3_0, q4_0])
 # Crank revolutions are proportional to distance traveled so the race distance
 # is defined by number of crank revolutions.
 crank_revs = 4
-samples_per_rev = 80
+samples_per_rev = 60
 num_nodes = crank_revs*samples_per_rev + 1
 
 h = sm.symbols('h', real=True)
@@ -592,10 +593,9 @@ problem = Problem(
     known_parameter_map=par_map,
     instance_constraints=instance_constraints,
     bounds=bounds,
-    #integration_method='midpoint',
 )
 problem.add_option('nlp_scaling_method', 'gradient-based')
-problem.add_option('max_iter', 3000)
+problem.add_option('max_iter', 1000)
 
 # segmentation fault if I set initial guess to zero
 initial_guess = np.random.random(problem.num_free)
