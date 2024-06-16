@@ -462,7 +462,7 @@ par_map = {
     ls: 0.8,  # seat tube length [m]
     lu: 0.424,  # upper_leg_length [m],
     m: 85.0,  # kg
-    #mA: 0.0,  # not in eom
+    # mA: 0.0,  # not in eom
     mB: 1.0,  # foot mass [kg] guess TODO
     mC: 6.769,  # lower_leg_mass [kg]
     mD: 17.01,  # upper_leg_mass [kg],
@@ -534,7 +534,7 @@ q_0 = np.array([q1_0, q2_0, q3_0, q4_0])
 # Crank revolutions are proportional to distance traveled so the race distance
 # is defined by number of crank revolutions.
 crank_revs = 4
-samples_per_rev = 60
+samples_per_rev = 40
 num_nodes = crank_revs*samples_per_rev + 1
 
 h = sm.symbols('h', real=True)
@@ -612,7 +612,7 @@ initial_guess[0*num_nodes:1*num_nodes] = q1_guess
 initial_guess[1*num_nodes:2*num_nodes] = q2_guess
 initial_guess[4*num_nodes:5*num_nodes] = u1_guess
 initial_guess[5*num_nodes:6*num_nodes] = u2_guess
-initial_guess[8*num_nodes:] = 0.5  # e
+initial_guess[-4*num_nodes - 1:] = 0.5  # e
 initial_guess[-1] = 0.01
 
 problem.plot_trajectories(initial_guess)
@@ -621,6 +621,8 @@ problem.plot_trajectories(initial_guess)
 solution, info = problem.solve(initial_guess)
 xs, us, ps, h_val= parse_free(solution, len(state_vars), 4, num_nodes,
                               variable_duration=True)
+print('Optimal value h:', solution[-1])
+print(info['status_msg'])
 
 # %%
 problem.plot_objective_value()
@@ -632,7 +634,6 @@ problem.plot_constraint_violations(solution)
 problem.plot_trajectories(solution)
 
 # %%
-
 eval_mus_forces = sm.lambdify((state_vars, p),
                               (ankle_bot_mus.force.doit().xreplace(qd_repl),
                                ankle_top_mus.force.doit().xreplace(qd_repl),
@@ -642,31 +643,50 @@ eval_mus_forces = sm.lambdify((state_vars, p),
 akb_force, akt_force, knb_force, knt_force = eval_mus_forces(xs, p_vals)
 
 eval_mus_lens = sm.lambdify((state_vars, p),
-                            (ankle_bot_mus.pathway.length.doit().xreplace(qd_repl),
-                             ankle_top_mus.pathway.length.doit().xreplace(qd_repl),
-                             knee_bot_mus.pathway.length.doit().xreplace(qd_repl),
-                             knee_top_mus.pathway.length.doit().xreplace(qd_repl)),
+                            (ankle_bot_mus.pathway.length.xreplace(qd_repl),
+                             ankle_top_mus.pathway.length.xreplace(qd_repl),
+                             knee_bot_mus.pathway.length.xreplace(qd_repl),
+                             knee_top_mus.pathway.length.xreplace(qd_repl)),
                             cse=True)
 akb_len, akt_len, knb_len, knt_len = eval_mus_lens(xs, p_vals)
 
 
 def plot_sim_compact():
-    fig, axes = plt.subplots(5, 1, sharex=True, layout='constrained')
+
     time = np.linspace(0, num_nodes*h_val, num=num_nodes)
-    axes[0].plot(time, akb_force, time, akt_force, time, knb_force, time,
-                 knt_force)
-    axes[0].legend(['Ankle Bottom', 'Ankle Top', 'Knee Bottom', 'Knee Top'])
-    axes[1].plot(time, -xs[4, :]*60/2/np.pi, time, xs[5, :]*60/2/np.pi)
-    axes[1].legend(['Cadence', 'Pedal Cadence'])
-    axes[2].plot(time, us[0:2, :].T)
-    axes[2].legend(problem.collocator.unknown_input_trajectories[0:2])
-    axes[3].plot(time, us[2:4, :].T)
-    axes[3].legend(problem.collocator.unknown_input_trajectories[2:4])
-    axes[4].plot(time, akb_len, time, akt_len, time, knb_len, time, knt_len)
-    axes[4].legend(['Ankle Bottom', 'Ankle Top', 'Knee Bottom', 'Knee Top'])
+
+    fig, axes = plt.subplots(5, 1, sharex=True, layout='constrained')
+
+    axes[0].set_title('Finish time = {:1.3f}'.format(time[-1]))
+    axes[0].plot(time, akb_force,
+                 time, akt_force,
+                 time, knb_force,
+                 time, knt_force)
+    axes[0].set_ylabel('Force\n[N]')
+    # axes[0].legend(['Ankle Bottom', 'Ankle Top', 'Knee Bottom', 'Knee Top'])
+
+    axes[1].plot(time, akb_len, time, akt_len, time, knb_len, time, knt_len)
+    axes[1].legend(['Ankle Bottom', 'Ankle Top', 'Knee Bottom', 'Knee Top'])
+    axes[1].set_ylabel('Length\n[M]')
+
+    axes[2].plot(time, -xs[4, :]*60/2/np.pi, time, xs[5, :]*60/2/np.pi)
+    axes[2].set_ylabel('Cadence\n[RPM]')
+    axes[2].legend(['Cadence', 'Pedal Cadence'])
+
+    axes[3].plot(time, us[0:2, :].T)
+    axes[3].legend(problem.collocator.unknown_input_trajectories[0:2])
+    axes[3].set_ylabel('Excitation')
+
+    axes[4].plot(time, us[2:4, :].T)
+    axes[4].legend(problem.collocator.unknown_input_trajectories[2:4])
+    axes[4].set_ylabel('Excitation')
+
+    axes[-1].set_xlabel('Time [s]')
+
+    return axes
 
 
-plot_sim_compact()
+_ = plot_sim_compact()
 
 # %%
 plot_points = [P1, P2, P7, P3, P4, P6, P1]
@@ -706,7 +726,7 @@ def plot_configuration(q_vals, p_vals, ax=None):
 
 
 # sphinx_gallery_thumbnail_number = 6
-plot_configuration(q_ext, p_vals)
+_ = plot_configuration(q_ext, p_vals)
 
 # %%
 ax, fig, leg_lines, mus_lines, knee_circle, title_text = \
@@ -728,4 +748,5 @@ def animate(i):
 ani = animation.FuncAnimation(fig, animate, num_nodes,
                               interval=int(h_val*1000))
 
-plt.show()
+if __name__ == "__main__":
+    plt.show()
