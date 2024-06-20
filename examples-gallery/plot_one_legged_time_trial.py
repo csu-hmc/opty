@@ -359,12 +359,14 @@ ankle_bot_act = bm.FirstOrderActivationDeGroote2016.with_defaults('ankle_bot')
 ankle_bot_mus = bm.MusculotendonDeGroote2016.with_defaults('ankle_bot',
                                                            ankle_bot_pathway,
                                                            ankle_bot_act)
+ankle_damping_B = me.Torque(B, 0.0*u3*B.z)
+ankle_damping_C = me.Torque(C, -0.0*u3*B.z)
 loads = (
     knee_top_mus.to_loads() +
     knee_bot_mus.to_loads() +
     ankle_top_mus.to_loads() +
     ankle_bot_mus.to_loads() +
-    [resistance, gravB, gravC, gravD]
+    [ankle_damping_B, ankle_damping_C, resistance, gravB, gravC, gravD]
 )
 
 # %%
@@ -534,7 +536,7 @@ q_0 = np.array([q1_0, q2_0, q3_0, q4_0])
 # Crank revolutions are proportional to distance traveled so the race distance
 # is defined by number of crank revolutions.
 crank_revs = 4
-samples_per_rev = 40
+samples_per_rev = 80
 num_nodes = crank_revs*samples_per_rev + 1
 
 h = sm.symbols('h', real=True)
