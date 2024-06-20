@@ -359,8 +359,8 @@ ankle_bot_act = bm.FirstOrderActivationDeGroote2016.with_defaults('ankle_bot')
 ankle_bot_mus = bm.MusculotendonDeGroote2016.with_defaults('ankle_bot',
                                                            ankle_bot_pathway,
                                                            ankle_bot_act)
-ankle_damping_B = me.Torque(B, 0.0*u3*B.z)
-ankle_damping_C = me.Torque(C, -0.0*u3*B.z)
+ankle_damping_B = me.Torque(B, 20.0*u3*B.z)
+ankle_damping_C = me.Torque(C, -20.0*u3*B.z)
 loads = (
     knee_top_mus.to_loads() +
     knee_bot_mus.to_loads() +
@@ -536,7 +536,7 @@ q_0 = np.array([q1_0, q2_0, q3_0, q4_0])
 # Crank revolutions are proportional to distance traveled so the race distance
 # is defined by number of crank revolutions.
 crank_revs = 4
-samples_per_rev = 80
+samples_per_rev = 120
 num_nodes = crank_revs*samples_per_rev + 1
 
 h = sm.symbols('h', real=True)
@@ -694,10 +694,14 @@ for Pi in plot_points[1:]:
     coordinates = coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
 eval_coordinates = sm.lambdify((q, p), coordinates)
 
-mus_points = [P7, P8, P2, P8, P9, P6]
+mus_points = [P7, P8, P2, P8, 'nan', P9, P6]
 mus_coordinates = P7.pos_from(P1).to_matrix(N)
 for Pi in mus_points[1:]:
-    mus_coordinates = mus_coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
+    if Pi == 'nan':
+        pi_coord = sm.Matrix([sm.nan, sm.nan, sm.nan])
+    else:
+        pi_coord = Pi.pos_from(P1).to_matrix(N)
+    mus_coordinates = mus_coordinates.row_join(pi_coord)
 eval_mus_coordinates = sm.lambdify((q, p), mus_coordinates)
 
 title_template = 'Time = {:1.2f} s'
@@ -709,8 +713,6 @@ def plot_configuration(q_vals, p_vals, ax=None):
 
     x, y, _ = eval_coordinates(q_vals, p_vals)
     xm, ym, _ = eval_mus_coordinates(q_vals, p_vals)
-    xm = np.hstack((xm[:4], np.nan, xm[4:]))
-    ym = np.hstack((ym[:4], np.nan, ym[4:]))
     leg_lines, = ax.plot(x, y, 'o-')
     mus_lines, = ax.plot(xm, ym, 'o-', color='red',)
     crank_circle = plt.Circle((0.0, 0.0), par_map[lc], fill=False,
