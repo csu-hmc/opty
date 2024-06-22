@@ -65,7 +65,7 @@ class TestCreateObjectiveFunction(object):
         self.q = len(self.input_symbols)
         self.r = len(self.unknown_symbols)
         self.N = 20
-        
+
         self.x_vals = np.random.random(self.N)
         self.v_vals = np.random.random(self.N)
         self.f1_vals = np.random.random(self.N)
@@ -109,7 +109,7 @@ class TestCreateObjectiveFunction(object):
         obj_expr = (
             sym.Integral(self.x ** 2 + self.m ** 2, self.t) +
             sym.Integral(self.c ** 2 * self.f2 ** 2 , self.t) +
-            sym.sin(self.k) ** 2            
+            sym.sin(self.k) ** 2
         )
         obj, obj_grad = utils.create_objective_function(
             obj_expr, self.state_symbols, self.input_symbols,
@@ -163,7 +163,7 @@ class TestCreateObjectiveFunction(object):
         obj_expr = (
             sym.Integral(self.x ** 2 + self.m ** 2, self.t) +
             sym.Integral(self.c ** 2 * self.f2 ** 2 , self.t) +
-            sym.sin(self.k) ** 2            
+            sym.sin(self.k) ** 2
         )
         x_mid = (self.x_vals[1:] + self.x_vals[:-1]) / 2
         f2_mid = (self.f2_vals[1:] + self.f2_vals[:-1]) / 2
