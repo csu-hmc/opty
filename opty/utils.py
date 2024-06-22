@@ -413,18 +413,24 @@ cimport numpy as np
 cimport cython
 
 cdef extern from "{file_prefix}_h.h"{head_gil}:
-    void {routine_name}(double matrix[{matrix_output_size}], {input_args})
+    void {routine_name}(double matrix[{matrix_output_size}],
+{input_args})
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def {routine_name}_loop(np.ndarray[np.double_t, ndim=2] matrix, {numpy_typed_input_args}):
+def {routine_name}_loop(matrix,
+{numpy_typed_input_args}):
+
+    cdef double[:, ::1] matrix_memview = matrix
+    {memory_views}
 
     cdef int n = matrix.shape[0]
 
     cdef int i
 
     for i in {loop_sig}:
-        {routine_name}(&matrix[i, 0], {indexed_input_args})
+        {routine_name}(&matrix_memview[i, 0],
+{indexed_input_args})
 
     return matrix.reshape(n, {num_rows}, {num_cols})
 """
@@ -604,31 +610,41 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     d['eval_code'] = '    ' + '\n    '.join((sub_expr_code + '\n' +
                                              matrix_code).split('\n'))
 
-    c_indent = len('void {routine_name}('.format(**d))
+    c_indent = len('    void {routine_name}('.format(**d))
     c_arg_spacer = ',\n' + ' ' * c_indent
 
     input_args = ['double {}'.format(sm.ccode(a)) for a in args]
-    d['input_args'] = c_arg_spacer.join(input_args)
+    d['input_args'] = ' '*c_indent + c_arg_spacer.join(input_args)
 
     cython_input_args = []
     indexed_input_args = []
+    memory_views = []
     for a in args:
         if const is not None and a in const:
             typ = 'double'
             idexy = '{}'
+            cython_input_args.append('{} {}'.format(typ, sm.ccode(a)))
         else:
-            typ = 'np.ndarray[np.double_t, ndim=1]'
-            idexy = '{}[i]'
+            idexy = '{}_memview[i]'
+            memview = 'cdef double[::1] {}_memview = {}'
+            memory_views.append(memview.format(sm.ccode(a), sm.ccode(a)))
+            cython_input_args.append('{}'.format(sm.ccode(a)))
 
-        cython_input_args.append('{} {}'.format(typ, sm.ccode(a)))
         indexed_input_args.append(idexy.format(sm.ccode(a)))
 
     cython_indent = len('def {routine_name}_loop('.format(**d))
-    cython_arg_spacer = ',\n' + ' ' * cython_indent
+    cython_arg_spacer = ',\n' + ' '*cython_indent
 
-    d['numpy_typed_input_args'] = cython_arg_spacer.join(cython_input_args)
+    loop_indent = len('        {routine_name}('.format(**d))
+    loop_spacer = ',\n' + ' '*loop_indent
 
-    d['indexed_input_args'] = ',\n'.join(indexed_input_args)
+    d['numpy_typed_input_args'] = (' '*cython_indent +
+                                   cython_arg_spacer.join(cython_input_args))
+
+    d['indexed_input_args'] = (' '*loop_indent +
+                               loop_spacer.join(indexed_input_args))
+
+    d['memory_views'] = '\n    '.join(memory_views)
 
     files = {}
     files[d['file_prefix'] + '_c.c'] = _c_template.format(**d)
