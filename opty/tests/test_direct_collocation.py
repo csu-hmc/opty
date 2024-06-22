@@ -19,7 +19,7 @@ def test_pendulum():
     interval_value = duration / (num_nodes - 1)
 
     # Symbolic equations of motion
-    I, m, g, d, t = sym.symbols('I, m, g, d, t')
+    I, m, g, d, t = sym.symbols('Ix, m, g, d, t')
     theta, omega, T = sym.symbols('theta, omega, T', cls=sym.Function)
 
     state_symbols = (theta(t), omega(t))
@@ -818,7 +818,7 @@ class TestConstraintCollocatorInstanceConstraints():
 
     def setup_method(self):
 
-        I, m, g, d, t = sym.symbols('I, m, g, d, t')
+        I, m, g, d, t = sym.symbols('Ix, m, g, d, t')
         theta, omega, T = [f(t) for f in sym.symbols('theta, omega, T',
                                                      cls=sym.Function)]
 
