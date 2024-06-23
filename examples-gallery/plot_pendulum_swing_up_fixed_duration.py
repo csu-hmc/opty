@@ -72,11 +72,11 @@ bounds = {T(t): (-2.0, 2.0)}
 
 # %%
 # Create an optimization problem.
-prob = Problem(obj, obj_grad, eom, state_symbols,
-               num_nodes, interval_value,
+prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
-               bounds=bounds)
+               bounds=bounds,
+               time_symbol=t)
 
 # %%
 # Use a random positive initial guess.
