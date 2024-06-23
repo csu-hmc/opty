@@ -51,7 +51,8 @@ sm.pprint(obj_func)
 obj, obj_grad = create_objective_function(obj_func, state_symbols,
                                           specified_symbols, tuple(),
                                           num_nodes,
-                                          node_time_interval=interval_value)
+                                          node_time_interval=interval_value,
+                                          time_symbol=t)
 
 # %%
 # Specify the symbolic instance constraints, i.e. initial and end conditions,

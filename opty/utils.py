@@ -252,9 +252,10 @@ def parse_free(free, n, q, N, variable_duration=False):
         return free_states, free_specified, free_constants
 
 
-def create_objective_function(
-    objective, state_symbols, input_symbols, unknown_symbols,
-    N, node_time_interval=1.0, integration_method="backward euler"):
+def create_objective_function(objective, state_symbols, input_symbols,
+                              unknown_symbols, N, node_time_interval=1.0,
+                              integration_method="backward euler",
+                              time_symbol=me.dynamicsymbols._t):
     """Creates function to evaluate the objective and objective gradient.
 
     Parameters
@@ -278,6 +279,8 @@ def create_objective_function(
     integration_method : str, optional
         The method used to integrate the system. The default is "backward
         euler".
+    time_symbol : sympy.Symbol
+        If not supplied, ``sympy.physics.mechanics.dynamicsymbols._t`` is used.
 
     """
     def lambdify_function(expr, multiplication_array, take_sum):
@@ -298,7 +301,7 @@ def create_objective_function(
         if isinstance(expr, sm.Integral):
             if in_integral:
                 raise NotImplementedError("Nested integrals are not supported.")
-            if expr.limits != ((me.dynamicsymbols._t,),):
+            if expr.limits != ((time_symbol,),):
                 raise NotImplementedError(
                     "Only indefinite integrals of time are supported.")
             return int_placeholder(parse_expr(expr.function, True))
