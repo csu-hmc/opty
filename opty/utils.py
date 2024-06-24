@@ -665,7 +665,12 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
                 f.write(code)
         cmd = [sys.executable, d['file_prefix'] + '_setup.py', 'build_ext',
                '--inplace']
-        proc = subprocess.run(cmd, capture_output=True, text=True)
+        # NOTE : This may not always work on Windows (seems to be dependent on
+        # how Python is invoked). There is explanation in
+        # https://github.com/python/cpython/issues/105312 but it is not crystal
+        # clear what the solution is.
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              encoding=os.device_encoding(1))
         if show_compile_output:
             print(proc.stdout)
             print(proc.stderr)
