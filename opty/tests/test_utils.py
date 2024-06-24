@@ -225,7 +225,9 @@ def test_parse_free():
 
 def test_ufuncify_matrix():
 
-    a, b, c = sym.symbols('a, b, if')
+    # NOTE: `if` is a reserved C keyword, this should not cause a compile
+    # error.
+    a, b, c, d = sym.symbols('a, b, if, d_{badsym}')
 
     expr_00 = a**2 * sym.cos(b)**c
     expr_01 = sym.tan(b) / sym.sin(a + b) + c**4
@@ -281,6 +283,13 @@ def test_ufuncify_matrix():
 
     testing.assert_allclose(f(result, a_vals, b_vals, c_val),
                             eval_matrix_loop_numpy(a_vals, b_vals, c_val))
+
+    # NOTE : Will not compile due to d_{badsym} being an invalid C variable
+    # name.
+    with pytest.raises(ImportError) as error:
+        utils.ufuncify_matrix((a, b, d), sym_mat.xreplace({c: d}))
+
+    assert error.match("double d_{badsym}")
 
 
 def test_substitute_matrix():
