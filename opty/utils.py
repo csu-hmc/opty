@@ -676,7 +676,10 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         # terminal".
         # locale.getencoding() tries to guess the encoding
         if sys.platform == 'win32':
-            encoding = locale.getencoding()
+            try:  # Python >=  3.11
+                encoding = locale.getencoding()
+            except AttributeError:  # Python < 3.11
+                encoding = locale.getlocale()[1]
         else:
             encoding = None
         try:
