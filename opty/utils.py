@@ -14,6 +14,7 @@ from distutils.sysconfig import customize_compiler
 from collections import Counter
 from timeit import default_timer as timer
 import logging
+import locale
 
 import numpy as np
 import sympy as sm
@@ -669,19 +670,40 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         # how Python is invoked). There is explanation in
         # https://github.com/python/cpython/issues/105312 but it is not crystal
         # clear what the solution is.
-        proc = subprocess.run(cmd, capture_output=True, text=True,
-                              encoding=os.device_encoding(1))
+        # device_encoding() takes: 0: stdin, 1: stdout, 2: stderr
+        # device_encoding() always returns UTF-8 on Unix but will return
+        # different encodings on Windows and only if it is "attached to a
+        # terminal".
+        # locale.getencoding() tries to guess the encoding
+        if sys.platform == 'win32':
+            try:  # Python >=  3.11
+                encoding = locale.getencoding()
+            except AttributeError:  # Python < 3.11
+                encoding = locale.getlocale()[1]
+        else:
+            encoding = None
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True,
+                                  encoding=encoding)
+        # On Windows this can raise a UnicodeDecodeError, but only in the
+        # subprocess.
+        except UnicodeDecodeError:
+            stdout = 'STDOUT not captured, decoding error.'
+            stderr = 'STDERR not captured, decoding error.'
+        else:
+            stdout = proc.stdout
+            stderr = proc.stderr
+
         if show_compile_output:
-            print(proc.stdout)
-            print(proc.stderr)
+            print(stdout)
+            print(stderr)
         try:
             cython_module = importlib.import_module(d['file_prefix'])
         except ImportError as error:
             msg = ('Unable to import the compiled Cython module {}, '
                    'compilation likely failed. STDERR output from '
                    'compilation:\n{}')
-            raise ImportError(msg.format(d['file_prefix'],
-                              proc.stderr)) from error
+            raise ImportError(msg.format(d['file_prefix'], stderr)) from error
     finally:
         module_counter += 1
         sys.path.remove(codedir)
