@@ -36,7 +36,7 @@ import sympy.physics.mechanics as me
 # - :math:`u_1`: crank angular rate (cadence)
 # - :math:`u_2`: pedal angular rate
 # - :math:`u_3`: ankle angular rate
-# - :math:`u_4`: knee anglular rate
+# - :math:`u_4`: knee angular rate
 t = me.dynamicsymbols._t
 q1, q2, q3, q4 = me.dynamicsymbols('q1, q2, q3, q4', real=True)
 u1, u2, u3, u4 = me.dynamicsymbols('u1, u2, u3, u4', real=True)
@@ -59,12 +59,12 @@ u = sm.Matrix([u1, u2, u3, u4])
 # - :math:`m_B`: mass of foot and pedal
 # - :math:`m_C`: mass of lower leg
 # - :math:`m_D`: mass of upper leg
-# - :math:`I_{Axx}`: moment of inertia of crank
-# - :math:`I_{Bxx}`: moment of inertia of foot and pedal
-# - :math:`I_{Cxx}`: moment of inertia of lower leg
-# - :math:`I_{Dxx}`: moment of inertia of upper leg
-# - :math:`J`: rotational moment of inertia of the bicycle wheel
-# - :math:`m`: mass of the bicycle and cyclist
+# - :math:`I_{Azz}`: moment of inertia of crank
+# - :math:`I_{Bzz}`: moment of inertia of foot and pedal
+# - :math:`I_{Czz}`: moment of inertia of lower leg
+# - :math:`I_{Dzz}`: moment of inertia of upper leg
+# - :math:`J`: rotational moment of inertia of a single bicycle wheel
+# - :math:`m`: combined mass of the bicycle and cyclist
 # - :math:`r_w`: wheel radius
 # - :math:`G`: gear ratio between crank and wheel
 # - :math:`C_r`: coefficient of rolling resistance
@@ -90,7 +90,7 @@ J, m, rw, G, Cr, CD, rho, Ar = sm.symbols('J, m, rw, G, Cr, CD, rho, Ar',
 N, A, B, C, D = sm.symbols('N, A, B, C, D', cls=me.ReferenceFrame)
 
 A.orient_axis(N, N.z, q1)  # crank angle
-B.orient_axis(A, A.z, q2)  # pedal/foot angle
+B.orient_axis(A, A.z, q2)  # pedal angle
 C.orient_axis(B, B.z, q3)  # ankle angle
 D.orient_axis(C, C.z, q4)  # knee angle
 
@@ -111,6 +111,10 @@ D.set_ang_vel(C, u4*C.z)
 # - :math:`P_7` : heel
 # - :math:`P_8` : knee muscle lower leg insertion point
 # - :math:`P_9` : ankle muscle lower leg insertion point
+# - :math:`A_o` : mass center of the crank
+# - :math:`B_o` : mass center of the pedal and foot
+# - :math:`C_o` : mass center of the lower leg
+# - :math:`D_o` : mass center of the upper leg
 P1, P2, P3, P4, P5, P6, P7, P8, P9 = sm.symbols(
     'P1, P2, P3, P4, P5, P6, P7, P8, P9', cls=me.Point)
 Ao, Bo, Co, Do = sm.symbols('Ao, Bo, Co, Do', cls=me.Point)
@@ -120,10 +124,13 @@ P2.set_pos(P1, lc*A.x)  # pedal center
 Bo.set_pos(P2, lf/2*B.x)  # foot mass center
 P3.set_pos(P2, lf*B.x)  # ankle
 P7.set_pos(P2, 3*lf/2*B.x)  # heel
+
 Co.set_pos(P3, ll/2*C.x)  # lower leg mass center
 P4.set_pos(P3, ll*C.x)  # knee
+
 Do.set_pos(P4, lu/2*D.x)  # upper leg mass center
 P5.set_pos(P4, lu*D.x)  # hip
+
 P6.set_pos(P1, -ls*sm.cos(lam)*N.x + ls*sm.sin(lam)*N.y)  # seat
 P8.set_pos(P3, ll/6*C.x)
 P9.set_pos(P4, -2*rk*C.x)
@@ -474,7 +481,7 @@ par_map = {
     ankle_bot_mus.F_M_max: 1600.0,
     ankle_bot_mus.l_M_opt: np.nan,
     ankle_bot_mus.l_T_slack: np.nan,
-    ankle_top_mus.F_M_max: 1600.0,
+    ankle_top_mus.F_M_max: 600.0,
     ankle_top_mus.l_M_opt: np.nan,
     ankle_top_mus.l_T_slack: np.nan,
     knee_bot_mus.F_M_max: 1000.0,
