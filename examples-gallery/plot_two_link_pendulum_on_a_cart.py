@@ -1,7 +1,7 @@
 # %%
 """
 =========================
-Upright a double pendulum.
+Upright a double pendulum
 ==========================
 
 A double pendulum is rotably attached to a cart which can move
@@ -40,7 +40,7 @@ from collections import OrderedDict
 import numpy as np
 import sympy as sm
 from opty.direct_collocation import Problem
-
+import time
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import patches
@@ -84,7 +84,7 @@ u_ind = [u1, u2, u3]
 KM = me.KanesMethod(N, q_ind=q_ind, u_ind=u_ind, kd_eqs=kd)
 (fr, frstar) = KM.kanes_equations(BODY, FL)
 EOM = kd.col_join(fr + frstar)
-sm.pprint(EOM)                
+sm.pprint(sm.trigsimp(EOM))                
 
 # %%
 # Define various objects to be use in the optimization problem.
@@ -163,16 +163,15 @@ prob = Problem(obj,
     bounds=bounds)
 
 # Initial guess.
-initial_guess =  np.zeros(prob.num_free)
-initial_guess[-1] = 0.01
-
+WERT = (0., 0., 0., 0.0, 0.0, 0.0, 80.0)
+initial_guess =  np.array([wert  for wert in WERT for _ in range(num_nodes)] + [0.01])
 # allows to change the number of iterations.
 # standard is 3000
 prob.add_option('max_iter', 3000)
 
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
-    
+
 prob.plot_objective_value()
 print('message from optimizer:', info['status_msg'])
 print('Iterations needed',len(prob.obj_value))
@@ -183,6 +182,7 @@ print('\n')
 # %%
 # Plot the accuracy of the solution, and the state trajectories.
 prob.plot_trajectories(solution)
+# %%
 prob.plot_constraint_violations(solution)
 
 # %%
@@ -263,11 +263,12 @@ def animate(i):
     return line1, line2,
 
 anim = animation.FuncAnimation(fig, animate, frames=num_nodes,
-                                   interval=2000*np.max(times) / num_nodes,
+                                   interval=40,
                                    blit=False)
 
-# %% 
+## %%
 # A frame from the animation.
+animate_pendulum(times, P1_x, P1_y, P2_x, P2_y)
 
 # sphinx_gallery_thumbnail_number = 5
 animate(150)
