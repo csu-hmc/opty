@@ -1,4 +1,6 @@
+# %%
 """
+=========================
 Upright a double pendulum.
 ==========================
 
@@ -11,26 +13,26 @@ Gravity points in the negative Y direction.
 
 **Constants**
 
-m1:     mass of the cart [kg]
-m2:     mass of the first pendulum [kg]
-m3:     mass of the second pendulum [kg]
-lx:     length of the first pendulum rods [m]
-iZZ1:   moment of inertia of the first pendulum about its end point [kg*m^2]
-iZZ2:   moment of inertia of the second pendulum about its end point [kg*m^2]
-g:      acceleration due to gravity [m/s^2]
+- m1:     mass of the cart [kg]
+- m2:     mass of the first pendulum [kg]
+- m3:     mass of the second pendulum [kg]
+- lx:     length of the first pendulum rods [m]
+- iZZ1:   moment of inertia of the first pendulum about its end point [kg*m^2]
+- iZZ2:   moment of inertia of the second pendulum about its end point [kg*m^2]
+- g:      acceleration due to gravity [m/s^2]
 
 **States**
 
-q1:     position of the cart along the X axis [m]
-q2:     angle of the first pendulum with respect to the vertical [rad]
-q3:     angle of the second pendulum with respect to the first [rad]
-u1:     speed of the cart along the X axis [m/s]
-u2:     angular speed of the first pendulum [rad/s]
-u3:     angular speed of the second pendulum [rad/s]
+- q1:     position of the cart along the X axis [m]
+- q2:     angle of the first pendulum with respect to the vertical [rad]
+- q3:     angle of the second pendulum with respect to the first [rad]
+- u1:     speed of the cart along the X axis [m/s]
+- u2:     angular speed of the first pendulum [rad/s]
+- u3:     angular speed of the second pendulum [rad/s]
 
 **Specifieds**
 
-f:      force applied to the cart [N]
+- f:      force applied to the cart [N]
 
 """
 import sympy.physics.mechanics as me
@@ -40,15 +42,13 @@ import sympy as sm
 from opty.direct_collocation import Problem
 
 import matplotlib.pyplot as plt
-import matplotlib
 import matplotlib.animation as animation
-matplotlib.rcParams['animation.embed_limit'] = 2**128
 from matplotlib import patches
 
 # %%
 # Generate the nonholonomic equations of motion of the system.
-N, A1, A2      = sm.symbols('N A1, A2', cls = me.ReferenceFrame)
-t              = me.dynamicsymbols._t
+N, A1, A2 = sm.symbols('N A1, A2', cls = me.ReferenceFrame)
+t = me.dynamicsymbols._t
 O, P1, P2, P3  = sm.symbols('O P1 P2 P3', cls = me.Point)                               
 O.set_vel(N, 0)                                                                        
 q1, q2, q3, u1, u2, u3, F = me.dynamicsymbols('q1 q2 q3 u1 u2 u3 F')                   
@@ -88,7 +88,7 @@ sm.pprint(EOM)
 
 # %%
 # Define various objects to be use in the optimization problem.
-h = sm.symbols('h')          # the variable time element
+h = sm.symbols('h')         
 
 state_symbols = tuple((*q_ind, *u_ind))
 constant_symbols = (lx, m1, m2, m3, g, iZZ1, iZZ2)
@@ -100,9 +100,10 @@ num_nodes = 250
 duration = (num_nodes - 1) * h
 interval_value = h
 
+# %%
 # Specify the known system parameters.
 par_map = OrderedDict()
-par_map[lx]   = 2.0
+par_map[lx]  = 2.0
 par_map[m1]  = 1.0
 par_map[m2]  = 1.0
 par_map[m3]  = 1.0
@@ -121,24 +122,22 @@ def obj_grad(free):
 
 # %%
 # set the initial and final states to form the instance constraints.
-# initially, the pendulum should be hanging straight down, without mvoing
-# and finally, the pendulum should be upright, without moving.
 initial_state_constraints = {
-                            q1: 0.,  
-                            q2: -np.pi/2., 
-                            q3: -np.pi/2., 
-                            u1: 0.,
-                            u2: 0., 
-                            u3: 0.
-                            }
+    q1: 0.,  
+    q2: -np.pi/2., 
+    q3: -np.pi/2., 
+    u1: 0.,
+    u2: 0., 
+    u3: 0.
+    }
 
 final_state_constraints  = {
-                           q2: target_angle, 
-                           q3: target_angle, 
-                           u1: 0., 
-                           u2: 0., 
-                           u3: 0.
-                           }
+    q2: target_angle, 
+    q3: target_angle, 
+    u1: 0., 
+    u2: 0., 
+    u3: 0.
+    }
 
 instance_constraints = (
 ) + tuple(
@@ -146,21 +145,22 @@ instance_constraints = (
 ) + tuple(
     xi.subs({t: duration}) - xi_val for xi, xi_val in final_state_constraints.items()
 )
-# bounding h > 0 herlps avoid 'solutions' with h < 0.
+# %%
+# bounding h > 0 helps avoid 'solutions' with h < 0.
 bounds = {F: (-150., 150.), q1: (-5, 5), h: (1.e-5, 1.0)} 
 
 # %%
 # Create an optimization problem and solve it.
 prob = Problem(obj, 
-               obj_grad, 
-               EOM, 
-               state_symbols, 
-               num_nodes, 
-               interval_value,
-               known_parameter_map=par_map,
-               instance_constraints=instance_constraints,
-               time_symbol=t,
-               bounds=bounds)
+    obj_grad, 
+    EOM, 
+    state_symbols, 
+    num_nodes, 
+    interval_value,
+    known_parameter_map=par_map,
+    instance_constraints=instance_constraints,
+    time_symbol=t,
+    bounds=bounds)
 
 # Initial guess.
 initial_guess =  np.zeros(prob.num_free)
@@ -168,63 +168,22 @@ initial_guess[-1] = 0.01
 
 # allows to change the number of iterations.
 # standard is 3000
-prob.add_option('max_iter', 6000)
+prob.add_option('max_iter', 3000)
 
 # Find the optimal solution.
-# iterating and using the solution of iteration i
-# as initial guess for iteration i+1 sometimes helps.
-for i in range(2):
-    solution, info = prob.solve(initial_guess)
-    initial_guess = solution
+solution, info = prob.solve(initial_guess)
     
-    print(f'{i + 1}st iteration: value of objective function is {obj(solution):.2f}')
-    prob.plot_objective_value()
-    print('message from optimizer:', info['status_msg'])
-    print('Iterations needed',len(prob.obj_value))
-    print(f"objective value {info['obj_val']:.3e}")
-    print('h value:', solution[-1])
-    print('\n')
+prob.plot_objective_value()
+print('message from optimizer:', info['status_msg'])
+print('Iterations needed',len(prob.obj_value))
+print(f"objective value {info['obj_val']:.3e}")
+print('h value:', solution[-1])
+print('\n')
 
 # %%
 # Plot the accuracy of the solution, and the state trajectories.
-fehler = info['g']
-anzahl = len(state_symbols)
-fig, ax = plt.subplots(2*anzahl + 1, 1, figsize=(10, 5*(anzahl+1)), sharex=True)
-duration = (num_nodes - 1) * solution[-1]
-times = np.linspace(0.0, duration, num=num_nodes)
-
-for i, j in enumerate(state_symbols):
-    if j in final_state_constraints.keys():
-        farbe1 = 'red'
-    else:
-        farbe1 = 'black'
-
-    if i < len(state_symbols):
-        farbe = 'b'
-    else:
-        farbe = 'r'
-    ax[i].plot(times, fehler[i * num_nodes:(i + 1) * num_nodes], color = farbe, lw=0.5)
-    ax[i].grid()
-    ax[i].set_ylabel(f'${str(j)}$', color=farbe1)
-ax[-1].set_xlabel('time')
-ax[0]. set_title(f'Errors in the generalized coordinates and speeds \n coordinates/speeds in the final_state_constraints are red', color = 'b');
-print(f'error in the final state constraint q2:  {fehler[-5]:.3e}')
-print(f'error in the final state constraint q3:  {fehler[-4]:.3e}')
-print(f'error in the final state constraint u1:  {fehler[-3]:.3e}')
-print(f'error in the final state constraint u2:  {fehler[-2]:.3e}')
-print(f'error in the final state constraint u3:  {fehler[-1]:.3e}')
-
-#fig, ax = plt.subplots(7, 1, figsize=(10, 15), sharex=True)
-#times = np.linspace(0.0, duration, num=num_nodes)
-
-for i, j in enumerate(state_symbols + specified_symbols):
-    k = anzahl + i
-    ax[k].plot(times, solution[i * num_nodes:(i + 1) * num_nodes])
-    ax[k].grid()
-    ax[k].set_ylabel(str(j))
-ax[-1].set_xlabel('time')
-ax[anzahl]. set_title('Generalized coordinates and speeds')
-ax[-1]. set_title('Control force');
+prob.plot_trajectories(solution)
+prob.plot_constraint_violations(solution)
 
 # %%
 # animate the solution.
@@ -280,10 +239,13 @@ def animate_pendulum(time, P1_x, P1_y, P2_x, P2_y):
     line1, = ax.plot([], [], 'o-', lw=0.5, color='blue')    
     line2, = ax.plot([], [], 'o-', lw=0.5, color='green')                    
     
-    recht = patches.Rectangle((P1_x[0] - width/2, P1_y[0] - height/2), width=width, height=height, fill=True, color='red', ec='black')
+    recht = patches.Rectangle((P1_x[0] - width/2, P1_y[0] - height/2), 
+            width=width, height=height, fill=True, color='red', ec='black')
     ax.add_patch(recht)
     return fig, ax, line1, line2, recht
 
+duration = (num_nodes - 1) * solution[-1]
+times = np.linspace(0.0, duration, num=num_nodes)
 fig, ax, line1, line2, recht = animate_pendulum(times, P1_x, P1_y, P2_x, P2_y)
 
 def animate(i):
@@ -303,9 +265,11 @@ def animate(i):
 anim = animation.FuncAnimation(fig, animate, frames=num_nodes,
                                    interval=2000*np.max(times) / num_nodes,
                                    blit=False)
-# %%
+
+# %% 
 # A frame from the animation.
 
-# sphinx_gallery_thumbnail_number = 7
+# sphinx_gallery_thumbnail_number = 5
 animate(150)
+
 plt.show()
