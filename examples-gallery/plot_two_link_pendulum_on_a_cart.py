@@ -1,6 +1,5 @@
 # %%
 """
-=========================
 Upright a double pendulum
 ==========================
 
@@ -95,7 +94,7 @@ constant_symbols = (lx, m1, m2, m3, g, iZZ1, iZZ2)
 specified_symbols = (F,)
 
 target_angle = np.pi /2.0                     
-num_nodes = 250     
+num_nodes = 400     
 
 duration = (num_nodes - 1) * h
 interval_value = h
@@ -163,7 +162,7 @@ prob = Problem(obj,
     bounds=bounds)
 
 # Initial guess.
-WERT = (0., 0., 0., 0.0, 0.0, 0.0, 80.0)
+WERT = (0., 0., 0., 0.0, 0.0, 0.0, 0.0)
 initial_guess =  np.array([wert  for wert in WERT for _ in range(num_nodes)] + [0.01])
 # allows to change the number of iterations.
 # standard is 3000
@@ -263,14 +262,14 @@ def animate(i):
     return line1, line2,
 
 anim = animation.FuncAnimation(fig, animate, frames=num_nodes,
-                                   interval=40,
+                                   interval=solution[-1]*1000.0,
                                    blit=False)
 
 ## %%
 # A frame from the animation.
-animate_pendulum(times, P1_x, P1_y, P2_x, P2_y)
+fig, ax, line1, line2, recht = animate_pendulum(times, P1_x, P1_y, P2_x, P2_y)
 
 # sphinx_gallery_thumbnail_number = 5
-animate(150)
+animate(100)
 
 plt.show()
