@@ -194,7 +194,7 @@ gravD = me.Force(Do, -mD*g*N.y)
 # .. math::
 #
 #    (2J + m r_w^2)\dot{\omega} =
-#    -C_r m g r_w - \sgn \omega \frac{1}{2} \rho C_D A_r (\omega r_w)^2 +
+#    -C_r m g r_w - \sgn(\omega) \frac{1}{2} \rho C_D A_r (\omega r_w)^2 +
 #    T_w
 #
 # The angular speed of the rear wheel is related to the crank cadence by the
@@ -203,12 +203,13 @@ gravD = me.Force(Do, -mD*g*N.y)
 # .. math::
 #
 #    \omega = G u_1 \\
+#    \dot{\omega} = G \dot{u}_1 \\
 #    G T_w = T_c
 #
 # .. math::
 #
 #    T_c =
-#    -(2J + m r_w^2)\dot{u}_1
+#    -(2J + m r_w^2)G\dot{u}_1
 #    - C_r m g r_w G
 #    - \sgn u_1 \frac{1}{2} \rho C_D A_r G (u_1 r_w)^2
 #
@@ -229,7 +230,8 @@ resistance = me.Torque(
     # resistance should be a posistive torque to resist the negative speed
     # NOTE : using sm.sign() will break the constraint Jacobian due taking the
     # derivative of sm.sign().
-    (-(2*J + m*rw**2)*G**2*u1.diff() + Cr*m*g*rw*G +
+    (-(2*J + m*rw**2)*G**2*u1.diff() +
+     Cr*m*g*rw*G +
      rho*CD*Ar*G**3*rw**3*u1**2/2)*N.z,
 )
 
