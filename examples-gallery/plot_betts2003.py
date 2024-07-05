@@ -119,6 +119,7 @@ axes_y1[2].plot(prob.con(solution)[:num_nodes - 1])
 
 plt.tight_layout()
 
+# %%
 fig_y2, axes_y2 = plt.subplots(3, 1)
 
 axes_y2[0].plot(time, y2_m, '.k',
@@ -134,5 +135,11 @@ axes_y2[2].set_title('Solution Constraint Violations')
 axes_y2[2].plot(prob.con(solution)[num_nodes - 1:])
 
 plt.tight_layout()
+
+# %%
+prob.plot_constraint_violations(solution)
+
+# %%
+prob.plot_trajectories(solution)
 
 plt.show()
