@@ -23,21 +23,21 @@ interval_value = duration/(num_nodes - 1)
 
 # %%
 # Specify the symbolic equations of motion.
-I, m, g, d, t = sm.symbols('I, m, g, d, t')
+Izz, m, g, d, t = sm.symbols('Izz, m, g, d, t')
 theta, omega, T = sm.symbols('theta, omega, T', cls=sm.Function)
 
 state_symbols = (theta(t), omega(t))
-constant_symbols = (I, m, g, d)
+constant_symbols = (Izz, m, g, d)
 specified_symbols = (T(t),)
 
 eom = sm.Matrix([theta(t).diff() - omega(t),
-                 I*omega(t).diff() + m*g*d*sm.sin(theta(t)) - T(t)])
+                 Izz*omega(t).diff() + m*g*d*sm.sin(theta(t)) - T(t)])
 sm.pprint(eom)
 
 # %%
 # Specify the known system parameters.
 par_map = {
-    I: 1.0,
+    Izz: 1.0,
     m: 1.0,
     g: 9.81,
     d: 1.0,
@@ -51,7 +51,8 @@ sm.pprint(obj_func)
 obj, obj_grad = create_objective_function(obj_func, state_symbols,
                                           specified_symbols, tuple(),
                                           num_nodes,
-                                          node_time_interval=interval_value)
+                                          node_time_interval=interval_value,
+                                          time_symbol=t)
 
 # %%
 # Specify the symbolic instance constraints, i.e. initial and end conditions,
@@ -71,11 +72,11 @@ bounds = {T(t): (-2.0, 2.0)}
 
 # %%
 # Create an optimization problem.
-prob = Problem(obj, obj_grad, eom, state_symbols,
-               num_nodes, interval_value,
+prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
-               bounds=bounds)
+               bounds=bounds,
+               time_symbol=t)
 
 # %%
 # Use a random positive initial guess.
