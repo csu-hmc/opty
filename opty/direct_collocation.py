@@ -391,7 +391,10 @@ class Problem(cyipopt.Problem):
                     self.collocator.num_input_trajectories)
         traj_syms = (self.collocator.state_symbols +
                      self.collocator.input_trajectories)
-        trajectories = np.vstack((state_traj, input_traj))
+        if input_traj is None:
+            trajectories = state_traj
+        else:
+            trajectories = np.vstack((state_traj, input_traj))
 
         if axes is None:
             fig, axes = plt.subplots(num_axes, 1, sharex=True,
