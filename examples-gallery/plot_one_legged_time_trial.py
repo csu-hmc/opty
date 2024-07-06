@@ -6,9 +6,8 @@ Single human leg with four driving lumped muscles. The crank inertia and
 resistance mimic the torque felt if accelerating the whole bicycle with rider
 on flat ground.
 
-The goal will be travel a specific distance in the shortest amount of time
-given that the leg muscles have to coordinate and can only be excited from 0 to
-1.
+The objective is to travel a specific distance in the shortest amount of time
+given that the leg muscles have to coordinate.
 
 Second goal will then be to solve for crank length and seat height that gives
 optimal performance.
@@ -26,7 +25,7 @@ import sympy.physics.mechanics as me
 
 # %%
 # Coordinates
-# ===========
+# -----------
 #
 # - :math:`q_1`: crank angle
 # - :math:`q_2`: pedal angle
@@ -44,7 +43,7 @@ u = sm.Matrix([u1, u2, u3, u4])
 
 # %%
 # Constants
-# =========
+# ---------
 #
 # - :math:`l_s`: seat tube length
 # - :math:`l_c`: crank length
@@ -54,6 +53,7 @@ u = sm.Matrix([u1, u2, u3, u4])
 # - :math:`\lambda`: seat tube angle
 # - :math:`g`: acceleration due to gravity
 # - :math:`r_k`: knee wrapping radius
+# - :math:`c`: torsional viscous damping coefficient
 # - :math:`m_A`: mass of crank
 # - :math:`m_B`: mass of foot and pedal
 # - :math:`m_C`: mass of lower leg
@@ -71,7 +71,7 @@ u = sm.Matrix([u1, u2, u3, u4])
 # - :math:`\rho`: density of air
 # - :math:`A_r`: frontal area of bicycle and cyclist
 ls, lc, lf, ll, lu = sm.symbols('ls, lc, lf, ll, lu', real=True, positive=True)
-lam, g, rk = sm.symbols('lam, g, rk', real=True, nonnegative=True)
+lam, g, rk, c = sm.symbols('lam, g, rk, c', real=True, nonnegative=True)
 mA, mB, mC, mD = sm.symbols('mA, mB, mC, mD', nonnegative=True)
 IAzz, IBzz, ICzz, IDzz = sm.symbols('IAzz, IBzz, ICzz, IDzz', nonnegative=True)
 J, m, rw, G, Cr, CD, rho, Ar = sm.symbols('J, m, rw, G, Cr, CD, rho, Ar',
@@ -79,7 +79,7 @@ J, m, rw, G, Cr, CD, rho, Ar = sm.symbols('J, m, rw, G, Cr, CD, rho, Ar',
 
 # %%
 # Reference Frames
-# ================
+# ----------------
 #
 # - :math:`N`: inertial reference frame for leg dynamics
 # - :math:`A`: crank
@@ -100,7 +100,8 @@ D.set_ang_vel(C, u4*C.z)
 
 # %%
 # Point Kinematics
-# ================
+# ----------------
+#
 # - :math:`P_1` : crank center
 # - :math:`P_2` : pedal center
 # - :math:`P_3` : ankle
@@ -152,7 +153,7 @@ kindiff = sm.Matrix([ui - qi.diff() for ui, qi in zip(u, q)])
 
 # %%
 # Holonomic Constraints
-# =====================
+# ---------------------
 #
 # The leg forms a kinematic loop and two holonomic constraints arise from this
 # loop.
@@ -163,6 +164,8 @@ qd_repl = {q1.diff(): u1, q2.diff(): u2, q3.diff(): u3, q4.diff(): u4}
 mocon = me.msubs(holonomic.diff(t), qd_repl)
 
 # %%
+# Inertia and Rigid Bodies
+# ------------------------
 IA = me.Inertia.from_inertia_scalars(Ao, A, 0, 0, IAzz)
 IB = me.Inertia.from_inertia_scalars(Bo, B, 0, 0, IBzz)
 IC = me.Inertia.from_inertia_scalars(Co, C, 0, 0, ICzz)
@@ -177,14 +180,16 @@ upper_leg = me.RigidBody('upper leg', masscenter=Do, frame=D, mass=mD,
 
 # %%
 # Forces
-# ======
+# ------
+#
+# Gravity acts on each leg body segment.
 gravB = me.Force(Bo, -mB*g*N.y)
 gravC = me.Force(Co, -mC*g*N.y)
 gravD = me.Force(Do, -mD*g*N.y)
 
 # %%
 # Crank Resistance
-# ----------------
+# ^^^^^^^^^^^^^^^^
 #
 # We model the resistance torque at the crank to be that which you would feel
 # when accelerating the bicycle and cyclist along flat ground. The basic
@@ -196,6 +201,8 @@ gravD = me.Force(Do, -mD*g*N.y)
 #    -C_r m g r_w - \sgn(\omega) \frac{1}{2} \rho C_D A_r (\omega r_w)^2 +
 #    T_w
 #
+# where :math:`T_w` is the rear wheel driving torque.
+#
 # The angular speed of the rear wheel is related to the crank cadence by the
 # gear ratio :math:`G`:
 #
@@ -205,23 +212,26 @@ gravD = me.Force(Do, -mD*g*N.y)
 #    \dot{\omega} = G \dot{u}_1 \\
 #    G T_w = T_c
 #
-# .. math::
-#
-#    T_c =
-#    -(2J + m r_w^2)G\dot{u}_1
-#    - C_r m g r_w G
-#    - \sgn u_1 \frac{1}{2} \rho C_D A_r G (u_1 r_w)^2
-#
-# :math:`u_1 < 0` give forward motion in the pedaling sign convention and we
-# will restrict :math:`u_1 < 0` below, so the torque felt at the crank is:
+# The torque applied to the crank to drive the vehicle is then:
 #
 # .. math::
 #
 #    T_c =
-#    - (2J + m r_w^2)\dot{u}_1
+#    (2J + m r_w^2)G^2\dot{u}_1
+#    + C_r m g r_w G
+#    + \sgn(u_1) \frac{1}{2} \rho C_D A_r G^3 (u_1 r_w)^2
+#
+# The :math:`\sgn` function that manages the sign of the drag force has a
+# discontinuity and is not differentiable. Since we only want to solve this
+# optimal control problem for forward motion we can make the assumption that
+# :math:`u_1 < 0`. The torque felt at the crank is then:
+#
+# .. math::
+#
+#    -T_c =
+#    -(2J + m r_w^2)G^2\dot{u}_1
 #    - C_r m g r_w G
-#    + \frac{1}{2} \rho C_D A_r G (u_1 r_w)^2
-# TODO : Fix equations written above, they are not correct.
+#    + \frac{1}{2} \rho C_D A_r G^3 (u_1 r_w)^2
 
 resistance = me.Torque(
     crank,
@@ -229,27 +239,26 @@ resistance = me.Torque(
     # resistance should be a posistive torque to resist the negative speed
     # NOTE : using sm.sign() will break the constraint Jacobian due taking the
     # derivative of sm.sign().
-    (-(2*J + m*rw**2)*G**2*u1.diff() +
+    (-(2*J + m*rw**2)*G**2*u1.diff() -
      Cr*m*g*rw*G +
      rho*CD*Ar*G**3*rw**3*u1**2/2)*N.z,
 )
 
 # %%
 # Muscles
-# -------
+# ^^^^^^^
 #
 # We lump all the muscles that contribute to joint torques at the knee and
 # ankle into four simplified muscles. The quadriceps wrap over the knee. The
-# other muscles act on linear pathways.
+# other three muscle groups act on linear pathways.
 
 
 class ExtensorPathway(me.PathwayBase):
     def __init__(self, origin, insertion, axis_point, axis, parent_axis,
                  child_axis, radius, coordinate):
-        """A custom pathway that wraps a circular arc around a pin joint.
-        This is intended to be used for extensor muscles. For example, a
-        triceps wrapping around the elbow joint to extend the upper arm at
-        the elbow.
+        """A custom pathway that wraps a circular arc around a pin joint.  This
+        is intended to be used for extensor muscles. For example, a triceps
+        wrapping around the elbow joint to extend the upper arm at the elbow.
 
         Parameters
         ==========
@@ -367,15 +376,13 @@ ankle_bot_act = bm.FirstOrderActivationDeGroote2016.with_defaults('ankle_bot')
 ankle_bot_mus = bm.MusculotendonDeGroote2016.with_defaults('ankle_bot',
                                                            ankle_bot_pathway,
                                                            ankle_bot_act)
-ankle_damping_B = me.Torque(B, 20.0*u3*B.z)
-ankle_damping_C = me.Torque(C, -20.0*u3*B.z)
-loads = (
-    knee_top_mus.to_loads() +
-    knee_bot_mus.to_loads() +
-    ankle_top_mus.to_loads() +
-    ankle_bot_mus.to_loads() +
-    [ankle_damping_B, ankle_damping_C, resistance, gravB, gravC, gravD]
-)
+# %%
+# Joint Viscous Damping
+# ^^^^^^^^^^^^^^^^^^^^^
+# The high stiffness in the ankle joint can be tamed some by adding some
+# viscous damping in the ankle joint.
+ankle_damping_B = me.Torque(B, c*u3*B.z)
+ankle_damping_C = me.Torque(C, -c*u3*B.z)
 
 # %%
 # Form the Equations of Motion
@@ -392,7 +399,17 @@ kane = me.KanesMethod(
     u_dependent=(u3, u4),
     constraint_solver='CRAMER',
 )
+
 bodies = (crank, foot, lower_leg, upper_leg)
+
+loads = (
+    knee_top_mus.to_loads() +
+    knee_bot_mus.to_loads() +
+    ankle_top_mus.to_loads() +
+    ankle_bot_mus.to_loads() +
+    [ankle_damping_B, ankle_damping_C, resistance, gravB, gravC, gravD]
+)
+
 Fr, Frs = kane.kanes_equations(bodies, loads)
 
 muscle_diff_eq = sm.Matrix([
@@ -401,6 +418,25 @@ muscle_diff_eq = sm.Matrix([
     ankle_top_mus.a.diff() - ankle_top_mus.rhs()[0, 0],
     ankle_bot_mus.a.diff() - ankle_bot_mus.rhs()[0, 0],
 ])
+
+# %%
+#
+# The full equations of motion in implicit form are made up of the 4
+# kinematical differential equations, :math:`\mathbf{f}_k`, the 2 dynamical
+# differential equations, :math:`\mathbf{f}_d`, the 4 musculo-tendon
+# differential equations, :math:`\mathbf{f}_a`, and the 2 holonomic constraint
+# equations, :math:`{f}_h`.
+#
+# .. math::
+#
+#    \begin{bmatrix}
+#      \mathbf{f}_k \\
+#      \mathbf{f}_d \\
+#      \mathbf{f}_a \\
+#      \mathbf{f}_h
+#    \end{bmatrix}
+#    =
+#    0
 
 eom = kindiff.col_join(Fr + Frs).col_join(muscle_diff_eq).col_join(holonomic)
 
@@ -479,6 +515,7 @@ par_map = {
     rho: 1.204,  # kg/m^3, air density
     rk: 0.04,  # m, knee radius
     rw: 0.3,  # m, wheel radius
+    c: 30.0,  # joint viscous damping [Nms]
     ankle_bot_mus.F_M_max: 1600.0,
     ankle_bot_mus.l_M_opt: np.nan,
     ankle_bot_mus.l_T_slack: np.nan,
@@ -502,7 +539,7 @@ p_vals = np.array(list(par_map.values()))
 # lower leg then calculate the muscle pathway lengths in this configuration.
 
 q1_ext = -par_map[lam]  # aligned with seat post
-q2_ext = 3*np.pi/2  # foot perpendicular to crank
+q2_ext = 3.0*np.pi/2.0  # foot perpendicular to crank
 eval_holonomic = sm.lambdify((q, p), holonomic)
 q3_ext, q4_ext = fsolve(lambda x: eval_holonomic([q1_ext, q2_ext, x[0], x[1]],
                                                  p_vals).squeeze(),
@@ -531,8 +568,8 @@ p_vals = np.array(list(par_map.values()))
 # ====================
 #
 # The cyclist should start with no motion (stationary) and in an initial
-# configuration with the crank forward and horizontal (q1=0 deg) and the toe
-# forward and foot parallel to the crank (q2=180 deg).
+# configuration with the crank forward and horizontal (:math:`q_1=0` deg) and
+# the toe forward and foot parallel to the crank (:math:`q_2=180` deg).
 q1_0 = 0.0
 q2_0 = np.pi
 eval_holonomic = sm.lambdify((q, p), holonomic)
@@ -543,9 +580,10 @@ q_0 = np.array([q1_0, q2_0, q3_0, q4_0])
 
 # Crank revolutions are proportional to distance traveled so the race distance
 # is defined by number of crank revolutions.
-crank_revs = 4
+distance = 10.0  # meters
+crank_revs = distance/par_map[rw]/par_map[G]/2.0/np.pi  # revolutions
 samples_per_rev = 120
-num_nodes = crank_revs*samples_per_rev + 1
+num_nodes = int(crank_revs*samples_per_rev) + 1
 
 h = sm.symbols('h', real=True)
 
@@ -555,10 +593,12 @@ instance_constraints = (
     q2.replace(t, 0*h) - q2_0,
     q3.replace(t, 0*h) - q3_0,
     q4.replace(t, 0*h) - q4_0,
-    u1.replace(t, 0*h),  # start stationary
-    u2.replace(t, 0*h),  # start stationary
-    u3.replace(t, 0*h),  # start stationary
-    u4.replace(t, 0*h),  # start stationary
+    # start stationary
+    u1.replace(t, 0*h),
+    u2.replace(t, 0*h),
+    u3.replace(t, 0*h),
+    u4.replace(t, 0*h),
+    # start with no muscle activation
     knee_top_mus.a.replace(t, 0*h),
     knee_bot_mus.a.replace(t, 0*h),
     ankle_top_mus.a.replace(t, 0*h),
@@ -623,6 +663,8 @@ initial_guess[-1] = 0.01
 problem.plot_trajectories(initial_guess)
 
 # %%
+# Solve the Optimal Control Problem
+# =================================
 solution, info = problem.solve(initial_guess)
 xs, us, ps, h_val= parse_free(solution, len(state_vars), 4, num_nodes,
                               variable_duration=True)
@@ -630,6 +672,8 @@ print('Optimal value h:', solution[-1])
 print(info['status_msg'])
 
 # %%
+# Plot the Solution
+# =================
 problem.plot_objective_value()
 
 # %%
@@ -660,7 +704,7 @@ def plot_sim_compact():
 
     time = np.linspace(0, num_nodes*h_val, num=num_nodes)
 
-    fig, axes = plt.subplots(5, 1, sharex=True, layout='constrained')
+    fig, axes = plt.subplots(6, 1, sharex=True, layout='constrained')
 
     axes[0].set_title('Finish time = {:1.3f}'.format(time[-1]))
     axes[0].plot(time, akb_force,
@@ -678,13 +722,16 @@ def plot_sim_compact():
     axes[2].set_ylabel('Cadence\n[RPM]')
     axes[2].legend(['Cadence', 'Pedal Cadence'])
 
-    axes[3].plot(time, us[0:2, :].T)
-    axes[3].legend(problem.collocator.unknown_input_trajectories[0:2])
-    axes[3].set_ylabel('Excitation')
+    axes[3].plot(time, -xs[4, :]*par_map[G]*par_map[rw]*3.6)
+    axes[3].set_ylabel('Speed [km/h]')
 
-    axes[4].plot(time, us[2:4, :].T)
-    axes[4].legend(problem.collocator.unknown_input_trajectories[2:4])
+    axes[4].plot(time, us[0:2, :].T)
+    axes[4].legend(problem.collocator.unknown_input_trajectories[0:2])
     axes[4].set_ylabel('Excitation')
+
+    axes[5].plot(time, us[2:4, :].T)
+    axes[5].legend(problem.collocator.unknown_input_trajectories[2:4])
+    axes[5].set_ylabel('Excitation')
 
     axes[-1].set_xlabel('Time [s]')
 
