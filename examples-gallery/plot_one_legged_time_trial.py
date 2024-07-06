@@ -733,8 +733,8 @@ initial_guess[4*num_nodes:5*num_nodes] = u1_guess
 initial_guess[5*num_nodes:6*num_nodes] = u2_guess
 initial_guess[-1] = 0.01
 
-fig, axes = plt.subplots(15, 1, sharex=True,
-                         figsize=(6.4, 0.8*15),
+fig, axes = plt.subplots(16, 1, sharex=True,
+                         figsize=(6.4, 0.8*16),
                          layout='compressed')
 problem.plot_trajectories(initial_guess, axes=axes)
 
@@ -759,8 +759,8 @@ fig, axes = plt.subplots(2, figsize=(12.8, 9.6),
 problem.plot_constraint_violations(solution, axes=axes)
 
 # %%
-fig, axes = plt.subplots(15, 1, sharex=True,
-                         figsize=(6.4, 0.8*15),
+fig, axes = plt.subplots(16, 1, sharex=True,
+                         figsize=(6.4, 0.8*16),
                          layout='compressed')
 problem.plot_trajectories(solution, axes=axes)
 
