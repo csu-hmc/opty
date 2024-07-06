@@ -698,7 +698,6 @@ bounds = {
     knee_top_mus.e: (0.0, 1.0),
     h: (0.0, 0.1),
 }
-sm.pprint(bounds)
 
 # %%
 # Instantiate the Optimal Control Problem
@@ -746,7 +745,7 @@ solution, info = problem.solve(initial_guess)
 xs, us, ps, h_val= parse_free(solution, len(state_vars),
                               4, num_nodes,
                               variable_duration=True)
-print('Optimal value h:', solution[-1])
+print('Optimal value h:', h_val)
 print(info['status_msg'])
 
 # %%
@@ -829,7 +828,7 @@ _ = plot_sim_compact()
 # Animation
 # ---------
 ax, fig, bike_lines, leg_lines, mus_lines, knee_circle, title_text = \
-    plot_configuration(q_0, p_vals)
+    plot_configuration(xs[:4, 0], p_vals)
 
 
 def animate(i):
