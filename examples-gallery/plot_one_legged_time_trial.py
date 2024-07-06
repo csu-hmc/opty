@@ -2,6 +2,8 @@
 One-Legged Cycling Time Trial
 =============================
 
+.. image:: one-legged-time-trial.svg
+
 Single human leg with four driving lumped muscles. The crank inertia and
 resistance mimic the torque felt if accelerating the whole bicycle with rider
 on flat ground.
@@ -11,6 +13,10 @@ given that the leg muscles have to coordinate.
 
 Second goal will then be to solve for crank length and seat height that gives
 optimal performance.
+
+.. warning::
+
+   This example requires SymPy >= 1.13.
 
 """
 from opty.direct_collocation import Problem
@@ -40,6 +46,8 @@ q1, q2, q3, q4 = me.dynamicsymbols('q1, q2, q3, q4', real=True)
 u1, u2, u3, u4 = me.dynamicsymbols('u1, u2, u3, u4', real=True)
 q = sm.Matrix([q1, q2, q3, q4])
 u = sm.Matrix([u1, u2, u3, u4])
+qd_repl = {q1.diff(t): u1, q2.diff(t): u2,
+           q3.diff(t): u3, q4.diff(t): u4}
 
 # %%
 # Constants
@@ -70,10 +78,14 @@ u = sm.Matrix([u1, u2, u3, u4])
 # - :math:`C_D`: coefficient of drag
 # - :math:`\rho`: density of air
 # - :math:`A_r`: frontal area of bicycle and cyclist
-ls, lc, lf, ll, lu = sm.symbols('ls, lc, lf, ll, lu', real=True, positive=True)
-lam, g, rk, c = sm.symbols('lam, g, rk, c', real=True, nonnegative=True)
-mA, mB, mC, mD = sm.symbols('mA, mB, mC, mD', nonnegative=True)
-IAzz, IBzz, ICzz, IDzz = sm.symbols('IAzz, IBzz, ICzz, IDzz', nonnegative=True)
+ls, lc, lf, ll, lu = sm.symbols('ls, lc, lf, ll, lu',
+                                real=True, positive=True)
+lam, g, rk, c = sm.symbols('lam, g, rk, c',
+                           real=True, nonnegative=True)
+mA, mB, mC, mD = sm.symbols('mA, mB, mC, mD',
+                            nonnegative=True)
+IAzz, IBzz, ICzz, IDzz = sm.symbols('IAzz, IBzz, ICzz, IDzz',
+                                    nonnegative=True)
 J, m, rw, G, Cr, CD, rho, Ar = sm.symbols('J, m, rw, G, Cr, CD, rho, Ar',
                                           nonnegative=True)
 
@@ -149,7 +161,7 @@ P4.v2pt_theory(P3, N, C)
 Do.v2pt_theory(P4, N, D)
 P5.v2pt_theory(P4, N, D)
 
-kindiff = sm.Matrix([ui - qi.diff() for ui, qi in zip(u, q)])
+kindiff = sm.Matrix([ui - qi.diff(t) for ui, qi in zip(u, q)])
 
 # %%
 # Holonomic Constraints
@@ -158,10 +170,8 @@ kindiff = sm.Matrix([ui - qi.diff() for ui, qi in zip(u, q)])
 # The leg forms a kinematic loop and two holonomic constraints arise from this
 # loop.
 holonomic = (P5.pos_from(P1) - P6.pos_from(P1)).to_matrix(N)[:2, :]
-
-qd_repl = {q1.diff(): u1, q2.diff(): u2, q3.diff(): u3, q4.diff(): u4}
-
 mocon = me.msubs(holonomic.diff(t), qd_repl)
+sm.trigsimp(mocon)
 
 # %%
 # Inertia and Rigid Bodies
@@ -171,12 +181,14 @@ IB = me.Inertia.from_inertia_scalars(Bo, B, 0, 0, IBzz)
 IC = me.Inertia.from_inertia_scalars(Co, C, 0, 0, ICzz)
 ID = me.Inertia.from_inertia_scalars(Do, D, 0, 0, IDzz)
 
-crank = me.RigidBody('crank', masscenter=Ao, frame=A, mass=mA, inertia=IA)
-foot = me.RigidBody('foot', masscenter=Bo, frame=B, mass=mB, inertia=IB)
-lower_leg = me.RigidBody('lower leg', masscenter=Co, frame=C, mass=mC,
-                         inertia=IC)
-upper_leg = me.RigidBody('upper leg', masscenter=Do, frame=D, mass=mD,
-                         inertia=ID)
+crank = me.RigidBody('crank', masscenter=Ao, frame=A,
+                     mass=mA, inertia=IA)
+foot = me.RigidBody('foot', masscenter=Bo, frame=B,
+                    mass=mB, inertia=IB)
+lower_leg = me.RigidBody('lower leg', masscenter=Co, frame=C,
+                         mass=mC, inertia=IC)
+upper_leg = me.RigidBody('upper leg', masscenter=Do, frame=D,
+                         mass=mD, inertia=ID)
 
 # %%
 # Forces
@@ -189,7 +201,7 @@ gravD = me.Force(Do, -mD*g*N.y)
 
 # %%
 # Crank Resistance
-# ^^^^^^^^^^^^^^^^
+# ~~~~~~~~~~~~~~~~
 #
 # We model the resistance torque at the crank to be that which you would feel
 # when accelerating the bicycle and cyclist along flat ground. The basic
@@ -198,7 +210,8 @@ gravD = me.Force(Do, -mD*g*N.y)
 # .. math::
 #
 #    (2J + m r_w^2)\dot{\omega} =
-#    -C_r m g r_w - \sgn(\omega) \frac{1}{2} \rho C_D A_r (\omega r_w)^2 +
+#    -C_r m g r_w
+#    - \operatorname{sgn}(\omega) \frac{1}{2} \rho C_D A_r (\omega r_w)^2 +
 #    T_w
 #
 # where :math:`T_w` is the rear wheel driving torque.
@@ -219,12 +232,12 @@ gravD = me.Force(Do, -mD*g*N.y)
 #    T_c =
 #    (2J + m r_w^2)G^2\dot{u}_1
 #    + C_r m g r_w G
-#    + \sgn(u_1) \frac{1}{2} \rho C_D A_r G^3 (u_1 r_w)^2
+#    + \operatorname{sgn}(u_1) \frac{1}{2} \rho C_D A_r G^3 (u_1 r_w)^2
 #
-# The :math:`\sgn` function that manages the sign of the drag force has a
-# discontinuity and is not differentiable. Since we only want to solve this
-# optimal control problem for forward motion we can make the assumption that
-# :math:`u_1 < 0`. The torque felt at the crank is then:
+# The :math:`\operatorname{sgn}` function that manages the sign of the drag
+# force has a discontinuity and is not differentiable. Since we only want to
+# solve this optimal control problem for forward motion we can make the
+# assumption that :math:`u_1 < 0`. The torque felt at the crank is then:
 #
 # .. math::
 #
@@ -246,7 +259,7 @@ resistance = me.Torque(
 
 # %%
 # Muscles
-# ^^^^^^^
+# ~~~~~~~
 #
 # We lump all the muscles that contribute to joint torques at the knee and
 # ankle into four simplified muscles. The quadriceps wrap over the knee. The
@@ -327,23 +340,23 @@ class ExtensorPathway(me.PathwayBase):
         Forces applied to origin, insertion, and P from the muscle wrapped
         over circular arc of radius r.
         """
-        parent_tangency_point = me.Point('Aw')  # fixed in parent
-        child_tangency_point = me.Point('Bw')  # fixed in child
-        parent_tangency_point.set_pos(
+        self.parent_tangency_point = me.Point('Aw')  # fixed in parent
+        self.child_tangency_point = me.Point('Bw')  # fixed in child
+        self.parent_tangency_point.set_pos(
             self.axis_point,
             -self.radius*sm.cos(self.origin_angle)*self.parent_axis.cross(
                 self.axis)
             + self.radius*sm.sin(self.origin_angle)*self.parent_axis,
         )
-        child_tangency_point.set_pos(
+        self.child_tangency_point.set_pos(
             self.axis_point,
             self.radius*sm.cos(self.insertion_angle)*self.child_axis.cross(
                 self.axis)
             + self.radius*sm.sin(self.insertion_angle)*self.child_axis),
         parent_force_direction_vector = self.origin.pos_from(
-            parent_tangency_point)
+            self.parent_tangency_point)
         child_force_direction_vector = self.insertion.pos_from(
-            child_tangency_point)
+            self.child_tangency_point)
         force_on_parent = (force_magnitude*
                            parent_force_direction_vector.normalize())
         force_on_child = (force_magnitude*
@@ -357,28 +370,29 @@ class ExtensorPathway(me.PathwayBase):
 
 
 knee_top_pathway = ExtensorPathway(P9, P5, P4, C.z, -C.x, D.x, rk, q4)
-knee_top_act = bm.FirstOrderActivationDeGroote2016.with_defaults('knee_top')
-knee_top_mus = bm.MusculotendonDeGroote2016.with_defaults('knee_top',
-                                                          knee_top_pathway,
-                                                          knee_top_act)
+knee_top_act = bm.FirstOrderActivationDeGroote2016.with_defaults(
+    'knee_top')
+knee_top_mus = bm.MusculotendonDeGroote2016.with_defaults(
+    'knee_top', knee_top_pathway, knee_top_act)
 knee_bot_pathway = me.LinearPathway(P9, P5)
-knee_bot_act = bm.FirstOrderActivationDeGroote2016.with_defaults('knee_bot')
-knee_bot_mus = bm.MusculotendonDeGroote2016.with_defaults('knee_bot',
-                                                          knee_bot_pathway,
-                                                          knee_bot_act)
+knee_bot_act = bm.FirstOrderActivationDeGroote2016.with_defaults(
+    'knee_bot')
+knee_bot_mus = bm.MusculotendonDeGroote2016.with_defaults(
+    'knee_bot', knee_bot_pathway, knee_bot_act)
 ankle_top_pathway = me.LinearPathway(P8, P2)
-ankle_top_act = bm.FirstOrderActivationDeGroote2016.with_defaults('ankle_top')
-ankle_top_mus = bm.MusculotendonDeGroote2016.with_defaults('ankle_top',
-                                                           ankle_top_pathway,
-                                                           ankle_top_act)
+ankle_top_act = bm.FirstOrderActivationDeGroote2016.with_defaults(
+    'ankle_top')
+ankle_top_mus = bm.MusculotendonDeGroote2016.with_defaults(
+    'ankle_top', ankle_top_pathway, ankle_top_act)
 ankle_bot_pathway = me.LinearPathway(P8, P7)
-ankle_bot_act = bm.FirstOrderActivationDeGroote2016.with_defaults('ankle_bot')
-ankle_bot_mus = bm.MusculotendonDeGroote2016.with_defaults('ankle_bot',
-                                                           ankle_bot_pathway,
-                                                           ankle_bot_act)
+ankle_bot_act = bm.FirstOrderActivationDeGroote2016.with_defaults(
+    'ankle_bot')
+ankle_bot_mus = bm.MusculotendonDeGroote2016.with_defaults(
+    'ankle_bot', ankle_bot_pathway, ankle_bot_act)
+
 # %%
 # Joint Viscous Damping
-# ^^^^^^^^^^^^^^^^^^^^^
+# ~~~~~~~~~~~~~~~~~~~~~
 # The high stiffness in the ankle joint can be tamed some by adding some
 # viscous damping in the ankle joint.
 ankle_damping_B = me.Torque(B, c*u3*B.z)
@@ -386,7 +400,7 @@ ankle_damping_C = me.Torque(C, -c*u3*B.z)
 
 # %%
 # Form the Equations of Motion
-# ============================
+# ----------------------------
 
 kane = me.KanesMethod(
     N,
@@ -407,7 +421,8 @@ loads = (
     knee_bot_mus.to_loads() +
     ankle_top_mus.to_loads() +
     ankle_bot_mus.to_loads() +
-    [ankle_damping_B, ankle_damping_C, resistance, gravB, gravC, gravD]
+    [ankle_damping_B, ankle_damping_C, resistance,
+     gravB, gravC, gravD]
 )
 
 Fr, Frs = kane.kanes_equations(bodies, loads)
@@ -438,7 +453,10 @@ muscle_diff_eq = sm.Matrix([
 #    =
 #    0
 
-eom = kindiff.col_join(Fr + Frs).col_join(muscle_diff_eq).col_join(holonomic)
+eom = kindiff.col_join(
+    Fr + Frs).col_join(
+    muscle_diff_eq).col_join(
+    holonomic)
 
 state_vars = (
     q1, q2, q3, q4, u1, u2, u3, u4,
@@ -447,10 +465,11 @@ state_vars = (
     ankle_top_mus.a,
     ankle_bot_mus.a,
 )
+state_vars
 
 # %%
 # Objective
-# =========
+# ---------
 #
 # The objective is to cycle as fast as possible, so we need to find the minmal
 # time duration for a fixed distance (or more simply crank revolutions). This
@@ -486,7 +505,7 @@ def gradient(free):
 
 # %%
 # Define Numerical Constants
-# ==========================
+# --------------------------
 
 # body segment inertia from:
 # https://nbviewer.org/github/pydy/pydy-tutorial-human-standing/blob/master/notebooks/n07_simulation.ipynb
@@ -516,21 +535,21 @@ par_map = {
     rk: 0.04,  # m, knee radius
     rw: 0.3,  # m, wheel radius
     c: 30.0,  # joint viscous damping [Nms]
-    ankle_bot_mus.F_M_max: 1600.0,
+    ankle_bot_mus.F_M_max: 1000.0,
     ankle_bot_mus.l_M_opt: np.nan,
     ankle_bot_mus.l_T_slack: np.nan,
-    ankle_top_mus.F_M_max: 600.0,
+    ankle_top_mus.F_M_max: 400.0,
     ankle_top_mus.l_M_opt: np.nan,
     ankle_top_mus.l_T_slack: np.nan,
-    knee_bot_mus.F_M_max: 1000.0,
+    knee_bot_mus.F_M_max: 1200.0,
     knee_bot_mus.l_M_opt: np.nan,
     knee_bot_mus.l_T_slack: np.nan,
-    knee_top_mus.F_M_max: 1000.0,
+    knee_top_mus.F_M_max: 1400.0,
     knee_top_mus.l_M_opt: np.nan,
     knee_top_mus.l_T_slack: np.nan,
 }
 
-p = np.array(list(par_map.keys()))
+p = list(par_map.keys())
 p_vals = np.array(list(par_map.values()))
 
 # %%
@@ -546,26 +565,76 @@ q3_ext, q4_ext = fsolve(lambda x: eval_holonomic([q1_ext, q2_ext, x[0], x[1]],
                         x0=np.deg2rad([-100.0, 20.0]))
 q_ext = np.array([q1_ext, q2_ext, q3_ext, q4_ext])
 
-# TODO : duplicated below
-eval_ankle_top_len = sm.lambdify((q, p), ankle_top_pathway.length)
-eval_ankle_bot_len = sm.lambdify((q, p), ankle_bot_pathway.length)
-eval_knee_top_len = sm.lambdify((q, p), knee_top_pathway.length)
-eval_knee_bot_len = sm.lambdify((q, p), knee_bot_pathway.length)
+eval_mus_lens = sm.lambdify((q, p),
+                            (ankle_bot_mus.pathway.length.xreplace(qd_repl),
+                             ankle_top_mus.pathway.length.xreplace(qd_repl),
+                             knee_bot_mus.pathway.length.xreplace(qd_repl),
+                             knee_top_mus.pathway.length.xreplace(qd_repl)),
+                            cse=True)
+akb_len, akt_len, knb_len, knt_len = eval_mus_lens(q_ext, p_vals)
 # length of muscle path when fully extended
-par_map[ankle_top_mus.l_T_slack] = eval_ankle_top_len(q_ext, p_vals)/2
-par_map[ankle_bot_mus.l_T_slack] = eval_ankle_bot_len(q_ext, p_vals)/2
-par_map[knee_top_mus.l_T_slack] = eval_knee_top_len(q_ext, p_vals)/2
-par_map[knee_bot_mus.l_T_slack] = eval_knee_bot_len(q_ext, p_vals)/2
-par_map[ankle_top_mus.l_M_opt] = par_map[ankle_top_mus.l_T_slack] + 0.01
-par_map[ankle_bot_mus.l_M_opt] = par_map[ankle_bot_mus.l_T_slack] + 0.01
-par_map[knee_top_mus.l_M_opt] = par_map[knee_top_mus.l_T_slack] + 0.01
-par_map[knee_bot_mus.l_M_opt] = par_map[knee_bot_mus.l_T_slack] + 0.01
+par_map[ankle_top_mus.l_T_slack] = akt_len/2
+par_map[ankle_bot_mus.l_T_slack] = akb_len/2
+par_map[knee_top_mus.l_T_slack] = knt_len/2
+par_map[knee_bot_mus.l_T_slack] = knb_len/2
+par_map[ankle_top_mus.l_M_opt] = akt_len/2 + 0.01
+par_map[ankle_bot_mus.l_M_opt] = akb_len/2 + 0.01
+par_map[knee_top_mus.l_M_opt] = knt_len/2 + 0.01
+par_map[knee_bot_mus.l_M_opt] = knb_len/2 + 0.01
 
 p_vals = np.array(list(par_map.values()))
 
 # %%
+# Plot Extended Configuration
+# ---------------------------
+plot_points = [P6, P1, P2, P3, P7, P3, P4, P5]
+coordinates = P6.pos_from(P1).to_matrix(N)
+for Pi in plot_points[1:]:
+    coordinates = coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
+eval_coordinates = sm.lambdify((q, p), coordinates)
+
+mus_points = [P7, P8, P2, P8, None, P9, P6,
+              knee_top_pathway.child_tangency_point, None,
+              knee_top_pathway.parent_tangency_point, P9]
+mus_coordinates = P7.pos_from(P1).to_matrix(N)
+for Pi in mus_points[1:]:
+    if Pi is None:
+        pi_coord = sm.Matrix([sm.nan, sm.nan, sm.nan])
+    else:
+        pi_coord = Pi.pos_from(P1).to_matrix(N)
+    mus_coordinates = mus_coordinates.row_join(pi_coord)
+eval_mus_coordinates = sm.lambdify((q, p), mus_coordinates)
+
+title_template = 'Time = {:1.2f} s'
+
+
+def plot_configuration(q_vals, p_vals, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots(layout='constrained')
+
+    x, y, _ = eval_coordinates(q_vals, p_vals)
+    xm, ym, _ = eval_mus_coordinates(q_vals, p_vals)
+    crank_circle = plt.Circle((0.0, 0.0), par_map[lc], fill=False,
+                              linestyle='--')
+    bike_lines, = ax.plot(x[:3], y[:3], 'o-', linewidth=2, color='#3dcfc2ff')
+    leg_lines, = ax.plot(x[2:], y[2:], 'o-', linewidth=4, color='#ffd90fff')
+    mus_lines, = ax.plot(xm, ym, 'o-', color='#800080ff',)
+    knee_circle = plt.Circle((x[6], y[6]), par_map[rk], color='#800080ff',
+                             fill=False)
+    ax.add_patch(crank_circle)
+    ax.add_patch(knee_circle)
+    title_text = ax.set_title(title_template.format(0.0))
+    ax.set_aspect('equal')
+    return ax, fig, bike_lines, leg_lines, mus_lines, knee_circle, title_text
+
+
+# sphinx_gallery_thumbnail_number = 1
+_ = plot_configuration(q_ext, p_vals)
+
+
+# %%
 # Instance Constraints
-# ====================
+# --------------------
 #
 # The cyclist should start with no motion (stationary) and in an initial
 # configuration with the crank forward and horizontal (:math:`q_1=0` deg) and
@@ -578,6 +647,9 @@ q3_0, q4_0 = fsolve(lambda x: eval_holonomic([q1_0, q2_0, x[0], x[1]],
                     x0=np.deg2rad([-90.0, 90.0]), xtol=1e-14)
 q_0 = np.array([q1_0, q2_0, q3_0, q4_0])
 
+_ = plot_configuration(q_0, p_vals)
+
+# %%
 # Crank revolutions are proportional to distance traveled so the race distance
 # is defined by number of crank revolutions.
 distance = 10.0  # meters
@@ -606,6 +678,7 @@ instance_constraints = (
     # at final time travel number of revolutions
     q1.replace(t, (num_nodes - 1)*h) + crank_revs*2*np.pi,
 )
+sm.pprint(instance_constraints)
 
 # %%
 # Only allow forward pedaling and limit the joint angle range of motion. All
@@ -625,10 +698,11 @@ bounds = {
     knee_top_mus.e: (0.0, 1.0),
     h: (0.0, 0.1),
 }
+sm.pprint(bounds)
 
-# %
+# %%
 # Instantiate the Optimal Control Problem
-# =======================================
+# ---------------------------------------
 problem = Problem(
     obj,
     gradient,
@@ -638,12 +712,13 @@ problem = Problem(
     h,
     known_parameter_map=par_map,
     instance_constraints=instance_constraints,
+    time_symbol=t,
     bounds=bounds,
 )
 problem.add_option('nlp_scaling_method', 'gradient-based')
-problem.add_option('max_iter', 1000)
+problem.add_option('max_iter', 3000)
 
-initial_guess = np.random.random(problem.num_free)
+initial_guess = 0.5*np.ones(problem.num_free)
 
 q1_guess = np.linspace(0.0, -crank_revs*2*np.pi, num=num_nodes)
 q2_guess = np.linspace(0.0, crank_revs*2*np.pi, num=num_nodes)
@@ -657,68 +732,77 @@ initial_guess[0*num_nodes:1*num_nodes] = q1_guess
 initial_guess[1*num_nodes:2*num_nodes] = q2_guess
 initial_guess[4*num_nodes:5*num_nodes] = u1_guess
 initial_guess[5*num_nodes:6*num_nodes] = u2_guess
-initial_guess[-4*num_nodes - 1:] = 0.5  # e
 initial_guess[-1] = 0.01
 
-problem.plot_trajectories(initial_guess)
+fig, axes = plt.subplots(15, 1, sharex=True,
+                         figsize=(6.4, 0.8*15),
+                         layout='compressed')
+problem.plot_trajectories(initial_guess, axes=axes)
 
 # %%
 # Solve the Optimal Control Problem
-# =================================
+# ---------------------------------
 solution, info = problem.solve(initial_guess)
-xs, us, ps, h_val= parse_free(solution, len(state_vars), 4, num_nodes,
+xs, us, ps, h_val= parse_free(solution, len(state_vars),
+                              4, num_nodes,
                               variable_duration=True)
 print('Optimal value h:', solution[-1])
 print(info['status_msg'])
 
 # %%
 # Plot the Solution
-# =================
+# -----------------
 problem.plot_objective_value()
 
 # %%
-problem.plot_constraint_violations(solution)
+fig, axes = plt.subplots(2, figsize=(12.8, 9.6),
+                         layout='constrained')
+problem.plot_constraint_violations(solution, axes=axes)
 
 # %%
-problem.plot_trajectories(solution)
+fig, axes = plt.subplots(15, 1, sharex=True,
+                         figsize=(6.4, 0.8*15),
+                         layout='compressed')
+problem.plot_trajectories(solution, axes=axes)
 
 # %%
-eval_mus_forces = sm.lambdify((state_vars, p),
-                              (ankle_bot_mus.force.doit().xreplace(qd_repl),
-                               ankle_top_mus.force.doit().xreplace(qd_repl),
-                               knee_bot_mus.force.doit().xreplace(qd_repl),
-                               knee_top_mus.force.doit().xreplace(qd_repl)),
-                              cse=True)
-akb_force, akt_force, knb_force, knt_force = eval_mus_forces(xs, p_vals)
+eval_mus_forces = sm.lambdify(
+    (state_vars, p),
+    (ankle_bot_mus.force.doit().xreplace(qd_repl),
+     ankle_top_mus.force.doit().xreplace(qd_repl),
+     knee_bot_mus.force.doit().xreplace(qd_repl),
+     knee_top_mus.force.doit().xreplace(qd_repl)),
+    cse=True)
+akb_force, akt_force, knb_force, knt_force = \
+    eval_mus_forces(xs, p_vals)
 
-eval_mus_lens = sm.lambdify((state_vars, p),
-                            (ankle_bot_mus.pathway.length.xreplace(qd_repl),
-                             ankle_top_mus.pathway.length.xreplace(qd_repl),
-                             knee_bot_mus.pathway.length.xreplace(qd_repl),
-                             knee_top_mus.pathway.length.xreplace(qd_repl)),
-                            cse=True)
-akb_len, akt_len, knb_len, knt_len = eval_mus_lens(xs, p_vals)
+akb_len, akt_len, knb_len, knt_len = eval_mus_lens(xs[:4], p_vals)
 
 
 def plot_sim_compact():
 
     time = np.linspace(0, num_nodes*h_val, num=num_nodes)
 
-    fig, axes = plt.subplots(6, 1, sharex=True, layout='constrained')
+    fig, axes = plt.subplots(6, 1, sharex=True, layout='constrained',
+                             figsize=(6.4, 9.6))
 
-    axes[0].set_title('Finish time = {:1.3f}'.format(time[-1]))
-    axes[0].plot(time, akb_force,
-                 time, akt_force,
-                 time, knb_force,
-                 time, knt_force)
-    axes[0].set_ylabel('Force\n[N]')
-    # axes[0].legend(['Ankle Bottom', 'Ankle Top', 'Knee Bottom', 'Knee Top'])
+    axes[0].set_title('Finish time = {:1.3f} s'.format(time[-1]))
+    axes[0].plot(time, -akb_force,
+                 time, -akt_force,
+                 time, -knb_force,
+                 time, -knt_force)
+    axes[0].set_ylabel('Muscle Force\n[N]')
+    axes[0].legend(['Ankle Bottom', 'Ankle Top',
+                    'Knee Bottom', 'Knee Top'])
 
-    axes[1].plot(time, akb_len, time, akt_len, time, knb_len, time, knt_len)
-    axes[1].legend(['Ankle Bottom', 'Ankle Top', 'Knee Bottom', 'Knee Top'])
-    axes[1].set_ylabel('Length\n[M]')
+    axes[1].plot(time, akb_len, time, akt_len,
+                 time, knb_len, time, knt_len)
+    axes[1].legend(['Ankle Bottom', 'Ankle Top',
+                    'Knee Bottom', 'Knee Top'])
+    axes[1].set_ylabel('Muscle-tendon\nLength\n[m]')
 
-    axes[2].plot(time, -xs[4, :]*60/2/np.pi, time, xs[5, :]*60/2/np.pi)
+    axes[2].plot(time, -xs[4, :]*60/2/np.pi,
+                 time, xs[5, :]*60/2/np.pi)
     axes[2].set_ylabel('Cadence\n[RPM]')
     axes[2].legend(['Cadence', 'Pedal Cadence'])
 
@@ -740,54 +824,11 @@ def plot_sim_compact():
 
 _ = plot_sim_compact()
 
-# %%
-# Plot Configuration
-# ==================
-plot_points = [P1, P2, P7, P3, P4, P6, P1]
-coordinates = P1.pos_from(P1).to_matrix(N)
-for Pi in plot_points[1:]:
-    coordinates = coordinates.row_join(Pi.pos_from(P1).to_matrix(N))
-eval_coordinates = sm.lambdify((q, p), coordinates)
-
-mus_points = [P7, P8, P2, P8, 'nan', P9, P6]
-mus_coordinates = P7.pos_from(P1).to_matrix(N)
-for Pi in mus_points[1:]:
-    if Pi == 'nan':
-        pi_coord = sm.Matrix([sm.nan, sm.nan, sm.nan])
-    else:
-        pi_coord = Pi.pos_from(P1).to_matrix(N)
-    mus_coordinates = mus_coordinates.row_join(pi_coord)
-eval_mus_coordinates = sm.lambdify((q, p), mus_coordinates)
-
-title_template = 'Time = {:1.2f} s'
-
-
-def plot_configuration(q_vals, p_vals, ax=None):
-    if ax is None:
-        fig, ax = plt.subplots(layout='constrained')
-
-    x, y, _ = eval_coordinates(q_vals, p_vals)
-    xm, ym, _ = eval_mus_coordinates(q_vals, p_vals)
-    leg_lines, = ax.plot(x, y, 'o-')
-    mus_lines, = ax.plot(xm, ym, 'o-', color='red',)
-    crank_circle = plt.Circle((0.0, 0.0), par_map[lc], fill=False,
-                              linestyle='--')
-    knee_circle = plt.Circle((x[4], y[4]), par_map[rk], color='red',
-                             fill=False)
-    ax.add_patch(crank_circle)
-    ax.add_patch(knee_circle)
-    title_text = ax.set_title(title_template.format(0.0))
-    ax.set_aspect('equal')
-    return ax, fig, leg_lines, mus_lines, knee_circle, title_text
-
-
-# sphinx_gallery_thumbnail_number = 6
-_ = plot_configuration(q_ext, p_vals)
 
 # %%
 # Animation
-# =========
-ax, fig, leg_lines, mus_lines, knee_circle, title_text = \
+# ---------
+ax, fig, bike_lines, leg_lines, mus_lines, knee_circle, title_text = \
     plot_configuration(q_0, p_vals)
 
 
@@ -795,16 +836,15 @@ def animate(i):
     qi = xs[0:4, i]
     x, y, _ = eval_coordinates(qi, p_vals)
     xm, ym, _ = eval_mus_coordinates(qi, p_vals)
-    xm = np.hstack((xm[:4], np.nan, xm[4:]))
-    ym = np.hstack((ym[:4], np.nan, ym[4:]))
-    leg_lines.set_data(x, y)
+    bike_lines.set_data(x[:3], y[:3])
+    leg_lines.set_data(x[2:], y[2:])
     mus_lines.set_data(xm, ym)
-    knee_circle.set_center((x[4], y[4]))
+    knee_circle.set_center((x[6], y[6]))
     title_text.set_text('Time = {:1.2f} s'.format(i*h_val))
 
 
-ani = animation.FuncAnimation(fig, animate, num_nodes,
-                              interval=int(h_val*1000))
+ani = animation.FuncAnimation(fig, animate, range(0, num_nodes, 4),
+                              interval=int(h_val*4000))
 
 if __name__ == "__main__":
     plt.show()
