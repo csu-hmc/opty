@@ -211,7 +211,10 @@ initial_guess[1*num_nodes:2*num_nodes] = xyz_guess
 initial_guess[2*num_nodes:3*num_nodes] = xyz_guess
 initial_guess[-4*num_nodes:] = 10.0  # constant thrust
 
-prob.plot_trajectories(initial_guess)
+fig, axes = plt.subplots(18, 1, sharex=True,
+                         figsize=(6.4, 0.8*18),
+                         layout='compressed')
+prob.plot_trajectories(initial_guess, axes=axes)
 
 # %%
 # Find an optimal solution.
@@ -221,11 +224,16 @@ print(info['obj_val'])
 
 # %%
 # Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+fig, axes = plt.subplots(18, 1, sharex=True,
+                         figsize=(6.4, 0.8*18),
+                         layout='compressed')
+prob.plot_trajectories(solution, axes=axes)
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+fig, axes = plt.subplots(2, figsize=(12.8, 9.6),
+                         layout='constrained')
+prob.plot_constraint_violations(solution, axes=axes)
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
