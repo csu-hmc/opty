@@ -97,6 +97,8 @@ sphinx_gallery_conf = {
     'examples_dirs': os.path.join(REPO_DIR, 'examples-gallery'),
     'gallery_dirs': 'examples',
     'matplotlib_animations': True,
+    'copyfile_regex': r'.*\.svg',
+    'remove_config_comments': True,
 }
 
 # -- Options for HTML output ----------------------------------------------
