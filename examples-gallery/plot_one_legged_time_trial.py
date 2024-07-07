@@ -210,8 +210,8 @@ gravD = me.Force(Do, -mD*g*N.y)
 # .. math::
 #
 #    (2J + m r_w^2)\dot{\omega} =
-#    -C_r m g r_w
-#    - \operatorname{sgn}(\omega) \frac{1}{2} \rho C_D A_r (\omega r_w)^2 +
+#    C_r m g r_w
+#    + \operatorname{sgn}(-\omega) \frac{1}{2} \rho C_D A_r (-\omega r_w)^2 +
 #    T_w
 #
 # where :math:`T_w` is the rear wheel driving torque.
@@ -231,30 +231,27 @@ gravD = me.Force(Do, -mD*g*N.y)
 #
 #    T_c =
 #    (2J + m r_w^2)G^2\dot{u}_1
-#    + C_r m g r_w G
-#    + \operatorname{sgn}(u_1) \frac{1}{2} \rho C_D A_r G^3 (u_1 r_w)^2
+#    - C_r m g r_w G
+#    - \operatorname{sgn}(-u_1) \frac{1}{2} \rho C_D A_r G^3 (-u_1 r_w)^2
 #
 # The :math:`\operatorname{sgn}` function that manages the sign of the drag
 # force has a discontinuity and is not differentiable. Since we only want to
 # solve this optimal control problem for forward motion we can make the
-# assumption that :math:`u_1 < 0`. The torque felt at the crank is then:
+# assumption that :math:`u_1 \leq 0`. The torque felt back on the crank is
+# then:
 #
 # .. math::
 #
 #    -T_c =
 #    -(2J + m r_w^2)G^2\dot{u}_1
-#    - C_r m g r_w G
+#    + C_r m g r_w G
 #    + \frac{1}{2} \rho C_D A_r G^3 (u_1 r_w)^2
 
 resistance = me.Torque(
     crank,
-    # NOTE : we enforce later that u1 < 0 (forward pedaling), thus the
-    # resistance should be a posistive torque to resist the negative speed
-    # NOTE : using sm.sign() will break the constraint Jacobian due taking the
-    # derivative of sm.sign().
-    (-(2*J + m*rw**2)*G**2*u1.diff() -
-     Cr*m*g*rw*G +
-     rho*CD*Ar*G**3*rw**3*u1**2/2)*N.z,
+    (-(2*J + m*rw**2)*G**2*u1.diff()
+     + Cr*m*g*rw*G
+     + rho*CD*Ar*G**3*rw**3*u1**2/2)*N.z,
 )
 
 # %%
