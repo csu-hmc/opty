@@ -4,15 +4,11 @@ One-Legged Cycling Time Trial
 
 .. image:: one-legged-time-trial.svg
 
-Single human leg with four driving lumped muscles. The crank inertia and
-resistance mimic the torque felt if accelerating the whole bicycle with rider
-on flat ground.
-
-The objective is to travel a specific distance in the shortest amount of time
-given that the leg muscles have to coordinate.
-
-Second goal will then be to solve for crank length and seat height that gives
-optimal performance.
+Given a single human leg with four driving lumped muscles powering a fixed gear
+bicycle and the crank inertia and resistance mimic the torque felt if
+accelerating the whole bicycle with rider on flat ground, the objective is to
+travel a specific distance in the shortest amount of time given that the leg
+muscles have to coordinate.
 
 .. warning::
 
@@ -468,9 +464,9 @@ state_vars
 # Objective
 # ---------
 #
-# The objective is to cycle as fast as possible, so we need to find the minmal
+# The objective is to cycle as fast as possible, so we need to find the minimal
 # time duration for a fixed distance (or more simply crank revolutions). This
-# can be written mathmatically as:
+# can be written mathematically as:
 #
 # .. math::
 #
@@ -503,9 +499,6 @@ def gradient(free):
 # %%
 # Define Numerical Constants
 # --------------------------
-
-# body segment inertia from:
-# https://nbviewer.org/github/pydy/pydy-tutorial-human-standing/blob/master/notebooks/n07_simulation.ipynb
 par_map = {
     Ar: 0.55,  # m^2, Tab 5.1, pg 188 Wilson 2004, Upright commuting bike
     CD: 1.15,  # unitless, Tab 5.1, pg 188 Wilson 2004, Upright commuting bike
@@ -651,8 +644,8 @@ _ = plot_configuration(q_0, p_vals)
 # is defined by number of crank revolutions.
 distance = 10.0  # meters
 crank_revs = distance/par_map[rw]/par_map[G]/2.0/np.pi  # revolutions
-samples_per_rev = 120
-num_nodes = int(crank_revs*samples_per_rev) + 1
+samples_per_rev = 100
+num_nodes = int(crank_revs*samples_per_rev)
 
 h = sm.symbols('h', real=True)
 
@@ -712,7 +705,7 @@ problem = Problem(
     bounds=bounds,
 )
 problem.add_option('nlp_scaling_method', 'gradient-based')
-problem.add_option('max_iter', 3000)
+problem.add_option('max_iter', 1000)
 
 initial_guess = 0.5*np.ones(problem.num_free)
 
@@ -728,7 +721,7 @@ initial_guess[0*num_nodes:1*num_nodes] = q1_guess
 initial_guess[1*num_nodes:2*num_nodes] = q2_guess
 initial_guess[4*num_nodes:5*num_nodes] = u1_guess
 initial_guess[5*num_nodes:6*num_nodes] = u2_guess
-initial_guess[-1] = 0.01
+initial_guess[-1] = 0.02
 
 fig, axes = plt.subplots(16, 1, sharex=True,
                          figsize=(6.4, 0.8*16),
@@ -742,8 +735,8 @@ solution, info = problem.solve(initial_guess)
 xs, us, ps, h_val= parse_free(solution, len(state_vars),
                               4, num_nodes,
                               variable_duration=True)
-print('Optimal value h:', h_val)
 print(info['status_msg'])
+print('Optimal value h = {:1.3f} s:'.format(h_val))
 
 # %%
 # Plot the Solution
@@ -762,6 +755,8 @@ fig, axes = plt.subplots(16, 1, sharex=True,
 problem.plot_trajectories(solution, axes=axes)
 
 # %%
+# Plot Musculo-tendon Behavior
+# ----------------------------
 eval_mus_forces = sm.lambdify(
     (state_vars, p),
     (ankle_bot_mus.force.doit().xreplace(qd_repl),
@@ -769,24 +764,23 @@ eval_mus_forces = sm.lambdify(
      knee_bot_mus.force.doit().xreplace(qd_repl),
      knee_top_mus.force.doit().xreplace(qd_repl)),
     cse=True)
-akb_force, akt_force, knb_force, knt_force = \
-    eval_mus_forces(xs, p_vals)
 
+akb_for, akt_for, knb_for, knt_for = eval_mus_forces(xs, p_vals)
 akb_len, akt_len, knb_len, knt_len = eval_mus_lens(xs[:4], p_vals)
 
 
-def plot_sim_compact():
+def plot_muscles():
 
     time = np.linspace(0, num_nodes*h_val, num=num_nodes)
 
-    fig, axes = plt.subplots(6, 1, sharex=True, layout='constrained',
-                             figsize=(6.4, 9.6))
+    fig, axes = plt.subplots(4, 1, sharex=True, layout='constrained',
+                             figsize=(6.4, 6.4))
 
     axes[0].set_title('Finish time = {:1.3f} s'.format(time[-1]))
-    axes[0].plot(time, -akb_force,
-                 time, -akt_force,
-                 time, -knb_force,
-                 time, -knt_force)
+    axes[0].plot(time, -akb_for,
+                 time, -akt_for,
+                 time, -knb_for,
+                 time, -knt_for)
     axes[0].set_ylabel('Muscle Force\n[N]')
     axes[0].legend(['Ankle Bottom', 'Ankle Top',
                     'Knee Bottom', 'Knee Top'])
@@ -797,28 +791,65 @@ def plot_sim_compact():
                     'Knee Bottom', 'Knee Top'])
     axes[1].set_ylabel('Muscle-tendon\nLength\n[m]')
 
-    axes[2].plot(time, -xs[4, :]*60/2/np.pi,
-                 time, xs[5, :]*60/2/np.pi)
-    axes[2].set_ylabel('Cadence\n[RPM]')
-    axes[2].legend(['Cadence', 'Pedal Cadence'])
+    axes[2].plot(time, us[0:2, :].T)
+    axes[2].legend(problem.collocator.unknown_input_trajectories[0:2])
+    axes[2].set_ylabel('Excitation')
 
-    axes[3].plot(time, -xs[4, :]*par_map[G]*par_map[rw]*3.6)
-    axes[3].set_ylabel('Speed [km/h]')
-
-    axes[4].plot(time, us[0:2, :].T)
-    axes[4].legend(problem.collocator.unknown_input_trajectories[0:2])
-    axes[4].set_ylabel('Excitation')
-
-    axes[5].plot(time, us[2:4, :].T)
-    axes[5].legend(problem.collocator.unknown_input_trajectories[2:4])
-    axes[5].set_ylabel('Excitation')
+    axes[3].plot(time, us[2:4, :].T)
+    axes[3].legend(problem.collocator.unknown_input_trajectories[2:4])
+    axes[3].set_ylabel('Excitation')
 
     axes[-1].set_xlabel('Time [s]')
 
     return axes
 
 
-_ = plot_sim_compact()
+_ = plot_muscles()
+
+
+# %%
+# Plot Bike Speed and Rider Power
+# -------------------------------
+kin_pow = (2*J + m*rw**2)*G**2*u1.diff()*u1
+roll_pow = -Cr*m*g*rw*G*u1
+air_pow = -rho*CD*Ar*G**3*rw**3*u1**2/2*u1
+eval_pow = sm.lambdify((u1.diff(t), u1, p),
+                       (kin_pow, roll_pow, air_pow))
+time = np.linspace(0, num_nodes*h_val, num=num_nodes)
+u1ds = np.diff(xs[4, :], prepend=0.0)/np.diff(time, prepend=-h_val)
+kps, rps, aps = eval_pow(u1ds, xs[4, :], p_vals)
+
+
+def plot_speed_power():
+
+    fig, axes = plt.subplots(4, 1, sharex=True, layout='constrained',
+                             figsize=(6.4, 6.4))
+
+    axes[0].set_title('Finish time = {:1.3f} s'.format(time[-1]))
+    axes[0].plot(time, -xs[4, :]*60/2/np.pi,
+                 time, xs[5, :]*60/2/np.pi)
+    axes[0].set_ylabel('Cadence\n[RPM]')
+    axes[0].legend(['Cadence', 'Pedal Cadence'])
+
+    axes[1].plot(time, -xs[4, :]*par_map[G]*par_map[rw]*3.6)
+    axes[1].set_ylabel('Speed [km/h]')
+
+    axes[2].plot(time, rps, time, aps)
+    axes[2].set_ylabel('Power [W]')
+    axes[2].legend(['Rolling', 'Air'])
+
+    axes[3].plot(time, kps,
+                 time, kps + rps + aps)
+    axes[3].axhline(np.mean(kps + rps + aps), color='black')
+    axes[3].set_ylabel('Power [W]')
+    axes[3].legend(['Kinetic', 'Total', 'Average'])
+
+    axes[-1].set_xlabel('Time [s]')
+
+    return axes
+
+
+_ = plot_speed_power()
 
 
 # %%
