@@ -127,6 +127,15 @@ Next download the opty source files and install with::
    (opty-dev)$ cd /path/to/opty
    (opty-dev)$ python setup.py develop
 
+Build the HTML doucmentation with::
+
+   (opty-dev)$ cd /path/to/opty/docs
+   (opty-dev)$ make html
+
+and open the result with your web browser, for example::
+
+   $ firefox _build/html/index.html
+
 Usage
 =====
 
@@ -135,6 +144,26 @@ There are several examples available in the ``examples`` and
 pendulum with minimal energy can be run with::
 
    $ python examples-gallery/plot_pendulum_swing_up_fixed_duration.py
+
+Failed Compilation
+------------------
+
+If compilation fails it may be helpful to manually compile the generated Cython
+extension. To do so, provide a destinatnion path to the ``tmp_dir`` kwarg when
+you instantiate ``Problem()``, e.g.:
+
+.. code:: python
+
+   p = Problem(..., tmp_dir='opty_source')
+
+You can then compile the files manually by navigating into the ``opty_source``
+directory and running::
+
+   $ cd /path/to/opty_source
+   $ python ufuncify_matrix_X_setup.py build_ext --inplace
+
+The highest integer value of ``X`` will be the most recently generated set of
+source files.
 
 Funding
 =======

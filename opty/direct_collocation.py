@@ -391,11 +391,18 @@ class Problem(cyipopt.Problem):
                     self.collocator.num_input_trajectories)
         traj_syms = (self.collocator.state_symbols +
                      self.collocator.input_trajectories)
-        trajectories = np.vstack((state_traj, input_traj))
+
+        trajectories = state_traj
+
+        if self.collocator.num_known_input_trajectories > 0:
+            known_traj = list(self.collocator.known_trajectory_map.values())
+            trajectories = np.vstack((trajectories, known_traj))
+
+        if self.collocator.num_unknown_input_trajectories > 0:
+            trajectories = np.vstack((trajectories, input_traj))
 
         if axes is None:
             fig, axes = plt.subplots(num_axes, 1, sharex=True,
-                                     figsize=(6.4, max(4.8, 0.6*num_axes)),
                                      layout='compressed')
 
         for ax, traj, symbol in zip(axes, trajectories, traj_syms):
@@ -408,7 +415,7 @@ class Problem(cyipopt.Problem):
         return axes
 
     @_optional_plt_dep
-    def plot_constraint_violations(self, vector):
+    def plot_constraint_violations(self, vector, axes=None):
         """Returns an axis with the state constraint violations plotted versus
         node number and the instance constraints as a bar graph.
 
@@ -443,11 +450,9 @@ class Problem(cyipopt.Problem):
         con_nodes = range(1, self.collocator.num_collocation_nodes)
 
         plot_inst_viols = self.collocator.instance_constraints is not None
-        fig, axes = plt.subplots(1 + plot_inst_viols, squeeze=False,
-                                 figsize=(max(6.4,
-                                              len(instance_violations)*0.4),
-                                          4.8),
-                                 layout='compressed')
+        if axes is None:
+            fig, axes = plt.subplots(1 + plot_inst_viols, squeeze=False,
+                                     layout='compressed')
         axes = axes.ravel()
 
         axes[0].plot(con_nodes, state_violations.T)

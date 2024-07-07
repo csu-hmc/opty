@@ -13,4 +13,6 @@ dependencies:
   - scipy >=1.5.0
   - sphinx
   - sphinx-gallery
-  - sympy >=1.6.0
+  - mpmath
+  - pip:
+    - git+https://github.com/sympy/sympy.git

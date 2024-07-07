@@ -12,7 +12,6 @@ Contents
 .. toctree::
    :maxdepth: 2
 
-   index
    theory
    examples/index.rst
    examples
