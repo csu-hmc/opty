@@ -149,7 +149,7 @@ Failed Compilation
 ------------------
 
 If compilation fails it may be helpful to manually compile the generated Cython
-extension. To do so, provide a destinatnion path to the ``tmp_dir`` kwarg when
+extension. To do so, provide a destination path to the ``tmp_dir`` kwarg when
 you instantiate ``Problem()``, e.g.:
 
 .. code:: python
