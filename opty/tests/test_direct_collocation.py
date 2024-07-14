@@ -4,11 +4,13 @@ from collections import OrderedDict
 
 import numpy as np
 import sympy as sym
+import sympy.physics.mechanics as mech
+from sympy.physics.mechanics.models import n_link_pendulum_on_cart
 from scipy import sparse
 from pytest import raises
 
 from ..direct_collocation import Problem, ConstraintCollocator
-from ..utils import create_objective_function
+from ..utils import create_objective_function, sort_sympy
 
 
 def test_pendulum():
@@ -1452,3 +1454,52 @@ class TestConstraintCollocatorVariableDuration():
 
         np.testing.assert_allclose(jacobian_matrix.todense(),
                                    expected_jacobian)
+
+
+def test_known_and_unknown_order():
+
+    kane = n_link_pendulum_on_cart(n=3, cart_force=True, joint_torques=True)
+
+    states = kane.q.col_join(kane.u)
+
+    eom = kane.mass_matrix_full @ states.diff() - kane.forcing_full
+
+    g, l0, l1, l2, m0, m1, m2, m3, t = sort_sympy(eom.free_symbols)
+
+    # leave two parameters free and disorder the entries to the dictionary
+    par_map = {}
+    par_map[l1] = 1.5
+    par_map[l0] = 1.0
+    par_map[m3] = 2.5
+    par_map[g] = 9.81
+    par_map[m1] = 1.5
+
+    (u1d, q2d, q3d, u3d, q0d, q1d, u0d, u2d, F, T1, T2, T3, q0, q1, q2, q3, u0,
+     u1, u2, u3) = sort_sympy(mech.find_dynamicsymbols(eom))
+
+    num_nodes = 51
+    interval = 0.1
+
+    # order in the dictionary should not match sort_sympy()
+    traj_map = {
+        T1: np.zeros(num_nodes),
+        F: np.ones(num_nodes),
+    }
+
+    col = ConstraintCollocator(
+        equations_of_motion=eom,
+        state_symbols=states,
+        num_collocation_nodes=num_nodes,
+        node_time_interval=interval,
+        known_parameter_map=par_map,
+        known_trajectory_map=traj_map,
+        time_symbol=t,
+    )
+
+    assert col.input_trajectories == (T1, F, T2, T3)
+    assert col.known_input_trajectories == (T1, F)
+    assert col.known_parameters == (l1, l0, m3, g, m1)
+    assert col.unknown_input_trajectories == (T2, T3)
+    assert col.unknown_parameters == (l2, m0, m2)
+    assert col.parameters == (l1, l0, m3, g, m1, l2, m0, m2)
+    assert col.state_symbols == (q0, q1, q2, q3, u0, u1, u2, u3)
