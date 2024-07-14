@@ -390,15 +390,20 @@ class Problem(cyipopt.Problem):
         num_axes = (self.collocator.num_states +
                     self.collocator.num_input_trajectories)
         traj_syms = (self.collocator.state_symbols +
-                     self.collocator.input_trajectories)
+                     self.collocator.known_input_trajectories +
+                     self.collocator.unknown_input_trajectories)
 
         trajectories = state_traj
 
         if self.collocator.num_known_input_trajectories > 0:
-            known_traj = list(self.collocator.known_trajectory_map.values())
-            trajectories = np.vstack((trajectories, known_traj))
+            for knw_sym in self.collocator.known_input_trajectories:
+                trajectories = np.vstack(
+                    (trajectories,
+                     self.collocator.known_trajectory_map[knw_sym]))
 
         if self.collocator.num_unknown_input_trajectories > 0:
+            # NOTE : input_traj should be in the same order as
+            # self.unknown_input_trajectories.
             trajectories = np.vstack((trajectories, input_traj))
 
         if axes is None:
@@ -701,6 +706,7 @@ class ConstraintCollocator(object):
         and categorizes them based on which parameters the user supplies.
         The unknown parameters are sorted by name."""
 
+        # TODO : Should the full parameter list be sorted here for consistency?
         parameters = self.eom.free_symbols.copy()
         if self.time_symbol in parameters:
             parameters.remove(self.time_symbol)
