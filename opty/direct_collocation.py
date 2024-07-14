@@ -601,7 +601,7 @@ class ConstraintCollocator(object):
             self.time_interval_symbol = node_time_interval
             self._variable_duration = True
         else:
-            self.time_interval_symbol = sm.Symbol('h', real=True)
+            self.time_interval_symbol = sm.Symbol('h_opty', real=True)
             self._variable_duration = False
         self.node_time_interval = node_time_interval
 
