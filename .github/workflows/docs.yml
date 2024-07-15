@@ -31,7 +31,5 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Build Docs
         run: |
-          # TODO : Remove when SymPy 1.13 comes out.
-          python -m pip install --no-deps git+https://github.com/sympy/sympy.git
           cd docs
           make html
