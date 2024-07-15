@@ -286,8 +286,8 @@ class TestConstraintCollocator():
 
             xi, vi = self.state_values[:, i]
             xn, vn = self.state_values[:, i + 1]
-            fi = self.specified_values[i:i + 1]
-            fn = self.specified_values[i + 1:i + 2]
+            fi = self.specified_values[i:i + 1][0]
+            fn = self.specified_values[i + 1:i + 2][0]
 
             expected_kinematic[i] = (xn - xi) / h - (vi + vn) / 2
             expected_dynamic[i] = (m * (vn - vi) / h + c * (vn + vi) / 2 + k
