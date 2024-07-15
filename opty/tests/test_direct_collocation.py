@@ -21,28 +21,30 @@ def test_pendulum():
     interval_value = duration / (num_nodes - 1)
 
     # Symbolic equations of motion
-    I, m, g, d, t = sym.symbols('Ix, m, g, d, t')
+    # NOTE : h, real=True is used as a regression test for
+    # https://github.com/csu-hmc/opty/issues/162
+    # NOTE : Ix is used because NumPy 2.0 uses I in the C API.
+    I, m, g, h, t = sym.symbols('Ix, m, g, h, t', real=True)
     theta, omega, T = sym.symbols('theta, omega, T', cls=sym.Function)
 
     state_symbols = (theta(t), omega(t))
     specified_symbols = (T(t),)
 
     eom = sym.Matrix([theta(t).diff() - omega(t),
-                     I*omega(t).diff() + m*g*d*sym.sin(theta(t)) - T(t)])
+                     I*omega(t).diff() + m*g*h*sym.sin(theta(t)) - T(t)])
 
     # Specify the known system parameters.
     par_map = OrderedDict()
     par_map[I] = 1.0
     par_map[m] = 1.0
     par_map[g] = 9.81
-    par_map[d] = 1.0
+    par_map[h] = 1.0
 
     # Specify the objective function and it's gradient.
     obj_func = sym.Integral(T(t)**2, t)
-    obj, obj_grad = create_objective_function(obj_func, state_symbols,
-                                              specified_symbols, tuple(),
-                                              num_nodes,
-                                              node_time_interval=interval_value)
+    obj, obj_grad = create_objective_function(
+        obj_func, state_symbols, specified_symbols, tuple(), num_nodes,
+        node_time_interval=interval_value, time_symbol=t)
 
     # Specify the symbolic instance constraints, i.e. initial and end
     # conditions.
@@ -55,6 +57,7 @@ def test_pendulum():
     Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
             known_parameter_map=par_map,
             instance_constraints=instance_constraints,
+            time_symbol=t,
             bounds={T(t): (-2.0, 2.0)},
             show_compile_output=True)
 
@@ -77,6 +80,7 @@ def test_Problem():
                    state_symbols,
                    2,
                    interval_value,
+                   time_symbol=t,
                    bounds={x: (-10.0, 10.0),
                            f: (-8.0, 8.0),
                            m: (-1.0, 1.0),
@@ -130,7 +134,8 @@ class TestConstraintCollocator():
                                  num_collocation_nodes=4,
                                  node_time_interval=self.interval_value,
                                  known_parameter_map=par_map,
-                                 known_trajectory_map=traj_map)
+                                 known_trajectory_map=traj_map,
+                                 time_symbol=t)
 
     def test_init(self):
 
@@ -863,7 +868,8 @@ class TestConstraintCollocatorInstanceConstraints():
                                  num_collocation_nodes=4,
                                  node_time_interval=self.interval_value,
                                  known_parameter_map=par_map,
-                                 instance_constraints=instance_constraints)
+                                 instance_constraints=instance_constraints,
+                                 time_symbol=t)
 
     def test_init(self):
 
