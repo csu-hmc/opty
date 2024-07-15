@@ -80,6 +80,7 @@ def test_Problem():
                    state_symbols,
                    2,
                    interval_value,
+                   time_symbol=t,
                    bounds={x: (-10.0, 10.0),
                            f: (-8.0, 8.0),
                            m: (-1.0, 1.0),
@@ -133,7 +134,8 @@ class TestConstraintCollocator():
                                  num_collocation_nodes=4,
                                  node_time_interval=self.interval_value,
                                  known_parameter_map=par_map,
-                                 known_trajectory_map=traj_map)
+                                 known_trajectory_map=traj_map,
+                                 time_symbol=t)
 
     def test_init(self):
 
@@ -866,7 +868,8 @@ class TestConstraintCollocatorInstanceConstraints():
                                  num_collocation_nodes=4,
                                  node_time_interval=self.interval_value,
                                  known_parameter_map=par_map,
-                                 instance_constraints=instance_constraints)
+                                 instance_constraints=instance_constraints,
+                                 time_symbol=t)
 
     def test_init(self):
 
