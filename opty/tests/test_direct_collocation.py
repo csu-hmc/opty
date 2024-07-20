@@ -4,11 +4,13 @@ from collections import OrderedDict
 
 import numpy as np
 import sympy as sym
+import sympy.physics.mechanics as mech
+from sympy.physics.mechanics.models import n_link_pendulum_on_cart
 from scipy import sparse
 from pytest import raises
 
 from ..direct_collocation import Problem, ConstraintCollocator
-from ..utils import create_objective_function
+from ..utils import create_objective_function, sort_sympy
 
 
 def test_pendulum():
@@ -19,28 +21,30 @@ def test_pendulum():
     interval_value = duration / (num_nodes - 1)
 
     # Symbolic equations of motion
-    I, m, g, d, t = sym.symbols('Ix, m, g, d, t')
+    # NOTE : h, real=True is used as a regression test for
+    # https://github.com/csu-hmc/opty/issues/162
+    # NOTE : Ix is used because NumPy 2.0 uses I in the C API.
+    I, m, g, h, t = sym.symbols('Ix, m, g, h, t', real=True)
     theta, omega, T = sym.symbols('theta, omega, T', cls=sym.Function)
 
     state_symbols = (theta(t), omega(t))
     specified_symbols = (T(t),)
 
     eom = sym.Matrix([theta(t).diff() - omega(t),
-                     I*omega(t).diff() + m*g*d*sym.sin(theta(t)) - T(t)])
+                     I*omega(t).diff() + m*g*h*sym.sin(theta(t)) - T(t)])
 
     # Specify the known system parameters.
     par_map = OrderedDict()
     par_map[I] = 1.0
     par_map[m] = 1.0
     par_map[g] = 9.81
-    par_map[d] = 1.0
+    par_map[h] = 1.0
 
     # Specify the objective function and it's gradient.
     obj_func = sym.Integral(T(t)**2, t)
-    obj, obj_grad = create_objective_function(obj_func, state_symbols,
-                                              specified_symbols, tuple(),
-                                              num_nodes,
-                                              node_time_interval=interval_value)
+    obj, obj_grad = create_objective_function(
+        obj_func, state_symbols, specified_symbols, tuple(), num_nodes,
+        node_time_interval=interval_value, time_symbol=t)
 
     # Specify the symbolic instance constraints, i.e. initial and end
     # conditions.
@@ -53,6 +57,7 @@ def test_pendulum():
     Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
             known_parameter_map=par_map,
             instance_constraints=instance_constraints,
+            time_symbol=t,
             bounds={T(t): (-2.0, 2.0)},
             show_compile_output=True)
 
@@ -75,6 +80,7 @@ def test_Problem():
                    state_symbols,
                    2,
                    interval_value,
+                   time_symbol=t,
                    bounds={x: (-10.0, 10.0),
                            f: (-8.0, 8.0),
                            m: (-1.0, 1.0),
@@ -128,7 +134,8 @@ class TestConstraintCollocator():
                                  num_collocation_nodes=4,
                                  node_time_interval=self.interval_value,
                                  known_parameter_map=par_map,
-                                 known_trajectory_map=traj_map)
+                                 known_trajectory_map=traj_map,
+                                 time_symbol=t)
 
     def test_init(self):
 
@@ -279,8 +286,8 @@ class TestConstraintCollocator():
 
             xi, vi = self.state_values[:, i]
             xn, vn = self.state_values[:, i + 1]
-            fi = self.specified_values[i:i + 1]
-            fn = self.specified_values[i + 1:i + 2]
+            fi = self.specified_values[i:i + 1][0]
+            fn = self.specified_values[i + 1:i + 2][0]
 
             expected_kinematic[i] = (xn - xi) / h - (vi + vn) / 2
             expected_dynamic[i] = (m * (vn - vi) / h + c * (vn + vi) / 2 + k
@@ -861,7 +868,8 @@ class TestConstraintCollocatorInstanceConstraints():
                                  num_collocation_nodes=4,
                                  node_time_interval=self.interval_value,
                                  known_parameter_map=par_map,
-                                 instance_constraints=instance_constraints)
+                                 instance_constraints=instance_constraints,
+                                 time_symbol=t)
 
     def test_init(self):
 
@@ -1452,3 +1460,52 @@ class TestConstraintCollocatorVariableDuration():
 
         np.testing.assert_allclose(jacobian_matrix.todense(),
                                    expected_jacobian)
+
+
+def test_known_and_unknown_order():
+
+    kane = n_link_pendulum_on_cart(n=3, cart_force=True, joint_torques=True)
+
+    states = kane.q.col_join(kane.u)
+
+    eom = kane.mass_matrix_full @ states.diff() - kane.forcing_full
+
+    g, l0, l1, l2, m0, m1, m2, m3, t = sort_sympy(eom.free_symbols)
+
+    # leave two parameters free and disorder the entries to the dictionary
+    par_map = {}
+    par_map[l1] = 1.5
+    par_map[l0] = 1.0
+    par_map[m3] = 2.5
+    par_map[g] = 9.81
+    par_map[m1] = 1.5
+
+    (u1d, q2d, q3d, u3d, q0d, q1d, u0d, u2d, F, T1, T2, T3, q0, q1, q2, q3, u0,
+     u1, u2, u3) = sort_sympy(mech.find_dynamicsymbols(eom))
+
+    num_nodes = 51
+    interval = 0.1
+
+    # order in the dictionary should not match sort_sympy()
+    traj_map = {
+        T1: np.zeros(num_nodes),
+        F: np.ones(num_nodes),
+    }
+
+    col = ConstraintCollocator(
+        equations_of_motion=eom,
+        state_symbols=states,
+        num_collocation_nodes=num_nodes,
+        node_time_interval=interval,
+        known_parameter_map=par_map,
+        known_trajectory_map=traj_map,
+        time_symbol=t,
+    )
+
+    assert col.input_trajectories == (T1, F, T2, T3)
+    assert col.known_input_trajectories == (T1, F)
+    assert col.known_parameters == (l1, l0, m3, g, m1)
+    assert col.unknown_input_trajectories == (T2, T3)
+    assert col.unknown_parameters == (l2, m0, m2)
+    assert col.parameters == (l1, l0, m3, g, m1, l2, m0, m2)
+    assert col.state_symbols == (q0, q1, q2, q3, u0, u1, u2, u3)
