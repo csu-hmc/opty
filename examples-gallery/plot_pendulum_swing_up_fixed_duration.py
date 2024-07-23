@@ -10,8 +10,7 @@ using minimal input torque with a bounded torque magnitude.
 
 import numpy as np
 import sympy as sm
-from opty.direct_collocation import Problem
-from opty.utils import create_objective_function
+from opty import Problem, create_objective_function
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
