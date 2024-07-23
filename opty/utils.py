@@ -29,6 +29,11 @@ except TypeError:  # SymPy >=1.6
                                     import_kwargs={'fromlist': ['']},
                                     catch=(RuntimeError,))
 
+__all__ = [
+    'parse_free',
+    'create_objective_function',
+]
+
 
 def _forward_jacobian(expr, wrt):
 
