@@ -1,5 +1,5 @@
 # %%
-""""
+"""
 Sliding a Block on a Road
 =========================
 A block, modeled as a particle is sliding on a road to cross a
@@ -7,11 +7,10 @@ hill. The block is subject to gravity and speed dependent
 friction.
 Gravity points in the negative Y direction.
 A force tangential to the road is applied to the block.
-Three objective functions to me minimized may be selected:
+Two objective functions to be minimized will be considered:
 
 - selektion = 0: time to reach the end point is minimized
-- selektion = 1: time to reach the end point and the energy are minimized.
-- selektion = 2: energy consumed is minimized.
+- selektion = 1: energy consumed is minimized.
 
 **Constants**
 
@@ -40,7 +39,8 @@ import matplotlib as mp
 from matplotlib.animation import FuncAnimation
 from copy import deepcopy
 # %%
-# define the road
+# The function below defines the shape of the road the block is
+# sliding on.
 def strasse(x, a, b):
     return a * x**2 * sm.exp((b - x))
 
@@ -62,7 +62,7 @@ a, b = sm.symbols('a b')
 P0.set_pos(O, x * N.x + strasse(x, a, b) * N.y)
 P0.set_vel(N, ux * N.x + strasse(x, a, b).diff(x)*ux * N.y)
 BODY = [me.Particle('P0', P0, m)]
-
+# %%
 # The control force and the friction are acting in the direction of
 # the tangent at the street at the point whre the particle is.
 alpha = sm.atan(strasse(x, a, b).diff(x))
@@ -85,13 +85,10 @@ sm.pprint(EOM)
 # opty overwrites the symbols, so I store them for the later loop
 speicher = deepcopy((x, ux, F))
 
-# which objective functions are to be used
-selektor = (1, 0)
-
 # store results of the optimizations for later plotting
-solution_list = [0., 0., 0.]
-prob_list = [0., 0., 0.]
-info_list = [0., 0., 0.]
+solution_list = [0., 0.]
+prob_list = [0., 0.]
+info_list = [0., 0.]
 
 # Specify the known system parameters.
 par_map = OrderedDict()
@@ -102,50 +99,19 @@ par_map[a] = 1.5
 par_map[b] = 2.5
 
 num_nodes = 300
-fixed_duration = 6.
-
-# verstaerkung is a factor to set the weight of the speed in the
-# objective function relative to the weight of the energy (which is 1)
-verstaerkung = 2.e5
+fixed_duration = 6.0
 # %%
 # set up the optinization problems and solve them.
-for selektion in selektor:
+for selektion in (0, 1):
     state_symbols = tuple((speicher[0], speicher[1]))
     laenge = len(state_symbols)
     constant_symbols = (m, g, reibung, a, b)
     specified_symbols = (speicher[2], )
 
-    if selektion == 2:
+    if selektion == 1:
         duration = fixed_duration
         interval_value = duration / (num_nodes - 1)
-    else:
-        h = sm.symbols('h')
-        duration = (num_nodes - 1) * h
-        interval_value = h
 
-    if selektion == 1:
-        def obj(free):
-            Fx = free[laenge * num_nodes: (laenge + 1) * num_nodes]
-            return free[-1] * np.sum(Fx**2) + free[-1] * verstaerkung
-
-        def obj_grad(free):
-            grad = np.zeros_like(free)
-            l1 = laenge * num_nodes
-            l2 = (laenge + 1) * num_nodes
-            grad[l1: l2] = 2.0 * free[l1: l2] * free[-1]
-            grad[-1] = 1 * verstaerkung
-            return grad
-
-    elif selektion == 0:
-        def obj(free):
-            return free[-1]
-
-        def obj_grad(free):
-            grad = np.zeros_like(free)
-            grad[-1] = 1.
-            return grad
-
-    elif selektion == 2:
         def obj(free):
             Fx = free[laenge * num_nodes: (laenge + 1) * num_nodes]
             return interval_value * np.sum(Fx**2)
@@ -156,8 +122,20 @@ for selektion in selektor:
             l2 = (laenge + 1) * num_nodes
             grad[l1: l2] = 2.0 * free[l1: l2] * interval_value
             return grad
+
+
     else:
-        raise Exception('selektion must be 0, 1, 2')
+        h = sm.symbols('h')
+        duration = (num_nodes - 1) * h
+        interval_value = h
+
+        def obj(free):
+            return free[-1]
+
+        def obj_grad(free):
+            grad = np.zeros_like(free)
+            grad[-1] = 1.
+            return grad
 
     t0, tf = 0.0, duration
 
@@ -165,7 +143,7 @@ for selektion in selektor:
 # backward euler is the default.
     methode = 'backward euler'
 
-    if selektion in (0, 1):
+    if selektion == 0:
         initial_guess = np.array(list(np.ones((len(state_symbols)
             + len(specified_symbols)) * num_nodes) * 0.01) + [0.02])
     else:
@@ -184,7 +162,7 @@ for selektion in selektor:
     )
 
 # forcing h > 0 avoids negative h as 'solutions'.
-    if selektion in (0, 1):
+    if selektion == 0:
         bounds = {F: (-15., 15.), x: (initial_state_constraints[x],
         final_state_constraints[x]), ux: (0., 1000.), h:(1.e-5, 1.)}
     else:
@@ -216,7 +194,7 @@ def drucken(selektion, fig, ax, full=True):
     info = info_list[selektion]
     prob = prob_list[selektion]
 
-    if selektion in (0, 1):
+    if selektion == 0:
         duration = (num_nodes - 1) * solution[-1]
     else:
         duration = fixed_duration
@@ -247,7 +225,7 @@ def drucken(selektion, fig, ax, full=True):
 
     if full == True:
         print('message from optimizer:', info['status_msg'])
-        if selektion in (0, 1):
+        if selektion == 0:
             print(f'optimal h value is: {solution[-1]:.3f}')
         prob.plot_objective_value()
         prob.plot_constraint_violations(solution)
@@ -261,10 +239,7 @@ def drucken(selektion, fig, ax, full=True):
         ax.set_ylabel('Y-axis [m]')
 
         if selektion == 0:
-            msg = f'speed was optimized'
-        elif selektion == 1:
-            msg = (f'speed and energy optimized, weight of speed = ' +
-                f'{verstaerkung:.1e}')
+            msg = f'speed optimized'
         else:
             msg = f'energy optimized'
 
@@ -304,30 +279,20 @@ def drucken(selektion, fig, ax, full=True):
     return animation, update
 
 ## %%
-selektion = selektor[0]
+selektion = 0
 fig, ax = plt.subplots(figsize=(8, 8))
 anim, _ = drucken(selektion, fig, ax)
 plt.show()
 
 ## %%
-if len(selektor) > 1:
-    selektion = selektor[1]
-    fig, ax = plt.subplots(figsize=(8, 8))
-    anim, _ = drucken(selektion, fig, ax)
-    plt.show()
-
-## %%
-if len(selektor) > 2:
-    selektion = selektor[2]
-    fig, ax = plt.subplots(figsize=(8, 8))
-    anim, _ = drucken(selektion, fig, ax)
-    plt.show()
-
+selektion = 1
+fig, ax = plt.subplots(figsize=(8, 8))
+anim, _ = drucken(selektion, fig, ax)
+plt.show()
 # %%
 # A frame from the animation.
 fig, ax = plt.subplots(figsize=(8, 8))
-_, update = drucken(selektor[0], fig, ax, full=False)
-number = len(selektor) * 4 + 1
-# sphinx_gallery_thumbnail_number = number
-update(100 )
+_, update = drucken(0, fig, ax, full=False)
+# sphinx_gallery_thumbnail_number = 9
+update(100)
 plt.show()
