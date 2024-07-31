@@ -1,7 +1,8 @@
 # %%
 """
-Sliding a Block on a Road
-=========================
+Block Sliding on a Road
+=======================
+
 A block, modeled as a particle is sliding on a road to cross a
 hill. The block is subject to gravity and speed dependent
 friction.
@@ -30,12 +31,10 @@ Two objective functions to be minimized will be considered:
 
 """
 import sympy.physics.mechanics as me
-from collections import OrderedDict
 import numpy as np
 import sympy as sm
 from opty.direct_collocation import Problem
 import matplotlib.pyplot as plt
-import matplotlib as mp
 from matplotlib.animation import FuncAnimation
 from copy import deepcopy
 # %%
@@ -45,7 +44,7 @@ def strasse(x, a, b):
     return a * x**2 * sm.exp((b - x))
 
 # %%
-# set up Kane's EOMs
+# Set up Kane's EOMs.
 N = me.ReferenceFrame('N')
 O = me.Point('O')
 O.set_vel(N, 0)
@@ -61,12 +60,12 @@ a, b = sm.symbols('a b')
 
 P0.set_pos(O, x * N.x + strasse(x, a, b) * N.y)
 P0.set_vel(N, ux * N.x + strasse(x, a, b).diff(x)*ux * N.y)
-BODY = [me.Particle('P0', P0, m)]
+bodies = [me.Particle('P0', P0, m)]
 # %%
 # The control force and the friction are acting in the direction of
 # the tangent at the street at the point whre the particle is.
 alpha = sm.atan(strasse(x, a, b).diff(x))
-FL = [(P0, -m*g*N.y + F*(sm.cos(alpha)*N.x + sm.sin(alpha)*N.y) -
+forces = [(P0, -m*g*N.y + F*(sm.cos(alpha)*N.x + sm.sin(alpha)*N.y) -
        reibung*ux*(sm.cos(alpha)*N.x + sm.sin(alpha)*N.y))]
 
 kd = sm.Matrix([ux - x.diff(t)])
@@ -75,33 +74,35 @@ q_ind = [x]
 u_ind = [ux]
 
 KM = me.KanesMethod(N, q_ind=q_ind, u_ind=u_ind, kd_eqs=kd)
-(fr, frstar) = KM.kanes_equations(BODY, FL)
-EOM = kd.col_join(fr + frstar)
-EOM.simplify()
-sm.pprint(EOM)
+(fr, frstar) = KM.kanes_equations(bodies, forces)
+eom = kd.col_join(fr + frstar)
+eom.simplify()
+sm.pprint(eom)
 
 # %%
-# set up the objects needed for the optimization.
-# opty overwrites the symbols, so I store them for the later loop
+# opty seems to overwrite the symbols. Since two optimizations are run, the
+# original symbols are saved.
 speicher = deepcopy((x, ux, F))
 
-# store results of the optimizations for later plotting
+# %%
+# Store the results of the two optimizations for later plotting
 solution_list = [0., 0.]
 prob_list = [0., 0.]
 info_list = [0., 0.]
 
-# Specify the known system parameters.
-par_map = OrderedDict()
+# %%
+# Define the known parameters.
+par_map = {}
 par_map[m] = 1.0
 par_map[g] = 9.81
 par_map[reibung] = 0.0
 par_map[a] = 1.5
 par_map[b] = 2.5
 
-num_nodes = 300
+num_nodes = 150
 fixed_duration = 6.0
 # %%
-# set up the optinization problems and solve them.
+# Set up the optinization problems and solve them.
 for selektion in (0, 1):
     state_symbols = tuple((speicher[0], speicher[1]))
     laenge = len(state_symbols)
@@ -139,8 +140,6 @@ for selektion in (0, 1):
 
     t0, tf = 0.0, duration
 
-# pick the integration method. backward euler and midpoint are the choices.
-# backward euler is the default.
     methode = 'backward euler'
 
     if selektion == 0:
@@ -161,7 +160,6 @@ for selektion in (0, 1):
             in final_state_constraints.items())
     )
 
-# forcing h > 0 avoids negative h as 'solutions'.
     if selektion == 0:
         bounds = {F: (-15., 15.), x: (initial_state_constraints[x],
         final_state_constraints[x]), ux: (0., 1000.), h:(1.e-5, 1.)}
@@ -171,7 +169,7 @@ for selektion in (0, 1):
 
     prob = Problem(obj,
         obj_grad,
-        EOM,
+        eom,
         state_symbols,
         num_nodes,
         interval_value,
@@ -180,7 +178,6 @@ for selektion in (0, 1):
         bounds=bounds,
         integration_method=methode)
 
-# set max number of iterations. Default is 3000.
     prob.add_option('max_iter', 3000)
 
     solution, info = prob.solve(initial_guess)
@@ -188,8 +185,8 @@ for selektion in (0, 1):
     info_list[selektion] = info
     prob_list[selektion] = prob
 # %%
-# animate the solutions and plot the results
-def drucken(selektion, fig, ax, full=True):
+# Animate the solutions and plot the results.
+def drucken(selektion, fig, ax, video = True):
     solution = solution_list[selektion]
     info = info_list[selektion]
     prob = prob_list[selektion]
@@ -223,14 +220,6 @@ def drucken(selektion, fig, ax, full=True):
     ymin = np.min(P0_y)
     ymax = np.max(P0_y)
 
-    if full == True:
-        print('message from optimizer:', info['status_msg'])
-        if selektion == 0:
-            print(f'optimal h value is: {solution[-1]:.3f}')
-        prob.plot_objective_value()
-        prob.plot_constraint_violations(solution)
-        prob.plot_trajectories(solution)
-
     def initialize_plot():
         ax.set_xlim(xmin-1, xmax + 1.)
         ax.set_ylim(ymin-1, ymax + 1.)
@@ -239,9 +228,9 @@ def drucken(selektion, fig, ax, full=True):
         ax.set_ylabel('Y-axis [m]')
 
         if selektion == 0:
-            msg = f'speed optimized'
+            msg = f'The speed is optimized'
         else:
-            msg = f'energy optimized'
+            msg = f'The energy optimized'
 
         ax.grid()
         strasse_x = np.linspace(xmin, xmax, 100)
@@ -262,10 +251,10 @@ def drucken(selektion, fig, ax, full=True):
 
 # Function to update the plot for each animation frame
     def update(frame):
-        message = (f'running time {times[frame]:.2f} sec \n' +
-            f'the red line is the initial position, the green line is ' +
+        message = (f'Running time {times[frame]:.2f} sec \n' +
+            f'The red line is the initial position, the green line is ' +
             f'the final position \n' +
-            f'the green arrow is the force acting on the block \n' +
+            f'The green arrow is the force acting on the block \n' +
             f'{msg}' )
         ax.set_title(message, fontsize=12)
 
@@ -274,25 +263,53 @@ def drucken(selektion, fig, ax, full=True):
         pfeil.set_UVC(Pfeil_x[frame], Pfeil_y[frame])
         return line1, pfeil
 
-    animation = FuncAnimation(fig, update, frames=range(len(P0_x)),
-        interval=1000*interval_value, blit=True)
+    if video == True:
+        animation = FuncAnimation(fig, update, frames=range(len(P0_x)),
+            interval=1000*interval_value, blit=True)
+    else:
+        animation = None
     return animation, update
 
-## %%
+# %%
+# Below the results of **minimized duration** are shown.
 selektion = 0
+print('message from optimizer:', info_list[selektion]['status_msg'])
+print(f'optimal h value is: {solution_list[selektion][-1]:.3f}')
+# %%
+prob_list[selektion].plot_objective_value()
+# %%
+# Plot errors in the solution.
+prob_list[selektion].plot_constraint_violations(solution_list[selektion])
+# %%
+# Plot the trajectories of the block.
+prob_list[selektion].plot_trajectories(solution_list[selektion])
+# %%
+# Animate the solution.
 fig, ax = plt.subplots(figsize=(8, 8))
 anim, _ = drucken(selektion, fig, ax)
-plt.show()
 
-## %%
+
+# %%
+# Now the results of **minimized energy** are shown.
 selektion = 1
+print('message from optimizer:', info_list[selektion]['status_msg'])
+# %%
+prob_list[selektion].plot_objective_value()
+# %%
+# Plot errors in the solution.
+prob_list[selektion].plot_constraint_violations(solution_list[selektion])
+# %%
+# Plot the trajectories of the block.
+prob_list[selektion].plot_trajectories(solution_list[selektion])
+# %%
+# Animate the solution.
 fig, ax = plt.subplots(figsize=(8, 8))
 anim, _ = drucken(selektion, fig, ax)
-plt.show()
+
 # %%
 # A frame from the animation.
 fig, ax = plt.subplots(figsize=(8, 8))
-_, update = drucken(0, fig, ax, full=False)
-# sphinx_gallery_thumbnail_number = 9
+_, update = drucken(0, fig, ax, video=False)
 update(100)
+# sphinx_gallery_thumbnail_number = 9
 plt.show()
