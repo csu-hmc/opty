@@ -1,42 +1,38 @@
  # %%
 """
-ball rolling on spinning disc
+Ball Rolling on Spinning Disc
 =============================
 
-A uniform, solid ball with radius r and mass m_b is rolling on a
+A uniform, solid ball with radius r and mass :math:`m_b` is rolling on a
 horizontal spinning disc without slipping.
-The disc starts at rest and speeds up like this:
-u_3(t) = Omega * (1 - exp(-alpha * t)),
-where alpha > 0 is a measure of the acceleration and Omega
+The disc starts at rest and speeds up like this
+:math:`u_{3}(t) = \\Omega \\cdot (1 - e^{(-\\alpha \\cdot t)})`
+where :math:`\\alpha` > 0 is a measure of the acceleration and :math:`\\Omega`
 is the final rotational speed.
 A torque is applied to the ball, and the goal is to get it to the
 center of the disc.
 
-An observer, a particle of mass m_o, is attached
+An observer, a particle of mass :math:`m_o`, is attached
 to the surface the ball.
 
 **Constants**
 
-- m_b: mass of the ball [kg]
+- :math:`m_b`: mass of the ball [kg]
 - r : radius of the ball [m]
-- m_o : mass of the observer [kg]
-- Omega: final rotational speed of the disc
+- :math:`m_o` : mass of the observer [kg]
+- :math:`\\Omega`: final rotational speed of the disc
   around the vertical axis [rad/sec]
-- alpha: measure of the acceleration of the disc [1/sec]
+- :math:`\\alpha`: measure of the acceleration of the disc [1/sec]
 
 **States**
 
-- q_1, q_2, q_3: generalized coordinates of the ball
+- :math:`q_1, q_2, q_3`: generalized coordinates of the ball
     w.r.t the disc [rad]
-- u_1, u_2, u_3: generalized angual velocities of the ball [rad/sec]
-- x, y: position of the contact point w.r.t. the disc.
-  Dependent states. [m]
-- ux, uy: speeds of the contact point w.r.t the disc.
-  Dependent states. [m/sec]
+- :math:`u_1, u_2, u_3`: generalized angual velocities of the ball [rad/sec]
 
 **Specifieds**
 
-- t_1, t_2, t_3: Torque applied to the ball [N * m]
+- :math:`t_1, t_2, t_3`: Torque applied to the ball [N * m]
 
 **Additional parameters**
 
@@ -47,8 +43,8 @@ to the surface the ball.
 - O: point fixed in N
 - CP: contact point of ball with disc
 - Dmc: center of the ball
-- m_Dmc: position of observer
-- h_opty: intervall which opty should minimize.
+- :math:`m_{Dmc}: position of observer
+- h: intervall which opty should minimize.
 
 A video similar to this one, which I saw in something JM published
 gave me the idea.
@@ -58,14 +54,11 @@ https://www.youtube.com/watch?v=3oM7hX3UUEU
 import sympy as sm
 import sympy.physics.mechanics as me
 import numpy as np
-from collections import OrderedDict
 from opty.direct_collocation import Problem
 from opty.utils import parse_free
 from scipy.interpolate import CubicSpline
 from scipy.optimize import root
 import matplotlib.pyplot as plt
-import matplotlib as mp
-mp.rcParams['animation.embed_limit'] = 2**128
 from matplotlib.animation import FuncAnimation
 from matplotlib import patches
 
@@ -88,22 +81,23 @@ N, A1, A2 = sm.symbols('N, A1 A2', cls=me.ReferenceFrame)
 O, CP, Dmc, m_Dmc = sm.symbols('O, CP, Dmc, m_Dmc', cls=me.Point)
 O.set_vel(N, 0)
 
-# %% [markdown]
-# Determine the holonomic constraints
+# %%
+# Determination of the holonomic constraints.
 #
-# If the ball rotates around the x axis by an angle q_1 the
-# contact point will be move by -q_1 * r in the A2.y direction
-# If the ball rotates around the y axis by an angle q_2 the
-# contact point will be move by q_2 * r in the A2.x direction
-# Hence the coordinate constraints are:
+# If the ball rotates around the x axis by an angle q the
+# contact point will be move by -q1 * r in the A2.y direction.
+# If the ball rotates around the y axis by an angle q2 the
+# contact point will be move by q2 * r in the A2.x direction.
+# Hence the configuration constraints are:
 #
-# - x = r * q_2
-# - y = -r * q_1
+# - x = r * q2
+# - y = -r * q1
 #
 # So the resulting speed constraints are:
 #
-# - d/dt(x) = r * d/dt(q_2)
-# - d/dt(y) = -r * d/dt(q_1)
+# - d/dt(x) = r * d/dt(q2)
+# - d/dt(y) = -r * d/dt(q1)
+#
 #
 # The time t appears explicitly in the EOMs.
 # I copy the trick from JM in the example1.2.3 Parameter identification:
@@ -111,22 +105,14 @@ O.set_vel(N, 0)
 # pass the time as known trajectory. My OEMs also contain
 # d/dt(T(t)) and d^2/dx^2(T(t))
 # As T(t) = const * t I set these derivatives accordingly.
-#
-# Note: opty can handle Kane's equations with the reaction forces.
-# They must be declared as state variables.
-# At least with this simulation opty did not find a solution
-# Hence here I set up Kanes equations without reaction
-# forces, and I calculate the reaction forces further down.
-# This works very fast.
-#
 
 # %%
-# Set up the EOMs without virtual speeds and reaction forces.
-udisc = Omega * (1 - sm.exp(-alpha * T(t)))
+# Set up the equations of motion.
+# I do not use qdisc = sm.integrate(udisc, t), as this gives
+# a sm.Piecewise(..) result, likely not differentiable,
+# but use the result of this integration for alpha != 0.
 
-# I do not use sm.integrate(udisc, t), as this gives
-# a sm.Piecewise(..) result, but us the result of this
-# integration for alpha != 0.
+udisc = Omega * (1 - sm.exp(-alpha * T(t)))
 qdisc = (Omega * T(t) + Omega * sm.exp(-alpha * T(t)) / alpha -
     Omega / alpha)
 A2.orient_axis(N, qdisc, N.z)
@@ -151,11 +137,11 @@ iYY = iXX
 iZZ = iXX
 
 I = me.inertia(A1, iXX, iYY, iZZ)
-Ball = me.RigidBody('Ball', Dmc, A1, mb, (I, Dmc))
+ball = me.RigidBody('ball', Dmc, A1, mb, (I, Dmc))
 observer = me.Particle('observer', m_Dmc, mo)
-BODY = [Ball, observer]
+bodies = [ball, observer]
 
-FL = [(Dmc, -mb*g*N.z), (m_Dmc, -mo*g*N.z),
+forces = [(Dmc, -mb*g*N.z), (m_Dmc, -mo*g*N.z),
     (A1, t1*A1.x + t2*A1.y + t3*A1.z)]
 
 kd = sm.Matrix([ux - x.diff(t), uy - y.diff(t),
@@ -178,38 +164,39 @@ KM = me.KanesMethod(N,
     configuration_constraints=hol_constr,
     )
 
-(fr, frstar) = KM.kanes_equations(BODY, FL)
-EOM = kd.col_join(fr + frstar)
-EOM = me.msubs((EOM.col_join(hol_constr)),
+(fr, frstar) = KM.kanes_equations(bodies, forces)
+eom = kd.col_join(fr + frstar)
+eom = me.msubs((eom.col_join(hol_constr)),
     {sm.Derivative(T(t), t):
     Tdot, sm.Derivative(T(t), (t,2)): Tdotdot},
     )
-print(f'OEM contains {sm.count_ops(EOM):,} operations, ' +
-    f'{sm.count_ops(sm.cse(EOM))} after cse')
+print(f'eom contains {sm.count_ops(eom):,} operations, ' +
+    f'{sm.count_ops(sm.cse(eom))} after cse')
 
 # %%
-# Set up the **optimization problem** and solve it.
-# I force h_opty > 0 with the bounds 0.0001 < h_opty < 1.0
-# to avoid negative 'solutions'.
+# Set up the optimization problem and solve it.
 
-h_opty = sm.symbols('h_opty')
+h = sm.symbols('h')
 state_symbols = (*q_ind, *q_dep, *u_ind, *u_dep)
 laenge = len(state_symbols)
-constant_symbols = (r, mb, mo, g, Omega,
-    alpha, Tdot, Tdotdot)
+constant_symbols = (r, mb, mo, g, Omega, alpha, Tdot, Tdotdot)
 specified_symbols = (t1, t2, t3)
-unknown_symbols = []
 methode = "backward euler"
 num_nodes = 250
-duration = (num_nodes - 1) * h_opty
+duration = (num_nodes - 1) * h
 
+# %%
+# Disc time is a constant, related to the acceleration of the disc.
 disc_time = 7.5
-interval_value = h_opty
-interval_value_fix = disc_time/num_nodes
 
-zeit = np.linspace(0, disc_time, num_nodes)
+# %%
+interval_value = h
+interval_value_fix = disc_time/num_nodes
+interval_fix = np.linspace(0, disc_time, num_nodes)
+
+# %%
 # Specify the known system parameters.
-par_map = OrderedDict()
+par_map = {}
 par_map[mb]  = 5.0
 par_map[mo]  = 1.0
 par_map[r]   = 1.0
@@ -220,12 +207,13 @@ par_map[Tdot] = interval_value_fix
 par_map[Tdotdot] = 0.0
 
 # %%
-# I minimize the square of the control torques,
-# but I also want to minimize the duration of the motion.
-# weight give the relative weight of duration to 'energy'.
+# A weighted sum of energy and speed is to be minimized. weight is the
+# relative weight of the speed. (If weight = 0, only the energy is
+# minimized.)
 weight = 2.5e5
 
-
+# %%
+# Define the objective function and its gradient.
 def obj(free):
     free1 = free[0: -1]
     Tz1 = free1[laenge * num_nodes: (laenge + 1) * num_nodes]
@@ -247,7 +235,8 @@ def obj_grad(free):
 
 t0, tf = 0.0, duration
 
-# holonomic constrains must be fullfilled.
+# %%
+# The holonomic constraints must be fullfilled by the state constraints.
 x_start = 7.0
 q2_start = x_start / par_map[r]
 y_start = 7.0
@@ -281,27 +270,32 @@ instance_constraints = (
     final_state_constraints.items()
 )
 
-grenze = 10.0
-# forcing h_opty > 0. helps to avoid negative h_opty solutions.
-bounds = {t1: (-grenze, grenze), t2: (-grenze, grenze),
-    t3: (-grenze, grenze), h_opty: (0.0001, 1.0)}
+# %%
+# Forcing h > 0. helps to avoid negative h solutions.
 
+grenze = 10.0
+bounds = {t1: (-grenze, grenze), t2: (-grenze, grenze),
+    t3: (-grenze, grenze), h: (0.0001, 1.0)}
+
+# %%
 # Create an optimization problem.
 prob = Problem(
     obj,
     obj_grad,
-    EOM,
+    eom,
     state_symbols,
     num_nodes,
     interval_value,
     known_parameter_map=par_map,
-    known_trajectory_map = {T(t): zeit},
+    known_trajectory_map = {T(t): interval_fix},
     instance_constraints=instance_constraints,
     time_symbol=t,
     bounds=bounds,
     )
 
-# Use an initial guess, meeting the holonomic constraints.
+# %%
+# The initial guess should meet the configuration constrains. It will be
+# plotted below.
 i1b = np.zeros(num_nodes)
 i2 = np.linspace(initial_state_constraints[x],
     final_state_constraints[x], num_nodes)
@@ -311,35 +305,37 @@ i3 = np.linspace(initial_state_constraints[y],
 i1 = -i3 / par_map[r]
 i4 = np.zeros(8*num_nodes)
 initial_guess = np.hstack((i1,i1a, i1b, i2, i3, i4, 0.01))
+fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 1.25*14), sharex=True)
+prob.plot_trajectories(initial_guess, ax1)
 
-# set max number of iterations. Default is 3000.
+# %%
+# This way the maximum number ofinterations may be changed.
+# Default is 3000.
 prob.add_option('max_iter', 2000)
 
+# %%
 # Find the optimal solution.
-for _ in range(1):
-    solution, info = prob.solve(initial_guess)
-    print('message from optimizer:', info['status_msg'])
-    print('Iterations needed',len(prob.obj_value))
-    print(f'h_opty = {solution[-1]:.3e}')
-    initial_guess = solution
+
+solution, info = prob.solve(initial_guess)
+print('message from optimizer:', info['status_msg'])
+print('Iterations needed',len(prob.obj_value))
+print(f'Optimal h = {solution[-1]:.3e}')
 
 ## %%
-# PLot objective value.
+# PLot the objective value.
 prob.plot_objective_value()
 
 # %%
-# Plot accuracy of the results.
+# Plot the accuracy of the results.
 prob.plot_constraint_violations(solution)
 
 # %%
-# Plot the results
+# Plot the results.
 fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 3.25*14), sharex=True)
 prob.plot_trajectories(solution, ax1)
 
 # %%
-# With this simulation opty is slow finding the reaction forces.
-# So, I form Kane's EOMs again, but this time with auxiliary speeds
-# and the reaction forces.
+# Set up the EOMs to find the reaction forces.
 
 t = me.dynamicsymbols._t
 q1, q2, q3 = me.dynamicsymbols('q1 q2 q3')
@@ -361,9 +357,6 @@ O, CP, Dmc, m_Dmc = sm.symbols('O, CP, Dmc, m_Dmc', cls=me.Point)
 O.set_vel(N, 0)
 
 udisc = Omega * (1 - sm.exp(-alpha * T(t)))
-# I do not use sm.integrate(udisc, t), as this gives
-# a sm.Piecewise(..) result, but us the result of this
-# integration for alpha != 0.
 qdisc = Omega * T(t) + Omega * sm.exp(-alpha * T(t)) / alpha - Omega / alpha
 A2.orient_axis(N, qdisc, N.z)
 A2.set_ang_vel(N, udisc*N.z)
@@ -388,11 +381,11 @@ iYY = iXX
 iZZ = iXX
 
 I = me.inertia(A1, iXX, iYY, iZZ)
-Ball = me.RigidBody('Ball', Dmc, A1, mb, (I, Dmc))
+ball = me.RigidBody('ball', Dmc, A1, mb, (I, Dmc))
 observer = me.Particle('observer', m_Dmc, mo)
-BODY = [Ball, observer]
+bodies = [ball, observer]
 
-FL = [(Dmc, -mb*g*N.z + F_r[0]*N.x + F_r[1]*N.y + F_r[2]*N.z),
+forces = [(Dmc, -mb*g*N.z + F_r[0]*N.x + F_r[1]*N.y + F_r[2]*N.z),
 (m_Dmc, -mo*g*N.z), (A1, t1*A1.x + t2*A1.y + t3*A1.z)]
 
 kd = sm.Matrix([ux - x.diff(t), uy - y.diff(t),
@@ -416,7 +409,7 @@ KM = me.KanesMethod(N,
     configuration_constraints=hol_constr,
     )
 
-(fr, frstar) = KM.kanes_equations(BODY, FL)
+fr, frstar = KM.kanes_equations(bodies, forces)
 MM = KM.mass_matrix_full
 force = me.msubs(KM.forcing_full, {sm.Derivative(T(t), t):
     Tdot, sm.Derivative(T(t), (t,2)): 0},
@@ -431,13 +424,7 @@ print(f'eingepraegt contains {sm.count_ops(eingepraegt):,} operations, ' +
     f'{sm.count_ops(sm.cse(eingepraegt))} after cse')
 
 # %%
-# Calculate and plot the **reaction forces** on the center of the ball.
-# The reaction forces need
-# d^2/dt^2(generalized coordinates)
-# It is faster to calculate this numerically,
-# compared to doing it symbolically.
-# (which sympy.physics.mechanics provides for: rhs = KM.rhs() ).
-# Of course, the solution found by opty is used.
+# Calculate and plot the reaction forces.
 
 qL = q_ind + q_dep + u_ind + u_dep + [T(t)] + [t1, t2, t3]
 rhs = list(sm.symbols('rhs:5'))
@@ -452,50 +439,51 @@ state_vals, input_vals, _ = parse_free(solution, len(state_symbols),
 
 resultat2 = state_vals.T
 schritte2 = resultat2.shape[0]
-# times must be scaled, as opty used the time num_nodes * h_opty
-# when integrating the EOMs
-times2 = zeit * solution[-1] * (num_nodes - 1) / disc_time
 
-RHS1 = np.empty((schritte2, resultat2.shape[1]))
+# %%
+# Numerically find rhs1 = MM^(-1) * forces.
+times2 = interval_fix
+rhs1 = np.empty((schritte2, resultat2.shape[1]))
 for i in range(schritte2):
     zeit1 = times2[i]
     t11, t21, t31 = input_vals.T[i, :]
-    RHS1[i, :] = np.linalg.solve(MM_lam(*[resultat2[i, j]for j in
+    rhs1[i, :] = np.linalg.solve(MM_lam(*[resultat2[i, j]for j in
         range(resultat2.shape[1])], zeit1, t11, t21, t31,  *pL_vals),
         force_lam(*[resultat2[i, j] for j in range(resultat2.shape[1])],
         zeit1, t11, t21, t31, *pL_vals)).reshape(10)
 
-#calculate implied forces numerically
+# %%
+#Calculate the reaction forces.
 def func (x, *args):
-# just serves to 'modify' the arguments for fsolve.
     return eingepraegt_lam(*x, *args).reshape(3)
 
 kraftx  = np.empty(schritte2)
 krafty  = np.empty(schritte2)
 kraftz  = np.empty(schritte2)
 
-x0 = tuple((1., 1., 1.))   # initial guess
+x0 = tuple((1., 1., 1.))
 
 for i in range(schritte2):
-    for _ in range(1):
-        y0 = [resultat2[i, j] for j in range(resultat2.shape[1])]
-        rhs = [RHS1[i, j] for j in range(5, 10)]
-        t11, t21, t31 = input_vals.T[i, :]
-        zeit1 = times2[i]
-        args = tuple(y0 + [zeit1, t11, t21, t31] + pL_vals + rhs)
-        AAA = root(func, x0, args=args)
-# improved guess. Should speed up convergence of fsolve
-        x0 = AAA.x
+    y0 = [resultat2[i, j] for j in range(resultat2.shape[1])]
+    rhs = [rhs1[i, j] for j in range(5, 10)]
+    t11, t21, t31 = input_vals.T[i, :]
+    zeit1 = times2[i]
+    args = tuple(y0 + [zeit1, t11, t21, t31] + pL_vals + rhs)
+    AAA = root(func, x0, args=args)
+
     kraftx[i] = AAA.x[0]
     krafty[i] = AAA.x[1]
     kraftz[i] = AAA.x[2]
 
-fig, ax = plt.subplots(figsize=(10, 5))
+# %%
+# Plot the reaction forces.
+times2 = interval_fix * solution[-1] / interval_value_fix
+fig, ax = plt.subplots(figsize=(12, 6))
 for i, j in zip((kraftx, krafty, kraftz),
     ('reaction force on Dmc in X direction',
     'reaction force on Dmc in Y direction',
     'reaction force on Dmc in Z direction')):
-# time has to be scaled properly.
+
     plt.plot(times2, i, label=j)
 ax.set_title('Reaction Forces on center of the ball')
 ax.set_xlabel('time [sec]')
@@ -509,7 +497,6 @@ prevent_output = 1
 fps = 40
 
 def add_point_to_data(line, x, y):
-# to trace the path of the point. Copied from Timo.
     old_x, old_y = line.get_data()
     line.set_data(np.append(old_x, x), np.append(old_y, y))
 
@@ -519,8 +506,6 @@ t_arr = np.linspace(t0, num_nodes*solution[-1], num_nodes)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 
-# set the radius of the disc, so the ball will
-# stay on it.
 x_max = np.max(np.max([np.abs(state_vals[3, i])for i in range(num_nodes)]))
 y_max = np.max(np.max([np.abs(state_vals[4, i])for i in range(num_nodes)]))
 r_disc = np.sqrt(x_max**2 + y_max**2) * 1.2
@@ -534,9 +519,9 @@ Pu.set_pos(O, r_disc*A2.y)
 Pd.set_pos(O, -r_disc*A2.y)
 T_total.set_pos(Dmc, t1h*A1.x + t2h*A1.y + t3h*A1.z)
 
-# show the perpendicula portion of the torque vector
-# in the X/Y plane. A bit arbitraryly, I show it
-#  perpendicular to t_Total.
+# %%
+# The projection of the total torque onto the X/Y plane is shown. Is vertical
+# component is shown, somewhat arbitrarily, as perpendicular to the projection.
 hilfs = sm.Max(t1h**2 + t2h**2 + t3h**2, 1.e-15)
 x_coord = (t1h*A1.x + t2h*A1.y + t3h*A1.z).dot(A2.x)
 y_coord = (t1h*A1.x + t2h*A1.y + t3h*A1.z).dot(A2.y)
@@ -588,7 +573,6 @@ x_phi = r_disc * np.cos(phi)
 y_phi = r_disc * np.sin(phi)
 ax.plot(x_phi, y_phi, color='black', lw=2)
 
-# Function to update the plot for each animation frame
 def update(t):
     global old_x, old_y
     message = (f'running time {t:.2f} sec \n The green arrow is the ' +
@@ -619,8 +603,6 @@ def update(t):
 
     return line1, line2, line3, line4, line5, ball, observer, pfeil1, pfeil2
 
-
-# Create the animation
 animation = FuncAnimation(fig, update, frames=np.arange(t0,
     num_nodes*solution[-1], 1 / fps), interval=1.5*fps, blit=False)
 
@@ -629,15 +611,11 @@ animation = FuncAnimation(fig, update, frames=np.arange(t0,
 (fig, ax, line1, line2, line3, line4, line5, ball, observer,
     pfeil1, pfeil2) = init_plot()
 
-
-# draw the disc
 phi = np.linspace(0, 2*np.pi, 500)
 x_phi = r_disc * np.cos(phi)
 y_phi = r_disc * np.sin(phi)
 ax.plot(x_phi, y_phi, color='black', lw=2)
 ax.plot(old_x, old_y, color='magenta', lw=0.5)
-
-# sphinx_gallery_thumbnail_number = 6
+# sphinx_gallery_thumbnail_number = 7
 update(2)
-
 plt.show()
