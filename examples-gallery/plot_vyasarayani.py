@@ -26,19 +26,19 @@ noisy measurements of the angle, y1.
 """
 
 import numpy as np
-import sympy as sym
+import sympy as sm
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
 from opty import Problem
 
 # %%
 # Specify the symbolic equations of motion.
-p, t = sym.symbols('p, t')
-y1, y2 = [f(t) for f in sym.symbols('y1, y2', cls=sym.Function)]
-y = sym.Matrix([y1, y2])
-f = sym.Matrix([y2, -p*sym.sin(y1)])
+p, t = sm.symbols('p, t')
+y1, y2 = [f(t) for f in sm.symbols('y1, y2', cls=sm.Function)]
+y = sm.Matrix([y1, y2])
+f = sm.Matrix([y2, -p*sm.sin(y1)])
 eom = y.diff(t) - f
-sym.pprint(eom)
+sm.pprint(eom)
 
 # %%
 # Generate some data by integrating the equations of motion.
