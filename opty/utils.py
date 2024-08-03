@@ -20,6 +20,7 @@ import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 from sympy.utilities.iterables import numbered_symbols
+from sympy.printing.c import C99CodePrinter
 try:
     plt = sm.external.import_module('matplotlib.pyplot',
                                     __import__kwargs={'fromlist': ['']},
@@ -33,6 +34,27 @@ __all__ = [
     'parse_free',
     'create_objective_function',
 ]
+
+
+class OptyC99CodePrinter(C99CodePrinter):
+    """Printer that appends an underscore to all C variable names, to minimize
+    clashes with variables declared in headers we link against."""
+
+    # TODO : Add sanitizer to remove invalid characters in symbol names, for
+    # example deal with latex symbol names e.g. I_{zz}.
+
+    def _print_Symbol(self, expr):
+        name = super()._print_Symbol(expr)
+        return name + '_'
+
+    def _print_Function(self, expr):
+        name = super()._print_Function(expr)
+        return name + '_'
+
+
+def ccode(expr, assign_to=None, standard='c99', **settings):
+    """Mimics SymPy's ccode, but uses our printer."""
+    return OptyC99CodePrinter(settings).doprint(expr, assign_to)
 
 
 def _forward_jacobian(expr, wrt):
@@ -72,7 +94,7 @@ def _forward_jacobian(expr, wrt):
         raise NotImplementedError
 
     replacement_symbols = numbered_symbols(
-        prefix='_z',
+        prefix='z',
         cls=sm.Symbol,
         exclude=expr.free_symbols,
     )
@@ -405,7 +427,8 @@ _c_template = """\
 #include <math.h>
 #include "{file_prefix}_h.h"
 
-void {routine_name}(double matrix[{matrix_output_size}], {input_args})
+void {routine_name}(double matrix[{matrix_output_size}],
+{input_args})
 {{
 {eval_code}
 }}
@@ -611,18 +634,18 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     else:
         sub_exprs, simple_mat = sm.cse(expr, sm.numbered_symbols('z_'))
 
-    sub_expr_code = '\n'.join(['double ' + sm.ccode(sub_expr[1], sub_expr[0])
+    sub_expr_code = '\n'.join(['double ' + ccode(sub_expr[1], sub_expr[0])
                                for sub_expr in sub_exprs])
 
-    matrix_code = sm.ccode(simple_mat[0], matrix_sym)
+    matrix_code = ccode(simple_mat[0], matrix_sym)
 
     d['eval_code'] = '    ' + '\n    '.join((sub_expr_code + '\n' +
                                              matrix_code).split('\n'))
 
-    c_indent = len('    void {routine_name}('.format(**d))
+    c_indent = len('void {routine_name}('.format(**d))
     c_arg_spacer = ',\n' + ' ' * c_indent
 
-    input_args = ['double {}'.format(sm.ccode(a)) for a in args]
+    input_args = ['double {}'.format(ccode(a)) for a in args]
     d['input_args'] = ' '*c_indent + c_arg_spacer.join(input_args)
 
     cython_input_args = []
@@ -632,14 +655,14 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         if const is not None and a in const:
             typ = 'double'
             idexy = '{}'
-            cython_input_args.append('{} {}'.format(typ, sm.ccode(a)))
+            cython_input_args.append('{} {}'.format(typ, ccode(a)))
         else:
             idexy = '{}_memview[i]'
             memview = 'cdef double[::1] {}_memview = {}'
-            memory_views.append(memview.format(sm.ccode(a), sm.ccode(a)))
-            cython_input_args.append('{}'.format(sm.ccode(a)))
+            memory_views.append(memview.format(ccode(a), ccode(a)))
+            cython_input_args.append('{}'.format(ccode(a)))
 
-        indexed_input_args.append(idexy.format(sm.ccode(a)))
+        indexed_input_args.append(idexy.format(ccode(a)))
 
     cython_indent = len('def {routine_name}_loop('.format(**d))
     cython_arg_spacer = ',\n' + ' '*cython_indent

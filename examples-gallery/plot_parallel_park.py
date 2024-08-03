@@ -8,7 +8,7 @@ parking it.
 **Constants**
 
 - m : car mass, [kg]
-- Izz : car yaw moment of inertia, [kg m^2]
+- I : car yaw moment of inertia, [kg m^2]
 - a : distance from front axle to mass center, [m]
 - b : distance from rear axle to mass center, [m]
 
@@ -39,7 +39,7 @@ import matplotlib.animation as animation
 
 # %%
 # Generate the nonholonomic equations of motion of the system.
-m, Izz, a, b = sm.symbols('m, Izz, a, b', real=True)
+m, I, a, b = sm.symbols('m, I, a, b', real=True)
 x, y, vx, vy = me.dynamicsymbols('x, y, v_x, v_y', real=True)
 theta, omega = me.dynamicsymbols('theta, omega', real=True)
 delta, beta = me.dynamicsymbols('delta, beta', real=True)
@@ -75,9 +75,9 @@ nonholonomic = [
     Pf.vel(N).dot(B.y),
 ]
 
-IA = me.inertia(A, 0, 0, Izz)
+IA = me.inertia(A, 0, 0, I)
 car = me.RigidBody('A', Ao, A, m, (IA, Ao))
-IB = me.inertia(B, 0, 0, Izz/32)
+IB = me.inertia(B, 0, 0, I/32)
 wheel = me.RigidBody('B', Pf, B, m/6, (IB, Pf))
 
 propulsion = (Pr, F*A.x)
@@ -111,7 +111,7 @@ time = np.linspace(0.0, duration, num=num_nodes)
 # %%
 # Provide some reasonably realistic values for the constants.
 par_map = {
-    Izz: 1/12*1200*(2**2 + 3**2),
+    I: 1/12*1200*(2**2 + 3**2),
     m: 1200,
     a: 1.5,
     b: 1.5,

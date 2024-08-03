@@ -22,21 +22,21 @@ interval_value = duration/(num_nodes - 1)
 
 # %%
 # Specify the symbolic equations of motion.
-Izz, m, g, d, t = sm.symbols('Izz, m, g, d, t')
+I, m, g, d, t = sm.symbols('I, m, g, d, t')
 theta, omega, T = sm.symbols('theta, omega, T', cls=sm.Function)
 
 state_symbols = (theta(t), omega(t))
-constant_symbols = (Izz, m, g, d)
+constant_symbols = (I, m, g, d)
 specified_symbols = (T(t),)
 
 eom = sm.Matrix([theta(t).diff() - omega(t),
-                 Izz*omega(t).diff() + m*g*d*sm.sin(theta(t)) - T(t)])
+                 I*omega(t).diff() + m*g*d*sm.sin(theta(t)) - T(t)])
 sm.pprint(eom)
 
 # %%
 # Specify the known system parameters.
 par_map = {
-    Izz: 1.0,
+    I: 1.0,
     m: 1.0,
     g: 9.81,
     d: 1.0,

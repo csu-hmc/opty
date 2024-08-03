@@ -23,8 +23,7 @@ def test_pendulum():
     # Symbolic equations of motion
     # NOTE : h, real=True is used as a regression test for
     # https://github.com/csu-hmc/opty/issues/162
-    # NOTE : Ix is used because NumPy 2.0 uses I in the C API.
-    I, m, g, h, t = sym.symbols('Ix, m, g, h, t', real=True)
+    I, m, g, h, t = sym.symbols('I, m, g, h, t', real=True)
     theta, omega, T = sym.symbols('theta, omega, T', cls=sym.Function)
 
     state_symbols = (theta(t), omega(t))
@@ -825,7 +824,7 @@ class TestConstraintCollocatorInstanceConstraints():
 
     def setup_method(self):
 
-        I, m, g, d, t = sym.symbols('Ix, m, g, d, t')
+        I, m, g, d, t = sym.symbols('I, m, g, d, t')
         theta, omega, T = [f(t) for f in sym.symbols('theta, omega, T',
                                                      cls=sym.Function)]
 
