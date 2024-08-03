@@ -60,9 +60,8 @@ Installation
 
 The required dependencies are as follows:
 
-- cyipopt >= 1.1.0
-- cython >= 0.29.19
-- ipopt >= 3.11 (Linux & OSX), >= 3.13 (Windows)
+- cyipopt >= 1.1.0 [with ipopt >= 3.11 (Linux & OSX), >= 3.13 (Windows)]
+- cython >= 0.29.19 [with a C compiler]
 - numpy >= 1.19.0
 - python 3.8-3.12
 - scipy >= 1.5.0
@@ -73,16 +72,16 @@ The optional dependencies are as follows:
 - matplotlib >= 3.2.0
 - openmp
 
-To run all of the examples the following additional dependencies are required:
+To run all of the examples the following additional dependencies may be needed:
 
 - pandas
 - pydy >= 0.5.0
 - pytables
 - yeadon
 
-The easiest way to install opty is to first install Anaconda_ (or Miniconda_)
-and use the conda package manager to install opty and any desired optional
-dependencies from the Conda Forge channel, e.g. opty::
+The easiest way to install opty is to first install Anaconda_ (or Miniconda_ or
+Miniforge_) and use the conda package manager to install opty and any desired
+optional dependencies from the Conda Forge channel, e.g. opty::
 
    $ conda install --channel conda-forge opty
 
@@ -92,6 +91,7 @@ and the optional dependencies::
 
 .. _Anaconda: https://www.continuum.io/downloads
 .. _Miniconda: https://conda.io/miniconda.html
+.. _Miniforge: https://conda-forge.org/miniforge/
 
 If you want a custom installation of any of the dependencies, e.g. Ipopt, you
 must first install Ipopt along with it's headers.  For example, on Debian based
@@ -103,9 +103,9 @@ or prebuilt binaries can be downloaded from
 https://www.coin-or.org/download/binary/Ipopt/.
 
 For customized installation (usually desired for performance) follow the
-instructions on the IPOPT documentation to compile the library. If you install
+instructions on the Ipopt documentation to compile the library. If you install
 to a location other than ``/usr/local`` on Unix systems you will likely have to
-set the ``LD_LIBRARY_PATH`` so that you can link to IPOPT when installing
+set the ``LD_LIBRARY_PATH`` so that you can link to Ipopt when installing
 ``cyipopt``.
 
 Once Ipopt is installed and accessible, install conda then create an environment::
