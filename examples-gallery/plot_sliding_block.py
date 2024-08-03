@@ -15,19 +15,19 @@ Two objective functions to be minimized will be considered:
 
 **Constants**
 
-- m: mass of the block [kg]
-- g: acceleration due to gravity [m/s**2]
-- reibung: coefficient of friction [N/(m*s)]
-- a, b: paramenters determining the shape of the road.
+- ``m``: mass of the block [kg]
+- ``g``: acceleration due to gravity [m/s**2]
+- ``friktion``: coefficient of friction [N/(m*s)]
+- ``a``, ``b``: paramenters determining the shape of the road.
 
 **States**
 
-- x: position of the block [m]
-- ux: velocity of the block [m/s]
+- ``x``: position of the block [m]
+- ``ux``: velocity of the block [m/s]
 
 **Specifieds**
 
-- F: force applied to the block [N]
+- ``F``: force applied to the block [N]
 
 """
 import sympy.physics.mechanics as me
@@ -55,7 +55,7 @@ x = me.dynamicsymbols('x')
 ux = me.dynamicsymbols('u_x')
 F = me.dynamicsymbols('F')
 
-m, g, reibung = sm.symbols('m, g, reibung')
+m, g, friktion = sm.symbols('m, g, friktion')
 a, b = sm.symbols('a b')
 
 P0.set_pos(O, x * N.x + strasse(x, a, b) * N.y)
@@ -66,7 +66,7 @@ bodies = [me.Particle('P0', P0, m)]
 # the tangent at the street at the point whre the particle is.
 alpha = sm.atan(strasse(x, a, b).diff(x))
 forces = [(P0, -m*g*N.y + F*(sm.cos(alpha)*N.x + sm.sin(alpha)*N.y) -
-       reibung*ux*(sm.cos(alpha)*N.x + sm.sin(alpha)*N.y))]
+       friktion*ux*(sm.cos(alpha)*N.x + sm.sin(alpha)*N.y))]
 
 kd = sm.Matrix([ux - x.diff(t)])
 
@@ -95,7 +95,7 @@ info_list = [0., 0.]
 par_map = {}
 par_map[m] = 1.0
 par_map[g] = 9.81
-par_map[reibung] = 0.0
+par_map[friktion] = 0.0
 par_map[a] = 1.5
 par_map[b] = 2.5
 
@@ -106,7 +106,7 @@ fixed_duration = 6.0
 for selektion in (0, 1):
     state_symbols = tuple((speicher[0], speicher[1]))
     laenge = len(state_symbols)
-    constant_symbols = (m, g, reibung, a, b)
+    constant_symbols = (m, g, friktion, a, b)
     specified_symbols = (speicher[2], )
 
     if selektion == 1:
@@ -188,8 +188,8 @@ for selektion in (0, 1):
 # Animate the solutions and plot the results.
 def drucken(selektion, fig, ax, video = True):
     solution = solution_list[selektion]
-    info = info_list[selektion]
-    prob = prob_list[selektion]
+#    info = info_list[selektion]
+#    prob = prob_list[selektion]
 
     if selektion == 0:
         duration = (num_nodes - 1) * solution[-1]
