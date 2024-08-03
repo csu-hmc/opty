@@ -36,15 +36,14 @@ to the surface the ball.
 
 **Additional parameters**
 
-- N: inertial frame
-- A1: frame fixed to the ball
-- A2: frame fixed to the disc
-
-- O: point fixed in N
-- CP: contact point of ball with disc
-- Dmc: center of the ball
-- :math:`m_{Dmc}: position of observer
-- h: intervall which opty should minimize.
+- ``N``: inertial frame
+- ``A1``: frame fixed to the ball
+- ``A2``: frame fixed to the disc
+- ``O``: point fixed in N
+- ``CP``: contact point of ball with disc
+- ``Dmc``: center of the ball
+- :math:`m_{Dmc}`: position of observer
+- ``h``: intervall which opty should minimize.
 
 A video similar to this one, which I saw in something JM published
 gave me the idea.
@@ -494,7 +493,7 @@ prevent_output = 1
 
 # %%
 # Animate the system.
-fps = 40
+fps = 30
 
 def add_point_to_data(line, x, y):
     old_x, old_y = line.get_data()
@@ -579,8 +578,7 @@ def update(t):
         f'projection of the torque vector on the X/Y plane \n' +
         f'The blue arrow is the component of the torque perpendicular ' +
         f'to the disc \n' +
-        f'The blue dot is the observer \n' +
-        f'The magenta line shows the curve in N the ball will take'
+        f'The blue dot is the observer'
         )
     ax.set_title(message, fontsize=10)
 
@@ -604,7 +602,8 @@ def update(t):
     return line1, line2, line3, line4, line5, ball, observer, pfeil1, pfeil2
 
 animation = FuncAnimation(fig, update, frames=np.arange(t0,
-    num_nodes*solution[-1], 1 / fps), interval=1.5*fps, blit=False)
+    (num_nodes - 1) * solution[-1], 1 / fps),
+    interval=fps, blit=False)
 
 # %%
 # A frame from the animation.
