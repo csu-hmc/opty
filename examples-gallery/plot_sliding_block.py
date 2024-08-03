@@ -188,8 +188,6 @@ for selektion in (0, 1):
 # Animate the solutions and plot the results.
 def drucken(selektion, fig, ax, video = True):
     solution = solution_list[selektion]
-#    info = info_list[selektion]
-#    prob = prob_list[selektion]
 
     if selektion == 0:
         duration = (num_nodes - 1) * solution[-1]
