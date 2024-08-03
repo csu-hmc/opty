@@ -225,9 +225,16 @@ def test_parse_free():
 
 def test_ufuncify_matrix():
 
-    # NOTE: `if` is a reserved C keyword, this should not cause a compile
+    # NOTE : `if` is a reserved C keyword, this should not cause a compile
     # error.
-    a, b, c, d = sym.symbols('a, b, if, d_{badsym}')
+    # NumPy 2 includes complex.h which defines the C variable "I". If we
+    # use "I" compilation would fail if opty does not handle the variable name
+    # appropriately.
+    # d_{badsym} is simply an invalid C variable name and compilation will
+    # fail, opty does not sanitize the variable names for invalid characters
+    # (although it could).
+
+    a, b, c, d, I = sym.symbols('a, b, if, d_{badsym}, I')
 
     expr_00 = a**2 * sym.cos(b)**c
     expr_01 = sym.tan(b) / sym.sin(a + b) + c**4
@@ -283,6 +290,14 @@ def test_ufuncify_matrix():
 
     testing.assert_allclose(f(result, a_vals, b_vals, c_val),
                             eval_matrix_loop_numpy(a_vals, b_vals, c_val))
+
+    # NOTE : Test "I" as a variable name, which fails compiling with NumPy 2.
+    f = utils.ufuncify_matrix((a, b, I), sym_mat.xreplace({c: I}))
+
+    result = np.empty((n, 4))
+
+    testing.assert_allclose(f(result, a_vals, b_vals, c_vals),
+                            eval_matrix_loop_numpy(a_vals, b_vals, c_vals))
 
     # NOTE : Will not compile due to d_{badsym} being an invalid C variable
     # name.
