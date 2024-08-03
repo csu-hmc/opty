@@ -234,7 +234,7 @@ def test_ufuncify_matrix():
     # fail, opty does not sanitize the variable names for invalid characters
     # (although it could).
 
-    a, b, c, d, I = sym.symbols('a, b, if, d_{badsym}, I')
+    a, b, c, d, I, i = sym.symbols('a, b, if, d_{badsym}, I, i')
 
     expr_00 = a**2 * sym.cos(b)**c
     expr_01 = sym.tan(b) / sym.sin(a + b) + c**4
@@ -293,6 +293,14 @@ def test_ufuncify_matrix():
 
     # NOTE : Test "I" as a variable name, which fails compiling with NumPy 2.
     f = utils.ufuncify_matrix((a, b, I), sym_mat.xreplace({c: I}))
+
+    result = np.empty((n, 4))
+
+    testing.assert_allclose(f(result, a_vals, b_vals, c_vals),
+                            eval_matrix_loop_numpy(a_vals, b_vals, c_vals))
+
+    # NOTE : Test "i" as a variable name, which creates "in".
+    f = utils.ufuncify_matrix((a, b, i), sym_mat.xreplace({c: i}))
 
     result = np.empty((n, 4))
 
