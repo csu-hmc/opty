@@ -12,21 +12,21 @@ X direction.
 
 **Constants**
 
-- l: length of the rod attaching the load to the crane [m]
-- m1: mass of mover attached to the arm of the crane [kg]
-- m2: mass of the load [kg]
-- g: acceleration due to gravity [m/s²]
+- ``l``: length of the rod attaching the load to the crane [m]
+- ``m1``: mass of mover attached to the arm of the crane [kg]
+- ``m2``: mass of the load [kg]
+- ``g``: acceleration due to gravity [m/s²]
 
 **States**
 
-- xc: x-coordinate of the mover [m]
-- q: angle of the rod [rad]
-- uxc: velocity of the mover in x-direction [m/s]
-- u: angular velocity of the rod [rad/s]
+- ``xc``: x-coordinate of the mover [m]
+- ``q``: angle of the rod [rad]
+- ``uxc``: velocity of the mover in x-direction [m/s]
+- ``u``: angular velocity of the rod [rad/s]
 
 **Specifieds**
 
-- F: force applied to the mover [N]
+- ``F``: force applied to the mover [N]
 
 """
 import sympy.physics.mechanics as me
