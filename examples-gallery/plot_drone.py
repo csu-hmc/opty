@@ -32,8 +32,7 @@ thrust.
 import sympy as sm
 import sympy.physics.mechanics as me
 import numpy as np
-from opty.direct_collocation import Problem
-from opty.utils import create_objective_function, parse_free
+from opty import Problem, create_objective_function, parse_free
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 

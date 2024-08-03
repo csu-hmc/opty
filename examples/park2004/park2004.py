@@ -2,7 +2,7 @@
 
 import numpy as np
 from scipy.integrate import odeint
-from opty.direct_collocation import Problem
+from opty import Problem
 from opty.utils import sum_of_sines
 
 from model import PlanarStandingHumanOnMovingPlatform

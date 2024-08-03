@@ -36,7 +36,7 @@ negative Y direction.
 import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
-from opty.direct_collocation import Problem
+from opty import Problem
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import patches

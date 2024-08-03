@@ -31,7 +31,7 @@ import numpy as np
 import sympy as sym
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
-from opty.direct_collocation import Problem
+from opty import Problem
 from opty.utils import building_docs
 
 

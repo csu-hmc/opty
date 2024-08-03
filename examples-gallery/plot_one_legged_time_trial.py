@@ -15,8 +15,7 @@ muscles have to coordinate.
    This example requires SymPy >= 1.13.
 
 """
-from opty.direct_collocation import Problem
-from opty.utils import parse_free
+from opty import Problem, parse_free
 from scipy.optimize import fsolve
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt

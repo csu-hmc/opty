@@ -10,12 +10,10 @@ pp. 223-244, 2003.
 
 """
 
-from collections import OrderedDict
-
 import numpy as np
 import sympy as sym
 import matplotlib.pyplot as plt
-from opty.direct_collocation import Problem
+from opty import Problem
 
 duration = 1.0
 num_nodes = 100
@@ -39,7 +37,7 @@ eom = sym.Matrix([y1(t).diff(t) - y2(t),
 
 # %%
 # Specify the known system parameters.
-par_map = OrderedDict()
+par_map = {}
 par_map[mu] = 60.0
 
 # %%
@@ -101,7 +99,7 @@ print(divider)
 
 # %%
 # Plot results
-fig_y1, axes_y1 = plt.subplots(3, 1)
+fig_y1, axes_y1 = plt.subplots(3, 1, layout='constrained')
 
 legend = ['measured', 'initial guess', 'direct collocation solution']
 
@@ -133,8 +131,6 @@ axes_y2[1].set_title('Initial Guess Constraint Violations')
 axes_y2[1].plot(prob.con(initial_guess)[num_nodes - 1:])
 axes_y2[2].set_title('Solution Constraint Violations')
 axes_y2[2].plot(prob.con(solution)[num_nodes - 1:])
-
-plt.tight_layout()
 
 # %%
 prob.plot_constraint_violations(solution)
