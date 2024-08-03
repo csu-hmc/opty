@@ -17,7 +17,7 @@ Two objective functions to be minimized will be considered:
 
 - ``m``: mass of the block [kg]
 - ``g``: acceleration due to gravity [m/s**2]
-- ``friktion``: coefficient of friction [N/(m*s)]
+- ``friction``: coefficient of friction [N/(m*s)]
 - ``a``, ``b``: paramenters determining the shape of the road.
 
 **States**
@@ -55,7 +55,7 @@ x = me.dynamicsymbols('x')
 ux = me.dynamicsymbols('u_x')
 F = me.dynamicsymbols('F')
 
-m, g, friktion = sm.symbols('m, g, friktion')
+m, g, friction = sm.symbols('m, g, friction')
 a, b = sm.symbols('a b')
 
 P0.set_pos(O, x * N.x + strasse(x, a, b) * N.y)
@@ -66,7 +66,7 @@ bodies = [me.Particle('P0', P0, m)]
 # the tangent at the street at the point whre the particle is.
 alpha = sm.atan(strasse(x, a, b).diff(x))
 forces = [(P0, -m*g*N.y + F*(sm.cos(alpha)*N.x + sm.sin(alpha)*N.y) -
-       friktion*ux*(sm.cos(alpha)*N.x + sm.sin(alpha)*N.y))]
+       friction*ux*(sm.cos(alpha)*N.x + sm.sin(alpha)*N.y))]
 
 kd = sm.Matrix([ux - x.diff(t)])
 
@@ -95,7 +95,7 @@ info_list = [0., 0.]
 par_map = {}
 par_map[m] = 1.0
 par_map[g] = 9.81
-par_map[friktion] = 0.0
+par_map[friction] = 0.0
 par_map[a] = 1.5
 par_map[b] = 2.5
 
@@ -106,7 +106,7 @@ fixed_duration = 6.0
 for selektion in (0, 1):
     state_symbols = tuple((speicher[0], speicher[1]))
     laenge = len(state_symbols)
-    constant_symbols = (m, g, friktion, a, b)
+    constant_symbols = (m, g, friction, a, b)
     specified_symbols = (speicher[2], )
 
     if selektion == 1:
@@ -186,10 +186,10 @@ for selektion in (0, 1):
     prob_list[selektion] = prob
 # %%
 # Animate the solutions and plot the results.
-def drucken(selektion, fig, ax, video = True):
+def drucken(selection, fig, ax, video = True):
     solution = solution_list[selektion]
 
-    if selektion == 0:
+    if selection == 0:
         duration = (num_nodes - 1) * solution[-1]
     else:
         duration = fixed_duration
@@ -225,7 +225,7 @@ def drucken(selektion, fig, ax, video = True):
         ax.set_xlabel('X-axis [m]')
         ax.set_ylabel('Y-axis [m]')
 
-        if selektion == 0:
+        if selection == 0:
             msg = f'The speed is optimized'
         else:
             msg = f'The energy optimized'
@@ -270,17 +270,17 @@ def drucken(selektion, fig, ax, video = True):
 
 # %%
 # Below the results of **minimized duration** are shown.
-selektion = 0
-print('message from optimizer:', info_list[selektion]['status_msg'])
-print(f'optimal h value is: {solution_list[selektion][-1]:.3f}')
+selection = 0
+print('message from optimizer:', info_list[selection]['status_msg'])
+print(f'optimal h value is: {solution_list[selection][-1]:.3f}')
 # %%
-prob_list[selektion].plot_objective_value()
+prob_list[selection].plot_objective_value()
 # %%
 # Plot errors in the solution.
-prob_list[selektion].plot_constraint_violations(solution_list[selektion])
+prob_list[selection].plot_constraint_violations(solution_list[selection])
 # %%
 # Plot the trajectories of the block.
-prob_list[selektion].plot_trajectories(solution_list[selektion])
+prob_list[selection].plot_trajectories(solution_list[selection])
 # %%
 # Animate the solution.
 fig, ax = plt.subplots(figsize=(8, 8))
@@ -289,16 +289,16 @@ anim, _ = drucken(selektion, fig, ax)
 
 # %%
 # Now the results of **minimized energy** are shown.
-selektion = 1
-print('message from optimizer:', info_list[selektion]['status_msg'])
+selection = 1
+print('message from optimizer:', info_list[selection]['status_msg'])
 # %%
-prob_list[selektion].plot_objective_value()
+prob_list[selection].plot_objective_value()
 # %%
 # Plot errors in the solution.
-prob_list[selektion].plot_constraint_violations(solution_list[selektion])
+prob_list[selection].plot_constraint_violations(solution_list[selection])
 # %%
 # Plot the trajectories of the block.
-prob_list[selektion].plot_trajectories(solution_list[selektion])
+prob_list[selection].plot_trajectories(solution_list[selection])
 # %%
 # Animate the solution.
 fig, ax = plt.subplots(figsize=(8, 8))
