@@ -1,3 +1,30 @@
+Version 1.3.0
+=============
+
+- Added a function that generates a numerical objective function and its
+  gradient from a symbolic objective function: ``create_objective_function()``.
+- Fixed constraint violation plot on ``Problem`` by removing the assumption
+  that each equation of motion was simply a function of one state.
+- Added an option to display the Cython compilation output and to automatically
+  display the output if compilation fails. Display does not always work on
+  Windows due to limitations in Python's capturing ``STDOUT`` on Windows with
+  certain system encodings.
+- Added support for variable duration solutions by passing in a symbol for the
+  node time interval instead of a float.
+- Switched to Sphinx Gallery for displaying examples in the documentation.
+- Added a car parallel parking example.
+- Added a quadcopter drone flight example.
+- Updated the generated Cython code to use memory views.
+- ``Problem`` now supports solving problems with no unknown input trajectories.
+- Added a cycling time trial example that uses SymPy's new muscle models.
+- Corrected plot ordering for the trajectories so that mismatches no longer
+  occur.
+- ``Problem`` and other primary classes and methods can now be imported
+  directly from the top level opty namespace, e.g. ``from opty import
+  Problem``.
+- Better handling of SymPy variable names that generate invalid or clashing C
+  variable names.
+
 Version 1.2.0
 =============
 
