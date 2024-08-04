@@ -75,6 +75,10 @@ u1, u2, u3 = me.dynamicsymbols('u1 u2 u3')
 x, y, ux, uy = me.dynamicsymbols('x, y, ux, uy')
 t1, t2, t3 = me.dynamicsymbols('t1 t2 t3')
 
+rhs = list(sm.symbols('rhs:5'))
+aux = me.dynamicsymbols('auxx, auxy, auxz')
+F_r = me.dynamicsymbols('Fx, Fy, Fz')
+
 # needed to mimick the time inm opty.
 T = sm.symbols('T', cls=sm.Function)
 Tdot, Tdotdot = sm.symbols('Tdot Tdotdot')
@@ -131,7 +135,8 @@ CP.set_pos(O, x*A2.x + y*A2.y)
 CP.set_vel(A2, ux*A2.x + uy*A2.y)
 
 Dmc.set_pos(CP, r*N.z)
-Dmc.set_vel(N, Dmc.pos_from(O).diff(t, N))
+Dmc.set_vel(N, Dmc.pos_from(O).diff(t, N)
+    + aux[0] *N.x + aux[1]*N.y + aux[2]*N.z)
 
 m_Dmc.set_pos(Dmc, r*A1.x)
 m_Dmc.v2pt_theory(Dmc, N, A1)
@@ -145,8 +150,8 @@ ball = me.RigidBody('ball', Dmc, A1, mb, (I, Dmc))
 observer = me.Particle('observer', m_Dmc, mo)
 bodies = [ball, observer]
 
-forces = [(Dmc, -mb*g*N.z), (m_Dmc, -mo*g*N.z),
-    (A1, t1*A1.x + t2*A1.y + t3*A1.z)]
+forces = [(Dmc, -mb*g*N.z + F_r[0]*N.x + F_r[1]*N.y + F_r[2]*N.z),
+(m_Dmc, -mo*g*N.z), (A1, t1*A1.x + t2*A1.y + t3*A1.z)]
 
 kd = sm.Matrix([ux - x.diff(t), uy - y.diff(t),
     *[(rot - rot1).dot(uv) for uv in N ]])
@@ -163,16 +168,43 @@ KM = me.KanesMethod(N,
     q_dependent=q_dep,
     u_ind=u_ind,
     u_dependent=u_dep,
+    u_auxiliary=aux,
     kd_eqs=kd,
     velocity_constraints=speed_constr,
     configuration_constraints=hol_constr,
     )
 
-(fr, frstar) = KM.kanes_equations(bodies, forces)
-eom = kd.col_join(fr + frstar)
+fr, frstar = KM.kanes_equations(bodies, forces)
+
+
+# %%
+# The last three equations of (fr + frstar) contain the euqations for the
+# reaction forces. They are not needed for the optimization. As the reaction
+# force are in the first five equations, too, they are set to zero)
+fr_frstar = fr + frstar
+fr_frstar_reduced = sm.Matrix([fr_frstar[i] for i in range(5)])
+fr_frstar_reduced = me.msubs(fr_frstar_reduced, {i: 0 for i in F_r})
+print(fr_frstar_reduced.shape)
+print(kd.shape)
+eom = kd.col_join(fr_frstar_reduced)
 eom = me.msubs((eom.col_join(hol_constr)),
     {sm.Derivative(T(t), t):
     Tdot, sm.Derivative(T(t), (t,2)): Tdotdot},
+    )
+print('eom DS', me.find_dynamicsymbols(eom))
+
+# %%
+# This is needed to calculate the reaction forces further down
+MM = KM.mass_matrix_full
+force = me.msubs(KM.forcing_full, {sm.Derivative(T(t), t):
+    Tdot, sm.Derivative(T(t), (t,2)): 0},
+    {i: 0 for i in F_r},
+)
+
+eingepraegt = me.msubs(KM.auxiliary_eqs,
+    {sm.Derivative(T(t), t):
+    Tdot, sm.Derivative(T(t), (t,2)): 0},
+    {i.diff(t): rhs[j] for j, i in enumerate(u_ind + u_dep )},
     )
 
 # %%
@@ -325,6 +357,8 @@ i3 = np.linspace(initial_state_constraints[y],
 i1 = -i3 / par_map[r]
 i4 = np.zeros(8*num_nodes)
 initial_guess = np.hstack((i1,i1a, i1b, i2, i3, i4, 0.01))
+print(len(initial_guess))
+print(prob.num_free)
 fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 1.25*14), sharex=True,
     layout='constrained')
 prob.plot_trajectories(initial_guess, ax1)
@@ -332,7 +366,7 @@ prob.plot_trajectories(initial_guess, ax1)
 # %%
 # This way the maximum number ofinterations may be changed.
 # Default is 3000.
-prob.add_option('max_iter', 2000)
+prob.add_option('max_iter', 5000)
 
 # %%
 # Find the optimal solution.
@@ -358,7 +392,7 @@ prob.plot_trajectories(solution, ax1)
 
 # %%
 # Set up the EOMs to find the reaction forces.
-
+'''
 t = me.dynamicsymbols._t
 q1, q2, q3 = me.dynamicsymbols('q1 q2 q3')
 u1, u2, u3 = me.dynamicsymbols('u1 u2 u3')
@@ -442,7 +476,7 @@ eingepraegt = me.msubs(KM.auxiliary_eqs,
     Tdot, sm.Derivative(T(t), (t,2)): 0},
     {i.diff(t): rhs[j] for j, i in enumerate(u_ind + u_dep )},
     )
-
+'''
 # %%
 # Calculate and plot the reaction forces.
 
