@@ -138,7 +138,7 @@ obj, obj_grad = create_objective_function(obj_func,
                                           specified_symbols,
                                           tuple(),
                                           num_nodes,
-                                          node_time_interval=interval_value)
+                                          interval_value)
 
 # %%
 # Specify the symbolic instance constraints.
