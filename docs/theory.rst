@@ -176,19 +176,17 @@ optimization problem can formally be written as:
 opty translates the symbolic definition of :math:`\mathbf{f}` into
 :math:`\mathbf{f}_i` and forms the highly sparse Jacobian of
 :math:`\frac{\partial\mathbf{f}_i}{\partial\mathbf{x}_i}` with respect to
-:math:`\mathbf{x}_i`. These two numerical functions are highly optimized for
+:math:`\mathbf{x}_i`. These two numerical functions are optimized for
 computational speed, taking advantage of pre-compilation common sub expression
 elimination, efficient memory usage, and the sparsity of the Jacobian. This is
 especially advantageous if :math:`\mathbf{f}` is very complex. The cost
 function :math:`J` and it's gradient :math:`\frac{\partial J}{\partial
 \mathbf{x}_i}` must be specified by Python functions that return a scalar, or
-vector. Symbolic formulations of the cost function :math:`J` are not yet
-supported and must be written in terms of :math:`\mathbf{x}_i` manually.
+vector.
 
 References
 ==========
 
 .. [Betts2010] Betts, J. Practical Methods for Optimal Control and Estimation
    Using Nonlinear Programming. Advances in Design and Control. Society for
-   Industrial and Applied Mathematics, 2010.
-   https://doi.org/10.1137/1.9780898718577.
+   Industrial and Applied Mathematics, 2010. https://doi.org/10.1137/1.9780898718577.
