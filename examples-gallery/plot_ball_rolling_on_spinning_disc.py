@@ -187,7 +187,9 @@ num_nodes = 250
 duration = (num_nodes - 1) * h
 
 # %%
-# Disc time is a constant, related to the acceleration of the disc.
+# Disc time is the final time of T(t). Ideally it would be (num_nodes - 1) * h,
+# but it is not possible to use the result of the optimization as input of a
+# known trajectory. I set it to 7.5 sec.
 disc_time = 7.5
 
 # %%
@@ -214,7 +216,9 @@ par_map[Tdotdot] = 0.0
 weight = 2.5e5
 
 # %%
-# Define the objective function and its gradient.
+# Define the objective function and its gradient. They are the sums of the
+# objective function to minimize the energy and the objective function to
+# minimize the speed. Same with the gradients.
 def obj(free):
     free1 = free[0: -1]
     Tz1 = free1[laenge * num_nodes: (laenge + 1) * num_nodes]
