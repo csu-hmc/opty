@@ -1,6 +1,7 @@
 Version 1.3.0
 =============
 
+- Added support for Python 3.12.
 - Added a function that generates a numerical objective function and its
   gradient from a symbolic objective function: ``create_objective_function()``.
 - Fixed constraint violation plot on ``Problem`` by removing the assumption
@@ -12,18 +13,25 @@ Version 1.3.0
 - Added support for variable duration solutions by passing in a symbol for the
   node time interval instead of a float.
 - Switched to Sphinx Gallery for displaying examples in the documentation.
-- Added a car parallel parking example.
-- Added a quadcopter drone flight example.
+- Moved the three documentation examples to the Sphinx Gallery page.
+- Added new examples:
+
+   - A variable duration pendulum swing up example.
+   - A car parallel parking example.
+   - A quadcopter drone flight example.
+   - A cycling time trial example that uses SymPy's new muscle models.
+   - A block sliding over a hill example.
+
 - Updated the generated Cython code to use memory views.
 - ``Problem`` now supports solving problems with no unknown input trajectories.
-- Added a cycling time trial example that uses SymPy's new muscle models.
 - Corrected plot ordering for the trajectories so that mismatches no longer
   occur.
 - ``Problem`` and other primary classes and methods can now be imported
   directly from the top level opty namespace, e.g. ``from opty import
   Problem``.
 - Better handling of SymPy variable names that generate invalid or clashing C
-  variable names.
+  variable names by appending an underscore to all opty generated C variable
+  names.
 
 Version 1.2.0
 =============
