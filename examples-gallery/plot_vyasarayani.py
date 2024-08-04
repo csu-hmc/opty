@@ -20,7 +20,7 @@ noisy measurements of the angle, y1.
                   --   --   --            --
                   | y1' |   | y2           |
    y' = f(y, t) = |     | = |              |
-                  | y2' |   | -p*sin(y1) |
+                  | y2' |   | -p*sin(y1)   |
                   --   --   --            --
 
 """
