@@ -3,12 +3,17 @@
 Ball Rolling on Spinning Disc
 =============================
 
-A uniform, solid ball with radius r and mass :math:`m_b` is rolling on a
-horizontal spinning disc without slipping.
+A uniform, solid ball with radius :math:`r` and mass :math:`m_b` is rolling
+on a horizontal spinning disc without slipping.
 The disc starts at rest and speeds up like this
-:math:`u_{3}(t) = \\Omega \\cdot (1 - e^{(-\\alpha \\cdot t)})`
-where :math:`\\alpha` > 0 is a measure of the acceleration and :math:`\\Omega`
-is the final rotational speed.
+
+- :math:`u_{3}(t) = \Omega \cdot (1 - e^{(-\\alpha \cdot t)})`
+
+where
+
+- :math:`\\alpha` > 0 is a measure of the acceleration and
+- :math:`\Omega` is the final rotational speed.
+
 A torque is applied to the ball, and the goal is to get it to the
 center of the disc.
 
@@ -18,16 +23,14 @@ to the surface the ball.
 **Constants**
 
 - :math:`m_b`: mass of the ball [kg]
-- r : radius of the ball [m]
+- :math:`r` : radius of the ball [m]
 - :math:`m_o` : mass of the observer [kg]
-- :math:`\\Omega`: final rotational speed of the disc
-  around the vertical axis [rad/sec]
+- :math:`\Omega`: final rotational speed of the disc around the vertical axis [rad/sec]
 - :math:`\\alpha`: measure of the acceleration of the disc [1/sec]
 
 **States**
 
-- :math:`q_1, q_2, q_3`: generalized coordinates of the ball
-    w.r.t the disc [rad]
+- :math:`q_1, q_2, q_3`: generalized coordinates of the ball w.r.t the disc [rad]
 - :math:`u_1, u_2, u_3`: generalized angual velocities of the ball [rad/sec]
 
 **Specifieds**
@@ -42,12 +45,15 @@ to the surface the ball.
 - ``O``: point fixed in N
 - ``CP``: contact point of ball with disc
 - ``Dmc``: center of the ball
-- :math:`m_{Dmc}`: position of observer
-- ``h``: intervall which opty should minimize.
+- ``m_{Dmc}``: position of observer
+- ``h``: interval which opty should minimize.
 
-A video similar to this one, which I saw in something JM published
-gave me the idea.
-https://www.youtube.com/watch?v=3oM7hX3UUEU
+This example was inspired by the demonstration by Steve Mould:
+
+.. raw:: html
+
+   <iframe width="560" height="315" src="https://www.youtube.com/embed/3oM7hX3UUEU?si=Q-rs1nOmikPbSBgZ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 
 """
 import sympy as sm
@@ -89,21 +95,20 @@ O.set_vel(N, 0)
 # contact point will be move by q2 * r in the A2.x direction.
 # Hence the configuration constraints are:
 #
-# - x = r * q2
-# - y = -r * q1
+# - ``x = r * q2``
+# - ``y = -r * q1``
 #
 # So the resulting speed constraints are:
 #
-# - d/dt(x) = r * d/dt(q2)
-# - d/dt(y) = -r * d/dt(q1)
+# - ``d/dt(x) = r * d/dt(q2)``
+# - ``d/dt(y) = -r * d/dt(q1)``
 #
 #
 # The time t appears explicitly in the EOMs.
-# I copy the trick from JM in the example1.2.3 Parameter identification:
-# declare a function T(t), and then
-# pass the time as known trajectory. My OEMs also contain
-# d/dt(T(t)) and d^2/dx^2(T(t))
-# As T(t) = const * t I set these derivatives accordingly.
+# So, declare a function ``T(t)``, and then
+# pass the time as known trajectory. My EOMs also contain
+# ``d/dt(T(t))`` and ``d^2/dx^2(T(t))``
+# As ``T(t) = const * t`` I set these derivatives accordingly.
 
 # %%
 # Set up the equations of motion.
@@ -169,18 +174,15 @@ eom = me.msubs((eom.col_join(hol_constr)),
     {sm.Derivative(T(t), t):
     Tdot, sm.Derivative(T(t), (t,2)): Tdotdot},
     )
-print(f'eom contains {sm.count_ops(eom):,} operations, ' +
-    f'{sm.count_ops(sm.cse(eom))} after cse')
 
 # %%
 # Set up the optimization problem and solve it.
 
 h = sm.symbols('h')
-state_symbols = (*q_ind, *q_dep, *u_ind, *u_dep)
+state_symbols = (q1, q2, q3, x, y, u1, u2, u3, ux, uy)
 laenge = len(state_symbols)
 constant_symbols = (r, mb, mo, g, Omega, alpha, Tdot, Tdotdot)
 specified_symbols = (t1, t2, t3)
-methode = "backward euler"
 num_nodes = 250
 duration = (num_nodes - 1) * h
 
@@ -235,11 +237,12 @@ def obj_grad(free):
 t0, tf = 0.0, duration
 
 # %%
-# The holonomic constraints must be fullfilled by the state constraints.
+# The initial state must satisfy the holonomic constraints.
 x_start = 7.0
 q2_start = x_start / par_map[r]
 y_start = 7.0
 q1_start = -y_start / par_map[r]
+
 
 initial_state_constraints = {
     q1: q1_start,
@@ -253,6 +256,7 @@ initial_state_constraints = {
     ux: 0.0,
     uy: 0.0
     }
+
 final_state_constraints = {
     x: 0.0,
     y: 0.0,
@@ -261,20 +265,33 @@ final_state_constraints = {
     }
 
 instance_constraints = (
-) + tuple(
-    xi.subs({t: t0}) - xi_val for xi, xi_val in
-    initial_state_constraints.items()
-) + tuple(
-    xi.subs({t: tf}) - xi_val for xi, xi_val in
-    final_state_constraints.items()
-)
+    q1.subs({t: t0}) - initial_state_constraints[q1],
+    q2.subs({t: t0}) - initial_state_constraints[q2],
+    q3.subs({t: t0}) - initial_state_constraints[q3],
+    u1.subs({t: t0}) - initial_state_constraints[u1],
+    u2.subs({t: t0}) - initial_state_constraints[u2],
+    u3.subs({t: t0}) - initial_state_constraints[u3],
+    x.subs({t: t0}) - initial_state_constraints[x],
+    y.subs({t: t0}) - initial_state_constraints[y],
+    ux.subs({t: t0}) - initial_state_constraints[ux],
+    uy.subs({t: t0}) - initial_state_constraints[uy],
+
+    x.subs({t: tf}) - final_state_constraints[x],
+    y.subs({t: tf}) - final_state_constraints[y],
+    ux.subs({t: tf}) - final_state_constraints[ux],
+    uy.subs({t: tf}) - final_state_constraints[uy],
+    )
 
 # %%
 # Forcing h > 0. helps to avoid negative h solutions.
 
-grenze = 10.0
-bounds = {t1: (-grenze, grenze), t2: (-grenze, grenze),
-    t3: (-grenze, grenze), h: (0.0001, 1.0)}
+torque_limits = 10.0
+bounds = {
+    t1: (-torque_limits, torque_limits),
+    t2: (-torque_limits, torque_limits),
+    t3: (-torque_limits, torque_limits),
+    h: (0.0001, 1.0),
+    }
 
 # %%
 # Create an optimization problem.
@@ -304,7 +321,8 @@ i3 = np.linspace(initial_state_constraints[y],
 i1 = -i3 / par_map[r]
 i4 = np.zeros(8*num_nodes)
 initial_guess = np.hstack((i1,i1a, i1b, i2, i3, i4, 0.01))
-fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 1.25*14), sharex=True)
+fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 1.25*14), sharex=True,
+    layout='constrained')
 prob.plot_trajectories(initial_guess, ax1)
 
 # %%
@@ -330,7 +348,8 @@ prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the results.
-fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 3.25*14), sharex=True)
+fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 1.25*14), sharex=True,
+    layout='constrained')
 prob.plot_trajectories(solution, ax1)
 
 # %%
@@ -419,8 +438,6 @@ eingepraegt = me.msubs(KM.auxiliary_eqs,
     Tdot, sm.Derivative(T(t), (t,2)): 0},
     {i.diff(t): rhs[j] for j, i in enumerate(u_ind + u_dep )},
     )
-print(f'eingepraegt contains {sm.count_ops(eingepraegt):,} operations, ' +
-    f'{sm.count_ops(sm.cse(eingepraegt))} after cse')
 
 # %%
 # Calculate and plot the reaction forces.
@@ -536,7 +553,7 @@ coords_lam = sm.lambdify(list(state_symbols) + [t1h, t2h, t3h] + list(pL)
 
 old_x, old_y = [], []
 def init_plot():
-    fig, ax = plt.subplots(figsize=(6, 6))
+    fig, ax = plt.subplots(figsize=(6, 6), layout='constrained')
     ax.set_xlim(-r_disc-1, r_disc+1)
     ax.set_ylim(-r_disc-1, r_disc+1)
     ax.set_aspect('equal')
@@ -578,7 +595,8 @@ def update(t):
         f'projection of the torque vector on the X/Y plane \n' +
         f'The blue arrow is the component of the torque perpendicular ' +
         f'to the disc \n' +
-        f'The blue dot is the observer'
+        f'The blue dot is the observer \n' +
+        f'The magenta line is the path of the ball in the inertial frame'
         )
     ax.set_title(message, fontsize=10)
 
@@ -602,8 +620,8 @@ def update(t):
     return line1, line2, line3, line4, line5, ball, observer, pfeil1, pfeil2
 
 animation = FuncAnimation(fig, update, frames=np.arange(t0,
-    (num_nodes - 1) * solution[-1], 1 / fps),
-    interval=fps, blit=False)
+    (num_nodes - 1) * solution[-1], 1/fps),
+    interval=1000/fps, blit=False)
 
 # %%
 # A frame from the animation.
