@@ -28,15 +28,15 @@ Introduction
 ``opty`` utilizes symbolic descriptions of differential algebraic equations
 expressed with SymPy_ to form the constraints needed to solve optimal control
 and parameter identification problems using the direct collocation method and
-non-linear programming. In general, if one can express the continuous first
-order differential algebraic equations of the system as symbolic expressions
-``opty`` will automatically generate a function to efficiently evaluate the
-dynamical constraints and a function that evaluates the sparse Jacobian of the
-constraints, which have been optimized for speed and memory consumption. The
-translation of the dynamical system description to the NLP form, primarily the
-formation of the constraints and the Jacobian of the constraints, manually is a
-time consuming and error prone process. ``opty`` eliminates both of those
-issues.
+non-linear programming (NLP). In general, if one can express the continuous
+first order differential algebraic equations of the system as symbolic
+expressions ``opty`` will automatically generate a function to efficiently
+evaluate the dynamical constraints and a function that evaluates the sparse
+Jacobian of the constraints, which have been optimized for speed and memory
+consumption. The translation of the dynamical system description to the NLP
+form, primarily the formation of the constraints and the Jacobian of the
+constraints, manually is a time consuming and error prone process. ``opty``
+eliminates both of those issues.
 
 .. _SymPy: http://www.sympy.org
 
@@ -47,7 +47,8 @@ Features
   equations and differential algebraic equations are supported, i.e. there is
   no need to solve for the derivatives of the dependent variables.
 - Backward Euler or Midpoint integration methods.
-- Supports both trajectory optimization and parameter identification.
+- Supports both trajectory optimization and parameter identification,
+  independently or simultaneously.
 - Solve fixed duration or variable duration problems.
 - Easy specification of bounds on free variables.
 - Easily specify additional "instance" constraints.
@@ -93,6 +94,18 @@ and the optional dependencies::
 .. _Miniconda: https://conda.io/miniconda.html
 .. _Miniforge: https://conda-forge.org/miniforge/
 
+Opty can be installed with pip, but this will require installing and compiling
+cyipopt if it is not already installed::
+
+   $ pip install opty
+
+See the `cyipopt documentation`_ for information on installing that package.
+
+.. _cyipopt documentation: https://cyipopt.readthedocs.io
+
+Custom Ipopt
+------------
+
 If you want a custom installation of any of the dependencies, e.g. Ipopt, you
 must first install Ipopt along with it's headers.  For example, on Debian based
 systems you can use the package manager::
@@ -127,21 +140,12 @@ Next download the opty source files and install with::
    (opty-dev)$ cd /path/to/opty
    (opty-dev)$ python setup.py develop
 
-Build the HTML doucmentation with::
-
-   (opty-dev)$ cd /path/to/opty/docs
-   (opty-dev)$ make html
-
-and open the result with your web browser, for example::
-
-   $ firefox _build/html/index.html
-
 Usage
 =====
 
 There are several examples available in the ``examples`` and
-``examples-gallery`` directories. For example, the optimal torque to swing up a
-pendulum with minimal energy can be run with::
+``examples-gallery`` directories. The optimal torque to swing up a pendulum
+with minimal energy can be run with::
 
    $ python examples-gallery/plot_pendulum_swing_up_fixed_duration.py
 
@@ -164,6 +168,18 @@ directory and running::
 
 The highest integer value of ``X`` will be the most recently generated set of
 source files.
+
+Build Documentation
+===================
+
+Build the HTML documentation with::
+
+   (opty-dev)$ cd /path/to/opty/docs
+   (opty-dev)$ make html
+
+and open the result with your web browser, for example::
+
+   $ firefox _build/html/index.html
 
 Funding
 =======
