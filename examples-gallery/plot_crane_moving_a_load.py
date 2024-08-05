@@ -102,7 +102,7 @@ constant_symbols = (l, m1, m2, g)
 specified_symbols = (F,)
 h = sm.symbols('h')
 
-num_nodes = 250
+num_nodes = 150
 duration =(num_nodes - 1)*h
 interval_value = h
 
@@ -302,7 +302,6 @@ def update(t):
     pfeil.set_offsets([coords[0, 0], coords[1, 0]+0.25])
     pfeil.set_UVC(input_sol(t), 0.25)
     return line1, recht, load, pfeil
-
 
 anim = animation.FuncAnimation(fig, update,
                                frames=np.arange(t0, tf, 1/fps),
