@@ -12,7 +12,7 @@ setup(
     packages=find_packages(),
     url='http://github.com/csu-hmc/opty',
     license='BSD-2-clause',
-    description=('Tools for optimizing dynamic systems using direct '
+    description=('Tool for optimizing dynamic systems using direct '
                  'collocation.'),
     long_description=open('README.rst').read(),
     install_requires=[
@@ -45,7 +45,7 @@ setup(
         'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3.12',
         'Operating System :: OS Independent',
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: BSD License',
         'Natural Language :: English',

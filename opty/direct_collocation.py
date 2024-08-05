@@ -88,6 +88,9 @@ class Problem(cyipopt.Problem):
     essential data required to solve a direct collocation optimal control or
     parameter identification problem.
 
+    This is a subclass of `cyipopt's Problem class
+    <https://cyipopt.readthedocs.io/en/stable/reference.html#cyipopt.Problem>`_.
+
     Notes
     =====
 
