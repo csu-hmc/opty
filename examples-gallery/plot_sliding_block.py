@@ -136,7 +136,7 @@ for selection in (0, 1):
 
         def obj_grad(free):
             grad = np.zeros_like(free)
-            grad[-1] = 1.
+            grad[-1] = 1.0
             return grad
 
     t0, tf = 0.0, duration
