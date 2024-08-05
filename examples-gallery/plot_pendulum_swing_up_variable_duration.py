@@ -45,14 +45,14 @@ par_map = {
 # Specify the objective function and it's gradient.
 def obj(free):
     """Minimize the sum of the squares of the control torque."""
-    T = free[2 * num_nodes:]
-    return free[-1]*np.sum(T**2)
+    T, h = free[2*num_nodes:-1], free[-1]
+    return h*np.sum(T**2)
 
 
 def obj_grad(free):
-    T = free[2 * num_nodes:]
+    T, h = free[2*num_nodes:-1], free[-1]
     grad = np.zeros_like(free)
-    grad[2 * num_nodes:] = 2.0*free[-1]*free[2*num_nodes:]
+    grad[2*num_nodes:-1] = 2.0*h*T
     grad[-1] = np.sum(T**2)
     return grad
 
@@ -118,8 +118,8 @@ def init():
 
 
 def animate(i):
-    x = [0, par_map[d] * np.sin(angle[i])]
-    y = [0, -par_map[d] * np.cos(angle[i])]
+    x = [0, par_map[d]*np.sin(angle[i])]
+    y = [0, -par_map[d]*np.cos(angle[i])]
 
     line.set_data(x, y)
     time_text.set_text(time_template.format(i*interval_value))
