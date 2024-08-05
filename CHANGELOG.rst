@@ -26,12 +26,15 @@ Version 1.3.0
 - ``Problem`` now supports solving problems with no unknown input trajectories.
 - Corrected plot ordering for the trajectories so that mismatches no longer
   occur.
+- Improved default plot display for larger number of variables and support
+  customizing axes to default plots.
 - ``Problem`` and other primary classes and methods can now be imported
   directly from the top level opty namespace, e.g. ``from opty import
   Problem``.
 - Better handling of SymPy variable names that generate invalid or clashing C
   variable names by appending an underscore to all opty generated C variable
   names.
+- Switched to pytest for unit testing.
 
 Version 1.2.0
 =============

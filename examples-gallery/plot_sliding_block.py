@@ -33,7 +33,7 @@ Two objective functions to be minimized will be considered:
 import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
-from opty.direct_collocation import Problem
+from opty import Problem
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
