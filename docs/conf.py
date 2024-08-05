@@ -91,6 +91,9 @@ todo_include_todos = False
 # Show the __init__ docstring on classes.
 autoclass_content = 'both'
 
+# Display long function signatures better.
+maximum_signature_line_length = 50
+
 # sphinx-gallery settings
 sphinx_gallery_conf = {
     'examples_dirs': os.path.join(REPO_DIR, 'examples-gallery'),
