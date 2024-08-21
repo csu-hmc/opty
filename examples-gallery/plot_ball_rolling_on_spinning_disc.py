@@ -52,10 +52,13 @@ This example was inspired by the demonstration by Steve Mould:
 
 .. raw:: html
 
-   <iframe width="560" height="315" src="https://www.youtube.com/embed/3oM7hX3UUEU?si=Q-rs1nOmikPbSBgZ"
+   <iframe width="560" height="315"
+   src="https://www.youtube.com/embed/3oM7hX3UUEU?si=Q-rs1nOmikPbSBgZ"
    title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
    clipboard-write; encrypted-media; gyroscope;
-   picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+   picture-in-picture;
+   web-share" referrerpolicy="strict-origin-when-cross-origin"
+   allowfullscreen></iframe>
 
 
 """
@@ -82,6 +85,9 @@ x, y, ux, uy = me.dynamicsymbols('x, y, ux, uy')
 t1, t2, t3 = me.dynamicsymbols('t1 t2 t3')
 
 rhs = list(sm.symbols('rhs:5'))
+
+aux = me.dynamicsymbols('auxx, auxy, auxz')
+F_r = me.dynamicsymbols('Fx, Fy, Fz')
 
 # needed to mimick the time inm opty.
 T = sm.symbols('T', cls=sm.Function)
@@ -137,7 +143,8 @@ CP.set_pos(O, x*A2.x + y*A2.y)
 CP.set_vel(A2, ux*A2.x + uy*A2.y)
 
 Dmc.set_pos(CP, r*N.z)
-Dmc.set_vel(N, Dmc.pos_from(O).diff(t, N))
+Dmc.set_vel(N, Dmc.pos_from(O).diff(t, N) + aux[0] *N.x + aux[1]*N.y +
+    aux[2]*N.z)
 
 m_Dmc.set_pos(Dmc, r*A1.x)
 m_Dmc.v2pt_theory(Dmc, N, A1)
@@ -151,7 +158,7 @@ ball = me.RigidBody('ball', Dmc, A1, mb, (I, Dmc))
 observer = me.Particle('observer', m_Dmc, mo)
 bodies = [ball, observer]
 
-forces = [(Dmc, -mb*g*N.z),
+forces = [(Dmc, -mb*g*N.z + F_r[0]*N.x + F_r[1]*N.y + F_r[2]*N.z),
 (m_Dmc, -mo*g*N.z), (A1, t1*A1.x + t2*A1.y + t3*A1.z)]
 
 kd = sm.Matrix([ux - x.diff(t), uy - y.diff(t),
@@ -169,14 +176,35 @@ KM = me.KanesMethod(N,
     q_dependent=q_dep,
     u_ind=u_ind,
     u_dependent=u_dep,
+    u_auxiliary=aux,
     kd_eqs=kd,
     velocity_constraints=speed_constr,
     configuration_constraints=hol_constr,
     )
 
+# %%
+# Set the equations of motion needed to calculate the reaction forces.
 fr, frstar = KM.kanes_equations(bodies, forces)
+MM = KM.mass_matrix_full
+force = me.msubs(KM.forcing_full, {sm.Derivative(T(t), t):
+    Tdot, sm.Derivative(T(t), (t,2)): Tdotdot}, {i: 0 for i in F_r})
 
-eom = kd.col_join(fr + frstar)
+eingepraegt = me.msubs(KM.auxiliary_eqs,
+    {sm.Derivative(T(t), t):
+    Tdot, sm.Derivative(T(t), (t,2)): 0},
+    {i.diff(t): rhs[j] for j, i in enumerate(u_ind + u_dep )},
+    )
+
+# %%
+# Modify the equations of motion for the optimization problem. Here the last
+# three equations, corresponding to the reaction forces :math:`F_x, F_y, F_z`
+# are removed. As the remaining three equation also contain
+# :math:`F_x, F_y, F_z` they are set to zero.
+
+frfrstar_reduced = me.msubs(sm.Matrix([(fr + frstar)[j] for j in range(3)]),
+    {i: 0 for i in F_r})
+
+eom = kd.col_join(frfrstar_reduced)
 eom = me.msubs((eom.col_join(hol_constr)),
     {sm.Derivative(T(t), t):
     Tdot, sm.Derivative(T(t), (t,2)): Tdotdot},
@@ -193,6 +221,7 @@ constant_symbols = (r, mb, mo, g, Omega, alpha, Tdot, Tdotdot)
 specified_symbols = (t1, t2, t3)
 num_nodes = 250
 duration = (num_nodes - 1) * h
+t0, tf = 0.0, duration
 
 # %%
 # Disc time is the final time of T(t). Ideally it would be (num_nodes - 1) * h,
@@ -245,7 +274,6 @@ def obj_grad(free):
     grad[-1] = weight
     return grad
 
-t0, tf = 0.0, duration
 
 # %%
 # The initial state must satisfy the holonomic constraints.
@@ -333,7 +361,7 @@ i1 = -i3 / par_map[r]
 i4 = np.zeros(8*num_nodes)
 initial_guess = np.hstack((i1,i1a, i1b, i2, i3, i4, 0.01))
 
-fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 0.5*14), sharex=True,
+fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 0.75*14), sharex=True,
     layout='constrained')
 prob.plot_trajectories(initial_guess, ax1)
 
@@ -365,96 +393,10 @@ fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 1.25*14), sharex=True,
 prob.plot_trajectories(solution, ax1)
 
 # %%
-# Set up the EOMs again, now with virtual speeds and non-contributing forces,
-# to find the reaction forces.
-
-t = me.dynamicsymbols._t
-q1, q2, q3 = me.dynamicsymbols('q1 q2 q3')
-u1, u2, u3 = me.dynamicsymbols('u1 u2 u3')
-t1, t2, t3 = me.dynamicsymbols('t1 t2 t3')
-T = sm.symbols('T', cls=sm.Function)
-Tdot, Tdotdot = sm.symbols('Tdot Tdotdot')
-
-x, y = me.dynamicsymbols('x y')
-ux, uy = me.dynamicsymbols('ux uy')
-aux = me.dynamicsymbols('auxx, auxy, auxz')
-F_r = me.dynamicsymbols('Fx, Fy, Fz')
-mb, mo, g, r = sm.symbols('mb, mo, g, r')
-Omega, alpha = sm.symbols('Omega, alpha')
-rhs = list(sm.symbols('rhs:5'))
-
-N, A1, A2 = sm.symbols('N, A1 A2', cls=me.ReferenceFrame)
-O, CP, Dmc, m_Dmc = sm.symbols('O, CP, Dmc, m_Dmc', cls=me.Point)
-O.set_vel(N, 0)
-
-udisc = Omega * (1 - sm.exp(-alpha * T(t)))
-qdisc = Omega * T(t) + Omega * sm.exp(-alpha * T(t)) / alpha - Omega / alpha
-A2.orient_axis(N, qdisc, N.z)
-A2.set_ang_vel(N, udisc*N.z)
-
-A1.orient_body_fixed(A2, (q1, q2, q3), '123')
-rot = A1.ang_vel_in(N)
-A1.set_ang_vel(A2, u1*A1.x + u2*A1.y + u3*A1.z)
-rot1 = A1.ang_vel_in(N)
-
-CP.set_pos(O, x*A2.x + y*A2.y)
-CP.set_vel(A2, ux*A2.x + uy*A2.y)
-
-Dmc.set_pos(CP, r*N.z)
-Dmc.set_vel(N, Dmc.pos_from(O).diff(t, N)
-    + aux[0] *N.x + aux[1]*N.y + aux[2]*N.z)
-
-m_Dmc.set_pos(Dmc, r*A1.x)
-m_Dmc.v2pt_theory(Dmc, N, A1)
-
-iXX = 2./5. * mb * r**2
-iYY = iXX
-iZZ = iXX
-
-I = me.inertia(A1, iXX, iYY, iZZ)
-ball = me.RigidBody('ball', Dmc, A1, mb, (I, Dmc))
-observer = me.Particle('observer', m_Dmc, mo)
-bodies = [ball, observer]
-
-forces = [(Dmc, -mb*g*N.z + F_r[0]*N.x + F_r[1]*N.y + F_r[2]*N.z),
-(m_Dmc, -mo*g*N.z), (A1, t1*A1.x + t2*A1.y + t3*A1.z)]
-
-kd = sm.Matrix([ux - x.diff(t), uy - y.diff(t),
-    *[(rot - rot1).dot(uv) for uv in N ]])
-speed_constr = sm.Matrix([ux - r*u2, uy + r*u1])
-hol_constr = sm.Matrix([x - r*q2, y + r*q1])
-
-q_ind = [q1, q2, q3]
-q_dep = [x, y]
-u_ind = [u1, u2, u3]
-u_dep = [ux, uy]
-
-KM = me.KanesMethod(N,
-    q_ind=q_ind,
-    q_dependent=q_dep,
-    u_ind=u_ind,
-    u_dependent=u_dep,
-    u_auxiliary=aux,
-    kd_eqs=kd,
-    velocity_constraints=speed_constr,
-    configuration_constraints=hol_constr,
-    )
-
-fr, frstar = KM.kanes_equations(bodies, forces)
-MM = KM.mass_matrix_full
-force = me.msubs(KM.forcing_full, {sm.Derivative(T(t), t):
-    Tdot, sm.Derivative(T(t), (t,2)): 0},
-    {i: 0 for i in F_r},
-)
-eingepraegt = me.msubs(KM.auxiliary_eqs,
-    {sm.Derivative(T(t), t):
-    Tdot, sm.Derivative(T(t), (t,2)): 0},
-    {i.diff(t): rhs[j] for j, i in enumerate(u_ind + u_dep )},
-    )
-
-# %%
-# Calculate and plot the reaction forces.
-
+# Calculate and Plot the Reaction Forces.
+#-----------------------------------------
+#
+# Convert the sympy functions to numpy functions.
 qL = q_ind + q_dep + u_ind + u_dep + [T(t)] + [t1, t2, t3]
 rhs = list(sm.symbols('rhs:5'))
 pL = [i for i in par_map.keys()]
@@ -483,7 +425,7 @@ for i in range(schritte2):
         zeit1, t11, t21, t31, *pL_vals)).reshape(10)
 
 # %%
-#Calculate the reaction forces.
+# Numerically solve *eingepraegt* for the reaction forces.
 def func (x, *args):
     return eingepraegt_lam(*x, *args).reshape(3)
 
