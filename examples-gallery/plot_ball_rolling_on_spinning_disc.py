@@ -25,7 +25,7 @@ to the surface the ball.
 - :math:`m_b`: mass of the ball [kg]
 - :math:`r` : radius of the ball [m]
 - :math:`m_o` : mass of the observer [kg]
-- :math:`\Omega`: final rotational speed of the disc around the vertical axis [rad/sec]
+- :math:`\Omega`: final rotational speed of the disc around [rad/sec]
 - :math:`\\alpha`: measure of the acceleration of the disc [1/sec]
 
 **States**
@@ -39,20 +39,23 @@ to the surface the ball.
 
 **Additional parameters**
 
-- ``N``: inertial frame
-- ``A1``: frame fixed to the ball
-- ``A2``: frame fixed to the disc
-- ``O``: point fixed in N
-- ``CP``: contact point of ball with disc
-- ``Dmc``: center of the ball
-- ``m_{Dmc}``: position of observer
-- ``h``: interval which opty should minimize.
+- :math:`N` inertial frame
+- :math:`A_1`: frame fixed to the ball
+- :math:`A_2`: frame fixed to the disc
+- :math:`O`: point fixed in N
+- :math:`C_P`: contact point of ball with disc
+- :math:`Dmc`: center of the ball
+- :math:`m_{Dmc}`: position of observer
+- :math:`h`: interval which opty should minimize.
 
 This example was inspired by the demonstration by Steve Mould:
 
 .. raw:: html
 
-   <iframe width="560" height="315" src="https://www.youtube.com/embed/3oM7hX3UUEU?si=Q-rs1nOmikPbSBgZ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+   <iframe width="560" height="315" src="https://www.youtube.com/embed/3oM7hX3UUEU?si=Q-rs1nOmikPbSBgZ"
+   title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+   clipboard-write; encrypted-media; gyroscope;
+   picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 
 """
@@ -68,6 +71,9 @@ from matplotlib.animation import FuncAnimation
 from matplotlib import patches
 
 # %%
+# Set up the Equations of Motion.
+#-------------------------------
+#
 # Initialize the variables.
 t = me.dynamicsymbols._t
 q1, q2, q3 = me.dynamicsymbols('q1 q2 q3')
@@ -76,8 +82,6 @@ x, y, ux, uy = me.dynamicsymbols('x, y, ux, uy')
 t1, t2, t3 = me.dynamicsymbols('t1 t2 t3')
 
 rhs = list(sm.symbols('rhs:5'))
-aux = me.dynamicsymbols('auxx, auxy, auxz')
-F_r = me.dynamicsymbols('Fx, Fy, Fz')
 
 # needed to mimick the time inm opty.
 T = sm.symbols('T', cls=sm.Function)
@@ -93,32 +97,30 @@ O.set_vel(N, 0)
 # %%
 # Determination of the holonomic constraints.
 #
-# If the ball rotates around the x axis by an angle q the
-# contact point will be move by -q1 * r in the A2.y direction.
-# If the ball rotates around the y axis by an angle q2 the
-# contact point will be move by q2 * r in the A2.x direction.
+# If the ball rotates around the x axis by an angle :math:`q_1`
+# the contact point will be move by :math:`-q_1 \cdot r` in the A2.y direction.
+# If the ball rotates around the y axis by an angle :math:`q_2` the
+# contact point will be move by :math:`q2 \cdot r` in the A2.x direction.
 # Hence the configuration constraints are:
 #
-# - ``x = r * q2``
-# - ``y = -r * q1``
+# - :math:`x = r \cdot q_2`
+# - :math:`y = -r \cdot q_1`
 #
 # So the resulting speed constraints are:
 #
-# - ``d/dt(x) = r * d/dt(q2)``
-# - ``d/dt(y) = -r * d/dt(q1)``
-#
+# - :math:`\dfrac{d}{dt}(x) = r \cdot \dfrac{d}{dt}(q_2)`
+# - :math:`\dfrac{d}{dt}(y) = -r \cdot \dfrac{d}{dt}(q_1)`
 #
 # The time t appears explicitly in the EOMs.
-# So, declare a function ``T(t)``, and then
+# So, declare a function :math:`T(t)`, and then
 # pass the time as known trajectory. My EOMs also contain
-# ``d/dt(T(t))`` and ``d^2/dx^2(T(t))``
-# As ``T(t) = const * t`` I set these derivatives accordingly.
+# :math:`\dfrac{d}{dt}(T(t))` and :math:`\dfrac{d^2}{dt^2}(T(t))`
+# As :math:`T(t) = const \cdot t`   I set these derivatives accordingly.
 
 # %%
-# Set up the equations of motion.
 # I do not use qdisc = sm.integrate(udisc, t), as this gives
-# a sm.Piecewise(..) result, likely not differentiable,
-# but use the result of this integration for alpha != 0.
+# a sm.Piecewise(..) result, likely not differentiable everywhere,
+# but I use the result of this integration for :math:`\alpha \neq 0`.
 
 udisc = Omega * (1 - sm.exp(-alpha * T(t)))
 qdisc = (Omega * T(t) + Omega * sm.exp(-alpha * T(t)) / alpha -
@@ -135,8 +137,7 @@ CP.set_pos(O, x*A2.x + y*A2.y)
 CP.set_vel(A2, ux*A2.x + uy*A2.y)
 
 Dmc.set_pos(CP, r*N.z)
-Dmc.set_vel(N, Dmc.pos_from(O).diff(t, N)
-    + aux[0] *N.x + aux[1]*N.y + aux[2]*N.z)
+Dmc.set_vel(N, Dmc.pos_from(O).diff(t, N))
 
 m_Dmc.set_pos(Dmc, r*A1.x)
 m_Dmc.v2pt_theory(Dmc, N, A1)
@@ -150,7 +151,7 @@ ball = me.RigidBody('ball', Dmc, A1, mb, (I, Dmc))
 observer = me.Particle('observer', m_Dmc, mo)
 bodies = [ball, observer]
 
-forces = [(Dmc, -mb*g*N.z + F_r[0]*N.x + F_r[1]*N.y + F_r[2]*N.z),
+forces = [(Dmc, -mb*g*N.z),
 (m_Dmc, -mo*g*N.z), (A1, t1*A1.x + t2*A1.y + t3*A1.z)]
 
 kd = sm.Matrix([ux - x.diff(t), uy - y.diff(t),
@@ -168,7 +169,6 @@ KM = me.KanesMethod(N,
     q_dependent=q_dep,
     u_ind=u_ind,
     u_dependent=u_dep,
-    u_auxiliary=aux,
     kd_eqs=kd,
     velocity_constraints=speed_constr,
     configuration_constraints=hol_constr,
@@ -176,39 +176,15 @@ KM = me.KanesMethod(N,
 
 fr, frstar = KM.kanes_equations(bodies, forces)
 
-
-# %%
-# The last three equations of (fr + frstar) contain the euqations for the
-# reaction forces. They are not needed for the optimization. As the reaction
-# force are in the first five equations, too, they are set to zero)
-fr_frstar = fr + frstar
-fr_frstar_reduced = sm.Matrix([fr_frstar[i] for i in range(5)])
-fr_frstar_reduced = me.msubs(fr_frstar_reduced, {i: 0 for i in F_r})
-print(fr_frstar_reduced.shape)
-print(kd.shape)
-eom = kd.col_join(fr_frstar_reduced)
+eom = kd.col_join(fr + frstar)
 eom = me.msubs((eom.col_join(hol_constr)),
     {sm.Derivative(T(t), t):
     Tdot, sm.Derivative(T(t), (t,2)): Tdotdot},
     )
-print('eom DS', me.find_dynamicsymbols(eom))
 
 # %%
-# This is needed to calculate the reaction forces further down
-MM = KM.mass_matrix_full
-force = me.msubs(KM.forcing_full, {sm.Derivative(T(t), t):
-    Tdot, sm.Derivative(T(t), (t,2)): 0},
-    {i: 0 for i in F_r},
-)
-
-eingepraegt = me.msubs(KM.auxiliary_eqs,
-    {sm.Derivative(T(t), t):
-    Tdot, sm.Derivative(T(t), (t,2)): 0},
-    {i.diff(t): rhs[j] for j, i in enumerate(u_ind + u_dep )},
-    )
-
-# %%
-# Set up the optimization problem and solve it.
+# Set up the Optimization Problem and Solve it.
+#---------------------------------------------
 
 h = sm.symbols('h')
 state_symbols = (q1, q2, q3, x, y, u1, u2, u3, ux, uy)
@@ -243,8 +219,7 @@ par_map[Tdotdot] = 0.0
 
 # %%
 # A weighted sum of energy and speed is to be minimized. weight is the
-# relative weight of the speed. (If weight = 0, only the energy is
-# minimized.)
+# relative weight of the speed, weight > 0
 weight = 2.5e5
 
 # %%
@@ -319,14 +294,14 @@ instance_constraints = (
     )
 
 # %%
-# Forcing h > 0. helps to avoid negative h solutions.
+# Forcing h > 0 helps to avoid negative h solutions.
 
 torque_limits = 10.0
 bounds = {
     t1: (-torque_limits, torque_limits),
     t2: (-torque_limits, torque_limits),
     t3: (-torque_limits, torque_limits),
-    h: (0.0001, 1.0),
+    h: (0.0, 1.0),
     }
 
 # %%
@@ -357,26 +332,25 @@ i3 = np.linspace(initial_state_constraints[y],
 i1 = -i3 / par_map[r]
 i4 = np.zeros(8*num_nodes)
 initial_guess = np.hstack((i1,i1a, i1b, i2, i3, i4, 0.01))
-print(len(initial_guess))
-print(prob.num_free)
-fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 1.25*14), sharex=True,
+
+fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 0.5*14), sharex=True,
     layout='constrained')
 prob.plot_trajectories(initial_guess, ax1)
 
 # %%
-# This way the maximum number ofinterations may be changed.
+# This way the maximum number of interations may be changed.
 # Default is 3000.
-prob.add_option('max_iter', 5000)
+prob.add_option('max_iter', 1000)
 
 # %%
 # Find the optimal solution.
 
 solution, info = prob.solve(initial_guess)
 print('message from optimizer:', info['status_msg'])
-print('Iterations needed',len(prob.obj_value))
-print(f'Optimal h = {solution[-1]:.3e}')
+print('Iterations needed', len(prob.obj_value))
+print(f'Optimal h = {solution[-1]:.3e} sec')
 
-## %%
+# %%
 # PLot the objective value.
 prob.plot_objective_value()
 
@@ -391,8 +365,9 @@ fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 1.25*14), sharex=True,
 prob.plot_trajectories(solution, ax1)
 
 # %%
-# Set up the EOMs to find the reaction forces.
-'''
+# Set up the EOMs again, now with virtual speeds and non-contributing forces,
+# to find the reaction forces.
+
 t = me.dynamicsymbols._t
 q1, q2, q3 = me.dynamicsymbols('q1 q2 q3')
 u1, u2, u3 = me.dynamicsymbols('u1 u2 u3')
@@ -476,7 +451,7 @@ eingepraegt = me.msubs(KM.auxiliary_eqs,
     Tdot, sm.Derivative(T(t), (t,2)): 0},
     {i.diff(t): rhs[j] for j, i in enumerate(u_ind + u_dep )},
     )
-'''
+
 # %%
 # Calculate and plot the reaction forces.
 
@@ -495,7 +470,8 @@ resultat2 = state_vals.T
 schritte2 = resultat2.shape[0]
 
 # %%
-# Numerically find rhs1 = MM^(-1) * forces.
+# Numerically find :math:`rhs_1 = MM^{-1} \cdot forces` for the results found
+# by the optimization.
 times2 = interval_fix
 rhs1 = np.empty((schritte2, resultat2.shape[1]))
 for i in range(schritte2):
@@ -511,9 +487,9 @@ for i in range(schritte2):
 def func (x, *args):
     return eingepraegt_lam(*x, *args).reshape(3)
 
-kraftx  = np.empty(schritte2)
-krafty  = np.empty(schritte2)
-kraftz  = np.empty(schritte2)
+forcex  = np.empty(schritte2)
+forcey  = np.empty(schritte2)
+forcez  = np.empty(schritte2)
 
 x0 = tuple((1., 1., 1.))
 
@@ -525,15 +501,15 @@ for i in range(schritte2):
     args = tuple(y0 + [zeit1, t11, t21, t31] + pL_vals + rhs)
     AAA = root(func, x0, args=args)
 
-    kraftx[i] = AAA.x[0]
-    krafty[i] = AAA.x[1]
-    kraftz[i] = AAA.x[2]
+    forcex[i] = AAA.x[0]
+    forcey[i] = AAA.x[1]
+    forcez[i] = AAA.x[2]
 
 # %%
 # Plot the reaction forces.
 times2 = interval_fix * solution[-1] / interval_value_fix
 fig, ax = plt.subplots(figsize=(12, 6))
-for i, j in zip((kraftx, krafty, kraftz),
+for i, j in zip((forcex, forcey, forcez),
     ('reaction force on Dmc in X direction',
     'reaction force on Dmc in Y direction',
     'reaction force on Dmc in Z direction')):
