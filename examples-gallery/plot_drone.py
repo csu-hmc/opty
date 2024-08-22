@@ -1,3 +1,4 @@
+# %%
 """
 Drone Flight
 ============
@@ -7,6 +8,9 @@ corner in a uniform gravitational field, find the propeller thrust trajectories
 that will take it from a starting point to an ending point and through and
 intermediate point at a specific angular configuration with minimal total
 thrust.
+Additionally, the drone is subject to random turbulence forces, modeled as
+white noise with :math:`\sigma` = sigma, settable, :math:`\mu = 0` and a
+settable strength.
 
 **Constants**
 
@@ -15,6 +19,8 @@ thrust.
 - w : width (along body y) [m]
 - d : depth (along body z) [m]
 - c : viscous friction coefficient of air [Nms]
+- sigma : standard deviation of turbulence
+- strength : strength of turbulence [N]
 
 **States**
 
@@ -38,11 +44,14 @@ import matplotlib.animation as animation
 
 # %%
 # Generate the equations of motion of the system.
-m, l, w, d, g, c = sm.symbols('m, l, w, d, g, c', real=True)
+m, l, w, d, g, c, sigma, strength = sm.symbols('m, l, w, d, g, c, sigma, strength',
+    real=True)
 x, y, z, vx, vy, vz = me.dynamicsymbols('x, y, z, v_x, v_y v_z', real=True)
 q0, q1, q2, q3 = me.dynamicsymbols('q0, q1, q2, q3', real=True)
 u0, wx, wy, wz = me.dynamicsymbols('u0, omega_x, omega_y, omega_z', real=True)
 F1, F2, F3, F4 = me.dynamicsymbols('F1, F2, F3, F4', real=True)
+
+Fx, Fy, Fz = me.dynamicsymbols('Fx, Fy, Fz', real=True)
 t = me.dynamicsymbols._t
 
 O, Ao, P1, P2, P3, P4 = sm.symbols('O, A_o, P1, P2, P3, P4', cls=me.Point)
@@ -88,6 +97,7 @@ prop3 = (P3, F3*A.z)
 prop4 = (P4, F4*A.z)
 # use a linear simplification of air drag for continuous derivatives
 grav = (Ao, -m*g*N.z - c*Ao.vel(N))
+turbulence = (Ao, Fx*N.x + Fy*N.y + Fz*N.z)
 
 # enforce the unit quaternion
 holonomic = sm.Matrix([q0**2 + q1**2 + q2**2 + q3**2 - 1])
@@ -103,15 +113,15 @@ kane = me.KanesMethod(
     velocity_constraints=holonomic.diff(t),
 )
 
-fr, frstar = kane.kanes_equations([drone], [prop1, prop2, prop3, prop4, grav])
+fr, frstar = kane.kanes_equations([drone], [prop1, prop2, prop3, prop4, grav,
+    turbulence])
 
 eom = kinematical.col_join(fr + frstar).col_join(holonomic)
-sm.pprint(eom)
 
 # %%
 # Set up the time discretization.
 duration = 10.0  # seconds
-num_nodes = 301
+num_nodes = 401
 interval_value = duration/(num_nodes - 1)
 time = np.linspace(0.0, duration, num=num_nodes)
 
@@ -124,6 +134,8 @@ par_map = {
     l: 1.0,
     m: 2.0,
     w: 0.5,
+    sigma: 2.0,
+    strength: 6.0,
 }
 
 state_symbols = (x, y, z, q0, q1, q2, q3, vx, vy, vz, u0, wx, wy, wz)
@@ -192,11 +204,24 @@ bounds = {
 }
 
 # %%
+# Set up the turbulence forces as normally distrubuted random variables with
+# :math:`\sigma` = sigma, :math:`\mu = 0`. This is white noise.
+
+np.random.seed(12345)
+turbulence_values = par_map[strength] * np.random.normal(0.0, par_map[sigma],
+    (num_nodes, 3))
+Fx_array = turbulence_values[:, 0]
+Fy_array = turbulence_values[:, 1]
+Fz_array = turbulence_values[:, 2]
+
+
+# %%
 # Create the optimization problem and set any options.
 prob = Problem(obj, obj_grad, eom, state_symbols,
                num_nodes, interval_value,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
+               known_trajectory_map={Fx: Fx_array, Fy: Fy_array, Fz: Fz_array},
                bounds=bounds)
 
 prob.add_option('nlp_scaling_method', 'gradient-based')
@@ -210,8 +235,8 @@ initial_guess[1*num_nodes:2*num_nodes] = xyz_guess
 initial_guess[2*num_nodes:3*num_nodes] = xyz_guess
 initial_guess[-4*num_nodes:] = 10.0  # constant thrust
 
-fig, axes = plt.subplots(18, 1, sharex=True,
-                         figsize=(6.4, 0.8*18),
+fig, axes = plt.subplots(21, 1, sharex=True,
+                         figsize=(6.4, 0.8*21),
                          layout='compressed')
 prob.plot_trajectories(initial_guess, axes=axes)
 
@@ -223,8 +248,8 @@ print(info['obj_val'])
 
 # %%
 # Plot the optimal state and input trajectories.
-fig, axes = plt.subplots(18, 1, sharex=True,
-                         figsize=(6.4, 0.8*18),
+fig, axes = plt.subplots(21, 1, sharex=True,
+                         figsize=(6.4, 0.8*21),
                          layout='compressed')
 prob.plot_trajectories(solution, axes=axes)
 
