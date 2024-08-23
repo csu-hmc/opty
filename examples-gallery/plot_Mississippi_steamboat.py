@@ -116,7 +116,7 @@ FPRW.set_vel(N, DmcRW.vel(N) + uRW*AS.x.cross(-rW*N.z))
 # of the velocity of the body and :math:`A` is the cross section area of the body facing
 # the flow. This may be found here:
 #
-# https://en.wikipedia.org/wiki/Drag_(physics)
+# https://en.wikipedia.org/wiki/Drag_equation
 #
 # I will lump :math:`\dfrac{1}{2} \rho C_D` into a single constant :math:`c`.
 # (In the code below, I will use :math:`c_S` for the steamboat and :math:`c_W`
