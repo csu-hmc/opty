@@ -197,7 +197,7 @@ eom = kd.col_join(fr + frstar)
 
 # %%
 # Set up the Optimization Problem and Solve it.
-# --------------------------------------------
+# ---------------------------------------------
 #
 
 state_symbols = [q, x, y, qLW, qRW, u, ux, uy, uLW, uRW]
