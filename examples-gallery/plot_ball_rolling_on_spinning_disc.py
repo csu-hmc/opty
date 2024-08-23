@@ -75,7 +75,7 @@ from matplotlib import patches
 
 # %%
 # Set up the Equations of Motion.
-#-------------------------------
+#--------------------------------
 #
 # Initialize the variables.
 t = me.dynamicsymbols._t
@@ -180,7 +180,7 @@ KM = me.KanesMethod(N,
     kd_eqs=kd,
     velocity_constraints=speed_constr,
     configuration_constraints=hol_constr,
-    )
+)
 
 # %%
 # Set the equations of motion needed to calculate the reaction forces.
@@ -193,7 +193,7 @@ eingepraegt = me.msubs(KM.auxiliary_eqs,
     {sm.Derivative(T(t), t):
     Tdot, sm.Derivative(T(t), (t,2)): 0},
     {i.diff(t): rhs[j] for j, i in enumerate(u_ind + u_dep )},
-    )
+)
 
 # %%
 # Modify the equations of motion for the optimization problem. Here the last
@@ -208,11 +208,11 @@ eom = kd.col_join(frfrstar_reduced)
 eom = me.msubs((eom.col_join(hol_constr)),
     {sm.Derivative(T(t), t):
     Tdot, sm.Derivative(T(t), (t,2)): Tdotdot},
-    )
+)
 
 # %%
 # Set up the Optimization Problem and Solve it.
-#---------------------------------------------
+#----------------------------------------------
 
 h = sm.symbols('h')
 state_symbols = (q1, q2, q3, x, y, u1, u2, u3, ux, uy)
@@ -294,14 +294,14 @@ initial_state_constraints = {
     y: y_start,
     ux: 0.0,
     uy: 0.0
-    }
+}
 
 final_state_constraints = {
     x: 0.0,
     y: 0.0,
     ux: 0.0,
     uy: 0.0,
-    }
+}
 
 instance_constraints = (
     q1.subs({t: t0}) - initial_state_constraints[q1],
@@ -319,7 +319,7 @@ instance_constraints = (
     y.subs({t: tf}) - final_state_constraints[y],
     ux.subs({t: tf}) - final_state_constraints[ux],
     uy.subs({t: tf}) - final_state_constraints[uy],
-    )
+)
 
 # %%
 # Forcing h > 0 helps to avoid negative h solutions.
@@ -330,7 +330,7 @@ bounds = {
     t2: (-torque_limits, torque_limits),
     t3: (-torque_limits, torque_limits),
     h: (0.0, 1.0),
-    }
+}
 
 # %%
 # Create an optimization problem.
@@ -346,7 +346,7 @@ prob = Problem(
     instance_constraints=instance_constraints,
     time_symbol=t,
     bounds=bounds,
-    )
+)
 
 # %%
 # The initial guess should meet the configuration constrains. It will be
@@ -394,7 +394,7 @@ prob.plot_trajectories(solution, ax1)
 
 # %%
 # Calculate and Plot the Reaction Forces.
-#-----------------------------------------
+#----------------------------------------
 #
 # Convert the sympy functions to numpy functions.
 qL = q_ind + q_dep + u_ind + u_dep + [T(t)] + [t1, t2, t3]
@@ -516,22 +516,22 @@ def init_plot():
     ax.set_xlabel('x', fontsize=15)
     ax.set_ylabel('y', fontsize=15)
 
-# draw the spokes
+    # draw the spokes
     line1, = ax.plot([], [], lw=2, marker='o', markersize=0, color='black')
     line2, = ax.plot([], [], lw=2, marker='o', markersize=0, color='black')
     line3, = ax.plot([], [], lw=2, marker='o', markersize=0, color='black')
     line4, = ax.plot([], [], lw=2, marker='o', markersize=0, color='black')
-# draw the path of the ball.
+    # draw the path of the ball.
     line5, = ax.plot([],[], color='magenta', lw=0.5)
-# draw the torque vektor
+    # draw the torque vektor
     pfeil1 = ax.quiver([], [], [], [], color='green', scale=30, width=0.004)
     pfeil2 = ax.quiver([], [], [], [], color='blue', scale=30, width=0.004)
-# draw the ball
+    # draw the ball
     ball = patches.Circle((initial_state_constraints[x],
         initial_state_constraints[y]),
         radius=par_map[r], fill=True, color='magenta', alpha=0.75)
     ax.add_patch(ball)
-# draw the observer
+    # draw the observer
     observer, = ax.plot([], [], marker='o', markersize=5, color='blue')
     return (fig, ax, line1, line2, line3, line4, line5, ball,
         observer, pfeil1, pfeil2)
