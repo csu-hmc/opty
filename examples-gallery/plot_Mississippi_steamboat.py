@@ -73,9 +73,9 @@ from matplotlib.patches import Rectangle
 # - :math:`FP_{RW}`: point where the force due to rotation of the right
 #   wheel is applied
 
-N, AS, ALW, ARW = sm.symbols('N, AS, ALW, ARW', cls = me.ReferenceFrame)
-DmcS, DmcLW, DmcRW = sm.symbols('DmcS, DmcLW, DmcRW', cls = me.Point)
-O, FPLW, FPRW = sm.symbols('O, FPLW, FPRW', cls = me.Point)
+N, AS, ALW, ARW = sm.symbols('N, AS, ALW, ARW', cls=me.ReferenceFrame)
+DmcS, DmcLW, DmcRW = sm.symbols('DmcS, DmcLW, DmcRW', cls=me.Point)
+O, FPLW, FPRW = sm.symbols('O, FPLW, FPRW', cls=me.Point)
 
 q, x, y, qLW, qRW = me.dynamicsymbols('q, x, y, qLW, qRW')
 u, ux, uy, uLW, uRW = me.dynamicsymbols('u, ux, uy, uLW, uRW')
@@ -110,20 +110,22 @@ FPRW.set_vel(N, DmcRW.vel(N) + uRW*AS.x.cross(-rW*N.z))
 # Set up the drag forces acting on the boat.
 #
 # The drag force acting on a body moving in a fluid is given by
-# :math:`F_D = -c \cdot A \cdot | \bar v|^2 \cdot \dfrac{\bar v}{| \bar v|}`,
-# where :math:`c` is the drag coefficient, :math:`\bar v` is the velocity
-# vector of the body and :math:`A` is the cross section area of the body facing
+# :math:`F_D = -\dfrac{1}{2} \rho C_D A | \bar v|^2 \hat v`,
+# where :math:`C_D` is the drag coefficient, :math:`\bar v` is the velocity,
+# :math:`\rho` is the density of the fluid, :math:`\hat v` is the unit vector
+# of the velocity of the body and :math:`A` is the cross section area of the body facing
 # the flow. This may be found here:
 #
-# https://courses.lumenlearning.com/suny-physics/chapter/5-2-drag-forces/
+# https://en.wikipedia.org/wiki/Drag_(physics)
 #
+# I will lump :math:`\dfrac{1}{2} \rho C_D` into a single constant :math:`c`.
+# (In the code below, I will use :math:`c_S` for the steamboat and :math:`c_W`
+# for the wheels.)
 # In order to avoid numerical issues with .normalize(), sm.sqrt(..)
 # I will use the following:
 #
-# ( :math:`\circ` denotes the inner product)
-#
-# :math:`F_{D_x} = -c \cdot A \cdot (A.x \circ \bar v)^2 \cdot \operatorname{sgn}(A.x \circ \bar v) \cdot A.x`
-# :math:`F_{D_y} = -c \cdot A \cdot (A.y \circ \bar v)^2 \cdot \operatorname{sgn}(A.y \circ \bar v) \cdot A.y`
+# :math:`F_{D_x} = -c A (\hat{A}.x \cdot \bar v)^2 \cdot \operatorname{sgn}(\hat{A}.x \cdot \bar v) \hat{A}.x`
+# :math:`F_{D_y} = -c A (\hat{A}.y \cdot \bar v)^2 \cdot \operatorname{sgn}(\hat{A}.y \cdot \bar v) \hat{A}.y`
 #
 # As an (infinitely often) differentiable approximation of the sign function,
 # I will use the fairly standard approximation:
@@ -227,7 +229,7 @@ par_map[cW] = 0.75
 # where weight > 0 is the relative importance of the duration of the motion,
 # and h > 0.
 
-weight = 1.e7
+weight = 1.0e7
 def obj(free):
     t1 = free[10 * num_nodes: 11 * num_nodes]
     t2 = free[11 * num_nodes: 12 * num_nodes]
@@ -259,7 +261,7 @@ initial_state_constraints = {
     uy: 0.0,
     uLW: 0.0,
     uRW: 0.0,
-    }
+}
 
 final_state_constraints = {
     q: -np.pi/2.,
@@ -268,7 +270,7 @@ final_state_constraints = {
     u: 0.0,
     ux: 0.0,
     uy: 0.0,
-    }
+}
 
 instance_constraints = (
     q.subs({t: t0}) - initial_state_constraints[q],
@@ -287,14 +289,14 @@ instance_constraints = (
     u.subs({t: tf}) - final_state_constraints[u],
     ux.subs({t: tf}) - final_state_constraints[ux],
     uy.subs({t: tf}) - final_state_constraints[uy],
-    )
+)
 
 limit_torque = 25.
 bounds = {
     tLW: (-limit_torque, limit_torque),
     tRW: (-limit_torque, limit_torque),
     h: (0.0, 1.0),
-    }
+}
 
 prob = Problem(
     obj,
@@ -307,7 +309,7 @@ prob = Problem(
     known_parameter_map=par_map,
     instance_constraints=instance_constraints,
     bounds=bounds,
-    )
+)
 
 # %%
 # Pick a reasonable initial guess.
@@ -340,7 +342,7 @@ prob.plot_trajectories(solution, ax)
 fps = 30
 
 def add_point_to_data(line, x, y):
-# to trace the path of the point.
+    # to trace the path of the point.
     old_x, old_y = line.get_data()
     line.set_data(np.append(old_x, x), np.append(old_y, y))
 
@@ -391,16 +393,16 @@ def init_plot():
     ax.axvline(initial_state_constraints[x], color='black', lw=0.25)
     ax.axvline(final_state_constraints[x], color='black', lw=0.25)
 
-# draw the wheels and the line connecting them
+    # draw the wheels and the line connecting them
     line1, = ax.plot([], [], lw=2, marker='o', markersize=0, color='green',
     alpha=0.5)
     line2, = ax.plot([], [], lw=2, marker='o', markersize=0, color='black')
     line3, = ax.plot([], [], lw=2, marker='o', markersize=0, color='black')
 
-# draw the torque vektor
+    # draw the torque vektor
     pfeil1 = ax.quiver([], [], [], [], color='red', scale=100, width=0.004)
     pfeil2 = ax.quiver([], [], [], [], color='blue', scale=100, width=0.004)
-# draw the boat
+    # draw the boat
     boat = Rectangle((initial_state_constraints[x] - par_map[bS]/2,
         initial_state_constraints[y] - par_map[aS]/2), par_map[bS],
         par_map[aS], rotation_point='center',
