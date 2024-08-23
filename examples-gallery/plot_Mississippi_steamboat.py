@@ -65,9 +65,9 @@ from matplotlib.patches import Rectangle
 # - :math:`A_S`: body fixed frame of the steamboat
 # - :math:`A_{LW}`: body fixed frame of the left wheel
 # - :math:`A_{RW}`: body fixed frame of the right wheel
-# - :math:`Dmc_S`: center of the steamboat
-# - :math:`Dmc_{LW}`: center of the left wheel
-# - :math:`Dmc_{RW}`: center of the right wheel
+# - :math:`D^{mc}_S`: center of the steamboat
+# - :math:`D^{mc}_{LW}`: center of the left wheel
+# - :math:`D^{mc}_{RW}`: center of the right wheel
 # - :math:`FP_{LW}`: point where the force due to rotation of the left
 #   wheel is applied
 # - :math:`FP_{RW}`: point where the force due to rotation of the right
@@ -116,7 +116,8 @@ FPRW.set_vel(N, DmcRW.vel(N) + uRW*AS.x.cross(-rW*N.z))
 # of the velocity of the body and :math:`A` is the cross section area of the body facing
 # the flow. This may be found here:
 #
-# https://en.wikipedia.org/wiki/Drag_equation
+# https://courses.lumenlearning.com/suny-physics/chapter/5-2-drag-forces/
+#
 #
 # I will lump :math:`\dfrac{1}{2} \rho C_D` into a single constant :math:`c`.
 # (In the code below, I will use :math:`c_S` for the steamboat and :math:`c_W`
