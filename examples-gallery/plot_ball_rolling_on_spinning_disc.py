@@ -44,8 +44,8 @@ to the surface the ball.
 - :math:`A_2`: frame fixed to the disc
 - :math:`O`: point fixed in N
 - :math:`C_P`: contact point of ball with disc
-- :math:`Dmc`: center of the ball
-- :math:`m_{Dmc}`: position of observer
+- :math:`A^{o}_1`: center of mass of the ball
+- :math:`pos_{observer}`: position of the observer
 - :math:`h`: interval which opty should minimize.
 
 This example was inspired by the demonstration by Steve Mould:
@@ -97,17 +97,17 @@ mb, mo, g, r = sm.symbols('mb, mo, g, r')
 Omega, alpha = sm.symbols('Omega, alpha')
 
 N, A1, A2 = sm.symbols('N, A1 A2', cls=me.ReferenceFrame)
-O, CP, Dmc, m_Dmc = sm.symbols('O, CP, Dmc, m_Dmc', cls=me.Point)
+O, CP, Ao1, pos_observer = sm.symbols('O, CP, Ao1, pos_observer', cls=me.Point)
 O.set_vel(N, 0)
 
 # %%
 # Determination of the holonomic constraints.
 #
 # If the ball rotates around the x axis by an angle :math:`q_1`
-# the contact point will be move by :math:`-q_1 \cdot r` in the A2.y direction.
-# If the ball rotates around the y axis by an angle :math:`q_2` the
-# contact point will be move by :math:`q2 \cdot r` in the A2.x direction.
-# Hence the configuration constraints are:
+# the contact point will be move by :math:`-q_1 \cdot r` in the :math:`\hat{A2}.y`
+# direction. If the ball rotates around the y axis by an angle :math:`q_2` the
+# contact point will be move by :math:`q_2 \cdot r` in the :math:`\hat{A2}.x`
+# direction. Hence the configuration constraints are:
 #
 # - :math:`x = r \cdot q_2`
 # - :math:`y = -r \cdot q_1`
@@ -142,24 +142,24 @@ rot1 = A1.ang_vel_in(N)
 CP.set_pos(O, x*A2.x + y*A2.y)
 CP.set_vel(A2, ux*A2.x + uy*A2.y)
 
-Dmc.set_pos(CP, r*N.z)
-Dmc.set_vel(N, Dmc.pos_from(O).diff(t, N) + aux[0] *N.x + aux[1]*N.y +
+Ao1.set_pos(CP, r*N.z)
+Ao1.set_vel(N, Ao1.pos_from(O).diff(t, N) + aux[0] *N.x + aux[1]*N.y +
     aux[2]*N.z)
 
-m_Dmc.set_pos(Dmc, r*A1.x)
-m_Dmc.v2pt_theory(Dmc, N, A1)
+pos_observer.set_pos(Ao1, r*A1.x)
+pos_observer.v2pt_theory(Ao1, N, A1)
 
 iXX = 2./5. * mb * r**2
 iYY = iXX
 iZZ = iXX
 
 I = me.inertia(A1, iXX, iYY, iZZ)
-ball = me.RigidBody('ball', Dmc, A1, mb, (I, Dmc))
-observer = me.Particle('observer', m_Dmc, mo)
+ball = me.RigidBody('ball', Ao1, A1, mb, (I, Ao1))
+observer = me.Particle('observer', pos_observer, mo)
 bodies = [ball, observer]
 
-forces = [(Dmc, -mb*g*N.z + F_r[0]*N.x + F_r[1]*N.y + F_r[2]*N.z),
-(m_Dmc, -mo*g*N.z), (A1, t1*A1.x + t2*A1.y + t3*A1.z)]
+forces = [(Ao1, -mb*g*N.z + F_r[0]*N.x + F_r[1]*N.y + F_r[2]*N.z),
+(pos_observer, -mo*g*N.z), (A1, t1*A1.x + t2*A1.y + t3*A1.z)]
 
 kd = sm.Matrix([ux - x.diff(t), uy - y.diff(t),
     *[(rot - rot1).dot(uv) for uv in N ]])
@@ -189,14 +189,14 @@ MM = KM.mass_matrix_full
 force = me.msubs(KM.forcing_full, {sm.Derivative(T(t), t):
     Tdot, sm.Derivative(T(t), (t,2)): Tdotdot}, {i: 0 for i in F_r})
 
-eingepraegt = me.msubs(KM.auxiliary_eqs,
+react_forces = me.msubs(KM.auxiliary_eqs,
     {sm.Derivative(T(t), t):
     Tdot, sm.Derivative(T(t), (t,2)): 0},
     {i.diff(t): rhs[j] for j, i in enumerate(u_ind + u_dep )},
 )
 
 # %%
-# Modify the equations of motion for the optimization problem. Here the last
+# Modify the equations of motion for the optimization problem. So the last
 # three equations, corresponding to the reaction forces :math:`F_x, F_y, F_z`
 # are removed. As the remaining three equation also contain
 # :math:`F_x, F_y, F_z` they are set to zero.
@@ -237,12 +237,12 @@ interval_fix = np.linspace(0, disc_time, num_nodes)
 # %%
 # Specify the known system parameters.
 par_map = {}
-par_map[mb]  = 5.0
-par_map[mo]  = 1.0
-par_map[r]   = 1.0
+par_map[mb] = 5.0
+par_map[mo] = 1.0
+par_map[r] = 1.0
 par_map[Omega] = 10.0
 par_map[alpha] = 0.5
-par_map[g]   = 9.81
+par_map[g] = 9.81
 par_map[Tdot] = interval_value_fix
 par_map[Tdotdot] = 0.0
 
@@ -403,7 +403,7 @@ pL = [i for i in par_map.keys()]
 pL_vals = [par_map[i] for i in pL]
 MM_lam = sm.lambdify(qL + pL, MM, cse=True)
 force_lam = sm.lambdify(qL + pL, force, cse=True)
-eingepraegt_lam = sm.lambdify(F_r + qL + pL + rhs, eingepraegt, cse=True)
+react_forces_lam = sm.lambdify(F_r + qL + pL + rhs, react_forces, cse=True)
 
 state_vals, input_vals, _ = parse_free(solution, len(state_symbols),
     len(specified_symbols), num_nodes)
@@ -425,9 +425,9 @@ for i in range(schritte2):
         zeit1, t11, t21, t31, *pL_vals)).reshape(10)
 
 # %%
-# Numerically solve *eingepraegt* for the reaction forces.
+# Numerically solve *react_forces* for the reaction forces.
 def func (x, *args):
-    return eingepraegt_lam(*x, *args).reshape(3)
+    return react_forces_lam(*x, *args).reshape(3)
 
 forcex  = np.empty(schritte2)
 forcey  = np.empty(schritte2)
@@ -452,9 +452,9 @@ for i in range(schritte2):
 times2 = interval_fix * solution[-1] / interval_value_fix
 fig, ax = plt.subplots(figsize=(12, 6))
 for i, j in zip((forcex, forcey, forcez),
-    ('reaction force on Dmc in X direction',
-    'reaction force on Dmc in Y direction',
-    'reaction force on Dmc in Z direction')):
+    ('reaction force on Ao1 in X direction',
+    'reaction force on Ao1 in Y direction',
+    'reaction force on Ao1 in Z direction')):
 
     plt.plot(times2, i, label=j)
 ax.set_title('Reaction Forces on center of the ball')
@@ -489,7 +489,7 @@ Pl.set_pos(O, -r_disc*A2.x)
 Pr.set_pos(O, r_disc*A2.x)
 Pu.set_pos(O, r_disc*A2.y)
 Pd.set_pos(O, -r_disc*A2.y)
-T_total.set_pos(Dmc, t1h*A1.x + t2h*A1.y + t3h*A1.z)
+T_total.set_pos(Ao1, t1h*A1.x + t2h*A1.y + t3h*A1.z)
 
 # %%
 # The projection of the total torque onto the X/Y plane is shown. Is vertical
@@ -497,10 +497,10 @@ T_total.set_pos(Dmc, t1h*A1.x + t2h*A1.y + t3h*A1.z)
 hilfs = sm.Max(t1h**2 + t2h**2 + t3h**2, 1.e-15)
 x_coord = (t1h*A1.x + t2h*A1.y + t3h*A1.z).dot(A2.x)
 y_coord = (t1h*A1.x + t2h*A1.y + t3h*A1.z).dot(A2.y)
-T_Z.set_pos(Dmc, t3h/sm.sqrt(hilfs) * (y_coord*A2.x - x_coord*A2.y))
+T_Z.set_pos(Ao1, t3h/sm.sqrt(hilfs) * (y_coord*A2.x - x_coord*A2.y))
 
-coordinates = Dmc.pos_from(O).to_matrix(N)
-for point in (m_Dmc, Pl, Pr, Pu, Pd, T_total, T_Z):
+coordinates = Ao1.pos_from(O).to_matrix(N)
+for point in (pos_observer, Pl, Pr, Pu, Pd, T_total, T_Z):
     coordinates = coordinates.row_join(point.pos_from(O).to_matrix(N))
 
 pL, pL_vals = zip(*par_map.items())
