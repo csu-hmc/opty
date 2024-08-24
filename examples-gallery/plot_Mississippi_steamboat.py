@@ -65,16 +65,16 @@ from matplotlib.patches import Rectangle
 # - :math:`A_S`: body fixed frame of the steamboat
 # - :math:`A_{LW}`: body fixed frame of the left wheel
 # - :math:`A_{RW}`: body fixed frame of the right wheel
-# - :math:`D^{mc}_S`: center of the steamboat
-# - :math:`D^{mc}_{LW}`: center of the left wheel
-# - :math:`D^{mc}_{RW}`: center of the right wheel
+# - :math:`A^{o}_S`: center of the steamboat
+# - :math:`A^{o}_{LW}`: center of the left wheel
+# - :math:`A^{o}_{RW}`: center of the right wheel
 # - :math:`FP_{LW}`: point where the force due to rotation of the left
 #   wheel is applied
 # - :math:`FP_{RW}`: point where the force due to rotation of the right
 #   wheel is applied
 
 N, AS, ALW, ARW = sm.symbols('N, AS, ALW, ARW', cls=me.ReferenceFrame)
-DmcS, DmcLW, DmcRW = sm.symbols('DmcS, DmcLW, DmcRW', cls=me.Point)
+AoS, AoLW, AoRW = sm.symbols('AoS, AoLW, AoRW', cls=me.Point)
 O, FPLW, FPRW = sm.symbols('O, FPLW, FPRW', cls=me.Point)
 
 q, x, y, qLW, qRW = me.dynamicsymbols('q, x, y, qLW, qRW')
@@ -93,17 +93,17 @@ ALW.set_ang_vel(AS, uLW*AS.x)
 ARW.orient_axis(AS, qRW, AS.x)
 ARW.set_ang_vel(AS, uRW*AS.x)
 
-DmcS.set_pos(O, x*N.x + y*N.y)
-DmcS.set_vel(N, ux*N.x + uy*N.y)
-DmcLW.set_pos(DmcS, -1.1*bS*AS.x)
-DmcLW.v2pt_theory(DmcS, N, AS)
-DmcRW.set_pos(DmcS, 1.1*bS*AS.x)
-DmcRW.v2pt_theory(DmcS, N, AS)
+AoS.set_pos(O, x*N.x + y*N.y)
+AoS.set_vel(N, ux*N.x + uy*N.y)
+AoLW.set_pos(AoS, -1.1*bS*AS.x)
+AoLW.v2pt_theory(AoS, N, AS)
+AoRW.set_pos(AoS, 1.1*bS*AS.x)
+AoRW.v2pt_theory(AoS, N, AS)
 
-FPLW.set_pos(DmcLW, -rW*N.z)
-FPLW.set_vel(N, DmcLW.vel(N) + uLW*AS.x.cross(-rW*N.z))
-FPRW.set_pos(DmcRW, -rW*N.z)
-FPRW.set_vel(N, DmcRW.vel(N) + uRW*AS.x.cross(-rW*N.z))
+FPLW.set_pos(AoLW, -rW*N.z)
+FPLW.set_vel(N, AoLW.vel(N) + uLW*AS.x.cross(-rW*N.z))
+FPRW.set_pos(AoRW, -rW*N.z)
+FPRW.set_vel(N, AoRW.vel(N) + uRW*AS.x.cross(-rW*N.z))
 
 
 # %%
@@ -136,12 +136,12 @@ FPRW.set_vel(N, DmcRW.vel(N) + uRW*AS.x.cross(-rW*N.z))
 
 
 
-helpx = DmcS.vel(N).dot(AS.x)
-helpy = DmcS.vel(N).dot(AS.y)
+helpx = AoS.vel(N).dot(AS.x)
+helpy = AoS.vel(N).dot(AS.y)
 
 FDx = -cS*aS*(helpx**2)*sm.tanh(20*helpx)*AS.x
 FDy = -cS*bS*(helpy**2)*sm.tanh(20*helpy)*AS.y
-forces = [(DmcS, FDx + FDy)]
+forces = [(AoS, FDx + FDy)]
 
 # %%
 # Set up the forces acting on the wheels.
@@ -154,8 +154,8 @@ FLW = -cW*rW*(helpy**2)*sm.tanh(20*helpy)*AS.y
 helpy = FPRW.vel(N).dot(AS.y)
 FRW = -cW*rW*(helpy**2)*sm.tanh(20*helpy)*AS.y
 
-forces.append((DmcLW, FLW))
-forces.append((DmcRW, FRW))
+forces.append((AoLW, FLW))
+forces.append((AoRW, FRW))
 
 forces.append((ALW, tLW*AS.x + (-rW*N.z).cross(FLW)))
 forces.append((ARW, tRW*AS.x + (-rW*N.z).cross(FRW)))
@@ -174,12 +174,12 @@ iYY = 0.25*mW*rW**2
 iZZ = iYY
 I1 = me.inertia(ALW, iXX, iYY, iZZ)
 I2 = me.inertia(ARW, iXX, iYY, iZZ)
-left_wheel = me.RigidBody('left_wheel', DmcLW, ALW, mW, (I1, DmcLW))
-right_wheel = me.RigidBody('right_wheel', DmcRW, ARW, mW, (I2, DmcRW))
+left_wheel = me.RigidBody('left_wheel', AoLW, ALW, mW, (I1, AoLW))
+right_wheel = me.RigidBody('right_wheel', AoRW, ARW, mW, (I2, AoRW))
 
 iZZ = 1/12 * mS*(aS**2 + bS**2)
 I3 = me.inertia(AS, 0, 0, iZZ)
-boat = me.RigidBody('boat', DmcS, AS, mS, (I3, DmcS))
+boat = me.RigidBody('boat', AoS, AS, mS, (I3, AoS))
 
 bodies = [boat, left_wheel, right_wheel]
 # %%
@@ -361,17 +361,17 @@ ymax = final_state_constraints[y] + par_map[aS]/1.75
 # additional points to plot the water wheels and the torque
 pLB, pLF, pRB, pRF, tL, tR, S1, S2 = sm.symbols('pLB pLF pRB pRF tL, tR S1 S2',
     cls=me.Point)
-pLB.set_pos(DmcLW, -rW*AS.y)
-pLF.set_pos(DmcLW, rW*AS.y)
-pRB.set_pos(DmcRW, -rW*AS.y)
-pRF.set_pos(DmcRW, rW*AS.y)
+pLB.set_pos(AoLW, -rW*AS.y)
+pLF.set_pos(AoLW, rW*AS.y)
+pRB.set_pos(AoRW, -rW*AS.y)
+pRF.set_pos(AoRW, rW*AS.y)
 tL.set_pos(O, tLW*AS.x)
 tR.set_pos(O, tRW*AS.x)
-S1.set_pos(DmcLW, par_map[bS]/15*AS.y)
-S2.set_pos(DmcRW, -par_map[bS]/15 *AS.y)
+S1.set_pos(AoLW, par_map[bS]/15*AS.y)
+S2.set_pos(AoRW, -par_map[bS]/15 *AS.y)
 
-coordinates = DmcS.pos_from(O).to_matrix(N)
-for point in (DmcLW, DmcRW, pLB, pLF, pRB, pRF, S1, S2, tL, tR):
+coordinates = AoS.pos_from(O).to_matrix(N)
+for point in (AoLW, AoRW, pLB, pLF, pRB, pRF, S1, S2, tL, tR):
     coordinates = coordinates.row_join(point.pos_from(O).to_matrix(N))
 
 pL, pL_vals = zip(*par_map.items())
