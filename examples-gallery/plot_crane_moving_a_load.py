@@ -39,7 +39,9 @@ import matplotlib.animation as animation
 from matplotlib import patches
 
 # %%
-# Set up Kane's equations of motion.
+# Set up Kane's Equations of Motion.
+#-----------------------------------
+#
 
 N, A = sm.symbols('N A', cls=me.ReferenceFrame)
 t = me.dynamicsymbols._t
@@ -96,7 +98,9 @@ eom = eom.col_join(config_constr)
 sm.pprint(eom)
 
 # %%
-# Set up the optimization problem and solve it.
+# Set up the Optimization Problem and Solve it.
+#----------------------------------------------
+#
 state_symbols = tuple((*q_ind, *q_dep, *u_ind, *u_dep))
 constant_symbols = (l, m1, m2, g)
 specified_symbols = (F,)
@@ -145,7 +149,8 @@ initial_state_constraints = {
     uxc: 0.0,
     uxl: 0.0,
     uyl: 0.0,
-    u: 0.0}
+    u: 0.0,
+}
 
 final_state_constraints = {
     xc: ending_location,
@@ -155,22 +160,38 @@ final_state_constraints = {
     uxc: 0.0,
     uxl: 0.0,
     uyl: 0.0,
-    u: 0.0}
+    u: 0.0,
+}
 
-instance_constraints = (tuple(xi.subs({t: t0}) - xi_val for xi, xi_val in
-                              initial_state_constraints.items()) +
-                        tuple(xi.subs({t: tf}) - xi_val for xi, xi_val in
-                              final_state_constraints.items()))
+instance_constraints = (
+    xc.subs({t: t0}) - initial_state_constraints[xc],
+    xl.subs({t: t0}) - initial_state_constraints[xl],
+    yl.subs({t: t0}) - initial_state_constraints[yl],
+    q.subs({t: t0}) - initial_state_constraints[q],
+    uxc.subs({t: t0}) - initial_state_constraints[uxc],
+    uxl.subs({t: t0}) - initial_state_constraints[uxl],
+    uyl.subs({t: t0}) - initial_state_constraints[uyl],
+    u.subs({t: t0}) - initial_state_constraints[u],
+    xc.subs({t: tf}) - final_state_constraints[xc],
+    xl.subs({t: tf}) - final_state_constraints[xl],
+    yl.subs({t: tf}) - final_state_constraints[yl],
+    q.subs({t: tf}) - final_state_constraints[q],
+    uxc.subs({t: tf}) - final_state_constraints[uxc],
+    uxl.subs({t: tf}) - final_state_constraints[uxl],
+    uyl.subs({t: tf}) - final_state_constraints[uyl],
+    u.subs({t: tf}) - final_state_constraints[u],
+)
+
 # %%
 # Forcing h > 0.0 sometimes avoids negative 'solutions'. Here it also
 # seem to help with the convergence of the optimization: Different bounds,
-# e,g, h in (1.e-4, 1.) gives unreasonable results.
+# e.g.: h :math:`\in (10^{-4}, 1.0)` gives unreasonable results.
 
 bounds = {
     F: (-20., 20.),
     xl: (starting_location, ending_location),
     xc: (starting_location, ending_location),
-    h: (1.e-5, 0.5),
+    h: (0.0, 1.0),
 }
 
 # %%
@@ -224,11 +245,12 @@ prob.plot_constraint_violations(solution)
 # %%
 # Plot the state trajectories.
 fig, ax = plt.subplots(9, 1, figsize=(6.00, 1.0*9), sharex=True,
-                       layout='constrained')
+    layout='constrained')
 prob.plot_trajectories(solution, ax)
 
 # %%
-# Animate the simulation.
+# Animate the Simulation.
+#------------------------
 h_sol = solution[-1]
 fps = 20
 
