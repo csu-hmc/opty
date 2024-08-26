@@ -11,7 +11,7 @@ The wheels have radius :math:`r_W` and mass :math:`m_W` and are modeled as
 rigid bodies.
 By running the wheels at different speeds, the boat can be steered.
 The water speed is assumed to be zero. Gravity, in the negative Z direction, is
-unimportant here, hence disregarded.
+unimportant here, therefore disregarded.
 
 **Constants**
 
