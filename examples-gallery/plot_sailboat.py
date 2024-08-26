@@ -1,46 +1,49 @@
 # %%
 """
-Mississippi Steamboat
-=====================
+Sailboat
+========
 
-A boat is modeled as a rectangular plate with length :math:`a_S` and
-width :math:`b_S`.
-It has a mass :math:`m_S` and is modeled as a rigid body.
-Water wheels are attached to the boat on the left and right side.
-The wheels have radius :math:`r_W` and mass :math:`m_W` and are modeled as
-rigid bodies.
-By running the wheels at different speeds, the boat can be steered.
-The water speed is assumed to be zero. Gravity, in the negative Z direction, is
-unimportant here, hence disregarded.
+A boat is modeled as a rectangular plate with length :math:`a_B` and
+width :math:`b_B`.
+It has a mass :math:`m_B` and is modeled as a rigid body.
+At its stern there is a rudder of length :math:`l_R`. Ai its center ther is a
+sail of length :math:`l_S`. Both may be rotated.
+As everything is two dimensional, I model them as thin rods.
+The wind blows in the positive Y direction, with constant speed :math:`v_W`.
+The water is at rest
+Gravity, in the negative Z direction, is unimportant here, hence disregarded.
 
 **Constants**
 
-- :math:`m_S`: mass of the steamboat [kg]
-- :math:`m_W`: mass of the wheels [kg]
-- :math:`r_W`: radius of the wheel [m]
-- :math:`a_S`: length of the steamboat [m]
-- :math:`b_S`: width of the steamboat [m]
-- :math:`c_W`: drag coefficient at wheels [kg/m^2]
-- :math:`c_S`: drag coefficient at steamboat [kg/m^2]
+- :math:`m_B`: mass of the boat [kg]
+- :math:`m_R`: mass of the rudder [kg]
+- :math:`m_S`: mass of the sail [kg]
+- :math:`l_R`: length of the rudder [m]
+- :math:`l_S`: length of the sail [m]
+- :math:`a_B`: length of the boat [m]
+- :math:`b_B`: width of the boat [m]
+- :math:`d_M`: distance of the mast from the center of the boat [m]
+- :math:`c_S`: drag coefficient at the sail [kg/m^2]
+- :math:`c_B`: drag coefficient at boat and the rudder [kg/m^2]
 
 
 **States**
 
-- :math:`x`: X - position of the center of the steamboat [m]
-- :math:`y`: Y - position of the center of the steamboat [m]
-- :math:`q_S`: angle of the steamboat [rad]
-- :math:`q_{LW}`: angle of the left wheel [rad]
-- :math:`q_{RW}`: angle of the right wheel [rad]
-- :math:`u_x`: speed of the steamboat in X direction [m/s]
-- :math:`u_y`: speed of the steamboat in Y direction [m/s]
-- :math:`u_S`: angular speed of the steamboat [rad/s]
-- :math:`u_{LW}`: angular speed of the left wheel [rad/s]
-- :math:`u_{RW}`: angular speed of the right wheel [rad/s]
+- :math:`x`: X - position of the center of the boat [m]
+- :math:`y`: Y - position of the center of the boat [m]
+- :math:`q_B`: angle of the boat [rad]
+- :math:`q_{S}`: angle of the sail [rad]
+- :math:`q_{R}`: angle of the rudder [rad]
+- :math:`u_x`: speed of the boat in X direction [m/s]
+- :math:`u_y`: speed of the boat in Y direction [m/s]
+- :math:`u_B`: angular speed of the boat [rad/s]
+- :math:`u_{R}`: angular speed of the rudder [rad/s]
+- :math:`u_{S}`: angular speed of the sail [rad/s]
 
 **Specifieds**
 
-- :math:`t_{LW}`: torque applied to the left wheel [Nm]
-- :math:`t_{RW}`: torque applied to the right wheel [Nm]
+- :math:`t_{R}`: torque applied to the rudder [Nm]
+- :math:`t_{S}`: torque applied to the sail [Nm]
 
 """
 import numpy as np
@@ -62,52 +65,47 @@ from matplotlib.patches import Rectangle
 #
 # - :math:`N`: inertial frame of reference
 # - :math:`O`: origin of the inertial frame of reference
-# - :math:`A_S`: body fixed frame of the steamboat
-# - :math:`A_{LW}`: body fixed frame of the left wheel
-# - :math:`A_{RW}`: body fixed frame of the right wheel
-# - :math:`A^{o}_S`: center of the steamboat
-# - :math:`A^{o}_{LW}`: center of the left wheel
-# - :math:`A^{o}_{RW}`: center of the right wheel
-# - :math:`FP_{LW}`: point where the force due to rotation of the left
-#   wheel is applied
-# - :math:`FP_{RW}`: point where the force due to rotation of the right
-#   wheel is applied
+# - :math:`A_B`: body fixed frame of the boat
+# - :math:`A_{R}`: body fixed frame of the rudder
+# - :math:`A_{S}`: body fixed frame of the sail
+# - :math:`A^{o}_B`: center of the boat
+# - :math:`A^{o}_{R}`: center of the rudder
+# - :math:`A^{o}_{RB}`: point where the rudder is attached to the boat
+# - :math:`A^{o}_{S}`: center of the sail
 
-N, AS, ALW, ARW = sm.symbols('N, AS, ALW, ARW', cls=me.ReferenceFrame)
-AoS, AoLW, AoRW = sm.symbols('AoS, AoLW, AoRW', cls=me.Point)
-O, FPLW, FPRW = sm.symbols('O, FPLW, FPRW', cls=me.Point)
+N, AB, AR, AS = sm.symbols('N, AB, AR, AS', cls=me.ReferenceFrame)
+O, AoB, AoR, AoS, AoRB = sm.symbols('O, AoB, AoR, AoS, AoRB', cls=me.Point)
 
-q, x, y, qLW, qRW = me.dynamicsymbols('q, x, y, qLW, qRW')
-u, ux, uy, uLW, uRW = me.dynamicsymbols('u, ux, uy, uLW, uRW')
-tLW, tRW = me.dynamicsymbols('tLW, tRW')
+qB, qR, qS, x, y = me.dynamicsymbols('qB, qR, qS, x, y')
+uB, uR, uS, ux, uy = me.dynamicsymbols('uB, uR, uS, ux, uy')
+tR, tS = me.dynamicsymbols('tR, tS')
 
-mS, mW, rW, aS, bS, cS, cW = sm.symbols('mS, mW, rW, aS, bS, cS, cW', real=True)
+mB, mR, mS, aB, bB, lR, lS = sm.symbols('mB, mR, mS, aB, bB, lR, lS', real=True)
+cB, cS, vW, dM = sm.symbols('cB, cS, vW, dM', real=True)
 
 t = me.dynamicsymbols._t
 O.set_vel(N, 0)
 
-AS.orient_axis(N, q, N.z)
-AS.set_ang_vel(N, u*N.z)
-ALW.orient_axis(AS, qLW, AS.x)
-ALW.set_ang_vel(AS, uLW*AS.x)
-ARW.orient_axis(AS, qRW, AS.x)
-ARW.set_ang_vel(AS, uRW*AS.x)
+AB.orient_axis(N, qB, N.z)
+AB.set_ang_vel(N, uB*N.z)
+AR.orient_axis(AB, qR, N.z)
+AR.set_ang_vel(AB, uR*N.z)
+AS.orient_axis(AB, qS, N.z)
+AS.set_ang_vel(AB, uS*N.z)
 
-AoS.set_pos(O, x*N.x + y*N.y)
-AoS.set_vel(N, ux*N.x + uy*N.y)
-AoLW.set_pos(AoS, -1.1*bS*AS.x)
-AoLW.v2pt_theory(AoS, N, AS)
-AoRW.set_pos(AoS, 1.1*bS*AS.x)
-AoRW.v2pt_theory(AoS, N, AS)
-
-FPLW.set_pos(AoLW, -rW*N.z)
-FPLW.set_vel(N, AoLW.vel(N) + uLW*AS.x.cross(-rW*N.z))
-FPRW.set_pos(AoRW, -rW*N.z)
-FPRW.set_vel(N, AoRW.vel(N) + uRW*AS.x.cross(-rW*N.z))
-
+AoB.set_pos(O, x*N.x + y*N.y)
+AoB.set_vel(N, ux*N.x + uy*N.y)
+AoS.set_pos(AoB, dM*AB.y)
+AoS.v2pt_theory(AoB, N, AB)
+AoS.set_vel(N, AoB.vel(N))
+AoRB.set_pos(AoB, -aB/2*AB.y)
+AoRB.v2pt_theory(AoB, N, AB)
+AoR.set_pos(AoRB, -lR/2*AR.y)
+AoR.v2pt_theory(AoRB, N, AR)
+test = 0
 
 # %%
-# Set up the drag forces acting on the boat.
+# Set up the Drag Forces.
 #
 # The drag force acting on a body moving in a fluid is given by
 # :math:`F_D = -\dfrac{1}{2} \rho C_D A | \bar v|^2 \hat v`,
@@ -120,8 +118,8 @@ FPRW.set_vel(N, AoRW.vel(N) + uRW*AS.x.cross(-rW*N.z))
 #
 #
 # I will lump :math:`\dfrac{1}{2} \rho C_D` into a single constant :math:`c`.
-# (In the code below, I will use :math:`c_S` for the steamboat and :math:`c_W`
-# for the wheels.)
+# (In the code below, I will use :math:`c_R` for the boat and the rudder and
+#  :math:`c_S` for the sails.)
 # In order to avoid numerical issues with .normalize(), sm.sqrt(..)
 # I will use the following:
 #
@@ -133,77 +131,75 @@ FPRW.set_vel(N, AoRW.vel(N) + uRW*AS.x.cross(-rW*N.z))
 #
 # :math:`\operatorname{sgn}(x) \approx \tanh( \alpha \cdot x )` with :math:`\alpha \gg 1`
 #
+# %%
+# drag force acting on the boat
+helpx = AoB.vel(N).dot(AB.x)
+helpy = AoB.vel(N).dot(AB.y)
 
-
-
-helpx = AoS.vel(N).dot(AS.x)
-helpy = AoS.vel(N).dot(AS.y)
-
-FDx = -cS*aS*(helpx**2)*sm.tanh(20*helpx)*AS.x
-FDy = -cS*bS*(helpy**2)*sm.tanh(20*helpy)*AS.y
-forces = [(AoS, FDx + FDy)]
+FDBx = -cB*aB*(helpx**2)*sm.tanh(20*helpx)*AB.x
+FDBy = -cB*bB*(helpy**2)*sm.tanh(20*helpy)*AB.y
+forces = [(AoB, FDBx + FDBy)]
 
 # %%
-# Set up the forces acting on the wheels.
-# The drag forces are similar to above, except that these forces act only in
-# the AS.y direction.
+# drag force acting on the sail
+# the effective wind speed on the sail is:
+# :math:`v_W \hat{N}.y - (\bar{v}_B \cdot \hat{N}.y) \hat{N}.y`.
 
-helpy = FPLW.vel(N).dot(AS.y)
-FLW = -cW*rW*(helpy**2)*sm.tanh(20*helpy)*AS.y
-
-helpy = FPRW.vel(N).dot(AS.y)
-FRW = -cW*rW*(helpy**2)*sm.tanh(20*helpy)*AS.y
-
-forces.append((AoLW, FLW))
-forces.append((AoRW, FRW))
-
-forces.append((ALW, tLW*AS.x + (-rW*N.z).cross(FLW)))
-forces.append((ARW, tRW*AS.x + (-rW*N.z).cross(FRW)))
+v_eff = vW*N.y - AoB.vel(N).dot(N.y)*N.y
+FDSB = cS*lS*(v_eff.dot(AS.y)**2)*sm.tanh(20*v_eff.dot(AS.y))*AS.y
+forces.append((AoS, FDSB))
 
 # %%
-# If :math:`u \neq 0`, the boat will rotate and a drag torque will act on it.
+# drag force on the rudder
+# this is similar to the drag force on the boat, except the width of the rudder
+# is negligible.
+helpx = AoR.vel(N).dot(AR.x)
+FDRx = -cB*lR*(helpx**2)*sm.tanh(20*helpx)*AR.x
+forces.append((AoR, FDRx))
 
-Tdrag = -cS*aS * u*AS.z.cross(AS.y)
-forces.append((AS, Tdrag))
 # %%
 # If :math:`u \neq 0`, the boat will rotate and a drag torque will act on it.
 # Let's look at the situation from the center of the boat to its bow. At a
-# distance :math:`r` from the center, The speed of a point a r is :math:`u \cdot r`.
-# The area is :math:`dr`, hence the force is :math:`-c_S (u \cdot r)^2 dr`. The
+# distance :math:`r` from the center, The speed of a point a r is :math:`u_B \cdot r`.
+# The area is :math:`dr`, hence the force is :math:`-c_B (u_B \cdot r)^2 dr`. The
 # leverage at this point is :math:`r`, hence the torque is
-# :math:`-c_S (u \cdot r)^2 \cdot r dr`.
+# :math:`-c_B (u_B \cdot r)^3 dr`.
 # Hence total torque is:
-# :math:`-c_S u^2 \int_{0}^{a_S/2} r^3 \, dr` =
-# :math:`\frac{1}{4} c_S u^2 \frac{a_S}{16}`
+# :math:`-c_B u_B^2 \int_{0}^{a_B/2} r^3 \, dr` =
+# :math:`\frac{1}{4} c_B u_B^2 \frac{a_B^4}{16}`
 #
 # The same is from the center to the stern, hence the total torque is
-# :math:`\frac{1}{32} c_S u^2 a_S^4`.
-# Same again across the front, with :math:`b_S` instead of :math:`a_S`, hence
-# the total torque is :math:`\frac{1}{32} c_S u^2 b_S^4`.
-tB = -cS*u**2*(aS**4 + bS**4)/32 * sm.tanh(20*u) * N.z
-forces.append((AS, tB))
+# :math:`\frac{1}{32} c_B u_B^2 a_B^4`.
+# Same again across the front, with :math:`b_B` instead of :math:`a_B`, hence
+# the total torque is :math:`\frac{1}{32} c_B u_B^2 b_B^4`.
+tB = -cB*uB**2*(aB**4 + bB**4)/32 * sm.tanh(20*uB) * N.z
+forces.append((AB, tB))
+
+# %%
+# Set control torques.
+forces.append((AR, tR*N.z))
+forces.append((AS, tS*N.z))
 
 # %%
 # Set up the rigid bodies
 
-iXX = 0.5*mW*rW**2
-iYY = 0.25*mW*rW**2
-iZZ = iYY
-I1 = me.inertia(ALW, iXX, iYY, iZZ)
-I2 = me.inertia(ARW, iXX, iYY, iZZ)
-left_wheel = me.RigidBody('left_wheel', AoLW, ALW, mW, (I1, AoLW))
-right_wheel = me.RigidBody('right_wheel', AoRW, ARW, mW, (I2, AoRW))
+iZZ1 = 1/12 * mR * lR**2
+iZZ2 = 1/12 * mS * lS**2
+I1 = me.inertia(AR, 0, 0, iZZ1)
+I2 = me.inertia(AS, 0, 0, iZZ2)
+rudder = me.RigidBody('rudder', AoR, AR, mR, (I1, AoR))
+sail = me.RigidBody('sail', AoS, AS, mS, (I2, AoRB))
 
-iZZ = 1/12 * mS*(aS**2 + bS**2)
-I3 = me.inertia(AS, 0, 0, iZZ)
+iZZ = 1/12 * mB*(aB**2 + bB**2)
+I3 = me.inertia(AB, 0, 0, iZZ)
 boat = me.RigidBody('boat', AoS, AS, mS, (I3, AoS))
 
-bodies = [boat, left_wheel, right_wheel]
+bodies = [boat, rudder, sail]
 # %%
 # Set up Kane's equations of motion.
 
-q_ind = [q, x, y, qLW, qRW]
-u_ind = [u, ux, uy, uLW, uRW]
+q_ind = [qB, qR, qS, x, y]
+u_ind = [uB, uR, uS, ux, uy]
 kd = sm.Matrix([i - j.diff(t) for j, i in zip(q_ind, u_ind)])
 
 KM = me.KanesMethod(N,
@@ -214,29 +210,33 @@ KM = me.KanesMethod(N,
 
 fr, frstar = KM.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
+print(f'eom containt {sm.count_ops(eom)} operations')
 
 # %%
 # Set up the Optimization Problem and Solve it.
 # ---------------------------------------------
 #
-
-state_symbols = [q, x, y, qLW, qRW, u, ux, uy, uLW, uRW]
-specified_symbols = [tLW, tRW]
-constant_symbols = [mS, mW, rW, aS, bS, cS, cW]
-num_nodes = 251
+state_symbols = [ qB, qR, qS, x, y, uB, uR, uS, ux, uy]
+specified_symbols = [tR, tS]
+constant_symbols = [mB, mR, mS, aB, bB, lR, lS, cB, cS, vW, dM]
+num_nodes = 252
 h = sm.symbols('h')
 
 # %%
 # Specify the known symbols.
 
 par_map = {}
+par_map[mB] = 500.0
+par_map[mR] = 10.0
 par_map[mS] = 10.0
-par_map[mW] = 1.0
-par_map[rW] = 1.0
-par_map[aS] = 5.0
-par_map[bS] = 1.0
-par_map[cS] = 0.75
-par_map[cW] = 0.75
+par_map[aB] = 10.0
+par_map[bB] = 2.0
+par_map[lR] = 1.0
+par_map[lS] = 10.0
+par_map[cB] = 1.0
+par_map[cS] = 0.01
+par_map[vW] = 25.0
+par_map[dM] = -1.0
 
 # %%
 # Set up the objective function and its gradient. The objective function
@@ -261,7 +261,7 @@ def obj_grad(free):
     return grad
 
 duration = (num_nodes - 1)*h
-t0, tf = 0.0, duration
+t0, ti1, tf = 0.0, duration/2, duration
 interval_value = h
 
 
@@ -269,51 +269,44 @@ interval_value = h
 # Set up the instance constraints, the bounds and Problem.
 
 initial_state_constraints = {
-    q: -np.pi/2.,
+    qB: 0.0,
+    qR: 0.0,
+    qS: 0.0,
     x: 0.0,
     y: 0.0,
-    qLW: 0.0,
-    qRW: 0.0,
-    u: 0.0,
+    uB: 0.0,
+    uR: 0.0,
+    uS: 0.0,
     ux: 0.0,
     uy: 0.0,
-    uLW: 0.0,
-    uRW: 0.0,
+}
+
+intermediate_state_constraints = {
+    x: 500,
+    y: 500,
 }
 
 final_state_constraints = {
-    q: -np.pi/2.,
-    x: 10,
-    y: 10,
-    u: 0.0,
-    ux: 0.0,
-    uy: 0.0,
+    x: 0.0,
+    y: 0.0,
 }
 
-instance_constraints = (
-    q.subs({t: t0}) - initial_state_constraints[q],
-    x.subs({t: t0}) - initial_state_constraints[x],
-    y.subs({t: t0}) - initial_state_constraints[y],
-    qLW.subs({t: t0}) - initial_state_constraints[qLW],
-    qRW.subs({t: t0}) - initial_state_constraints[qRW],
-    u.subs({t: t0}) - initial_state_constraints[u],
-    ux.subs({t: t0}) - initial_state_constraints[ux],
-    uy.subs({t: t0}) - initial_state_constraints[uy],
-    uLW.subs({t: t0}) - initial_state_constraints[uLW],
-    uRW.subs({t: t0}) - initial_state_constraints[uRW],
-    q.subs({t: tf}) - final_state_constraints[q],
-    x.subs({t: tf}) - final_state_constraints[x],
-    y.subs({t: tf}) - final_state_constraints[y],
-    u.subs({t: tf}) - final_state_constraints[u],
-    ux.subs({t: tf}) - final_state_constraints[ux],
-    uy.subs({t: tf}) - final_state_constraints[uy],
+instance_constraints = (tuple(xi.subs({t: 0}) - xi_val for xi, xi_val in
+        initial_state_constraints.items()) +
+    tuple(xi.subs({t: ti1}) - xi_val for xi, xi_val in
+        intermediate_state_constraints.items()) +
+    tuple(xi.subs({t: tf}) - xi_val for xi, xi_val in
+        final_state_constraints.items())
 )
 
-limit_torque = 25.
+
+limit_torque = 100.0
 bounds = {
-    tLW: (-limit_torque, limit_torque),
-    tRW: (-limit_torque, limit_torque),
-    h: (0.0, 1.0),
+    tR: (-limit_torque, limit_torque),
+    tS: (-limit_torque, limit_torque),
+    qR: (-np.pi/2, np.pi/2),
+    qS: (-np.pi/2, np.pi/2),
+    h: (0.0, np.inf),
 }
 
 prob = Problem(
@@ -332,18 +325,24 @@ prob = Problem(
 # %%
 # Pick a reasonable initial guess.
 
-i1 = list(np.zeros(num_nodes))
-i2 = list(np.linspace(initial_state_constraints[x], final_state_constraints[x],
-    num_nodes))
+i1 = list(np.zeros(3*num_nodes))
+i2 = list(np.linspace(initial_state_constraints[x], intermediate_state_constraints[x],
+    int(num_nodes/2))) +list(np.linspace(intermediate_state_constraints[x],
+    final_state_constraints[x], int(num_nodes/2)))
 i3 = list(np.linspace(initial_state_constraints[y], final_state_constraints[y],
-    num_nodes))
-i4 = list(np.zeros(9*num_nodes))
+    int(num_nodes/2))) + list(np.linspace(final_state_constraints[y],
+    final_state_constraints[y], int(num_nodes/2)))
+i4 = list(np.zeros(7*num_nodes))
 initial_guess = np.array(i1 + i2 + i3 + i4 + [0.01])
+prob.add_option('max_iter', 3000)
+for _ in range(10 ):
+    initial_guess = np.load('sailboat_solution.npy')
 
-solution, info = prob.solve(initial_guess)
-print('Message from optimizer:', info['status_msg'])
-print(f'Optimal h value is: {solution[-1]:.3f} sec')
-prob.plot_objective_value()
+    solution, info = prob.solve(initial_guess)
+    print('Message from optimizer:', info['status_msg'])
+    print(f'Optimal h value is: {solution[-1]:.3f} sec')
+    prob.plot_objective_value()
+    np.save('sailboat_solution.npy', solution)
 
 # %%
 # Plot errors in the solution.
@@ -357,6 +356,7 @@ prob.plot_trajectories(solution, ax)
 
 # %%
 # Animate the solutions and plot the results.
+raise Exception()
 fps = 30
 
 def add_point_to_data(line, x, y):
