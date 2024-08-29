@@ -129,7 +129,7 @@ def n_link_pendulum_on_cart(n, cart_force=True, joint_torques=False,
         specified.append(F)
 
     kane = me.KanesMethod(I, q_ind=q, u_ind=u, kd_eqs=kindiffs)
-    kane.kanes_equations(forces, particles)
+    kane.kanes_equations(particles, forces)
 
     mass_matrix = kane.mass_matrix_full
     forcing_vector = kane.forcing_full

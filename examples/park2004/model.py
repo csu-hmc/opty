@@ -7,16 +7,16 @@ from scipy.interpolate import interp1d
 import sympy as sy
 import sympy.physics.mechanics as me
 import yeadon
-from pydy.codegen.code import generate_ode_function
+from pydy.codegen.ode_function_generators import generate_ode_function
 
 sym_kwargs = {'positive': True, 'real': True}
 me.dynamicsymbols._t = sy.symbols('t', **sym_kwargs)
 
 
 class PlanarStandingHumanOnMovingPlatform(object):
-    """Generates the symbolic equations of motion of a 2D planar two body
-    model representing a human standing on a antero-posteriorly moving
-    platform similar to the one found in [Park2004]_.
+    """Generates the symbolic equations of motion of a 2D planar two body model
+    representing a human standing on a antero-posteriorly moving platform
+    similar to the one found in [Park2004]_.
 
     References
     ==========
@@ -136,10 +136,10 @@ class PlanarStandingHumanOnMovingPlatform(object):
 
         Parameters
         ==========
-        scaled_gain : None or float
+        unscaled_gain : None or float
             The desired numerical value of the unscaled gains. The unscaled
-            gains can be multiplied by the gain scale factors to get the
-            actual gain matrix. If None, the gains are not scaled.
+            gains can be multiplied by the gain scale factors to get the actual
+            gain matrix. If None, the gains are not scaled.
 
         """
 
@@ -267,8 +267,8 @@ class PlanarStandingHumanOnMovingPlatform(object):
 
         self.points['origin'].set_vel(self.frames['inertial'], 0)
 
-        # Note : This doesn't acutally populate through in the KanesMethod
-        # classe. See https://github.com/sympy/sympy/issues/8244.
+        # Note : This doesn't actually populate through in the KanesMethod
+        # class. See https://github.com/sympy/sympy/issues/8244.
         vec = (self.specified['platform_acceleration'] *
                self.frames['inertial'].x)
         self.points['ankle'].set_acc(self.frames['inertial'], vec)
@@ -341,20 +341,25 @@ class PlanarStandingHumanOnMovingPlatform(object):
         self._create_rigid_bodies()
         self._create_loads()
 
-    def _generate_eoms(self):
+    def _generate_eoms(self, simplify=False):
 
         self.kane = me.KanesMethod(self.frames['inertial'],
-                                   self.coordinates.values(),
-                                   self.speeds.values(),
+                                   list(self.coordinates.values()),
+                                   list(self.speeds.values()),
                                    self.kin_diff_eqs)
 
-        fr, frstar = self.kane.kanes_equations(self.loads.values(),
-                                               self.rigid_bodies.values())
+        fr, frstar = self.kane.kanes_equations(list(self.loads.values()),
+                                               list(self.rigid_bodies.values()))
 
         sub = {self.specified['platform_speed'].diff(self.time):
                self.specified['platform_acceleration']}
 
-        self.fr_plus_frstar = sy.trigsimp(fr + frstar).subs(sub)
+        if simplify:
+            fr_plus_frstar = sy.trigsimp(fr + frstar)
+        else:
+            fr_plus_frstar = fr + frstar
+
+        self.fr_plus_frstar = fr_plus_frstar.xreplace(sub)
 
         udots = sy.Matrix([s.diff(self.time) for s in self.speeds.values()])
 
@@ -367,7 +372,7 @@ class PlanarStandingHumanOnMovingPlatform(object):
                                           self.mass_matrix * udots)
 
         M_top_rows = sy.eye(2).row_join(sy.zeros(2))
-        F_top_rows = sy.Matrix(self.speeds.values())
+        F_top_rows = sy.Matrix(list(self.speeds.values()))
 
         tmp = sy.zeros(2).row_join(self.mass_matrix)
         self.mass_matrix_full = M_top_rows.col_join(tmp)
@@ -383,8 +388,8 @@ class PlanarStandingHumanOnMovingPlatform(object):
 
     def _create_symbolic_controller(self):
 
-        states = self.coordinates.values() + self.speeds.values()
-        inputs = self.specified.values()[-2:]
+        states = self.states()
+        inputs = list(self.specified.values())[-2:]
 
         num_states = len(states)
         num_inputs = len(inputs)
@@ -414,8 +419,8 @@ class PlanarStandingHumanOnMovingPlatform(object):
 
     def _generate_closed_loop_eoms(self):
 
-        self.fr_plus_frstar_closed = me.msubs(self.fr_plus_frstar,
-                                              self.controller_dict)
+        self.fr_plus_frstar_closed = self.fr_plus_frstar.xreplace(
+            self.controller_dict)
 
     def _numerical_parameters(self):
 
@@ -467,21 +472,21 @@ class PlanarStandingHumanOnMovingPlatform(object):
     def _linearize(self):
 
         # x = [theta_a, theta_h, omega_a, omega_h]
-        states = self.coordinates.values() + self.speeds.values()
+        states = list(self.coordinates.values()) + list(self.speeds.values())
         # r = [T_a, T_h]
-        specified = self.specified.values()[-2:]
+        specified = list(self.specified.values())[-2:]
 
         # We are only concerned about the upright standing equilibrium
         # point.
         equilibrium = {s: 0 for s in states}
 
-        F_A = self.forcing_vector.jacobian(states).subs(equilibrium)
-        F_B = self.forcing_vector.jacobian(specified).subs(equilibrium)
+        F_A = self.forcing_vector.jacobian(states).xreplace(equilibrium)
+        F_B = self.forcing_vector.jacobian(specified).xreplace(equilibrium)
 
         A_top_rows = sy.zeros(2).row_join(sy.eye(2))
         B_top_rows = sy.zeros(2)
 
-        M = self.mass_matrix.subs(equilibrium)
+        M = self.mass_matrix.xreplace(equilibrium)
 
         A = A_top_rows.col_join(M.LUsolve(F_A))
         B = B_top_rows.col_join(M.LUsolve(F_B))
@@ -500,9 +505,9 @@ class PlanarStandingHumanOnMovingPlatform(object):
 
     def numerical_linear(self):
 
-        return (sy.matrix2numpy(self.A.subs(self.open_loop_par_map),
+        return (sy.matrix2numpy(self.A.xreplace(self.open_loop_par_map),
                                 dtype=float),
-                sy.matrix2numpy(self.B.subs(self.open_loop_par_map),
+                sy.matrix2numpy(self.B.xreplace(self.open_loop_par_map),
                                 dtype=float))
 
     def closed_loop_ode_func(self, time, reference_noise,
@@ -551,7 +556,7 @@ class PlanarStandingHumanOnMovingPlatform(object):
             """
             # TODO : This interpolation call is the most expensive thing
             # when running odeint. Seems like InterpolatedUnivariateSpline
-            # may be faster, but it doesn't supprt an multidimensional y.
+            # may be faster, but it doesn't supprt a multidimensional y.
             if t > time[-1]:
                 result = interp_func(time[-1])
             else:
@@ -563,21 +568,18 @@ class PlanarStandingHumanOnMovingPlatform(object):
 
             return controls
 
-        rhs = generate_ode_function(self.mass_matrix_full,
-                                    self.forcing_vector_full,
-                                    self.parameters.values(),
-                                    self.coordinates.values(),
-                                    self.speeds.values(),
-                                    self.specified.values()[-3:],
+        rhs = generate_ode_function(self.forcing_vector_full,
+                                    list(self.coordinates.values()),
+                                    list(self.speeds.values()),
+                                    list(self.parameters.values()),
+                                    mass_matrix=self.mass_matrix_full,
+                                    specifieds=list(self.specified.values())[-3:],
                                     generator='cython')
 
-        args = {'constants': np.array(self.open_loop_par_map.values()),
-                'specified': controller}
-
-        return rhs, args
+        return rhs, controller, np.array(list(self.open_loop_par_map.values()))
 
     def first_order_implicit(self):
         return sy.Matrix(self.kin_diff_eqs).col_join(self.fr_plus_frstar_closed)
 
     def states(self):
-        return self.coordinates.values() + self.speeds.values()
+        return list(self.coordinates.values()) + list(self.speeds.values())

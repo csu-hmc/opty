@@ -1,0 +1,35 @@
+name: Build Docs
+
+on: [push, pull_request]
+
+# cancels prior builds for this workflow when new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and run tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ['3.12']
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - name: Checkout Opty
+        uses: actions/checkout@v4
+      - name: Setup Conda environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          environment-file: opty-dev-env.yml
+          activate-environment: opty-dev
+          python-version: ${{ matrix.python-version }}
+      - name: Build Docs
+        run: |
+          cd docs
+          make html

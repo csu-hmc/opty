@@ -1,0 +1,325 @@
+% Encoding: UTF-8
+
+@article{Wachter2006,
+  title = {On the implementation of an interior-point filter line-search algorithm for large-scale nonlinear programming},
+  volume = {106},
+  issn = {0025-5610, 1436-4646},
+  url = {https://link.springer.com/article/10.1007/s10107-004-0559-y},
+  doi = {10.1007/s10107-004-0559-y},
+  abstract = {.We present a primal-dual interior-point algorithm with a filter line-search method for nonlinear programming. Local and global convergence properties of this method were analyzed in previous work. Here we provide a comprehensive description of the algorithm, including the feasibility restoration phase for the filter method, second-order corrections, and inertia correction of the KKT matrix. Heuristics are also considered that allow faster performance. This method has been implemented in the IPOPT code, which we demonstrate in a detailed numerical study based on 954 problems from the CUTEr test set. An evaluation is made of several line-search options, and a comparison is provided with two state-of-the-art interior-point codes for nonlinear programming.},
+  language = {en},
+  number = {1},
+  urldate = {2017-06-04},
+  journal = {Mathematical Programming},
+  author = {Wächter, Andreas and Biegler, Lorenz T.},
+  month = mar,
+  year = {2006},
+  pages = {25--57},
+  file = {Snapshot:/home/moorepants/.zotero/zotero/i3casg4l.default/zotero/storage/BXHHBJZW/10.html:text/html}
+}
+
+@article{Ross2002,
+  title = "A DIRECT METHOD FOR SOLVING NONSMOOTH OPTIMAL CONTROL PROBLEMS",
+  journal = "IFAC Proceedings Volumes",
+  volume = "35",
+  number = "1",
+  pages = "479 - 484",
+  year = "2002",
+  note = "15th IFAC World Congress",
+  issn = "1474-6670",
+  doi = "https://doi.org/10.3182/20020721-6-ES-1901.00329",
+  url = "http://www.sciencedirect.com/science/article/pii/S1474667015387504",
+  author = "I. Michael Ross and Fariba Fahroo",
+  keywords = "Optimal control, discontinuities, discretization, nonlinear programming",
+  abstract = "Abstract We present a class of efficient direct methods for solving nonsmooth dynamic optimization problems where the dynamics are governed by controlled differential inclusions. Our methods are based on pseudospectral approximations of the differential constraints that are assumed to be given in the form of controlled differential inclusions including the usual vector field and differential-algebraic forms. Discontinuities in states, controls, cost functional, dynamic constraints and various other mappings associated with the generalized Bolza problem are allowed by the concept of pseudospectral knots which we introduce in this paper. The computational optimal control problem is reduced to a structured sparse nonlinear programming problem. A simple but illustrative moon-landing problem demonstrates our method."
+}
+
+@Article{vonStryk1992,
+  author="von Stryk, O. and Bulirsch, R.",
+  title="Direct and indirect methods for trajectory optimization",
+  journal="Annals of Operations Research",
+  year="1992",
+  month="Dec",
+  day="01",
+  volume="37",
+  number="1",
+  pages="357--373",
+  abstract="This paper gives a brief list of commonly used direct and indirect efficient methods for the numerical solution of optimal control problems. To improve the low accuracy of the direct methods and to increase the convergence areas of the indirect methods we suggest a hybrid approach. For this a special direct collocation method is presented. In a hybrid approach this direct method can be used in combination with multiple shooting. Numerical examples illustrate the direct method and the hybrid approach.",
+  issn="1572-9338",
+  doi="10.1007/BF02071065",
+  url="https://doi.org/10.1007/BF02071065"
+}
+
+
+@article{vandenBogert2012,
+  author = {Antonie J van den Bogert and Maarten Hupperets and Heiko Schlarb and Berthold Krabbe},
+  title ={Predictive musculoskeletal simulation using optimal control: effects of added limb mass on energy cost and kinematics of walking and running},
+  journal = {Proceedings of the Institution of Mechanical Engineers, Part P: Journal of Sports Engineering and Technology},
+  volume = {226},
+  number = {2},
+  pages = {123-133},
+  year = {2012},
+  doi = {10.1177/1754337112440644},
+  URL = { https://doi.org/10.1177/1754337112440644},
+  eprint = { https://doi.org/10.1177/1754337112440644},
+  abstract = { When designing sports equipment, it is often desirable to predict how certain design parameters will affect human performance. In many instances, this requires a consideration of human musculoskeletal mechanics and adaptive neuromuscular control. Current computational methods do not represent these mechanisms, and design optimization typically requires several iterations of prototyping and human testing. This paper introduces a computational method based on musculoskeletal modeling and optimal control, which has the capability to predict the effect of mechanical equipment properties on human performance. The underlying assumption is that users will adapt their neuromuscular control according to an optimality principle, which balances task performance with a minimization of muscular effort. The method was applied to the prediction of metabolic cost and limb kinematics while running and walking with weights attached to the body. A two-dimensional musculoskeletal model was used, with nine kinematic degrees of freedom and 16 muscles. The optimal control problem was solved for two walking speeds and two running speeds, and at each speed, with 200 g and 400 g masses placed at the thigh, knee, shank and foot. The model predicted an increase in energy expenditure that was proportional to the added mass and the effect was largest for a mass placed on the foot. Specifically, the model predicted an energy cost increase of 0.74\% for each 100 g mass added to the foot during running at 3.60 m/s. The model also predicted that stride length would increase by several millimetres in the same condition, relative to the model without added mass. These predictions were consistent with previously published human studies. Peak force and activation remained the same in most muscles, but increased by 26\% in the hamstrings and by 17\% in the rectus femoris for running at 4.27 m/s with 400 g added mass at the foot, suggesting muscle-specific training effects. This work demonstrated that a musculoskeletal model with optimal control can predict the effect of mechanical devices on human performance, and could become a useful tool for design optimization in sports engineering. The theoretical background of predictive simulation also helps explain why human athletes have specific responses when exercising in an altered mechanical environment. }
+}
+
+@Article{Ackermann2010,
+  author   = {Marko Ackermann and Antonie J. van den Bogert},
+  title    = {Optimality principles for model-based prediction of human gait},
+  journal  = {Journal of Biomechanics},
+  year     = {2010},
+  volume   = {43},
+  number   = {6},
+  pages    = {1055-1060},
+  issn     = {0021-9290},
+  abstract = {Although humans have a large repertoire of potential movements, gait patterns tend to be stereotypical and appear to be selected according to optimality principles such as minimal energy. When applied to dynamic musculoskeletal models such optimality principles might be used to predict how a patient's gait adapts to mechanical interventions such as prosthetic devices or surgery. In this paper we study the effects of different performance criteria on predicted gait patterns using a 2D musculoskeletal model. The associated optimal control problem for a family of different cost functions was solved utilizing the direct collocation method. It was found that fatigue-like cost functions produced realistic gait, with stance phase knee flexion, as opposed to energy-related cost functions which avoided knee flexion during the stance phase. We conclude that fatigue minimization may be one of the primary optimality principles governing human gait.},
+  doi      = {https://doi.org/10.1016/j.jbiomech.2009.12.012},
+  keywords = {Gait, Simulation, Musculoskeletal modeling, Optimal control},
+  url      = {http://www.sciencedirect.com/science/article/pii/S0021929009007210},
+}
+
+@Article{LeeUmberger2016,
+  author   = {Lee, Leng-Feng and Umberger, Brian R.},
+  title    = {Generating optimal control simulations of musculoskeletal movement using {O}penSim and {M}ATLAB},
+  journal  = {PeerJ},
+  year     = {2016},
+  volume   = {4},
+  pages    = {e1638},
+  month    = jan,
+  issn     = {2167-8359},
+  abstract = {
+        Computer modeling, simulation and optimization are powerful tools that have seen increased use in biomechanics research. Dynamic optimizations can be categorized as either data-tracking or predictive problems. The data-tracking approach has been used extensively to address human movement problems of clinical relevance. The predictive approach also holds great promise, but has seen limited use in clinical applications. Enhanced software tools would facilitate the application of predictive musculoskeletal simulations to clinically-relevant research. The open-source software OpenSim provides tools for generating tracking simulations but not predictive simulations. However, OpenSim includes an extensive application programming interface that permits extending its capabilities with scripting languages such as MATLAB. In the work presented here, we combine the computational tools provided by MATLAB with the musculoskeletal modeling capabilities of OpenSim to create a framework for generating predictive simulations of musculoskeletal movement based on direct collocation optimal control techniques. In many cases, the direct collocation approach can be used to solve optimal control problems considerably faster than traditional shooting methods. Cyclical and discrete movement problems were solved using a simple 1 degree of freedom musculoskeletal model and a model of the human lower limb, respectively. The problems could be solved in reasonable amounts of time (several seconds to 1–2 hours) using the open-source IPOPT solver. The problems could also be solved using the fmincon solver that is included with MATLAB, but the computation times were excessively long for all but the smallest of problems. The performance advantage for IPOPT was derived primarily by exploiting sparsity in the constraints Jacobian. The framework presented here provides a powerful and flexible approach for generating optimal control simulations of musculoskeletal movement using OpenSim and MATLAB. This should allow researchers to more readily use predictive simulation as a tool to address clinical conditions that limit human mobility.
+      },
+  doi      = {10.7717/peerj.1638},
+  keywords = {Predictive simulation, Dynamics, Musculoskeletal model, Optimization},
+  url      = {https://doi.org/10.7717/peerj.1638},
+}
+
+@article{LinPandy2017,
+title = "Three-dimensional data-tracking dynamic optimization simulations of human locomotion generated by direct collocation",
+journal = "Journal of Biomechanics",
+volume = "59",
+number = "Supplement C",
+pages = "1 - 8",
+year = "2017",
+issn = "0021-9290",
+doi = "https://doi.org/10.1016/j.jbiomech.2017.04.038",
+url = "http://www.sciencedirect.com/science/article/pii/S0021929017302567",
+author = "Yi-Chung Lin and Marcus G. Pandy",
+keywords = "Gait, Walking, Running, Musculoskeletal model, Tracking, CMC, OpenSim",
+abstract = "Abstract The aim of this study was to perform full-body three-dimensional (3D) dynamic optimization simulations of human locomotion by driving a neuromusculoskeletal model toward in vivo measurements of body-segmental kinematics and ground reaction forces. Gait data were recorded from 5 healthy participants who walked at their preferred speeds and ran at 2m/s. Participant-specific data-tracking dynamic optimization solutions were generated for one stride cycle using direct collocation in tandem with an OpenSim-MATLAB interface. The body was represented as a 12-segment, 21-degree-of-freedom skeleton actuated by 66 muscle-tendon units. Foot-ground interaction was simulated using six contact spheres under each foot. The dynamic optimization problem was to find the set of muscle excitations needed to reproduce 3D measurements of body-segmental motions and ground reaction forces while minimizing the time integral of muscle activations squared. Direct collocation took on average 2.7±1.0h and 2.2±1.6h of CPU time, respectively, to solve the optimization problems for walking and running. Model-computed kinematics and foot-ground forces were in good agreement with corresponding experimental data while the calculated muscle excitation patterns were consistent with measured EMG activity. The results demonstrate the feasibility of implementing direct collocation on a detailed neuromusculoskeletal model with foot-ground contact to accurately and efficiently generate 3D data-tracking dynamic optimization simulations of human locomotion. The proposed method offers a viable tool for creating feasible initial guesses needed to perform predictive simulations of movement using dynamic optimization theory. The source code for implementing the model and computational algorithm may be downloaded at http://simtk.org/home/datatracking."
+}
+
+@incollection{MooreTGCS2015,
+AUTHOR       = {Moore, Jason K. and van den Bogert, Antonie J.},
+Editor       = {},
+TITLE        = {Quiet standing control parameter identification with direct collocation},
+BOOKTITLE    = {15th International Symposium on Computer Simulation in Biomechanics},
+Pages        = {21-22},
+Publisher    = {},
+YEAR         = {2015},
+Organization = {},
+Address      = {Glasgow, U.K.},
+Month        = {},
+Note         = {},
+Key          = {}
+}
+
+@MastersThesis{Zarei2016,
+  author    = {Zarei, Milad},
+  title     = {Predictive Simulation of Rowing Exercise},
+  school    = {Cleveland State University},
+  year      = {2016},
+  abstract  = {Long term exposure to microgravity environment in spaceflight causes 
+          some health issues such as space motion sickness, shift in body 
+          fluids, muscle atrophy and bone demineralization. Studies have shown 
+          that aerobics, and resistive exercise could help astronauts to deal 
+          with the issues. Rowing exercise can provide both resistive and 
+          aerobic exercise. A rowing exercise machine has mechanical parameters 
+          which affect the user&#x2019;s movement and the loads on the 
+          user&#x2019;s tissues. If these effects can be predicted, exercise 
+          results can be improved. However, human testing is only possible on 
+          Earth during the development, and also the absence of gravity may 
+          affect the task execution in the space. Therefore, computational 
+          modeling is necessary. In this thesis, a computational model of an 
+          arm based on human musculoskeletal simulation and optimal control was 
+          used to investigate the effects of mechanical properties of the 
+         exercise machine on predicted human performance. Moreover, the other 
+          goal was to study the effects of the exercise on arm motion and 
+          tissue loads during the exercise. To explore this concept, we have 
+          modeled a scaled down rowing exercise machine and a biceps mus- cle. 
+          A system identification has been done on the Concept2 rowing machine 
+          to determine baseline machine parameters. In order to solve the 
+          problem, different methods in trajectory optimization were evaluated 
+          to choose the reliable one. Then, a linear muscle force generator was 
+          coupled to the rowing machine to examine how it performs the task. 
+          The design parameters were changed to investigate their effects on 
+          the movement. Finally, the simple muscle force generator was replaced 
+          by a brachii muscle model to study how it executes the exercise. 
+          Effects of the design elements were also studied.},
+  publisher = {Cleveland State University},
+  url       = {http://rave.ohiolink.edu/etdc/view?acc_num=csu1472557492},
+}
+
+@Article{PattersonRao2014,
+  author     = {Patterson, Michael A. and Rao, Anil V.},
+  title      = {GPOPS-II: A {MATLAB} Software for Solving Multiple-Phase Optimal Control Problems Using hp-Adaptive Gaussian Quadrature Collocation Methods and Sparse Nonlinear Programming},
+  journal    = {ACM Trans. Math. Softw.},
+  year       = {2014},
+  volume     = {41},
+  number     = {1},
+  pages      = {1:1--1:37},
+  month      = oct,
+  issn       = {0098-3500},
+  acmid      = {2558904},
+  address    = {New York, NY, USA},
+  articleno  = {1},
+  doi        = {10.1145/2558904},
+  issue_date = {October 2014},
+  keywords   = {Gaussian quadrature, MATLAB, Optimal control, applied mathematics, direct collocation, hp--adaptive methods, numerical methods, scientific computation},
+  numpages   = {37},
+  publisher  = {ACM},
+  url        = {http://doi.acm.org/10.1145/2558904},
+}
+
+@book{Betts2010,
+  series = {Advances in {Design} and {Control}},
+  title = {Practical {Methods} for {Optimal} {Control} and {Estimation} {Using} {Nonlinear} {Programming}},
+  isbn = {978-0-89871-688-7},
+  url = {http://epubs.siam.org/doi/book/10.1137/1.9780898718577},
+  urldate = {2017-06-04},
+  publisher = {Society for Industrial and Applied Mathematics},
+  author = {Betts, J.},
+  month = jan,
+  year = {2010},
+  note = {DOI: 10.1137/1.9780898718577},
+  DOI = {10.1137/1.9780898718577},
+  file =
+  {Snapshot:/home/moorepants/.zotero/zotero/i3casg4l.default/zotero/storage/JD2TQH5V/1.html:text/html},
+  abstract = {Solving an optimal control or estimation problem is not easy. Pieces of the puzzle are found scattered throughout many different disciplines. Furthermore, the focus of this book is on practical methods, that is, methods that I have found actually work! In fact everything described in this book has been implemented in production software and used to solve real optimal control problems. Although the reader should be proficient in advanced mathematics, no theorems are presented. Traditionally, there are two major parts of a successful optimal control or optimal estimation solution technique. The first part is the “optimization” method. The second part is the “differential equation” method. When faced with an optimal control or estimation problem it is tempting to simply “paste” together packages for optimization and numerical integration. While naive approaches such as this may be moderately successful, the goal of this book is to suggest that there is a better way! The methods used to solve the differential equations and optimize the functions are intimately related. The first two chapters of this book focus on the optimization part of the problem. In Chapter 1 the important concepts of nonlinear programming for small dense applications are introduced. Chapter 2 extends the presentation to problems which are both large and sparse. Chapters 3 and 4 address the differential equation part of the problem. Chapter 3 introduces relevant material in the numerical solution of differential (and differentialalgebraic) equations. Methods for solving the optimal control problem are treated in some detail in Chapter 4. Throughout the book the interaction between optimization and integration is emphasized. Chapter 5 describes how to solve optimal estimation problems. Chapter 6 presents a collection of examples that illustrate the various concepts and techniques. Real world problems often require solving a sequence of optimal control and/or optimization problems, and Chapter 7 describes a collection of these “advanced applications.” While the book incorporates a great deal of new material not covered in Practical Methods for Optimal Control Using Nonlinear Programming [21], it does not cover everything. Many important topics are simply not discussed in order to keep the overall presentation concise and focused. The discussion is general and presents a unified approach to solving optimal estimation and control problems. Most of the examples are drawn from my experience in the aerospace industry. Examples have been solved using a particular implementation called  𝕊𝕆ℂ𝕊.SOCS.{\textless}math display="inline" overflow="scroll"{\textgreater} {\textless}mrow{\textgreater}{\textless}mi mathvariant="double-struck"{\textgreater}SOCS{\textless}/mi{\textgreater}{\textless}mo{\textgreater}.{\textless}/mo{\textgreater}{\textless}/mrow{\textgreater} {\textless}/math{\textgreater}  I have tried to adhere to notational conventions from both optimization and control theory whenever possible. Also, I have attempted to use consistent notation throughout the book.},
+}
+
+@Article{Meurer2017,
+  author     = {Meurer, Aaron and Smith, Christopher P. and Paprocki, Mateusz and Čertík, Ondřej and Kirpichev, Sergey B. and Rocklin, Matthew and Kumar, AMiT and Ivanov, Sergiu and Moore, Jason K. and Singh, Sartaj and Rathnayake, Thilina and Vig, Sean and Granger, Brian E. and Muller, Richard P. and Bonazzi, Francesco and Gupta, Harsh and Vats, Shivam and Johansson, Fredrik and Pedregosa, Fabian and Curry, Matthew J. and Terrel, Andy R. and Roučka, Štěpán and Saboo, Ashutosh and Fernando, Isuru and Kulal, Sumith and Cimrman, Robert and Scopatz, Anthony},
+  title      = {{SymPy}: {s}ymbolic computing in {P}ython},
+  journal    = {PeerJ Computer Science},
+  year       = {2017},
+  volume     = {3},
+  pages      = {e103},
+  month      = jan,
+  issn       = {2376-5992},
+  abstract   = {SymPy is an open source computer algebra system written in pure Python. It is built with a focus on extensibility and ease of use, through both interactive and programmatic applications. These characteristics have led SymPy to become a popular symbolic library for the scientific Python ecosystem. This paper presents the architecture of SymPy, a description of its features, and a discussion of select submodules. The supplementary material provide additional examples and further outline details of the architecture and features of SymPy.},
+  doi        = {10.7717/peerj-cs.103},
+  file       = {Meurer et al. - 2017 - SymPy symbolic computing in Python.pdf:/home/moorepants/.zotero/zotero/i3casg4l.default/zotero/storage/ZFQZJHNZ/Meurer et al. - 2017 - SymPy symbolic computing in Python.pdf:application/pdf;Snapshot:/home/moorepants/.zotero/zotero/i3casg4l.default/zotero/storage/I7788NW9/cs-103.html:text/html},
+  language   = {en},
+  shorttitle = {{SymPy}},
+  url        = {https://peerj.com/articles/cs-103},
+  urldate    = {2017-06-04},
+}
+
+@article{Hargraves1987,
+  title = {Direct Trajectory Optimization Using Nonlinear Programming and Collocation},
+  journal = {AIAA Journal of Guidance, Control, and Dynamics},
+  volume = {10},
+  number = {4},
+  year = {1987},
+  pages = {338--342},
+  author = {Hargraves, C. R. and Paris, S. W.},
+}
+
+@article{Behnel2011,
+  title = {Cython: {The} {Best} of {Both} {Worlds}},
+  volume = {13},
+  issn = {1521-9615},
+  doi = {10.1109/MCSE.2010.118},
+  number = {2},
+  journal = {Computing in Science Engineering},
+  author = {Behnel, S. and Bradshaw, R. and Citro, C. and Dalcin, L. and Seljebotn, D.S. and Smith, K.},
+  month = apr,
+  year = {2011},
+  keywords = {C language, Cython language, Fortran code, numerical analysis, numerical loops, programming language, Python language extension},
+  pages = {31 --39}
+}
+@misc{Cyipopt2017,
+  title = {cyipopt:  {Cython} interface for the interior point optimzer {IPOPT}},
+  author = {{cyipopt Developers}},
+  year = {2017}
+}
+
+@InProceedings{Wang2017,
+  author    = {Huawei Wang and Anne Koelewijn and Antonie van den Bogert},
+  title     = {RAMP PERTURBATION TESTS ARE TOO SIMPLE TO IDENTIFY A REALISTIC CONTROLLER IN HUMAN STANDING BALANCE},
+  booktitle = {Dynamic Walking},
+  year      = {2017},
+  url       = {http://ruina.tam.cornell.edu/dynwalk17abstracts/258-Anne%20Koelewijn%20-%20HuaweiAbstract.pdf},
+}
+
+@PHDTHESIS{Andersson2013,
+  author = {Joel Andersson},
+  title = {{A} {G}eneral-{P}urpose {S}oftware {F}ramework for {D}ynamic {O}ptimization},
+  school = {Arenberg Doctoral School, KU Leuven},
+  year = {2013},
+  type = {{P}h{D} thesis},
+  address = {Department of Electrical Engineering (ESAT/SCD) and Optimization in Engineering Center,
+             Kasteelpark Arenberg 10, 3001-Heverlee, Belgium},
+  month = {October}
+}
+
+@inproceedings{Becerra2010,
+  title = {Solving complex optimal control problems at no cost with {PSOPT}},
+  doi = {10.1109/CACSD.2010.5612676},
+  abstract = {This paper introduces PSOPT, an open source optimal control solver written in C++. PSOPT uses pseudospectral and local discretizations, sparse nonlinear programming, automatic differentiation, and it incorporates automatic scaling and mesh refinement facilities. The software is able to solve complex optimal control problems including multiple phases, delayed differential equations, nonlinear path constraints, interior point constraints, integral constraints, and free initial and/or final times. The software does not require any non-free platform to run, not even the operating system, as it is able to run under Linux. Additionally, the software generates plots as well as LATEX code so that its results can easily be included in publications. An illustrative example is provided.},
+  booktitle = {2010 {IEEE} {International} {Symposium} on {Computer}-{Aided} {Control} {System} {Design}},
+  author = {Becerra, V. M.},
+  month = sep,
+  year = {2010},
+  keywords = {automatic differentiation, C++, C++ language, Chebyshev approximation, complex optimal control problems solving, delayed differential equations, differential equations, Differential equations, integral constraints, interior point constraints, Interpolation, LATEX code, Linux, mesh refinement facilities, multiple phases, nonlinear path constraints, nonlinear programming, open source optimal control solver, optimal control, Optimal control, Polynomials, PSOPT, public domain software, Software, sparse nonlinear programming},
+  pages = {1391--1396},
+  file = {IEEE Xplore Abstract Record:/home/moorepants/Zotero/storage/7PNMFTS8/5612676.html:text/html;IEEE Xplore Full Text PDF:/home/moorepants/Zotero/storage/FXZAZDHP/Becerra - 2010 - Solving complex optimal control problems at no cos.pdf:application/pdf}
+}
+
+@TechReport{Rutquist2010,
+  author      = {Rutquist, Per E and Edvall, Marcus M},
+  title       = {Propt-matlab optimal control software},
+  institution = {Tomlab Optimization Inc},
+  year        = {2010},
+  number      = {1},
+  volume      = {260},
+}
+
+@inproceedings{Hereid2017,
+  title = {FROST: Fast Robot Optimization and Simulation Toolkit},
+  author = {Hereid, Ayonga and Ames, Aaron D.},
+  booktitle = {IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+  year = {2017},
+  address = {Vancouver, BC, Canada},
+  month = sep,
+  organization = {IEEE/RSJ},
+  month_numeric = {9}
+}
+
+@inproceedings{Cizniar2005,
+  author =   {{\v{C}}i\v{z}niar, M. and Salhi, D. and Fikar, M. and Latifi, M. A.},
+  title =   {DYNOPT - Dynamic Optimisation Code for MATLAB},
+  booktitle   =   {13th Annual Conference Proceedings of Technical Computing Prague 2005},
+  year =   {2005},
+  pages =   {},
+  address =   {Praha},
+  publisher =   {Humusoft},
+  annote =   {Dynamic optimisation consists in the determination, in open loop control, of a set of decision variable time profiles (pressure, temperature, flow rate, current, heat duty,~\ldots) for a dynamic system that optimise a given performance index (or cost functional or optimisation criterion)(cost, time, energy, selectivity,~\ldots) subject to specified constraints (safety, environmental and operating constraints). Optimal control refers to the determination of the best time-varying profiles in closed loop control. The orthogonal collocations on finite elements has been developed and implemented within MATLAB environment. The original dynamic optimisation problem is then converted into an NLP problem which is solved using an SQP solver. The gradients of the performance index as well as of the constraints with respect to the parameters are computed numerically and analytically. Six different examples from the literature are considered and treated. The results confirm the optimal values of the literature and the expected performances of the optimisation method when the gradients are computed analytically.},
+  url   =   {http://www.kirp.chtf.stuba.sk/publication_info.php?id_pub=255}
+}
+
+@inproceedings{Gath2001,
+  author = {Gath, Peter and Well, Klaus},
+  title = {Trajectory optimization using a combination of direct multiple shooting and collocation},
+  year = {2001},
+  doi = {10.2514/6.2001-4047},
+  url = {https://doi.org/10.2514/6.2001-4047},
+  booktitle = {AIAA Guidance, Navigation, and Control Conference and Exhibit},
+  publisher = {American Institute of Aeronautics and Astronautics},
+}
+
+@Comment{jabref-meta: databaseType:bibtex;}

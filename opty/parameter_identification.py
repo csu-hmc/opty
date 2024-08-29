@@ -32,7 +32,7 @@ def output_equations(x):
 
     """
 
-    return x[:, :x.shape[1] / 2]
+    return x[:, :x.shape[1] // 2]
 
 
 def objective_function(free, num_dis_points, num_states, dis_period,
@@ -42,9 +42,9 @@ def objective_function(free, num_dis_points, num_states, dis_period,
 
     Parameters
     ----------
-    free : ndarray, shape(n * N + q,)
-        The flattened state array with n states at N time points and the q
-        free model constants.
+    free : ndarray, shape(n*N + q*N + r,)
+        The flattened state array with n states at N time points, q input
+        trajectories and N time points, and the r free model constants.
     num_dis_points : integer
         The number of model discretization points.
     num_states : integer
@@ -96,9 +96,9 @@ def objective_function_gradient(free, num_dis_points, num_states,
 
     Parameters
     ----------
-    free : ndarray, shape(N * n + q,)
-        The flattened state array with n states at N time points and the q
-        free model constants.
+    free : ndarray, shape(n*N + q*N + r,)
+        The flattened state array with n states at N time points, q input
+        trajectories and N time points, and the r free model constants.
     num_dis_points : integer
         The number of model discretization points.
     num_states : integer
@@ -111,9 +111,8 @@ def objective_function_gradient(free, num_dis_points, num_states,
 
     Returns
     -------
-    gradient : ndarray, shape(N * n + q,)
-        The gradient of the cost function with respect to the free
-        parameters.
+    gradient : ndarray, shape(n*N + q*N + r,)
+        The gradient of the cost function with respect to the free parameters.
 
     Warning
     -------

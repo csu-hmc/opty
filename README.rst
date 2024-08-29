@@ -1,57 +1,193 @@
 Introduction
 ============
 
-``opty`` utlizes symbolic descriptions of ordinary differential equations
-expressed with SymPy to form the constraints needed to solve optimization
-problems using the direct collocation method. In general, if one can express
-first order ordinary differential equations as symbolic expressions ``opty``
-will automatically generate a function to evaluate the constraints and a
-function that evaluates the sparse Jacobian of the constraints, which have been
-optimized for speed and memory.
+.. list-table::
+
+   * - PyPi
+     - .. image:: https://img.shields.io/pypi/v/opty.svg
+          :target: https://pypi.org/project/opty
+       .. image:: https://pepy.tech/badge/opty
+          :target: https://pypi.org/project/opty
+   * - Anaconda
+     - .. image:: https://anaconda.org/conda-forge/opty/badges/version.svg
+          :target: https://anaconda.org/conda-forge/opty
+       .. image:: https://anaconda.org/conda-forge/opty/badges/downloads.svg
+          :target: https://anaconda.org/conda-forge/opty
+   * - Documentation
+     - .. image:: https://readthedocs.org/projects/opty/badge/?version=stable
+          :target: http://opty.readthedocs.io
+   * - JOSS Paper
+     - .. image:: http://joss.theoj.org/papers/10.21105/joss.00300/status.svg
+          :target: https://doi.org/10.21105/joss.00300
+   * - Zenodo Archive
+     - .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1162870.svg
+          :target: https://doi.org/10.5281/zenodo.1162870
+   * - Continous Integration
+     - .. image:: https://github.com/csu-hmc/opty/actions/workflows/tests.yml/badge.svg
+
+``opty`` utilizes symbolic descriptions of differential algebraic equations
+expressed with SymPy_ to form the constraints needed to solve optimal control
+and parameter identification problems using the direct collocation method and
+non-linear programming (NLP). In general, if one can express the continuous
+first order differential algebraic equations of the system as symbolic
+expressions ``opty`` will automatically generate a function to efficiently
+evaluate the dynamical constraints and a function that evaluates the sparse
+Jacobian of the constraints, which have been optimized for speed and memory
+consumption. The translation of the dynamical system description to the NLP
+form, primarily the formation of the constraints and the Jacobian of the
+constraints, manually is a time consuming and error prone process. ``opty``
+eliminates both of those issues.
+
+.. _SymPy: http://www.sympy.org
+
+Features
+--------
+
+- Both implicit and explicit forms of the first order ordinary differential
+  equations and differential algebraic equations are supported, i.e. there is
+  no need to solve for the derivatives of the dependent variables.
+- Backward Euler or Midpoint integration methods.
+- Supports both trajectory optimization and parameter identification,
+  independently or simultaneously.
+- Solve fixed duration or variable duration problems.
+- Easy specification of bounds on free variables.
+- Easily specify additional "instance" constraints.
+- Efficient numerical execution of large equations of motion.
+- Automatic parallel execution using openmp if installed.
+- Built with support of sympy.physics.mechanics and PyDy in mind.
 
 Installation
 ============
 
-The core dependencies are as follows:
+The required dependencies are as follows:
 
-- ipopt 3.11
-- numpy 1.8.1
-- scipy 0.14.1
-- sympy 0.7.6
-- cython
-- cyipopt 0.1.4
+- cyipopt >= 1.1.0 [with ipopt >= 3.11 (Linux & OSX), >= 3.13 (Windows)]
+- cython >= 0.29.19 [with a C compiler]
+- numpy >= 1.19.0
+- python 3.8-3.12
+- scipy >= 1.5.0
+- sympy >= 1.6.0
 
-To run the examples the following additional dependencies are required:
+The optional dependencies are as follows:
 
-- matplotlib 1.3.1
-- pydy 0.2.1
-- tables
+- matplotlib >= 3.2.0
+- openmp
 
-First you must install IPOPT along with it's headers. For example on Debian
-based systems you can use the package manager::
+To run all of the examples the following additional dependencies may be needed:
 
-   $ sudo apt-get install coinor-libipopt1 coinor-libipopt-dev
+- pandas
+- pydy >= 0.5.0
+- pytables
+- yeadon
+
+The easiest way to install opty is to first install Anaconda_ (or Miniconda_ or
+Miniforge_) and use the conda package manager to install opty and any desired
+optional dependencies from the Conda Forge channel, e.g. opty::
+
+   $ conda install --channel conda-forge opty
+
+and the optional dependencies::
+
+   $ conda install --channel conda-forge matplotlib openmp pandas pydy pytables yeadon
+
+.. _Anaconda: https://www.continuum.io/downloads
+.. _Miniconda: https://conda.io/miniconda.html
+.. _Miniforge: https://conda-forge.org/miniforge/
+
+Opty can be installed with pip, but this will require installing and compiling
+cyipopt if it is not already installed::
+
+   $ pip install opty
+
+See the `cyipopt documentation`_ for information on installing that package.
+
+.. _cyipopt documentation: https://cyipopt.readthedocs.io
+
+Custom Ipopt
+------------
+
+If you want a custom installation of any of the dependencies, e.g. Ipopt, you
+must first install Ipopt along with it's headers.  For example, on Debian based
+systems you can use the package manager::
+
+   $ sudo apt-get install coinor-libipopt1v5 coinor-libipopt-dev
+
+or prebuilt binaries can be downloaded from
+https://www.coin-or.org/download/binary/Ipopt/.
 
 For customized installation (usually desired for performance) follow the
-instructions on the IPOPT documentation to compile the library. If you install
-to a location other than `/usr/local` you will likely have to set the
-``LD_LIBRARY_PATH`` so that you can link to IPOPT when installing ``cyipopt``.
+instructions on the Ipopt documentation to compile the library. If you install
+to a location other than ``/usr/local`` on Unix systems you will likely have to
+set the ``LD_LIBRARY_PATH`` so that you can link to Ipopt when installing
+``cyipopt``.
 
-Install conda then create an environment::
+Once Ipopt is installed and accessible, install conda then create an environment::
 
-   $ conda create -n opty pip numpy scipy cython matplotlib pytables
-   $ source activate opty
-   (opty)$ pip install https://github.com/sympy/sympy/releases/download/sympy-0.7.6.rc1/sympy-0.7.6.rc1.tar.gz
-   (opty)$ pip install pydy
-   (opty)$ pip install https://bitbucket.org/moorepants/cyipopt/get/tip.zip
-   (opty)$ pip install -e /path/to/opty
+   $ conda create -n opty-custom -c conda-forge cython numpy pip scipy sympy
+   $ source activate opty-custom
+   (opty-custom)$ pip install cyipopt  # this will compile cyipopt against the available ipopt
+   (opty-custom)$ pip install opty
+
+If you want to develop opty, create a conda environment with all of the
+dependencies installed::
+
+   $ conda config --add channels conda-forge
+   $ conda create -n opty-dev python sympy numpy scipy cython ipopt cyipopt matplotlib pytables pydy pandas pytest sphinx sphinx-gallery numpydoc
+   $ source activate opty-dev
+
+Next download the opty source files and install with::
+
+   (opty-dev)$ cd /path/to/opty
+   (opty-dev)$ python setup.py develop
 
 Usage
 =====
 
-There are several examples available in the ``examples`` directory. For example
-the optimal torque to swing up a pendulum with minimal energy can be found
-with::
+There are several examples available in the ``examples`` and
+``examples-gallery`` directories. The optimal torque to swing up a pendulum
+with minimal energy can be run with::
 
-   (opty)$ cd examples/
-   (opty)$ python pendulum_swing_up.py
+   $ python examples-gallery/plot_pendulum_swing_up_fixed_duration.py
+
+Failed Compilation
+------------------
+
+If compilation fails it may be helpful to manually compile the generated Cython
+extension. To do so, provide a destination path to the ``tmp_dir`` kwarg when
+you instantiate ``Problem()``, e.g.:
+
+.. code:: python
+
+   p = Problem(..., tmp_dir='opty_source')
+
+You can then compile the files manually by navigating into the ``opty_source``
+directory and running::
+
+   $ cd /path/to/opty_source
+   $ python ufuncify_matrix_X_setup.py build_ext --inplace
+
+The highest integer value of ``X`` will be the most recently generated set of
+source files.
+
+Build Documentation
+===================
+
+Build the HTML documentation with::
+
+   (opty-dev)$ cd /path/to/opty/docs
+   (opty-dev)$ make html
+
+and open the result with your web browser, for example::
+
+   $ firefox _build/html/index.html
+
+Funding
+=======
+
+The work was partially funded by the State of Ohio Third Frontier Commission
+through the Wright Center for Sensor Systems Engineering (WCSSE), by the USA
+National Science Foundation under Grant No. 1344954, and by National Center of
+Simulation in Rehabilitation Research 2014 Visiting Scholarship at Stanford
+University, and the CZI grant CZIF2021-006198 and grant DOI
+https://doi.org/10.37921/240361looxoj from the Chan Zuckerberg Initiative
+Foundation (funder DOI 10.13039/100014989).

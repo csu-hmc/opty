@@ -1,0 +1,65 @@
+name: Build and Test
+
+on: [push, pull_request]
+
+# cancels prior builds for this workflow when new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and run tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-13 is the last intel based runner
+        os: [ubuntu-latest, macos-13, macos-latest, windows-latest]
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - name: Checkout Opty
+        uses: actions/checkout@v4
+      - name: Setup Conda environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+          channels: conda-forge
+          environment-file: opty-dev-env.yml
+      - name: Install openmp and pydy
+        if: runner.os == 'Linux'
+        run: |
+          conda list
+          conda install libgomp pydy
+      - name: Install openmp and pydy
+        if: runner.os == 'macOS'
+        run: |
+          conda list
+          conda install llvm-openmp pydy
+      # llvm-openmp fails to install because it is incompatible with ipopt, but
+      # openmp "installs", nonetheless the openmp example fails to compile.
+      - name: Install openmp and pydy
+        if: runner.os == 'Windows'
+        run: |
+          conda list
+          conda install openmp pydy
+      - name: Test with pytest
+        run: |
+          conda list
+          pytest --cov=opty opty/
+      - name: Install Opty and test import
+        run: |
+          python -m pip install .
+          conda list
+          python -c "import opty"
+      - name: Run an example
+        run: |
+          python examples/vyasarayani2011.py
+      # This example only seems to work on the linux builds.
+      - name: Run an openmp example
+        run: |
+          python examples/parallel_example.py
