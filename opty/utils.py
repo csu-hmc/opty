@@ -93,10 +93,15 @@ def _forward_jacobian(expr, wrt):
         )
         raise NotImplementedError
 
+    # TODO : Ideally a replacement symbol would somehow carry the appropriate
+    # assumptions that derive from the subexpression it replaces. I add
+    # real=True here, as we assume all symbols and functions of time are real
+    # in opty.
     replacement_symbols = numbered_symbols(
         prefix='z',
         cls=sm.Symbol,
         exclude=expr.free_symbols,
+        real=True,
     )
 
     expr_to_replacement_cache = {}
