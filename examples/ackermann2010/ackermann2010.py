@@ -5,7 +5,7 @@ import sympy as sm
 import numpy as np
 from pygait2d import derive, simulate
 from pygait2d.segment import time_symbol
-from opty import Problem
+from opty import Problem, parse_free
 from opty.utils import f_minus_ma
 
 speed = 1.3250  # m/s
@@ -38,22 +38,24 @@ par_map = simulate.load_constants(constants, 'example_constants.yml')
 
 # Hand of god is nothing.
 traj_map = {
-    #Fax: np.zeros(num_nodes),
-    #Fay: np.zeros(num_nodes),
-    #Ta: np.zeros(num_nodes),
+    Fax: np.zeros(num_nodes),
+    Fay: np.zeros(num_nodes),
+    Ta: np.zeros(num_nodes),
 }
 
 bounds = {
     h: (0.001, 0.1),
     qax: (0.0, 10.0),
     qay: (0.5, 1.5),
-    qa: (-np.pi/3.0, np.pi/3.0),
+    qa: (-np.pi/3.0, np.pi/3.0),  # +/- 60 deg
     uax: (0.0, 10.0),
     uay: (-10.0, 10.0),
 }
-bounds.update({k: (-np.pi, np.pi) for k in [qb, qc, qd, qe, qf, qg]})
-bounds.update({k: (-6.0, 6.0) for k in [ua, ub, uc, ud, ue, uf, ug]})
-bounds.update({k: (-1000.0, 1000.0) for k in [Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg]})
+bounds.update({k: (-np.pi/4.0, 3.0*np.pi/4.0) for k in [qb, qe]})  # hip
+bounds.update({k: (-3.0/np.pi/4.0, 0.0) for k in [qc, qf]})  # knee
+bounds.update({k: (-np.pi/4.0, np.pi/4.0) for k in [qd, qg]})  # foot
+bounds.update({k: (-6.0, 6.0) for k in [ua, ub, uc, ud, ue, uf, ug]})  # ~200 deg/s
+bounds.update({k: (-1000.0, 1000.0) for k in [Tb, Tc, Td, Te, Tf, Tg]})
 
 # Specify the symbolic instance constraints, i.e. initial and end
 # conditions.
@@ -62,7 +64,7 @@ uneval_states = [s.__class__ for s in states]
 
 instance_constraints = (
     qax(0*h),
-    qay(0*h) - 1.0,
+    qay(0*h) - 0.95,
     qb(0*h) - qe(duration),
     qc(0*h) - qf(duration),
     qd(0*h) - qg(duration),
@@ -107,3 +109,9 @@ initial_guess = np.zeros(prob.num_free)
 
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
+
+
+state_vals, _, _, h_val = parse_free(solution, num_states, len(specified) -
+                                     len(traj_map), num_nodes,
+                                     variable_duration=True)
+np.savez('solution', x=state_vals, h=h_val, n=num_nodes)
