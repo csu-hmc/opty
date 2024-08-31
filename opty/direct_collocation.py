@@ -463,6 +463,12 @@ class Problem(cyipopt.Problem):
 
         # ensure that len(axes) is correct, raise ValuError otherwise
         if axes is not None:
+            warner = False
+            for i in range(len(axes.ravel())):
+                if axes.ravel()[i]._sharex is not None:
+                    warner = True
+            if warner == True:
+                print('Set sharex=False or remove, it makes no sense here')
             len_axes = len(axes.ravel())
             len_constr = len(self.collocator.instance_constraints)
             if (len_constr <= bars_per_plot) and (len_axes < 2):
