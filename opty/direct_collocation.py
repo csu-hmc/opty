@@ -462,7 +462,7 @@ class Problem(cyipopt.Problem):
         rotation = -30
 
         # ensure that len(axes) is correct, raise ValuError otherwise
-        if axes != None:
+        if axes is not None:
             len_axes = len(axes.ravel())
             len_constr = len(self.collocator.instance_constraints)
             if (len_constr <= bars_per_plot) and (len_axes < 2):
