@@ -460,6 +460,19 @@ class Problem(cyipopt.Problem):
 
         bars_per_plot = 10
         rotation = -30
+
+        # ensure that len(axes) is correct, raise ValuError otherwise
+        if axes != None:
+            len_axes = len(axes.ravel())
+            len_constr = len(self.collocator.instance_constraints)
+            if (len_constr <= bars_per_plot) and (len_axes < 2):
+                raise ValueError('len(axes) must be equal to 2')
+            elif ((len_constr > bars_per_plot) and
+                  (len_axes < len_constr // bars_per_plot + 2)):
+                raise ValueError(f'len(axes) must be equal to {len_constr//bars_per_plot+2}')
+            else:
+                pass
+
         N = self.collocator.num_collocation_nodes
         con_violations = self.con(vector)
         state_violations = con_violations[
