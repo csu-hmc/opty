@@ -459,7 +459,7 @@ class Problem(cyipopt.Problem):
             return mantissa, exponent
 
         bars_per_plot = 10
-        rotation = -30
+        rotation = -90
 
         # ensure that len(axes) is correct, raise ValuError otherwise
         if axes is not None:
@@ -510,17 +510,17 @@ class Problem(cyipopt.Problem):
         # in exponential form
         instance_constr_plot = []
         for exp1 in self.collocator.instance_constraints:
-            exp2 = exp1
             for a in sm.preorder_traversal(exp1):
                 if isinstance(a, sm.Float):
                     value = float(a)
                     mantissa, exponent = extract_mantissa_exponent(value)
                     mantissa = round(mantissa, 2)
+
                     if exponent != 0:
                         sympy_value = sm.Symbol(f'{mantissa} \cdot 10^{exponent}')
                     else:
                         sympy_value = sm.Symbol(f'{mantissa}')
-                    exp1 = exp2.subs(a, sympy_value)
+                    exp1 = exp1.subs(a, sympy_value)
             instance_constr_plot.append(exp1)
 
         if plot_inst_viols:
