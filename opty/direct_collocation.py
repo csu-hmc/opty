@@ -440,6 +440,10 @@ class Problem(cyipopt.Problem):
         axes : ndarray of AxesSubplot
             A matplotlib axes with the constraint violations plotted.
 
+            If axes are given by the user:
+            len(axes) = 2 if len(self.collocator.instance_constraints) <= bars_per_plot
+            len(axes) = len(self.collocator.instance_constraints) // bars_per_plot + 2 otherwise
+
         Notes
         =====
 
@@ -463,12 +467,6 @@ class Problem(cyipopt.Problem):
 
         # ensure that len(axes) is correct, raise ValuError otherwise
         if axes is not None:
-            warner = False
-            for i in range(len(axes.ravel())):
-                if axes.ravel()[i]._sharex is not None:
-                    warner = True
-            if warner == True:
-                print('Set sharex=False or remove, it makes no sense here')
             len_axes = len(axes.ravel())
             len_constr = len(self.collocator.instance_constraints)
             if (len_constr <= bars_per_plot) and (len_axes < 2):

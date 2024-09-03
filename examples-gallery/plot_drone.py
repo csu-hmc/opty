@@ -230,7 +230,7 @@ prob.plot_trajectories(solution, axes=axes)
 
 # %%
 # Plot the constraint violations.
-fig, axes = plt.subplots(2, figsize=(12.8, 9.6),
+fig, axes = plt.subplots(5, 1, figsize=(12.8, 10),
                          layout='constrained')
 prob.plot_constraint_violations(solution, axes=axes)
 
