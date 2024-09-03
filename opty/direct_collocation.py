@@ -442,7 +442,10 @@ class Problem(cyipopt.Problem):
 
             If axes are given by the user:
             len(axes) = 2 if len(self.collocator.instance_constraints) <= bars_per_plot.
-            len(axes) = len(self.collocator.instance_constraints) // bars_per_plot + 2 otherwise.
+            len(axes) = len(self.collocator.instance_constraints) // bars_per_plot + 2
+                        if len(self.collocator.instance_constraints) % bars_per_plot != 0.
+            len(axes) = len(self.collocator.instance_constraints) // bars_per_plot + 1
+                        if len(self.collocator.instance_constraints) % bars_per_plot = 0.
 
         Notes
         =====
@@ -454,16 +457,34 @@ class Problem(cyipopt.Problem):
         - s : number of unknown time intervals
 
         """
-        def extract_mantissa_exponent(number):
-            """Returns the mantissa and exponent of a number."""
-            mantissa, exponent = np.frexp(number)
-            exponent *= np.log10(2)
-            mantissa *= 10**(exponent % 1)
-            exponent = int(exponent)
-            return mantissa, exponent
 
-        bars_per_plot = 10
-        rotation = -90
+        bars_per_plot = None
+        rotation = -45
+
+        # find the number of bars per plot, so the bars per plot are arroximately
+        # the same on each bar.
+        hilfs = []
+        len_constr = len(self.collocator.instance_constraints)
+        for i in range(6, 11):
+            hilfs.append((i, i - len_constr % i))
+            if len_constr % i == 0:
+                bars_per_plot = i
+                if len_constr == bars_per_plot:
+                    num_plots = 1
+                else:
+                    num_plots = len_constr // bars_per_plot
+
+        if bars_per_plot is None:
+            maximal = 100
+            for i in range(len(hilfs)):
+                if hilfs[i][1] < maximal:
+                    maximal = hilfs[i][1]
+                    bars_per_plot = hilfs[i][0]
+            if len_constr <= bars_per_plot:
+                num_plots = 1
+            else:
+                num_plots = len_constr // bars_per_plot + 1
+
 
         # ensure that len(axes) is correct, raise ValuError otherwise
         if axes is not None:
@@ -471,9 +492,14 @@ class Problem(cyipopt.Problem):
             len_constr = len(self.collocator.instance_constraints)
             if (len_constr <= bars_per_plot) and (len_axes < 2):
                 raise ValueError('len(axes) must be equal to 2')
-            elif ((len_constr > bars_per_plot) and
+
+            elif (len_constr % bars_per_plot == 0) and (len_axes < len_constr // bars_per_plot + 1):
+                raise ValueError(f'len(axes) must be equal to {len_constr//bars_per_plot+1}')
+
+            elif ((len_constr % bars_per_plot != 0) and
                   (len_axes < len_constr // bars_per_plot + 2)):
                 raise ValueError(f'len(axes) must be equal to {len_constr//bars_per_plot+2}')
+
             else:
                 pass
 
@@ -488,10 +514,6 @@ class Problem(cyipopt.Problem):
 
         plot_inst_viols = self.collocator.instance_constraints is not None
         num_inst_viols = len(instance_violations)
-        if num_inst_viols == bars_per_plot:
-            num_plots = 1
-        else:
-            num_plots = num_inst_viols // bars_per_plot + 1
 
         if axes is None:
             fig, axes = plt.subplots(1 + num_plots, squeeze=False,
@@ -504,21 +526,12 @@ class Problem(cyipopt.Problem):
         axes[0].set_xlabel('Node Number')
         axes[0].set_ylabel('EoM violation')
 
-        # reduce the instance constrtaints to 2 significant digits and print
-        # in exponential form
+        # reduce the instance constrtaints to 2 significant digits.
         instance_constr_plot = []
         for exp1 in self.collocator.instance_constraints:
             for a in sm.preorder_traversal(exp1):
                 if isinstance(a, sm.Float):
-                    value = float(a)
-                    mantissa, exponent = extract_mantissa_exponent(value)
-                    mantissa = round(mantissa, 2)
-
-                    if exponent != 0:
-                        sympy_value = sm.Symbol(f'{mantissa} \cdot 10^{exponent}')
-                    else:
-                        sympy_value = sm.Symbol(f'{mantissa}')
-                    exp1 = exp1.subs(a, sympy_value)
+                    exp1 = exp1.subs(a, round(a, 2))
             instance_constr_plot.append(exp1)
 
         if plot_inst_viols:
@@ -528,7 +541,7 @@ class Problem(cyipopt.Problem):
                     beginn = i * bars_per_plot
                     endd = num_inst_viols
                     num_ticks = num_inst_viols % bars_per_plot
-                    if num_inst_viols == bars_per_plot:
+                    if(num_inst_viols % bars_per_plot == 0):
                         num_ticks = bars_per_plot
                 else:
                     endd = (i + 1) * bars_per_plot
