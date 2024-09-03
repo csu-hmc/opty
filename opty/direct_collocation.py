@@ -441,8 +441,8 @@ class Problem(cyipopt.Problem):
             A matplotlib axes with the constraint violations plotted.
 
             If axes are given by the user:
-            len(axes) = 2 if len(self.collocator.instance_constraints) <= bars_per_plot
-            len(axes) = len(self.collocator.instance_constraints) // bars_per_plot + 2 otherwise
+            len(axes) = 2 if len(self.collocator.instance_constraints) <= bars_per_plot.
+            len(axes) = len(self.collocator.instance_constraints) // bars_per_plot + 2 otherwise.
 
         Notes
         =====
