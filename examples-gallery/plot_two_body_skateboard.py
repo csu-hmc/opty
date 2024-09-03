@@ -51,7 +51,6 @@ from opty.utils import parse_free
 from opty.utils import create_objective_function
 
 import matplotlib.pyplot as plt
-from IPython.display import HTML
 from matplotlib.animation import FuncAnimation
 
 # %%
