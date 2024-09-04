@@ -411,7 +411,7 @@ class Problem(cyipopt.Problem):
 
         if axes is None:
             fig, axes = plt.subplots(num_axes, 1, sharex=True,
-                                     layout='compressed')
+                layout='compressed', figsize=(6.4, 0.8*num_axes))
 
         for ax, traj, symbol in zip(axes, trajectories, traj_syms):
             ax.plot(time, traj)
@@ -440,12 +440,15 @@ class Problem(cyipopt.Problem):
         axes : ndarray of AxesSubplot
             A matplotlib axes with the constraint violations plotted.
 
-            If axes are given by the user:
+            The number of axes needed is calculated like this:
             len(axes) = 2 if len(self.collocator.instance_constraints) <= bars_per_plot.
             len(axes) = len(self.collocator.instance_constraints) // bars_per_plot + 2
                         if len(self.collocator.instance_constraints) % bars_per_plot != 0.
             len(axes) = len(self.collocator.instance_constraints) // bars_per_plot + 1
                         if len(self.collocator.instance_constraints) % bars_per_plot = 0.
+
+            If the uses gives at least two axis, the method will tell the user
+            how many are needed, unless the correct amount is given.
 
         Notes
         =====
@@ -516,8 +519,9 @@ class Problem(cyipopt.Problem):
         num_inst_viols = len(instance_violations)
 
         if axes is None:
-            fig, axes = plt.subplots(1 + num_plots, squeeze=False,
-                layout='compressed', figsize=(8, 2.0*(num_plots+1)))
+            fig, axes = plt.subplots(1 + num_plots, 1,
+                figsize=(6.4, 1.50*(1 + num_plots)),
+                layout='compressed')
 
         axes = axes.ravel()
 
