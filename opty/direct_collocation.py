@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+#
 from functools import wraps
 import logging
 
@@ -411,7 +411,7 @@ class Problem(cyipopt.Problem):
 
         if axes is None:
             fig, axes = plt.subplots(num_axes, 1, sharex=True,
-                                     layout='compressed')
+                layout='compressed', figsize=(6.4, 0.8*num_axes))
 
         for ax, traj, symbol in zip(axes, trajectories, traj_syms):
             ax.plot(time, traj)
@@ -421,6 +421,8 @@ class Problem(cyipopt.Problem):
         axes[self.collocator.num_states].set_title('Input Trajectories')
 
         return axes
+
+
 
     @_optional_plt_dep
     def plot_constraint_violations(self, vector, axes=None):
@@ -438,6 +440,16 @@ class Problem(cyipopt.Problem):
         axes : ndarray of AxesSubplot
             A matplotlib axes with the constraint violations plotted.
 
+            The number of axes needed is calculated like this:
+            len(axes) = 2 if len(self.collocator.instance_constraints) <= bars_per_plot.
+            len(axes) = len(self.collocator.instance_constraints) // bars_per_plot + 2
+                        if len(self.collocator.instance_constraints) % bars_per_plot != 0.
+            len(axes) = len(self.collocator.instance_constraints) // bars_per_plot + 1
+                        if len(self.collocator.instance_constraints) % bars_per_plot = 0.
+
+            If the uses gives at least two axis, the method will tell the user
+            how many are needed, unless the correct amount is given.
+
         Notes
         =====
 
@@ -448,6 +460,52 @@ class Problem(cyipopt.Problem):
         - s : number of unknown time intervals
 
         """
+
+        bars_per_plot = None
+        rotation = -45
+
+        # find the number of bars per plot, so the bars per plot are arroximately
+        # the same on each bar.
+        hilfs = []
+        len_constr = len(self.collocator.instance_constraints)
+        for i in range(6, 11):
+            hilfs.append((i, i - len_constr % i))
+            if len_constr % i == 0:
+                bars_per_plot = i
+                if len_constr == bars_per_plot:
+                    num_plots = 1
+                else:
+                    num_plots = len_constr // bars_per_plot
+
+        if bars_per_plot is None:
+            maximal = 100
+            for i in range(len(hilfs)):
+                if hilfs[i][1] < maximal:
+                    maximal = hilfs[i][1]
+                    bars_per_plot = hilfs[i][0]
+            if len_constr <= bars_per_plot:
+                num_plots = 1
+            else:
+                num_plots = len_constr // bars_per_plot + 1
+
+
+        # ensure that len(axes) is correct, raise ValuError otherwise
+        if axes is not None:
+            len_axes = len(axes.ravel())
+            len_constr = len(self.collocator.instance_constraints)
+            if (len_constr <= bars_per_plot) and (len_axes < 2):
+                raise ValueError('len(axes) must be equal to 2')
+
+            elif (len_constr % bars_per_plot == 0) and (len_axes < len_constr // bars_per_plot + 1):
+                raise ValueError(f'len(axes) must be equal to {len_constr//bars_per_plot+1}')
+
+            elif ((len_constr % bars_per_plot != 0) and
+                  (len_axes < len_constr // bars_per_plot + 2)):
+                raise ValueError(f'len(axes) must be equal to {len_constr//bars_per_plot+2}')
+
+            else:
+                pass
+
         N = self.collocator.num_collocation_nodes
         con_violations = self.con(vector)
         state_violations = con_violations[
@@ -458,9 +516,13 @@ class Problem(cyipopt.Problem):
         con_nodes = range(1, self.collocator.num_collocation_nodes)
 
         plot_inst_viols = self.collocator.instance_constraints is not None
+        num_inst_viols = len(instance_violations)
+
         if axes is None:
-            fig, axes = plt.subplots(1 + plot_inst_viols, squeeze=False,
-                                     layout='compressed')
+            fig, axes = plt.subplots(1 + num_plots, 1,
+                figsize=(6.4, 1.50*(1 + num_plots)),
+                layout='compressed')
+
         axes = axes.ravel()
 
         axes[0].plot(con_nodes, state_violations.T)
@@ -468,13 +530,38 @@ class Problem(cyipopt.Problem):
         axes[0].set_xlabel('Node Number')
         axes[0].set_ylabel('EoM violation')
 
+        # reduce the instance constrtaints to 2 significant digits.
+        instance_constr_plot = []
+        for exp1 in self.collocator.instance_constraints:
+            for a in sm.preorder_traversal(exp1):
+                if isinstance(a, sm.Float):
+                    exp1 = exp1.subs(a, round(a, 2))
+            instance_constr_plot.append(exp1)
+
         if plot_inst_viols:
-            axes[-1].bar(
-                range(len(instance_violations)), instance_violations,
-                tick_label=[sm.latex(s, mode='inline')
-                            for s in self.collocator.instance_constraints])
-            axes[-1].set_ylabel('Instance')
-            axes[-1].set_xticklabels(axes[-1].get_xticklabels(), rotation=-10)
+            for i in range(num_plots):
+                num_ticks = bars_per_plot
+                if i == num_plots - 1:
+                    beginn = i * bars_per_plot
+                    endd = num_inst_viols
+                    num_ticks = num_inst_viols % bars_per_plot
+                    if(num_inst_viols % bars_per_plot == 0):
+                        num_ticks = bars_per_plot
+                else:
+                    endd = (i + 1) * bars_per_plot
+                    beginn = i * bars_per_plot
+
+                inst_viol = instance_violations[beginn: endd]
+                inst_constr = instance_constr_plot[beginn: endd]
+
+                width = [0.06*num_ticks for _ in range(num_ticks)]
+                axes[i+1].bar(
+                   range(num_ticks), inst_viol,
+                    tick_label=[sm.latex(s, mode='inline')
+                            for s in inst_constr], width=width)
+                axes[i+1].set_ylabel('Instance')
+                axes[i+1].set_xticklabels(axes[i+1].get_xticklabels(),
+                    rotation=rotation)
 
         return axes
 
