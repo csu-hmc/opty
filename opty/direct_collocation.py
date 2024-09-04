@@ -151,6 +151,8 @@ class Problem(cyipopt.Problem):
             ``{x(t): (-1.0, 5.0)}``.
 
         """
+        # needed for plot_constraint_violations method below
+        self.zeit = node_time_interval
 
         self.collocator = ConstraintCollocator(
             equations_of_motion, state_symbols, num_collocation_nodes,
@@ -532,10 +534,20 @@ class Problem(cyipopt.Problem):
 
         # reduce the instance constrtaints to 2 significant digits.
         instance_constr_plot = []
+        a_before = ''
         for exp1 in self.collocator.instance_constraints:
             for a in sm.preorder_traversal(exp1):
-                if isinstance(a, sm.Float):
-                    exp1 = exp1.subs(a, round(a, 2))
+#                print('a:', a, type(a))
+#                if a == self.zeit:
+#                    print('treffer', a)
+                if isinstance(a_before, sm.Integer) and (a == self.zeit):
+                    a_before = float(a_before)
+#                    print('a_before:', a_before)
+                    exp1 = exp1.subs(a_before, sm.Symbol(''))
+                    exp1 = exp1.subs(a, round(sm.Float(a_before/(a_before-1) * vector[-1]), 4))
+                elif isinstance(a_before, sm.Float) and (a != self.zeit):
+                    exp1 = exp1.subs(a_before, round(a_before, 2))
+                a_before = a
             instance_constr_plot.append(exp1)
 
         if plot_inst_viols:
