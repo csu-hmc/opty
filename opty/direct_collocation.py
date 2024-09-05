@@ -533,18 +533,19 @@ class Problem(cyipopt.Problem):
         axes[0].set_ylabel('EoM violation')
 
         # reduce the instance constrtaints to 2 significant digits.
+        # if variable h is used, sue the result for h in the time.
         instance_constr_plot = []
         a_before = ''
         for exp1 in self.collocator.instance_constraints:
             for a in sm.preorder_traversal(exp1):
-#                print('a:', a, type(a))
+                print('a:', a, type(a))
 #                if a == self.zeit:
 #                    print('treffer', a)
-                if isinstance(a_before, sm.Integer) and (a == self.zeit):
+                if (isinstance(a_before, sm.Integer) or isinstance(a_before, sm.Float)) and (a == self.zeit):
                     a_before = float(a_before)
-#                    print('a_before:', a_before)
-                    exp1 = exp1.subs(a_before, sm.Symbol(''))
-                    exp1 = exp1.subs(a, round(sm.Float(a_before/(a_before-1) * vector[-1]), 4))
+                    print('a_before:', a_before)
+#                    exp1 = exp1.subs(a_before, sm.Symbol(''))
+                    exp1 = exp1.subs(a, sm.Float(round(vector[-1], 5)))
                 elif isinstance(a_before, sm.Float) and (a != self.zeit):
                     exp1 = exp1.subs(a_before, round(a_before, 2))
                 a_before = a
