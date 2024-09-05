@@ -210,20 +210,20 @@ prob = Problem(
 
 # %%
 # This initial guess was used to get a solution which forms the actual initial
-# guess::
+# guess:
 #
-# - i1 = [(ending_location - starting_location)/num_nodes*i for i in range(num_nodes)]
-# - i2 = [0.0 for _ in range(num_nodes)]
-# - i3 = i1
-# - i4 = [-par_map[l] for _ in range(num_nodes)]
-# - i5 = [0.0 for _ in range(5*num_nodes)]
-# - i6 = [0.01]
-# - initial_guess = np.array(i1 + i2 + i3 + i4 + i5 + i6)
+i1 = [(ending_location - starting_location)/num_nodes*i for i in range(num_nodes)]
+i2 = [0.0 for _ in range(num_nodes)]
+i3 = i1
+i4 = [-par_map[l] for _ in range(num_nodes)]
+i5 = [0.0 for _ in range(5*num_nodes)]
+i6 = [0.01]
+initial_guess = np.array(i1 + i2 + i3 + i4 + i5 + i6)
 
 # %%
 # The initial guess is the solution of some previous run, saved in the file
 # 'solution.npy', to speed up convergence. To get this solution, the initial
-# guess above was used.
+# guess above was used, which is now overwritten.
 
 initial_guess = np.load('solution.npy')
 prob.plot_trajectories(initial_guess)
