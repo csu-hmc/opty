@@ -210,10 +210,9 @@ prob = Problem(
 
 # %%
 # This initial guess was used to get a solution which forms the actual initial
-# guess.
-
-# - i1 = [(ending_location - starting_location)/num_nodes*i for i in
-#        range(num_nodes)]
+# guess::
+#
+# - i1 = [(ending_location - starting_location)/num_nodes*i for i in range(num_nodes)]
 # - i2 = [0.0 for _ in range(num_nodes)]
 # - i3 = i1
 # - i4 = [-par_map[l] for _ in range(num_nodes)]
@@ -252,7 +251,7 @@ prob.plot_trajectories(solution, ax)
 # Animate the Simulation.
 #------------------------
 h_sol = solution[-1]
-fps = 20
+fps = 10
 
 tf = h_sol*(num_nodes - 1)
 state_vals, input_vals, _ = parse_free(solution, len(state_symbols),
