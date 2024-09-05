@@ -222,8 +222,9 @@ initial_guess = np.array(i1 + i2 + i3 + i4 + i5 + i6)
 
 # %%
 # The initial guess is the solution of some previous run, saved in the file
-# 'solution.npy', to speed up convergence. To get this solution, the initial
-# guess above was used, which is now overwritten.
+# 'crane_moving_a_load_solution.npy', to speed up convergence.
+# To get this solution, the initial guess above was used, which is now
+# overwritten.
 
 initial_guess = np.load('crane_moving_a_load_solution.npy')
 prob.plot_trajectories(initial_guess)
