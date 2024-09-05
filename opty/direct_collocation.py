@@ -151,7 +151,7 @@ class Problem(cyipopt.Problem):
             ``{x(t): (-1.0, 5.0)}``.
 
         """
-        # needed for plot_constraint_violations method below
+        # needed for the plot_constraint_violations method below
         self.zeit = node_time_interval
 
         self.collocator = ConstraintCollocator(
@@ -533,21 +533,20 @@ class Problem(cyipopt.Problem):
         axes[0].set_ylabel('EoM violation')
 
         # reduce the instance constrtaints to 2 significant digits.
-        # if variable h is used, sue the result for h in the time.
+        # if variable h is used, use the result for h in the time.
         instance_constr_plot = []
         a_before = ''
+        a_before_before = ''
         for exp1 in self.collocator.instance_constraints:
             for a in sm.preorder_traversal(exp1):
-                print('a:', a, type(a))
-#                if a == self.zeit:
-#                    print('treffer', a)
-                if (isinstance(a_before, sm.Integer) or isinstance(a_before, sm.Float)) and (a == self.zeit):
+                if ((isinstance(a_before, sm.Integer) or
+                        isinstance(a_before, sm.Float)) and (a == self.zeit)):
                     a_before = float(a_before)
-                    print('a_before:', a_before)
-#                    exp1 = exp1.subs(a_before, sm.Symbol(''))
-                    exp1 = exp1.subs(a, sm.Float(round(vector[-1], 5)))
+                    hilfs = a_before * vector[-1]
+                    exp1 = exp1.subs(a_before_before, sm.Float(round(hilfs, 2)))
                 elif isinstance(a_before, sm.Float) and (a != self.zeit):
                     exp1 = exp1.subs(a_before, round(a_before, 2))
+                a_before_before = a_before
                 a_before = a
             instance_constr_plot.append(exp1)
 
