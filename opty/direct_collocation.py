@@ -452,6 +452,7 @@ class Problem(cyipopt.Problem):
             If the uses gives at least two axis, the method will tell the user
             how many are needed, unless the correct amount is given.
 
+
         Notes
         =====
 
@@ -461,13 +462,18 @@ class Problem(cyipopt.Problem):
         - r : number of unknown parameters
         - s : number of unknown time intervals
 
+        If node_time_interval is a sympy.Symbol, the times in the instance
+        constraints should be given as alpha * h, where alpha is an integer
+        or a float and h is the name of the node_time_interval symbol. This
+        will ensure that the time is given correctly in the plot.
+
         """
 
         bars_per_plot = None
         rotation = -45
 
         # find the number of bars per plot, so the bars per plot are arroximately
-        # the same on each bar.
+        # the same on each plot.
         hilfs = []
         len_constr = len(self.collocator.instance_constraints)
         for i in range(6, 11):
@@ -532,7 +538,8 @@ class Problem(cyipopt.Problem):
         axes[0].set_xlabel('Node Number')
         axes[0].set_ylabel('EoM violation')
 
-        # reduce the instance constrtaints to 2 significant digits.
+        # reduce the instance constrtaints to 2 digits after the decimal point.
+        # give the time in tha variables with 2 digits after the decimal point.
         # if variable h is used, use the result for h in the time.
         instance_constr_plot = []
         a_before = ''
