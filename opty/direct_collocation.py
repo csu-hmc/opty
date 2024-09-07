@@ -151,8 +151,6 @@ class Problem(cyipopt.Problem):
             ``{x(t): (-1.0, 5.0)}``.
 
         """
-        # needed for the plot_constraint_violations method below
-        self.zeit = node_time_interval
 
         self.collocator = ConstraintCollocator(
             equations_of_motion, state_symbols, num_collocation_nodes,
@@ -462,11 +460,6 @@ class Problem(cyipopt.Problem):
         - r : number of unknown parameters
         - s : number of unknown time intervals
 
-        If node_time_interval is a sympy.Symbol, the times in the instance
-        constraints should be given as alpha * h, where alpha is an integer
-        or a float and h is the name of the node_time_interval symbol. This
-        will ensure that the time is given correctly in the plot.
-
         """
 
         bars_per_plot = None
@@ -547,11 +540,13 @@ class Problem(cyipopt.Problem):
         for exp1 in self.collocator.instance_constraints:
             for a in sm.preorder_traversal(exp1):
                 if ((isinstance(a_before, sm.Integer) or
-                        isinstance(a_before, sm.Float)) and (a == self.zeit)):
+                        isinstance(a_before, sm.Float)) and
+                        (a == self.collocator.node_time_interval)):
                     a_before = float(a_before)
                     hilfs = a_before * vector[-1]
                     exp1 = exp1.subs(a_before_before, sm.Float(round(hilfs, 2)))
-                elif isinstance(a_before, sm.Float) and (a != self.zeit):
+                elif (isinstance(a_before, sm.Float) and
+                (a != self.collocator.node_time_interval)):
                     exp1 = exp1.subs(a_before, round(a_before, 2))
                 a_before_before = a_before
                 a_before = a
