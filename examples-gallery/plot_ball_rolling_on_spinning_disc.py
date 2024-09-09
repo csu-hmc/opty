@@ -104,18 +104,18 @@ O.set_vel(N, 0)
 # Determination of the holonomic constraints.
 #
 # If the ball rotates around the x axis by an angle :math:`q_1`
-# the contact point will be move by :math:`-q_1 \cdot r` in the :math:`\hat{A2}.y`
+# the contact point will be move by :math:`-q_1 r` in the :math:`\hat{A_2}_y`
 # direction. If the ball rotates around the y axis by an angle :math:`q_2` the
-# contact point will be move by :math:`q_2 \cdot r` in the :math:`\hat{A2}.x`
+# contact point will be move by :math:`q_2 r` in the :math:`\hat{A_2}_x`
 # direction. Hence the configuration constraints are:
 #
-# - :math:`x = r \cdot q_2`
-# - :math:`y = -r \cdot q_1`
+# - :math:`x = r q_2`
+# - :math:`y = -r q_1`
 #
 # So the resulting speed constraints are:
 #
-# - :math:`\dfrac{d}{dt}(x) = r \cdot \dfrac{d}{dt}(q_2)`
-# - :math:`\dfrac{d}{dt}(y) = -r \cdot \dfrac{d}{dt}(q_1)`
+# - :math:`\dfrac{d}{dt}(x) = r \dfrac{d}{dt}(q_2)`
+# - :math:`\dfrac{d}{dt}(y) = -r \dfrac{d}{dt}(q_1)`
 #
 # The time t appears explicitly in the EOMs.
 # So, declare a function :math:`T(t)`, and then
@@ -124,8 +124,8 @@ O.set_vel(N, 0)
 # As :math:`T(t) = const \cdot t`   I set these derivatives accordingly.
 
 # %%
-# I do not use qdisc = sm.integrate(udisc, t), as this gives
-# a sm.Piecewise(..) result, likely not differentiable everywhere,
+# I do not use ``qdisc = sm.integrate(udisc, t)``, as this gives
+# a ``sm.Piecewise(..)`` result, likely not differentiable everywhere,
 # but I use the result of this integration for :math:`\alpha \neq 0`.
 
 udisc = Omega * (1 - sm.exp(-alpha * T(t)))
