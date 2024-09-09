@@ -450,6 +450,7 @@ class Problem(cyipopt.Problem):
             If the uses gives at least two axis, the method will tell the user
             how many are needed, unless the correct amount is given.
 
+
         Notes
         =====
 
@@ -465,7 +466,7 @@ class Problem(cyipopt.Problem):
         rotation = -45
 
         # find the number of bars per plot, so the bars per plot are arroximately
-        # the same on each bar.
+        # the same on each plot.
         hilfs = []
         len_constr = len(self.collocator.instance_constraints)
         for i in range(6, 11):
@@ -530,12 +531,25 @@ class Problem(cyipopt.Problem):
         axes[0].set_xlabel('Node Number')
         axes[0].set_ylabel('EoM violation')
 
-        # reduce the instance constrtaints to 2 significant digits.
+        # reduce the instance constrtaints to 2 digits after the decimal point.
+        # give the time in tha variables with 2 digits after the decimal point.
+        # if variable h is used, use the result for h in the time.
         instance_constr_plot = []
+        a_before = ''
+        a_before_before = ''
         for exp1 in self.collocator.instance_constraints:
             for a in sm.preorder_traversal(exp1):
-                if isinstance(a, sm.Float):
-                    exp1 = exp1.subs(a, round(a, 2))
+                if ((isinstance(a_before, sm.Integer) or
+                        isinstance(a_before, sm.Float)) and
+                        (a == self.collocator.node_time_interval)):
+                    a_before = float(a_before)
+                    hilfs = a_before * vector[-1]
+                    exp1 = exp1.subs(a_before_before, sm.Float(round(hilfs, 2)))
+                elif (isinstance(a_before, sm.Float) and
+                (a != self.collocator.node_time_interval)):
+                    exp1 = exp1.subs(a_before, round(a_before, 2))
+                a_before_before = a_before
+                a_before = a
             instance_constr_plot.append(exp1)
 
         if plot_inst_viols:
