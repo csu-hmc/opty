@@ -418,7 +418,8 @@ class Problem(cyipopt.Problem):
             ax.set_ylabel(sm.latex(symbol, mode='inline'))
         ax.set_xlabel('Time')
         axes[0].set_title('State Trajectories')
-        axes[self.collocator.num_states].set_title('Input Trajectories')
+        if self.collocator.num_input_trajectories > 0:
+            axes[self.collocator.num_states].set_title('Input Trajectories')
 
         return axes
 
