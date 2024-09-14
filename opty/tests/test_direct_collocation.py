@@ -53,12 +53,15 @@ def test_pendulum():
                             omega(duration))
 
     # This will test that a compilation works.
-    Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
-            known_parameter_map=par_map,
-            instance_constraints=instance_constraints,
-            time_symbol=t,
-            bounds={T(t): (-2.0, 2.0)},
-            show_compile_output=True)
+    prob = Problem(
+        obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        bounds={T(t): (-2.0, 2.0)},
+        show_compile_output=True)
+
+    assert prob.collocator.num_instance_constraints == 4
 
 
 def test_Problem():
@@ -96,6 +99,8 @@ def test_Problem():
                                8.0, 8.0,
                                0.5, INF, 1.0])
     np.testing.assert_allclose(prob.upper_bound, expected_upper)
+
+    assert prob.collocator.num_instance_constraints == 0
 
 
 class TestConstraintCollocator():

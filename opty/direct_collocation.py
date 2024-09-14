@@ -439,18 +439,9 @@ class Problem(cyipopt.Problem):
         Returns
         =======
         axes : ndarray of AxesSubplot
-            A matplotlib axes with the constraint violations plotted.
-
-            The number of axes needed is calculated like this:
-            len(axes) = 2 if len(self.collocator.instance_constraints) <= bars_per_plot.
-            len(axes) = len(self.collocator.instance_constraints) // bars_per_plot + 2
-                        if len(self.collocator.instance_constraints) % bars_per_plot != 0.
-            len(axes) = len(self.collocator.instance_constraints) // bars_per_plot + 1
-                        if len(self.collocator.instance_constraints) % bars_per_plot = 0.
-
-            If the uses gives at least two axis, the method will tell the user
-            how many are needed, unless the correct amount is given.
-
+            A matplotlib axes with the constraint violations plotted. If the
+            uses gives at least two axis, the method will tell the user how
+            many are needed, unless the correct amount is given.
 
         Notes
         =====
@@ -518,7 +509,7 @@ class Problem(cyipopt.Problem):
         con_nodes = range(1, self.collocator.num_collocation_nodes)
 
         plot_inst_viols = self.collocator.instance_constraints is not None
-        num_inst_viols = len(instance_violations)
+        num_inst_viols = self.collocator.num_instance_constraints
 
         if axes is None:
             fig, axes = plt.subplots(1 + num_plots, 1,
@@ -740,6 +731,8 @@ class ConstraintCollocator(object):
             self.eval_instance_constraints = self._instance_constraints_func()
             self.eval_instance_constraints_jacobian_values = \
                 self._instance_constraints_jacobian_values_func()
+        else:
+            self.num_instance_constraints = 0
 
     @property
     def integration_method(self):
