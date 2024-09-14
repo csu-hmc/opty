@@ -459,45 +459,46 @@ class Problem(cyipopt.Problem):
 
         # find the number of bars per plot, so the bars per plot are arroximately
         # the same on each plot.
-        hilfs = []
-        len_constr = len(self.collocator.instance_constraints)
-        for i in range(6, 11):
-            hilfs.append((i, i - len_constr % i))
-            if len_constr % i == 0:
-                bars_per_plot = i
-                if len_constr == bars_per_plot:
+        if self.collocator.instance_constraints is not None:
+            hilfs = []
+            len_constr = len(self.collocator.instance_constraints)
+            for i in range(6, 11):
+                hilfs.append((i, i - len_constr % i))
+                if len_constr % i == 0:
+                    bars_per_plot = i
+                    if len_constr == bars_per_plot:
+                        num_plots = 1
+                    else:
+                        num_plots = len_constr // bars_per_plot
+
+            if bars_per_plot is None:
+                maximal = 100
+                for i in range(len(hilfs)):
+                    if hilfs[i][1] < maximal:
+                        maximal = hilfs[i][1]
+                        bars_per_plot = hilfs[i][0]
+                if len_constr <= bars_per_plot:
                     num_plots = 1
                 else:
-                    num_plots = len_constr // bars_per_plot
-
-        if bars_per_plot is None:
-            maximal = 100
-            for i in range(len(hilfs)):
-                if hilfs[i][1] < maximal:
-                    maximal = hilfs[i][1]
-                    bars_per_plot = hilfs[i][0]
-            if len_constr <= bars_per_plot:
-                num_plots = 1
-            else:
-                num_plots = len_constr // bars_per_plot + 1
+                    num_plots = len_constr // bars_per_plot + 1
 
 
         # ensure that len(axes) is correct, raise ValuError otherwise
-        if axes is not None:
-            len_axes = len(axes.ravel())
-            len_constr = len(self.collocator.instance_constraints)
-            if (len_constr <= bars_per_plot) and (len_axes < 2):
-                raise ValueError('len(axes) must be equal to 2')
+            if axes is not None:
+                len_axes = len(axes.ravel())
+                len_constr = len(self.collocator.instance_constraints)
+                if (len_constr <= bars_per_plot) and (len_axes < 2):
+                    raise ValueError('len(axes) must be equal to 2')
 
-            elif (len_constr % bars_per_plot == 0) and (len_axes < len_constr // bars_per_plot + 1):
-                raise ValueError(f'len(axes) must be equal to {len_constr//bars_per_plot+1}')
+                elif (len_constr % bars_per_plot == 0) and (len_axes < len_constr // bars_per_plot + 1):
+                    raise ValueError(f'len(axes) must be equal to {len_constr//bars_per_plot+1}')
 
-            elif ((len_constr % bars_per_plot != 0) and
-                  (len_axes < len_constr // bars_per_plot + 2)):
-                raise ValueError(f'len(axes) must be equal to {len_constr//bars_per_plot+2}')
+                elif ((len_constr % bars_per_plot != 0) and
+                    (len_axes < len_constr // bars_per_plot + 2)):
+                    raise ValueError(f'len(axes) must be equal to {len_constr//bars_per_plot+2}')
 
-            else:
-                pass
+                else:
+                    pass
 
         N = self.collocator.num_collocation_nodes
         con_violations = self.con(vector)
@@ -511,63 +512,71 @@ class Problem(cyipopt.Problem):
         plot_inst_viols = self.collocator.instance_constraints is not None
         num_inst_viols = self.collocator.num_instance_constraints
 
+        if self.collocator.instance_constraints is None:
+            num_plots = 0
         if axes is None:
             fig, axes = plt.subplots(1 + num_plots, 1,
                 figsize=(6.4, 1.50*(1 + num_plots)),
                 layout='compressed')
 
-        axes = axes.ravel()
-
-        axes[0].plot(con_nodes, state_violations.T)
-        axes[0].set_title('Constraint violations')
-        axes[0].set_xlabel('Node Number')
-        axes[0].set_ylabel('EoM violation')
+        if self.collocator.instance_constraints is None:
+            axes.plot(con_nodes, state_violations.T)
+            axes.set_title('Constraint violations')
+            axes.set_xlabel('Node Number')
+            axes.set_ylabel('EoM violation')
+        else:
+            axes = axes.ravel()
+            axes[0].plot(con_nodes, state_violations.T)
+            axes[0].set_title('Constraint violations')
+            axes[0].set_xlabel('Node Number')
+            axes[0].set_ylabel('EoM violation')
 
         # reduce the instance constrtaints to 2 digits after the decimal point.
         # give the time in tha variables with 2 digits after the decimal point.
         # if variable h is used, use the result for h in the time.
-        instance_constr_plot = []
-        a_before = ''
-        a_before_before = ''
-        for exp1 in self.collocator.instance_constraints:
-            for a in sm.preorder_traversal(exp1):
-                if ((isinstance(a_before, sm.Integer) or
-                        isinstance(a_before, sm.Float)) and
-                        (a == self.collocator.node_time_interval)):
-                    a_before = float(a_before)
-                    hilfs = a_before * vector[-1]
-                    exp1 = exp1.subs(a_before_before, sm.Float(round(hilfs, 2)))
-                elif (isinstance(a_before, sm.Float) and
-                (a != self.collocator.node_time_interval)):
-                    exp1 = exp1.subs(a_before, round(a_before, 2))
-                a_before_before = a_before
-                a_before = a
-            instance_constr_plot.append(exp1)
+        if self.collocator.instance_constraints is not None:
+            instance_constr_plot = []
+            a_before = ''
+            a_before_before = ''
+            for exp1 in self.collocator.instance_constraints:
+                for a in sm.preorder_traversal(exp1):
+                    if ((isinstance(a_before, sm.Integer) or
+                            isinstance(a_before, sm.Float)) and
+                            (a == self.collocator.node_time_interval)):
+                        a_before = float(a_before)
+                        hilfs = a_before * vector[-1]
+                        exp1 = exp1.subs(a_before_before, sm.Float(round(hilfs, 2)))
+                    elif (isinstance(a_before, sm.Float) and
+                        (a != self.collocator.node_time_interval)):
+                        exp1 = exp1.subs(a_before, round(a_before, 2))
+                    a_before_before = a_before
+                    a_before = a
+                instance_constr_plot.append(exp1)
 
-        if plot_inst_viols:
-            for i in range(num_plots):
-                num_ticks = bars_per_plot
-                if i == num_plots - 1:
-                    beginn = i * bars_per_plot
-                    endd = num_inst_viols
-                    num_ticks = num_inst_viols % bars_per_plot
-                    if(num_inst_viols % bars_per_plot == 0):
-                        num_ticks = bars_per_plot
-                else:
-                    endd = (i + 1) * bars_per_plot
-                    beginn = i * bars_per_plot
+            if plot_inst_viols:
+                for i in range(num_plots):
+                    num_ticks = bars_per_plot
+                    if i == num_plots - 1:
+                        beginn = i * bars_per_plot
+                        endd = num_inst_viols
+                        num_ticks = num_inst_viols % bars_per_plot
+                        if(num_inst_viols % bars_per_plot == 0):
+                            num_ticks = bars_per_plot
+                    else:
+                        endd = (i + 1) * bars_per_plot
+                        beginn = i * bars_per_plot
 
-                inst_viol = instance_violations[beginn: endd]
-                inst_constr = instance_constr_plot[beginn: endd]
+                    inst_viol = instance_violations[beginn: endd]
+                    inst_constr = instance_constr_plot[beginn: endd]
 
-                width = [0.06*num_ticks for _ in range(num_ticks)]
-                axes[i+1].bar(
-                   range(num_ticks), inst_viol,
+                    width = [0.06*num_ticks for _ in range(num_ticks)]
+                    axes[i+1].bar(
+                    range(num_ticks), inst_viol,
                     tick_label=[sm.latex(s, mode='inline')
-                            for s in inst_constr], width=width)
-                axes[i+1].set_ylabel('Instance')
-                axes[i+1].set_xticklabels(axes[i+1].get_xticklabels(),
-                    rotation=rotation)
+                    for s in inst_constr], width=width)
+                    axes[i+1].set_ylabel('Instance')
+                    axes[i+1].set_xticklabels(axes[i+1].get_xticklabels(),
+                        rotation=rotation)
 
         return axes
 
