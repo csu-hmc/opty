@@ -97,26 +97,23 @@ num_nodes = 500
 times = np.linspace(t0, tf, num_nodes)
 t_span = (t0, tf)
 
-x0 = np.array([2, 3, 4, 5, 0, 0, 0, 0])
+x0 = np.array([3, 3, 3, 3, 0, 0, 0, 0])
 pL_vals = [1.0, 0.25, 1.0, 1.0]
 
 resultat1 = solve_ivp(gradient, t_span, x0, t_eval = times, args=(pL_vals,))
 resultat = resultat1.y.T
-print('Shape of result: ', resultat.shape)
-print(' the message is: ', resultat1.message)
 
 noisy = []
 np.random.seed(123)
 for i in range(4):
     noisy.append(resultat[:, i] + np.random.randn(resultat.shape[0]) * 0.5 +
-        np.random.randn(1))
+        np.random.randn(1)*2)
 
 fig, ax = plt.subplots(figsize=(10, 5))
 for i in range(4):
-    ax.plot(times, resultat[:, i], label=f'x{i+1}')
-    ax.plot(times, noisy[i], label=f'noisy x{i+1}', lw=0.5)
+    ax.plot(times, noisy[i], label=f'measurement {i+1}', lw=0.5)
 plt.xlabel('Time')
-ax.set_title('Noisy measurements of the position of the mass')
+ax.set_title('Measurements of the position of the mass')
 ax.legend();
 
 plt.show()
@@ -126,9 +123,9 @@ plt.show()
 # Set up the Estimation Problem.
 # --------------------------------
 #
-# If some measurement is considered more reliable, its weight can be increased.
+# If some measurement is considered more reliable, its weight w can be increased.
 #
-# objective = :math:`\int_{t_0}^{t_f} (weight_1 (x_1 - noisy_{x_1})^2 + weight_2 (x_2 - noisy_{x_2})^2 + weight_3 (x_3 - noisy_{x_3}))^2 + weight_4 (x_4 - noisy_{x_4})^2)\, dt`
+# objective = :math:`\int_{t_0}^{t_f} (w_1 (x_1 - noisy_{x_1})^2 + w_2 (x_2 - noisy_{x_2})^2 + w_3 (x_3 - noisy_{x_3})^2 + w_4 (x_4 - noisy_{x_4})^2)\, dt`
 #
 state_symbols = [x1, x2, x3, x4, u1, u2, u3, u4]
 unknown_parameters = [c, k]
@@ -136,23 +133,23 @@ unknown_parameters = [c, k]
 interval_value = (tf - t0) / (num_nodes - 1)
 par_map = {m: pL_vals[0], l0: pL_vals[3]}
 
-weight =[1, 1, 1, 1]
+w =[1, 1, 1, 1]
 def obj(free):
-    return interval_value *np.sum((weight[0] * free[:num_nodes] - noisy[0])**2 +
-            weight[1] * (free[num_nodes:2*num_nodes] - noisy[1])**2 +
-            weight[2] * (free[2*num_nodes:3*num_nodes] - noisy[2])**2 +
-            weight[3] * (free[3*num_nodes:4*num_nodes] - noisy[3])**2
+    return interval_value *np.sum((w[0] * free[:num_nodes] - noisy[0])**2 +
+            w[1] * (free[num_nodes:2*num_nodes] - noisy[1])**2 +
+            w[2] * (free[2*num_nodes:3*num_nodes] - noisy[2])**2 +
+            w[3] * (free[3*num_nodes:4*num_nodes] - noisy[3])**2
 )
 
 
 def obj_grad(free):
     grad = np.zeros_like(free)
-    grad[:num_nodes] = 2 * weight[0] * interval_value * (free[:num_nodes] - noisy[0])
-    grad[num_nodes:2*num_nodes] = 2 * weight[1] * (interval_value *
+    grad[:num_nodes] = 2 * w[0] * interval_value * (free[:num_nodes] - noisy[0])
+    grad[num_nodes:2*num_nodes] = 2 * w[1] * (interval_value *
                     (free[num_nodes:2*num_nodes] - noisy[1]))
-    grad[2*num_nodes:3*num_nodes] = 2 * weight[2] * (interval_value *
+    grad[2*num_nodes:3*num_nodes] = 2 * w[2] * (interval_value *
                     (free[2*num_nodes:3*num_nodes] - noisy[2]))
-    grad[3*num_nodes:4*num_nodes] = 2 * weight[3] * (interval_value *
+    grad[3*num_nodes:4*num_nodes] = 2 * w[3] * (interval_value *
                     (free[3*num_nodes:4*num_nodes] - noisy[3]))
     return grad
 
@@ -192,18 +189,8 @@ problem.plot_objective_value()
 # %%
 problem.plot_constraint_violations(solution)
 # %%
-# The method plot_trajectories does not work without input trajectories.
-fig, ax = plt.subplots(8, 1, figsize=(8, 16), sharex=True)
-names = ['x1', 'x2', 'x3', 'x4', 'u1', 'u2', 'u3', 'u4']
-for i in range(8):
-    ax[i].plot(times, solution[i*num_nodes:(i+1)*num_nodes])
-    ax[i].set_ylabel(names[i])
-ax[-1].set_xlabel('Time [s]')
-ax[0].set_title('State Trajectories')
-print(f'Relative error in the damping parameter is {(pL_vals[1]-solution[-2])/pL_vals[1] * 100:.2f} %')
-print(f'Relative error in the spring constant is   {(pL_vals[2]-solution[-1])/pL_vals[2] * 100:.2f} %')
-# %%
-# How close are the calculated trajectories to the true ones?
+# Results obtained.
+#------------------
 #
 state_sol, input_sol, _ = parse_free(solution, len(state_symbols),
     0, num_nodes)
@@ -212,16 +199,7 @@ error_x1 = (state_sol[:, 0] - resultat[:, 0]) / np.max(resultat[:, 0]) * 100
 error_x2 = (state_sol[:, 1] - resultat[:, 1]) / np.max(resultat[:, 1]) * 100
 error_x3 = (state_sol[:, 2] - resultat[:, 2]) / np.max(resultat[:, 2]) * 100
 error_x4 = (state_sol[:, 3] - resultat[:, 3]) / np.max(resultat[:, 3]) * 100
-
-fig, ax = plt.subplots(4, 1, figsize=(8, 8))
-ax[0].plot(times, error_x1, label='Error in x1', color='blue')
-ax[1].plot(times, error_x2, label='Error in x2', color='blue')
-ax[2].plot(times, error_x3, label='Error in x3', color='blue')
-ax[3].plot(times, error_x4, label='Error in x4', color='blue')
-
-ax[3].set_xlabel('Time [s]')
-ax[0].set_title('Deviaton in percent of the estimated trajectory from the true trajectory')
-ax[0].legend();
-ax[1].legend();
-ax[2].legend();
-ax[3].legend();
+error_max = max(np.max(error_x1), np.max(error_x2), np.max(error_x3),
+    np.max(error_x4))
+print(f'Estimate of damping parameter is  {solution[-2]:.2f} %')
+print(f'Estimate ofthe spring constant is {solution[-1]:.2f} %')
