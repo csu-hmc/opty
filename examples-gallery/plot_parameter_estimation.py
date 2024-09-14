@@ -1,27 +1,37 @@
 # %%
 """
 
-Parameter Estimation
-====================
+Parameter Identification.
+=========================
 
-Four noisy measurements of the location of a simple system consisting of a mass
+for parameter estimation it is common to collect measurements of a system's
+trajectories for distinct experiments. for example, if you are identifying the
+parameters of a mass-spring-damper system, you will exite the system with
+different initial conditions multiple times. The date cannot simply be stacked
+and the identification run because the measurement data would be discontinuous
+between trials.
+A work around in opty is to creat a set of differential equations with unique
+state variables. For each measurement trial that all share the same constant
+parameters. You can then identify the parameters from all measurement trials
+simultaneously by passing the uncoupled differential equations to opty.
+
+For exaple:
+Four measurements of the location of a simple system consisting of a mass
 connected to a fixed point by a spring and a damper. The movement is in a
 horizontal direction. The the spring constant and the damping coefficient
 are to be estimated.
 
-The idea is to set up four sets of eoms, one for each of the measurements, with
-identical parameters, and let opty estimate the parameters.
 
 **State Variables**
 
-- :math:`x_1`: position of the mass of the first system [m]
-- :math:`x_2`: position of the mass of the second system [m]
-- :math:`x_3`: position of the mass of the third system [m]
-- :math:`x_4`: position of the mass of the fourth system [m]
-- :math:`u_1`: speed of the mass of the first system [m/s]
-- :math:`u_2`: speed of the mass of the second system [m/s]
-- :math:`u_3`: speed of the mass of the third system [m/s]
-- :math:`u_4`: speed of the mass of the fourth system [m/s]
+- :math:`x_1`: position of the mass of the first measurement trial [m]
+- :math:`x_2`: position of the mass of the second measurement trial [m]
+- :math:`x_3`: position of the mass of the third measurement trial [m]
+- :math:`x_4`: position of the mass of the fourth measurement trial [m]
+- :math:`u_1`: speed of the mass of the first measurement trial [m/s]
+- :math:`u_2`: speed of the mass of the second measurement trial [m/s]
+- :math:`u_3`: speed of the mass of the third measurement trial [m/s]
+- :math:`u_4`: speed of the mass of the fourth measurement trial [m/s]
 
 **Parameters**
 
@@ -42,48 +52,37 @@ from scipy.integrate import solve_ivp
 from opty import Problem
 from opty.utils import parse_free
 
-N = me.ReferenceFrame('N')
-O, P1, P2, P3, P4 = sm.symbols('O P1 P2 P3 P4', cls=me.Point)
-
-O.set_vel(N, 0)
+x1, x2, x3, x4, u1, u2, u3, u4 = me.dynamicsymbols('x1, x2, x3, x4, u1, u2, u3, u4')
+m, c, k, l0 = sm.symbols('m, c, k, l0')
 t = me.dynamicsymbols._t
 
-x1, x2, x3, x4 = me.dynamicsymbols('x1 x2 x3 x4')
-u1, u2, u3, u4 = me.dynamicsymbols('u1 u2 h3 u4')
-m, c, k, l0 = sm.symbols('m c k l0')
-
-P1.set_pos(O, x1 * N.x)
-P2.set_pos(O, x2 * N.x)
-P3.set_pos(O, x3 * N.x)
-P4.set_pos(O, x4 * N.x)
-P1.set_vel(N, u1 * N.x)
-P2.set_vel(N, u2 * N.x)
-P3.set_vel(N, u3 * N.x)
-P4.set_vel(N, u4 * N.x)
-
-body1 = me.Particle('body1', P1, m)
-body2 = me.Particle('body2', P2, m)
-body3 = me.Particle('body3', P3, m)
-body4 = me.Particle('body4', P4, m)
-bodies = [body1, body2, body3, body4]
-
-forces = [(P1, -k * (x1 - l0) * N.x - c * u1 * N.x),
-    (P2, -k * (x2 - l0) * N.x - c * u2 * N.x), (P3, -k * (x3 - l0) * N.x - c * u3 * N.x),
-    (P4, -k * (x4 - l0) * N.x - c * u4 * N.x)]
-
-kd = sm.Matrix([u1 - x1.diff(), u2 - x2.diff(), u3 - x3.diff(), u4 - x4.diff()])
-
-q_ind = [x1, x2, x3, x4]
-u_ind = [u1, u2, u3, u4]
-
-KM = me.KanesMethod(N, q_ind, u_ind, kd_eqs=kd)
-fr, frstar = KM.kanes_equations(bodies, forces)
-eom = kd.col_join(fr + frstar)
+eom = sm.Matrix([
+    x1.diff(t) - u1,
+    x2.diff(t) - u2,
+    x3.diff(t) - u3,
+    x4.diff(t) - u4,
+    m*u1.diff(t) + c*u1 + k*(x1 - l0),
+    m*u2.diff(t) + c*u2 + k*(x2 - l0),
+    m*u3.diff(t) + c*u3 + k*(x3 - l0),
+    m*u4.diff(t) + c*u4 + k*(x4 - l0),
+])
+# %%
+# Equations of motion.
 sm.pprint(eom)
 
-rhs = KM.rhs()
+# %%
+rhs = np.array([
+    u1,
+    u2,
+    u3,
+    u4,
+    1/m * (-c*u1 - k*(x1 - l0)),
+    1/m * (-c*u2 - k*(x2 - l0)),
+    1/m * (-c*u3 - k*(x3 - l0)),
+    1/m * (-c*u4 - k*(x4 - l0)),
+])
 
-qL = q_ind + u_ind
+qL = [x1, x2, x3, x4, u1, u2, u3, u4]
 pL = [m, c, k, l0]
 
 rhs_lam = sm.lambdify(qL + pL, rhs)
@@ -97,7 +96,7 @@ num_nodes = 500
 times = np.linspace(t0, tf, num_nodes)
 t_span = (t0, tf)
 
-x0 = np.array([3, 3, 3, 3, 0, 0, 0, 0])
+x0 = np.array([2, 3, 4, 5, 0, 0, 0, 0])
 pL_vals = [1.0, 0.25, 1.0, 1.0]
 
 resultat1 = solve_ivp(gradient, t_span, x0, t_eval = times, args=(pL_vals,))
@@ -109,23 +108,13 @@ for i in range(4):
     noisy.append(resultat[:, i] + np.random.randn(resultat.shape[0]) * 0.5 +
         np.random.randn(1)*2)
 
-fig, ax = plt.subplots(figsize=(10, 5))
-for i in range(4):
-    ax.plot(times, noisy[i], label=f'measurement {i+1}', lw=0.5)
-plt.xlabel('Time')
-ax.set_title('Measurements of the position of the mass')
-ax.legend();
-
-plt.show()
-
-
 # %%
 # Set up the Estimation Problem.
 # --------------------------------
 #
 # If some measurement is considered more reliable, its weight w can be increased.
 #
-# objective = :math:`\int_{t_0}^{t_f} (w_1 (x_1 - noisy_{x_1})^2 + w_2 (x_2 - noisy_{x_2})^2 + w_3 (x_3 - noisy_{x_3})^2 + w_4 (x_4 - noisy_{x_4})^2)\, dt`
+# objective = :math:`\int_{t_0}^{t_f} (w_1 (x_1 - x_1^m)^2 + w_2 (x_2 - x_2^m)^2 + w_3 (x_3 - x_3^m)^2 + w_4 (x_4 - x_4^m)^2)\, dt`
 #
 state_symbols = [x1, x2, x3, x4, u1, u2, u3, u4]
 unknown_parameters = [c, k]
@@ -153,6 +142,7 @@ def obj_grad(free):
                     (free[3*num_nodes:4*num_nodes] - noisy[3]))
     return grad
 
+
 instance_constraints = (
     x1.subs({t: t0}) - x0[0],
     x2.subs({t: t0}) - x0[1],
@@ -164,6 +154,11 @@ instance_constraints = (
     u4.subs({t: t0}) - x0[7],
 )
 
+bounds = {
+    c: (0, 2),
+    k: (1, 3)
+}
+#instance_constraints = tuple()
 problem = Problem(
     obj,
     obj_grad,
@@ -173,13 +168,16 @@ problem = Problem(
     interval_value,
     known_parameter_map=par_map,
     instance_constraints=instance_constraints,
+    bounds=bounds,
     time_symbol=me.dynamicsymbols._t,
 )
 
 # %%
 # Initial guess.
 #
-initial_guess = np.array(list(np.random.randn(8*num_nodes + 2)))
+initial_guess = np.array(list(noisy[0]) + list(noisy[1]) + list(noisy[2]) +
+    list(noisy[3]) + list(np.zeros(4*num_nodes)) + [0.1, 0.1])
+
 # %%
 # Solve the Optimization Problem.
 #
@@ -203,3 +201,16 @@ error_max = max(np.max(error_x1), np.max(error_x2), np.max(error_x3),
     np.max(error_x4))
 print(f'Estimate of damping parameter is  {solution[-2]:.2f} %')
 print(f'Estimate ofthe spring constant is {solution[-1]:.2f} %')
+
+# %%
+fig, ax = plt.subplots(4, 1, figsize=(8, 8), sharex=True)
+for i in range(4):
+    ax[i].plot(times, noisy[i], label=str(qL[i]))
+ax[0].set_title('Measurements')
+ax[-1].set_xlabel('Time [sec]');
+
+
+# %%
+fig, ax = plt.subplots(8, 1, figsize=(8, 16), sharex=True)
+problem.plot_trajectories(solution, ax)
+plt.show()
