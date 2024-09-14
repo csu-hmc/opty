@@ -32,4 +32,5 @@ jobs:
       - name: Build Docs
         run: |
           cd docs
-          make html
+          # fail on any warnings
+          make html SPHINXOPTS="-W"

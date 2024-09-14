@@ -109,6 +109,10 @@ print(identified_msg)
 print(divider)
 
 # %%
+# Plot constraint violations.
+prob.plot_constraint_violations(solution)
+
+# %%
 # Simulate with the identified parameter.
 y_sim = odeint(eval_f, y0, time, args=(p_sol,))
 y1_sim = y_sim[:, 0]
