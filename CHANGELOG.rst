@@ -1,3 +1,8 @@
+Version 1.4.0.dev0
+==================
+
+- Dropped support for Python 3.8.
+
 Version 1.3.0
 =============
 
