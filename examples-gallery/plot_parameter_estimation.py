@@ -1,10 +1,10 @@
 # %%
 """
 
-Parameter Identification.
-=========================
+Parameter Identification of a Mass-Spring-Damper System.
+========================================================
 
-for parameter estimation it is common to collect measurements of a system's
+For parameter estimation it is common to collect measurements of a system's
 trajectories for distinct experiments. for example, if you are identifying the
 parameters of a mass-spring-damper system, you will exite the system with
 different initial conditions multiple times. The date cannot simply be stacked
@@ -17,9 +17,9 @@ simultaneously by passing the uncoupled differential equations to opty.
 
 For exaple:
 Four measurements of the location of a simple system consisting of a mass
-connected to a fixed point by a spring and a damper. The movement is in a
-horizontal direction. The the spring constant and the damping coefficient
-are to be estimated.
+connected to a fixed point by a spring and a damper are done. The movement
+is in horizontal direction. The the spring constant and the damping coefficient
+will be identified.
 
 
 **State Variables**
@@ -42,7 +42,7 @@ are to be estimated.
 
 """
 # %%
-# Set up the equations of motion and integrate them to get the noisy measurements.
+# Set up the equations of motion and integrate them to get the measurements.
 #
 import sympy as sm
 import numpy as np
@@ -71,6 +71,8 @@ eom = sm.Matrix([
 sm.pprint(eom)
 
 # %%
+# Create the measurements for this example.
+#
 rhs = np.array([
     u1,
     u2,
@@ -87,7 +89,6 @@ pL = [m, c, k, l0]
 
 rhs_lam = sm.lambdify(qL + pL, rhs)
 
-
 def gradient(t, x, args):
     return rhs_lam(*x, *args).reshape(8)
 
@@ -102,14 +103,14 @@ pL_vals = [1.0, 0.25, 1.0, 1.0]
 resultat1 = solve_ivp(gradient, t_span, x0, t_eval = times, args=(pL_vals,))
 resultat = resultat1.y.T
 
-noisy = []
+measurements = []
 np.random.seed(123)
 for i in range(4):
-    noisy.append(resultat[:, i] + np.random.randn(resultat.shape[0]) * 0.5 +
+    measurements.append(resultat[:, i] + np.random.randn(resultat.shape[0]) * 0.5 +
         np.random.randn(1)*2)
 
 # %%
-# Set up the Estimation Problem.
+# Set up the Identification Problem.
 # --------------------------------
 #
 # If some measurement is considered more reliable, its weight w can be increased.
@@ -124,22 +125,23 @@ par_map = {m: pL_vals[0], l0: pL_vals[3]}
 
 w =[1, 1, 1, 1]
 def obj(free):
-    return interval_value *np.sum((w[0] * free[:num_nodes] - noisy[0])**2 +
-            w[1] * (free[num_nodes:2*num_nodes] - noisy[1])**2 +
-            w[2] * (free[2*num_nodes:3*num_nodes] - noisy[2])**2 +
-            w[3] * (free[3*num_nodes:4*num_nodes] - noisy[3])**2
+    return interval_value *np.sum((w[0] * free[:num_nodes] - measurements[0])**2 +
+            w[1] * (free[num_nodes:2*num_nodes] - measurements[1])**2 +
+            w[2] * (free[2*num_nodes:3*num_nodes] - measurements[2])**2 +
+            w[3] * (free[3*num_nodes:4*num_nodes] - measurements[3])**2
 )
 
 
 def obj_grad(free):
     grad = np.zeros_like(free)
-    grad[:num_nodes] = 2 * w[0] * interval_value * (free[:num_nodes] - noisy[0])
+    grad[:num_nodes] = 2 * w[0] * interval_value * (free[:num_nodes] -
+                            measurements[0])
     grad[num_nodes:2*num_nodes] = 2 * w[1] * (interval_value *
-                    (free[num_nodes:2*num_nodes] - noisy[1]))
+                    (free[num_nodes:2*num_nodes] - measurements[1]))
     grad[2*num_nodes:3*num_nodes] = 2 * w[2] * (interval_value *
-                    (free[2*num_nodes:3*num_nodes] - noisy[2]))
+                    (free[2*num_nodes:3*num_nodes] - measurements[2]))
     grad[3*num_nodes:4*num_nodes] = 2 * w[3] * (interval_value *
-                    (free[3*num_nodes:4*num_nodes] - noisy[3]))
+                    (free[3*num_nodes:4*num_nodes] - measurements[3]))
     return grad
 
 
@@ -158,7 +160,7 @@ bounds = {
     c: (0, 2),
     k: (1, 3)
 }
-#instance_constraints = tuple()
+
 problem = Problem(
     obj,
     obj_grad,
@@ -167,7 +169,6 @@ problem = Problem(
     num_nodes,
     interval_value,
     known_parameter_map=par_map,
-    instance_constraints=instance_constraints,
     bounds=bounds,
     time_symbol=me.dynamicsymbols._t,
 )
@@ -175,8 +176,9 @@ problem = Problem(
 # %%
 # Initial guess.
 #
-initial_guess = np.array(list(noisy[0]) + list(noisy[1]) + list(noisy[2]) +
-    list(noisy[3]) + list(np.zeros(4*num_nodes)) + [0.1, 0.1])
+initial_guess = np.array(list(measurements[0]) + list(measurements[1]) +
+    list(measurements[2]) +list(measurements[3]) + list(np.zeros(4*num_nodes))
+    + [0.1, 0.1])
 
 # %%
 # Solve the Optimization Problem.
@@ -190,27 +192,18 @@ problem.plot_constraint_violations(solution)
 # Results obtained.
 #------------------
 #
-state_sol, input_sol, _ = parse_free(solution, len(state_symbols),
-    0, num_nodes)
-state_sol = state_sol.T
-error_x1 = (state_sol[:, 0] - resultat[:, 0]) / np.max(resultat[:, 0]) * 100
-error_x2 = (state_sol[:, 1] - resultat[:, 1]) / np.max(resultat[:, 1]) * 100
-error_x3 = (state_sol[:, 2] - resultat[:, 2]) / np.max(resultat[:, 2]) * 100
-error_x4 = (state_sol[:, 3] - resultat[:, 3]) / np.max(resultat[:, 3]) * 100
-error_max = max(np.max(error_x1), np.max(error_x2), np.max(error_x3),
-    np.max(error_x4))
-print(f'Estimate of damping parameter is  {solution[-2]:.2f} %')
-print(f'Estimate ofthe spring constant is {solution[-1]:.2f} %')
+print(f'Estimate of damping parameter is  {solution[-2]:.2f}')
+print(f'Estimate ofthe spring constant is {solution[-1]:.2f}')
 
 # %%
 fig, ax = plt.subplots(4, 1, figsize=(8, 8), sharex=True)
 for i in range(4):
-    ax[i].plot(times, noisy[i], label=str(qL[i]))
+    ax[i].plot(times, measurements[i], label=str(qL[i]))
+    ax[i].set_ylabel(f'measurement {i+1}')
 ax[0].set_title('Measurements')
-ax[-1].set_xlabel('Time [sec]');
-
+ax[-1].set_xlabel('Time [sec]')
+prevent_output = 0
 
 # %%
-fig, ax = plt.subplots(8, 1, figsize=(8, 16), sharex=True)
-problem.plot_trajectories(solution, ax)
+problem.plot_trajectories(solution)
 plt.show()
