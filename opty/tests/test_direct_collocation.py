@@ -1555,14 +1555,14 @@ def test_for_algebraic_eoms():
                             omega(0.0),
                             omega(duration))
 
-    # This will test that a compilation works.
+    # This will test that a ValueError is raised.
+    with raises(ValueError) as excinfo:
+        prob = Problem(
+            obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+            time_symbol=t,
+            bounds={T(t): (-2.0, 2.0)},
+        )
 
-    prob = Problem(
-        obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        time_symbol=t,
-        bounds={T(t): (-2.0, 2.0)},
-    )
-    with raises(ValueError):
-        eom = 'algebraic equations'
+    assert excinfo.type is ValueError
