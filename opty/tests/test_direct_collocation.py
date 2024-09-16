@@ -1513,3 +1513,56 @@ def test_known_and_unknown_order():
     assert col.unknown_parameters == (l2, m0, m2)
     assert col.parameters == (l1, l0, m3, g, m1, l2, m0, m2)
     assert col.state_symbols == (q0, q1, q2, q3, u0, u1, u2, u3)
+
+def test_for_algebraic_eoms():
+    """
+    If algebraic equations of motion are given to Problem, a ValueError should
+    be raised. This a a test for this
+    """
+
+    target_angle = np.pi
+    duration = 10.0
+    num_nodes = 500
+    interval_value = duration / (num_nodes - 1)
+
+    I, m, g, h, t = sym.symbols('I, m, g, h, t', real=True)
+    theta, omega, T = sym.symbols('theta, omega, T', cls=sym.Function)
+
+    state_symbols = (theta(t), omega(t))
+    specified_symbols = (T(t),)
+
+    # removed the .diff(t) from eom to get AEs
+    eom = sym.Matrix([theta(t) - omega(t),
+                     I*omega(t) + m*g*h*sym.sin(theta(t)) - T(t)])
+
+    # Specify the known system parameters.
+    par_map = {}
+    par_map[I] = 1.0
+    par_map[m] = 1.0
+    par_map[g] = 9.81
+    par_map[h] = 1.0
+
+    # Specify the objective function and it's gradient.
+    obj_func = sym.Integral(T(t)**2, t)
+    obj, obj_grad = create_objective_function(
+        obj_func, state_symbols, specified_symbols, tuple(), num_nodes,
+        interval_value, time_symbol=t)
+
+    # Specify the symbolic instance constraints, i.e. initial and end
+    # conditions.
+    instance_constraints = (theta(0.0),
+                            theta(duration) - target_angle,
+                            omega(0.0),
+                            omega(duration))
+
+    # This will test that a ValueError is raised.
+    with raises(ValueError) as excinfo:
+        prob = Problem(
+            obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+            time_symbol=t,
+            bounds={T(t): (-2.0, 2.0)},
+        )
+
+    assert excinfo.type is ValueError
