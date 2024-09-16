@@ -1556,17 +1556,13 @@ def test_for_algebraic_eoms():
                             omega(duration))
 
     # This will test that a compilation works.
-    try:
-        prob = Problem(
-            obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
-            known_parameter_map=par_map,
-            instance_constraints=instance_constraints,
-            time_symbol=t,
-            bounds={T(t): (-2.0, 2.0)},
+
+    prob = Problem(
+        obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        bounds={T(t): (-2.0, 2.0)},
     )
-    except ValueError:
-        print('ValueError found correctly')
-    else:
-        raise Exception()
-
-
+    with raises(ValueError):
+        eom = 'algebraic equations'
