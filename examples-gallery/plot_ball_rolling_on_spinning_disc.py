@@ -349,7 +349,7 @@ prob = Problem(
 )
 
 # %%
-# The initial guess should meet the configuration constrains. Those below are
+# The initial guess should meet the configuration constraints. Those below are
 # used to get a better initial guess, stored in
 # 'ball_rolling_on_spinning_disc_solution.npy'.
 
