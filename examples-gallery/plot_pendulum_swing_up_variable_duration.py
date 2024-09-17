@@ -89,7 +89,7 @@ print(info['obj_val'])
 # %%
 # Here the better initial conditions are saved and stored
 
-# ``np.save('pendulum_swing_up_variable_duration_solution', solution)``
+# ```np.save('pendulum_swing_up_variable_duration_solution', solution)```
 
 # %%
 # Plot the optimal state and input trajectories.
