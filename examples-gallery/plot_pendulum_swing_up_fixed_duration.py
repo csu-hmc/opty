@@ -1,3 +1,4 @@
+# %%
 """
 Fixed Duration Pendulum Swing Up
 ================================
@@ -78,12 +79,18 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
                time_symbol=t)
 
 # %%
-# Use a random positive initial guess.
+# Use a random positive initial guess. This will be used for a better initial
+# guess, stored in pendulum_swing_up_fixed_duration.solution.npy
 initial_guess = np.random.randn(prob.num_free)
 
 # %%
 # Find the optimal solution.
+initial_guess = np.load('pendulum_swing_up_fixed_duration.solution.npy')
 solution, info = prob.solve(initial_guess)
+
+# %%
+# The solution will be saved like this:
+# ```np.save('pendulum_swing_up_fixed_duration.solution.npy', solution)```
 print(info['status_msg'])
 print(info['obj_val'])
 
@@ -101,6 +108,13 @@ prob.plot_objective_value()
 
 # %%
 # Animate the pendulum swing up.
+solution1 = []
+for i in range(len(solution)):
+    if i % 5 == 0:
+        solution1.append(solution[i])
+solution1.append(solution[-1])
+solution = solution1
+num_nodes = int(len(solution)/3)
 time = np.linspace(0.0, duration, num=num_nodes)
 angle = solution[:num_nodes]
 
@@ -130,7 +144,7 @@ def animate(i):
 
 
 ani = animation.FuncAnimation(fig, animate, range(num_nodes),
-                              interval=int(interval_value*1000), blit=True,
+                              interval=int(interval_value*1000*5), blit=True,
                               init_func=init)
 
 plt.show()
