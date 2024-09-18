@@ -1,3 +1,4 @@
+# %%
 """
 Parallel Park a Car
 ===================
@@ -185,10 +186,14 @@ prob.plot_trajectories(initial_guess)
 
 # %%
 # Find the optimal solution.
+initial_guess = np.load('parallel_park_solution.npy')
 solution, info = prob.solve(initial_guess)
 print(info['status_msg'])
 print(info['obj_val'])
 
+# %%
+#Improved initial_guess is stored like this
+# ```np.save('parallel_park_solution.npy', solution)```
 # %%
 # Plot the optimal state and input trajectories.
 prob.plot_trajectories(solution)
@@ -223,8 +228,18 @@ eval_point_coords = sm.lambdify((state_symbols, specified_symbols,
 coords = []
 for xi, ui in zip(xs.T, us.T):
     coords.append(eval_point_coords(xi, ui, list(par_map.values())))
-coords = np.array(coords)  # shape(600, 3, 8)
+coords = np.array(coords)  # shape(501, 3, 5)
 
+coords1 = []
+time1 = []
+for i in range(coords.shape[0]):
+    if i % 3 == 0:
+        coords1.append(coords[i, :, :])
+        time1.append(time[i])
+coords1.append(coords[-1, :, :])
+time1.append(time[-1])
+time = np.array(time1)
+coords = np.array(coords1)
 
 def frame(i):
 
@@ -261,12 +276,12 @@ def animate(i):
 
 
 ani = animation.FuncAnimation(fig, animate, len(time),
-                              interval=int(interval_value*1000))
+                              interval=int(interval_value*1000*1))
 
 # %%
 # A frame from the animation.
 
 # sphinx_gallery_thumbnail_number = 7
-frame(450)
+frame(140)
 
 plt.show()
