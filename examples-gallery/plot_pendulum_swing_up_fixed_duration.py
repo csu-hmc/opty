@@ -79,18 +79,14 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
                time_symbol=t)
 
 # %%
-# Use a random positive initial guess. This will be used for a better initial
-# guess, stored in pendulum_swing_up_fixed_duration.solution.npy
+# Use a random positive initial guess.
 initial_guess = np.random.randn(prob.num_free)
 
 # %%
 # Find the optimal solution.
-initial_guess = np.load('pendulum_swing_up_fixed_duration.solution.npy')
 solution, info = prob.solve(initial_guess)
 
 # %%
-# The solution will be saved like this:
-# ```np.save('pendulum_swing_up_fixed_duration.solution.npy', solution)```
 print(info['status_msg'])
 print(info['obj_val'])
 
