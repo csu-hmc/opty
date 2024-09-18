@@ -37,6 +37,7 @@ import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 from opty import Problem
+from opty.utils import parse_free
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import patches
@@ -197,6 +198,20 @@ prob.plot_trajectories(solution)
 
 # %%
 # animate the solution.
+
+solution2 = []
+state_sol, _, _, h_var = parse_free(solution, len(state_symbols),
+        len(specified_symbols),num_nodes, variable_duration=True)
+for i in range(len(state_symbols)):
+    solution1 = []
+    for j in range(num_nodes):
+        if j % 4 == 0:
+            solution1.append(state_sol[i][j])
+    solution2 += solution1
+num_nodes = len(solution1)
+solution = solution2 + [h_var]
+
+
 P1_x = np.empty(num_nodes)
 P1_y = np.empty(num_nodes)
 P2_x = np.empty(num_nodes)
@@ -260,8 +275,8 @@ def animate_pendulum(time, P1_x, P1_y, P2_x, P2_y):
     return fig, ax, line1, line2, recht
 
 
-duration = (num_nodes - 1) * solution[-1]
-times = np.linspace(0.0, duration, num=num_nodes)
+duration = (num_nodes - 1) * solution[-1] *4
+times = np.linspace(0.0, duration, num_nodes)
 fig, ax, line1, line2, recht = animate_pendulum(times, P1_x, P1_y, P2_x, P2_y)
 
 
@@ -281,7 +296,7 @@ def animate(i):
 
 
 anim = animation.FuncAnimation(fig, animate, frames=num_nodes,
-                               interval=solution[-1]*1000.0)
+                               interval=solution[-1]*1000.0 * 4)
 
 # %%
 # A frame from the animation.
