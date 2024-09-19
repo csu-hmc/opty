@@ -1,4 +1,3 @@
-# %%
 """
 Upright a Double Pendulum
 =========================
@@ -37,12 +36,13 @@ import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 from opty import Problem
+from opty.utils import parse_free
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import patches
 
 # %%
-# Generate the nonholonomic equations of motion of the system.
+# Generate the equations of motion of the system.
 N, A1, A2 = sm.symbols('N A1, A2', cls=me.ReferenceFrame)
 t = me.dynamicsymbols._t
 O, P1, P2, P3 = sm.symbols('O P1 P2 P3', cls=me.Point)
@@ -77,10 +77,15 @@ kd = sm.Matrix([q1.diff(t) - u1, q2.diff(t) - u2, q3.diff(t) - u3])
 q_ind = [q1, q2, q3]
 u_ind = [u1, u2, u3]
 
-KM = me.KanesMethod(N, q_ind=q_ind, u_ind=u_ind, kd_eqs=kd)
-(fr, frstar) = KM.kanes_equations(bodies, loads=loads)
-EOM = kd.col_join(fr + frstar)
-sm.pprint(sm.trigsimp(EOM))
+KM = me.KanesMethod(
+    N,
+    q_ind=q_ind,
+    u_ind=u_ind,
+    kd_eqs=kd
+)
+fr, frstar = KM.kanes_equations(bodies, loads=loads)
+eom = kd.col_join(fr + frstar)
+sm.pprint(sm.trigsimp(eom))
 
 # %%
 # Define various objects to be use in the optimization problem.
@@ -142,25 +147,28 @@ instance_constraints = (tuple(xi.subs({t: 0}) - xi_val for xi, xi_val in
                               initial_state_constraints.items()) +
                         tuple(xi.subs({t: duration}) - xi_val for xi, xi_val in
                               final_state_constraints.items()))
-print(instance_constraints)
 
 # %%
 # Bounding h > 0 helps avoid 'solutions' with h < 0.
-bounds = {F: (-150.0, 150.0), q1: (-5.0, 5.0), h: (1.e-5, 1.0)}
+bounds = {F: (-150.0, 150.0),
+          q1: (-5.0, 5.0),
+          h: (0.0, 1.0)
+}
 
 # %%
 # Create an optimization problem and solve it.
 prob = Problem(
     obj,
     obj_grad,
-    EOM,
+    eom,
     state_symbols,
     num_nodes,
     interval_value,
     known_parameter_map=par_map,
     instance_constraints=instance_constraints,
     time_symbol=t,
-    bounds=bounds)
+    bounds=bounds
+)
 
 # Initial guess.
 initial_guess = np.zeros(prob.num_free)
@@ -178,10 +186,17 @@ initial_guess[-1] = 0.01
 prob.plot_trajectories(initial_guess)
 
 # Find the optimal solution.
+# As initial guess the solution of a previous run, stored in
+# 'two_link_pendulum_on_a_cart_solution.npy' is used.
+initial_guess = np.load('two_link_pendulum_on_a_cart_solution.npy')
 solution, info = prob.solve(initial_guess)
 print('Message from optimizer:', info['status_msg'])
 print('Iterations needed', len(prob.obj_value))
 print(f"Objective value {solution[-1]: .3e}")
+
+# %%
+#This is where the solution is saved to give better initial conditions
+# ```np.save('two_link_pendulum_on_a_cart_solution.npy', solution)```
 
 # %%
 # Plot the evolution of the objective function.
@@ -197,6 +212,14 @@ prob.plot_trajectories(solution)
 
 # %%
 # animate the solution.
+
+state_sol, _, _, h_var = parse_free(solution, len(state_symbols),
+        len(specified_symbols),num_nodes, variable_duration=True)
+state_sol1 = state_sol.T[::4, :]
+num_nodes = state_sol1.shape[0]
+print('num nodes', num_nodes)
+solution = list(state_sol1.T.flatten()) + [h_var]
+
 P1_x = np.empty(num_nodes)
 P1_y = np.empty(num_nodes)
 P2_x = np.empty(num_nodes)
@@ -260,8 +283,8 @@ def animate_pendulum(time, P1_x, P1_y, P2_x, P2_y):
     return fig, ax, line1, line2, recht
 
 
-duration = (num_nodes - 1) * solution[-1]
-times = np.linspace(0.0, duration, num=num_nodes)
+duration = (num_nodes - 1) * solution[-1] *4
+times = np.linspace(0.0, duration, num_nodes)
 fig, ax, line1, line2, recht = animate_pendulum(times, P1_x, P1_y, P2_x, P2_y)
 
 
@@ -281,7 +304,7 @@ def animate(i):
 
 
 anim = animation.FuncAnimation(fig, animate, frames=num_nodes,
-                               interval=solution[-1]*1000.0)
+                               interval=solution[-1]*1000.0 * 4)
 
 # %%
 # A frame from the animation.
