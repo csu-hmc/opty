@@ -351,7 +351,7 @@ prob = Problem(
 # %%
 # The initial guess should meet the configuration constraints. Those below are
 # used to get a better initial guess, stored in
-# 'ball_rolling_on_spinning_disc_solution.npy'.
+# ```ball_rolling_on_spinning_disc_solution.npy```.
 
 i1b = np.zeros(num_nodes)
 i2 = np.linspace(initial_state_constraints[x],
