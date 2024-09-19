@@ -1,4 +1,3 @@
-# %%
 """
 Fixed Duration Pendulum Swing Up
 ================================
@@ -104,14 +103,7 @@ prob.plot_objective_value()
 
 # %%
 # Animate the pendulum swing up.
-solution1 = []
-for i in range(len(solution)):
-    if i % 5 == 0:
-        solution1.append(solution[i])
-solution1.append(solution[-1])
-solution = solution1
-num_nodes = int(len(solution)/3)
-time = np.linspace(0.0, duration, num=num_nodes)
+time = np.linspace(0, duration, num_nodes)
 angle = solution[:num_nodes]
 
 fig = plt.figure()
@@ -139,7 +131,7 @@ def animate(i):
     return line, time_text
 
 
-ani = animation.FuncAnimation(fig, animate, range(num_nodes),
+ani = animation.FuncAnimation(fig, animate, range(0, num_nodes, 5),
                               interval=int(interval_value*1000*5), blit=True,
                               init_func=init)
 
