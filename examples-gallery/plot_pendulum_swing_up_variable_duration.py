@@ -1,4 +1,3 @@
-# %%
 """
 Variable Duration Pendulum Swing Up
 ===================================
@@ -80,7 +79,9 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, h,
 initial_guess = np.zeros(prob.num_free)
 
 # %%
-# Find the optimal solution.
+# Find the optimal solution. Initial guess is stored in the file
+# ```pendulum_swing_up_variable_duration_solution.npy```
+
 initial_guess = np.load('pendulum_swing_up_variable_duration_solution.npy')
 solution, info = prob.solve(initial_guess)
 print(info['status_msg'])
@@ -88,7 +89,6 @@ print(info['obj_val'])
 
 # %%
 # Here the better initial conditions are saved and stored
-
 # ```np.save('pendulum_swing_up_variable_duration_solution', solution)```
 
 # %%
@@ -109,17 +109,6 @@ interval_value = solution[-1]
 time = np.linspace(0.0, num_nodes*interval_value, num=num_nodes)
 angle = solution[:num_nodes]
 
-time1 = []
-angle1 = []
-for i in range(len(time)):
-    if i % 5 == 0:
-        time1.append(time[i])
-        angle1.append(angle[i])
-time1.append(time[-1])
-angle1.append(angle[-1])
-
-
-
 fig = plt.figure()
 ax = fig.add_subplot(111, aspect='equal', autoscale_on=False,
                      xlim=(-2, 2), ylim=(-2, 2))
@@ -137,15 +126,16 @@ def init():
 
 
 def animate(i):
-    x = [0, par_map[d]*np.sin(angle1[i])]
-    y = [0, -par_map[d]*np.cos(angle1[i])]
+    x = [0, par_map[d]*np.sin(angle[i])]
+    y = [0, -par_map[d]*np.cos(angle[i])]
 
     line.set_data(x, y)
-    time_text.set_text(time_template.format(5*i*interval_value))
+    time_text.set_text(time_template.format(i*interval_value))
     return line, time_text
 
-
-ani = animation.FuncAnimation(fig, animate, range(int(num_nodes/5)),
+time = list(time)
+time[-5:] = [time[-1]] * 5
+ani = animation.FuncAnimation(fig, animate, range(0, int(num_nodes), 5),
                               interval=int(interval_value*1000*5),
                               blit=True, init_func=init)
 
