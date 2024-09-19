@@ -144,18 +144,6 @@ def obj_grad(free):
                     (free[3*num_nodes:4*num_nodes] - measurements[3]))
     return grad
 
-
-instance_constraints = (
-    x1.subs({t: t0}) - x0[0],
-    x2.subs({t: t0}) - x0[1],
-    x3.subs({t: t0}) - x0[2],
-    x4.subs({t: t0}) - x0[3],
-    u1.subs({t: t0}) - x0[4],
-    u2.subs({t: t0}) - x0[5],
-    u3.subs({t: t0}) - x0[6],
-    u4.subs({t: t0}) - x0[7],
-)
-
 bounds = {
     c: (0, 2),
     k: (1, 3)
