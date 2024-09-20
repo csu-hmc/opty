@@ -41,16 +41,12 @@ plays no role in this model it is disregarded.
 """
 import sympy.physics.mechanics as me
 import sympy as sm
-
 import numpy as np
-
 from scipy.optimize import fsolve
 from scipy.interpolate import CubicSpline
-
 from opty.direct_collocation import Problem
 from opty.utils import parse_free
 from opty.utils import create_objective_function
-
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
