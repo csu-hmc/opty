@@ -18,8 +18,8 @@ simultaneously by passing the uncoupled differential equations to opty.
 Mass-spring-damper Example
 ==========================
 
-The location of a simple system consisting of a mass connected to a fixed point
-by a spring and a damper are simulated and recorded as noisy measurements. The
+The position of a simple system consisting of a mass connected to a fixed point
+by a spring and a damper is simulated and recorded as noisy measurements. The
 spring constant and the damping coefficient will be identified.
 
 **State Variables**
@@ -105,9 +105,10 @@ measurements = []
 np.random.seed(123)
 for i in range(4):
     x0 = 4.0*np.random.randn(8)
-    sol = solve_ivp(lambda t, x, args: eval_rhs(*x, *args).squeeze(),
+    sol = solve_ivp(lambda t, x, p: eval_rhs(*x, *p).squeeze(),
                     (t0, tf), x0, t_eval=times, args=(par_vals,))
-    measurements.append(sol.y.T[:, i] + 2.0*np.random.randn(len(sol.t)))
+    measurements.append(sol.y[0, :] +
+                        2.0*np.random.randn(len(sol.t)))
 measurements = np.array(measurements)
 
 print(measurements.shape)
@@ -117,9 +118,9 @@ print(measurements.shape)
 # --------------------------------
 #
 # The goal is to identify the damping coefficient :math:`c` and the spring
-# constant :math:`k`. The objective is to minimize the least square difference
-# in the optimal simulation as compared to the measurements.  If some
-# measurement is considered more reliable, its weight :math:`w` may be
+# constant :math:`k`. The objective :math:`J` is to minimize the least square
+# difference in the optimal simulation as compared to the measurements.  If
+# some measurement is considered more reliable, its weight :math:`w` may be
 # increased relative to the other measurements.
 #
 # .. math::
@@ -138,8 +139,8 @@ w = [1.0, 1.0, 1.0, 1.0]
 
 def obj(free):
     return interval_value*np.sum(
-        w[0]*(free[:num_nodes] - measurements[0])**2 +
-        w[1]*(free[num_nodes:2*num_nodes] - measurements[1])**2 +
+        w[0]*(free[0*num_nodes:1*num_nodes] - measurements[0])**2 +
+        w[1]*(free[1*num_nodes:2*num_nodes] - measurements[1])**2 +
         w[2]*(free[2*num_nodes:3*num_nodes] - measurements[2])**2 +
         w[3]*(free[3*num_nodes:4*num_nodes] - measurements[3])**2)
 
@@ -147,9 +148,9 @@ def obj(free):
 def obj_grad(free):
     grad = np.zeros_like(free)
     grad[:num_nodes] = 2*w[0]*interval_value*(
-        free[:num_nodes] - measurements[0])
+        free[0*num_nodes:1*num_nodes] - measurements[0])
     grad[num_nodes:2*num_nodes] = 2*w[1]*interval_value*(
-        free[num_nodes:2*num_nodes] - measurements[1])
+        free[1*num_nodes:2*num_nodes] - measurements[1])
     grad[2*num_nodes:3*num_nodes] = 2*w[2]*interval_value*(
         free[2*num_nodes:3*num_nodes] - measurements[2])
     grad[3*num_nodes:4*num_nodes] = 2*w[3]*interval_value*(
@@ -165,8 +166,8 @@ print(par_map)
 
 # %%
 bounds = {
-    c: (0.01, 1),
-    k: (0.1, 10),
+    c: (0.01, 2.0),
+    k: (0.1, 10.0),
 }
 
 problem = Problem(
@@ -212,8 +213,8 @@ problem.plot_constraint_violations(solution)
 # %%
 # The identified parameters are:
 #
-print(f'Estimate of damping parameter is {solution[-2]: 1.2f}')
-print(f'Estimate ofthe spring constant is {solution[-1]: 1.2f}')
+print(f'Estimate of damping coefficient is {solution[-2]: 1.2f}')
+print(f'Estimate of the spring constant is {solution[-1]: 1.2f}')
 
 # %%
 # Plot the Measurements and the Estimated Trajectories
