@@ -1,24 +1,26 @@
 """
-Parameter Identification from Non-Contiguous Measurements.
-==========================================================
+Parameter Identification from Noncontiguous Measurements
+========================================================
 
-For parameter estimation it is common to collect measurements of a system's
-trajectories for distinct experiments. for example, if you are identifying the
-parameters of a mass-spring-damper system, you will exite the system with
-different initial conditions multiple times. The date cannot simply be stacked
-and the identification run because the measurement data would be discontinuous
-between trials.
-A work around in opty is to creat a set of differential equations with unique
-state variables. For each measurement trial that all share the same constant
+In parameter estimation it is common to collect measurements of a system's
+trajectories from distinct experiments. For example, if you are identifying the
+parameters of a mass-spring-damper system, you may excite the system with
+different initial conditions multiple times and measure the position of the
+mass. The data cannot simply be stacked end-to-end in time and the
+identification run because the measurement data would be discontinuous between
+each measurement trial.
+
+A workaround in opty is to create a set of differential equations with unique
+state variables for each measurement trial that all share the same constant
 parameters. You can then identify the parameters from all measurement trials
 simultaneously by passing the uncoupled differential equations to opty.
 
-For exaple:
-Four measurements of the location of a simple system consisting of a mass
-connected to a fixed point by a spring and a damper are done. The movement
-is in horizontal direction. The the spring constant and the damping coefficient
-will be identified.
+Mass-spring-damper Example
+==========================
 
+The location of a simple system consisting of a mass connected to a fixed point
+by a spring and a damper are simulated and recorded as noisy measurements. The
+spring constant and the damping coefficient will be identified.
 
 **State Variables**
 
@@ -33,24 +35,28 @@ will be identified.
 
 **Parameters**
 
-- :math:`m`: mass for both systems system [kg]
-- :math:`c`: damping coefficient for both systems [Ns/m]
-- :math:`k`: spring constant for both systems [N/m]
+- :math:`m`: mass [kg]
+- :math:`c`: linear damping coefficient [Ns/m]
+- :math:`k`: linear spring constant [N/m]
 - :math:`l_0`: natural length of the spring [m]
 
 """
-# %%
-# Set up the equations of motion and integrate them to get the measurements.
-#
 import sympy as sm
-import numpy as np
 import sympy.physics.mechanics as me
-import matplotlib.pyplot as plt
+import numpy as np
 from scipy.integrate import solve_ivp
 from opty import Problem
-from opty.utils import parse_free
+import matplotlib.pyplot as plt
 
-x1, x2, x3, x4, u1, u2, u3, u4 = me.dynamicsymbols('x1, x2, x3, x4, u1, u2, u3, u4')
+# %%
+# Equations of Motion
+# -------------------
+#
+# Set up the four sets of equations of motion, one for each of the four
+# measurements.
+#
+x1, x2, x3, x4 = me.dynamicsymbols('x1, x2, x3, x4')
+u1, u2, u3, u4 = me.dynamicsymbols('u1, u2, u3, u4')
 m, c, k, l0 = sm.symbols('m, c, k, l0')
 t = me.dynamicsymbols._t
 
@@ -64,141 +70,159 @@ eom = sm.Matrix([
     m*u3.diff(t) + c*u3 + k*(x3 - l0),
     m*u4.diff(t) + c*u4 + k*(x4 - l0),
 ])
-# %%
-# Equations of motion.
+
 sm.pprint(eom)
 
 # %%
-# Create the measurements for this example. To get the measurements, the
-# equations of motion are integrated, and then noise is added to each point in
-# time of the solution. Also a random shift is added to each measurement.
+# Generate Noisy Measurement Data
+# -------------------------------
 #
-rhs = np.array([
+# Create four sets of measurements with different initial conditions. To get
+# the measurements, the equations of motion are integrated, and then noise is
+# added to each point in time of the solution.
+#
+rhs = sm.Matrix([
     u1,
     u2,
     u3,
     u4,
-    1/m * (-c*u1 - k*(x1 - l0)),
-    1/m * (-c*u2 - k*(x2 - l0)),
-    1/m * (-c*u3 - k*(x3 - l0)),
-    1/m * (-c*u4 - k*(x4 - l0)),
+    1/m*(-c*u1 - k*(x1 - l0)),
+    1/m*(-c*u2 - k*(x2 - l0)),
+    1/m*(-c*u3 - k*(x3 - l0)),
+    1/m*(-c*u4 - k*(x4 - l0)),
 ])
+states = [x1, x2, x3, x4, u1, u2, u3, u4]
+parameters = [m, c, k, l0]
+par_vals = [1.0, 0.25, 1.0, 1.0]
 
-qL = [x1, x2, x3, x4, u1, u2, u3, u4]
-pL = [m, c, k, l0]
+eval_rhs = sm.lambdify(states + parameters, rhs)
 
-rhs_lam = sm.lambdify(qL + pL, rhs)
-
-def gradient(t, x, args):
-    return rhs_lam(*x, *args).reshape(8)
-
-t0, tf = 0, 20
+t0, tf = 0.0, 20.0
 num_nodes = 500
-times = np.linspace(t0, tf, num_nodes)
-t_span = (t0, tf)
-
-x0 = np.array([2, 3, 4, 5, 0, 0, 0, 0])
-pL_vals = [1.0, 0.25, 1.0, 1.0]
-
-resultat1 = solve_ivp(gradient, t_span, x0, t_eval = times, args=(pL_vals,))
-resultat = resultat1.y.T
+times = np.linspace(t0, tf, num=num_nodes)
 
 measurements = []
 np.random.seed(123)
 for i in range(4):
-    measurements.append(resultat[:, i] + np.random.randn(resultat.shape[0]) * 0.5 +
-        np.random.randn(1)*2)
+    x0 = 4.0*np.random.randn(8)
+    sol = solve_ivp(lambda t, x, args: eval_rhs(*x, *args).squeeze(),
+                    (t0, tf), x0, t_eval=times, args=(par_vals,))
+    measurements.append(sol.y.T[:, i] + 2.0*np.random.randn(len(sol.t)))
+measurements = np.array(measurements)
+
+print(measurements.shape)
 
 # %%
-# Set up the Identification Problem.
-# ----------------------------------
+# Setup the Identification Problem
+# --------------------------------
 #
-# If some measurement is considered more reliable, its weight w may be increased.
+# The goal is to identify the damping coefficient :math:`c` and the spring
+# constant :math:`k`. The objective is to minimize the least square difference
+# in the optimal simulation as compared to the measurements.  If some
+# measurement is considered more reliable, its weight :math:`w` may be
+# increased relative to the other measurements.
 #
-# objective = :math:`\int_{t_0}^{t_f} (w_1 (x_1 - x_1^m)^2 + w_2 (x_2 - x_2^m)^2 + w_3 (x_3 - x_3^m)^2 + w_4 (x_4 - x_4^m)^2)\, dt`
+# .. math::
 #
-state_symbols = [x1, x2, x3, x4, u1, u2, u3, u4]
-unknown_parameters = [c, k]
-
+#    J(x_1, x_2, x_3, x_4) = \\
+#    \int_{t_0}^{t_f} \left(
+#    w_1 (x_1 - x_1^m)^2 +
+#    w_2 (x_2 - x_2^m)^2 +
+#    w_3 (x_3 - x_3^m)^2 +
+#    w_4 (x_4 - x_4^m)^2 \right) dt
+#
 interval_value = (tf - t0) / (num_nodes - 1)
-par_map = {m: pL_vals[0], l0: pL_vals[3]}
 
-w =[1, 1, 1, 1]
+w = [1.0, 1.0, 1.0, 1.0]
+
+
 def obj(free):
-    return interval_value *np.sum((w[0] * free[:num_nodes] - measurements[0])**2 +
-            w[1] * (free[num_nodes:2*num_nodes] - measurements[1])**2 +
-            w[2] * (free[2*num_nodes:3*num_nodes] - measurements[2])**2 +
-            w[3] * (free[3*num_nodes:4*num_nodes] - measurements[3])**2
-)
+    return interval_value*np.sum(
+        w[0]*(free[:num_nodes] - measurements[0])**2 +
+        w[1]*(free[num_nodes:2*num_nodes] - measurements[1])**2 +
+        w[2]*(free[2*num_nodes:3*num_nodes] - measurements[2])**2 +
+        w[3]*(free[3*num_nodes:4*num_nodes] - measurements[3])**2)
 
 
 def obj_grad(free):
     grad = np.zeros_like(free)
-    grad[:num_nodes] = 2 * w[0] * interval_value * (free[:num_nodes] -
-                            measurements[0])
-    grad[num_nodes:2*num_nodes] = 2 * w[1] * (interval_value *
-                    (free[num_nodes:2*num_nodes] - measurements[1]))
-    grad[2*num_nodes:3*num_nodes] = 2 * w[2] * (interval_value *
-                    (free[2*num_nodes:3*num_nodes] - measurements[2]))
-    grad[3*num_nodes:4*num_nodes] = 2 * w[3] * (interval_value *
-                    (free[3*num_nodes:4*num_nodes] - measurements[3]))
+    grad[:num_nodes] = 2*w[0]*interval_value*(
+        free[:num_nodes] - measurements[0])
+    grad[num_nodes:2*num_nodes] = 2*w[1]*interval_value*(
+        free[num_nodes:2*num_nodes] - measurements[1])
+    grad[2*num_nodes:3*num_nodes] = 2*w[2]*interval_value*(
+        free[2*num_nodes:3*num_nodes] - measurements[2])
+    grad[3*num_nodes:4*num_nodes] = 2*w[3]*interval_value*(
+        free[3*num_nodes:4*num_nodes] - measurements[3])
     return grad
 
+
+# %%
+# By not including :math:`c` and :math:`k` in the parameter map, they will be
+# treated as unknown parameters.
+par_map = {m: par_vals[0], l0: par_vals[3]}
+print(par_map)
+
+# %%
 bounds = {
-    c: (0, 2),
-    k: (1, 3)
+    c: (0.01, 1),
+    k: (0.1, 10),
 }
 
 problem = Problem(
     obj,
     obj_grad,
     eom,
-    state_symbols,
+    states,
     num_nodes,
     interval_value,
     known_parameter_map=par_map,
-    bounds=bounds,
     time_symbol=me.dynamicsymbols._t,
+    integration_method='midpoint',
+    bounds=bounds,
 )
 
 # %%
-# Initial guess.
-# It is reasonable to use the measurements as initial guess for the state.
+# Create an Initial Guess
+# -----------------------
 #
-initial_guess = np.array(list(measurements[0]) + list(measurements[1]) +
-    list(measurements[2]) +list(measurements[3]) + list(np.zeros(4*num_nodes))
-    + [0.1, 0.1])
+# It is reasonable to use the measurements as initial guess for the states
+# because they would be available. Here, only the measurements of the position
+# are used and the speeds are set to zero. The last two values are the guesses
+# for :math:`c` and :math:`k`, respectively.
+#
+initial_guess = np.hstack((np.array(measurements).flatten(),  # x
+                           np.zeros(4*num_nodes),  # u
+                           [0.1, 3.0]))  # c, k
 
 # %%
-# Solve the optimization problem.
+# Solve the Optimization Problem
+# ------------------------------
+#
 #
 solution, info = problem.solve(initial_guess)
 print(info['status_msg'])
+
+# %%
 problem.plot_objective_value()
+
 # %%
 problem.plot_constraint_violations(solution)
-# %%
-# Results obtained.
-#------------------
-#
-print(f'Estimate of damping parameter is  {solution[-2]:.2f}')
-print(f'Estimate ofthe spring constant is {solution[-1]:.2f}')
 
 # %%
-# Plot the Measurements and the Estimated Trajectories.
-# -----------------------------------------------------
+# The identified parameters are:
 #
-fig, ax = plt.subplots(4, 1, figsize=(8, 8), sharex=True)
+print(f'Estimate of damping parameter is {solution[-2]: 1.2f}')
+print(f'Estimate ofthe spring constant is {solution[-1]: 1.2f}')
+
+# %%
+# Plot the Measurements and the Estimated Trajectories
+# ----------------------------------------------------
+#
+fig, ax = plt.subplots(8, 1, figsize=(6, 8), sharex=True)
 for i in range(4):
-    ax[i].plot(times, measurements[i], label=str(qL[i]))
-    ax[i].set_ylabel(f'measurement {i+1}')
-ax[0].set_title('Measurements')
-ax[-1].set_xlabel('Time [sec]')
-prevent_output = 0
+    ax[i].plot(times, measurements[i])
+problem.plot_trajectories(solution, axes=ax)
 
-# %%
-problem.plot_trajectories(solution)
-#
 # sphinx_gallery_thumbnail_number = 3
-
 plt.show()
