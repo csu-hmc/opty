@@ -1,4 +1,3 @@
-# %%
 """
 
 Two Body Skateboard
@@ -41,8 +40,9 @@ plays no role in this model it is disregarded.
 
 """
 import sympy.physics.mechanics as me
-import numpy as np
 import sympy as sm
+
+import numpy as np
 
 from scipy.optimize import fsolve
 from scipy.interpolate import CubicSpline
@@ -257,13 +257,16 @@ bounds = {
 }
 # %%
 # Solve the optimization problem.
+# -------------------------------
+#
 # For this problem opty does not find a solution unless either the curves are
 # straight lines or the initial guess is very close to the solution.
 # So with the program below I iterate from the straight curve to the curve
 # with the desired parameters. Solutions are the initial guess of the next
 # iteration. They are stored in 'skate_solution.npy'.
 # For this example, I use the stored solution to save time.
-'''
+
+"""
 inkrement = 0.01
 initial_guess = np.ones((len(state_symbols) + len(specified_symbols)) * num_nodes) * 0.01
 
@@ -304,8 +307,12 @@ for i in range(27):
     print('Iterations needed',len(prob.obj_value))
     print(f"objective value {info['obj_val']:.3e} \n")
     initial_guess = solution
-'''
-
+np.save('skate_solution', solution)
+"""
+prevent_output = 1
+# %%
+# The solution obtained from above and stored in 'skate_solution.npy'
+# is used here to get the final solution.
 par_map[b] = 0.27
 x0 = 1.0
 args = (x1, q01, par_map[a], par_map[b], par_map[l])
@@ -333,31 +340,24 @@ prob = Problem(
 )
 
 initial_guess = np.load('skate_solution.npy')
-
 solution, info = prob.solve(initial_guess)
 print('message from optimizer:', info['status_msg'])
 print('Iterations needed',len(prob.obj_value))
 print(f"objective value {info['obj_val']:.3e} \n")
 prob.plot_objective_value()
 # %%
-# Plot the results.
-
-fig, ax = plt.subplots(16, 1, figsize=(8, 1.5*16), sharex=True,
-            tight_layout=True)
-prob.plot_trajectories(solution, ax)
-# %%
 # Plot the constraint violations.
 prob.plot_constraint_violations(solution)
+
+# %%
+# Plot the results.
+prob.plot_trajectories(solution)
 
 # %%
 # Animate the Simulation.
 # -----------------------
 #
 fps = 10
-def add_point_to_data(line, x, y):
-    """this function draws a line to trace the point(x|y)"""
-    old_x, old_y = line.get_data()
-    line.set_data(np.append(old_x, x), np.append(old_y, y))
 
 state_vals, input_vals, _ = parse_free(solution, len(state_symbols),
         len(specified_symbols), num_nodes)
