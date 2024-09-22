@@ -85,6 +85,7 @@ u_ind = u[: number_of_measurements]
 u_dep = u[number_of_measurements :]
 
 kd = sm.Matrix([u[i] - x[i].diff(t) for i in range(2*number_of_measurements)])
+
 config_constr = sm.Matrix([x[i] - x[number_of_measurements + i] + 2*bias_ident[i]
         for i in range(number_of_measurements)])
 speed_constr = config_constr.diff(t)
@@ -103,6 +104,7 @@ KM = me.KanesMethod(
 fr, frstar = KM.kanes_equations(bodies, forces)
 eom =kd.col_join(fr+frstar)
 eom = eom.col_join(config_constr)
+sm.pprint(eom)
 
 # %%
 # Generate Noisy Measurement Data with Bias
@@ -115,30 +117,28 @@ eom = eom.col_join(config_constr)
 rhs = KM.rhs()
 states = x + u
 parameters = [m, c, k, l0] + list(bias_ident)
-par_vals = [1.0, 0.5, 1.0, 1.0] + [0] * number_of_measurements
+par_vals = [1.0, 0.75, 2.0, 1.0] + [0] * number_of_measurements
 
 eval_rhs = sm.lambdify(states + parameters, rhs)
 
 times = np.linspace(t0, tf, num=num_nodes)
 
 measurements = []
-np.random.seed(1234)
+np.random.seed(12345)
 # %%
 # As the second half of x, u are a shifted copy of the first half, they must get
 # identical initial conditions.
-for i in range(2*number_of_measurements):
+for i in range(number_of_measurements):
     start1 = 4.0*np.random.randn(number_of_measurements)
     start2 = 4.0*np.random.randn(number_of_measurements)
     x0 = np.hstack((start1, start1, start2, start2))
     sol = solve_ivp(lambda t, x, p: eval_rhs(*x, *p).squeeze(),
                     (t0, tf), x0, t_eval=times, args=(par_vals,))
-    if i < number_of_measurements:
-        measurements.append(sol.y[0, :] +
-                        1.0*np.random.randn(len(sol.t)))
 
+    measurements.append(sol.y[0, :] + 1.0*np.random.randn(num_nodes))
 # %%
 # Add bias to the measurements
-bias = 10.0 *np.random.uniform(0., 1., size=number_of_measurements)
+bias = 4.0 *np.random.uniform(0., 1., size=number_of_measurements)
 measurements = np.array(measurements) + bias[:, np.newaxis]
 
 print(measurements.shape)
@@ -228,7 +228,9 @@ solution, info = problem.solve(initial_guess)
 # %%
 # This is how the solution may be saved for a future initial guess
 # ```np.save('non_contiguous_parameter_identification_bias_solution', solution)```
+
 print(info['status_msg'])
+print(f'final value of the objective function is {info['obj_val']:.2f}' )
 
 # %%
 problem.plot_objective_value()
