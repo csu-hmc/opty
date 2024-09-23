@@ -18,15 +18,15 @@ simultaneously by passing the uncoupled differential equations to opty.
 
 If the measurements are biased in addition to being noisy, one way to handle
 this is to double the set of differential equations created above, where the
-second set is a shifted copy of the first set, shifted by twice the expected
-bias.
+second set is a shifted copy of the first set.
 
-Mass-spring-damper Example
-==========================
+Mass-spring-damper-friction Example
+===================================
 
 The position of a simple system consisting of a mass connected to a fixed point
-by a spring and a damper is simulated and recorded as noisy measurements with
-bias. The spring constant and the damping coefficient will be identified.
+by a spring and a damper and subject to friction is simulated and recorded as
+noisy measurements with bias. The spring constant, the damping coefficient
+and the coefficient of friction will be identified.
 
 **State Variables**
 
@@ -39,6 +39,7 @@ bias. The spring constant and the damping coefficient will be identified.
 - :math:`c`: linear damping coefficient [Ns/m]
 - :math:`k`: linear spring constant [N/m]
 - :math:`l_0`: natural length of the spring [m]
+- :math:`friction`: friction coefficient [N]
 
 """
 import sympy as sm
@@ -46,6 +47,7 @@ import sympy.physics.mechanics as me
 import numpy as np
 from scipy.integrate import solve_ivp
 from opty import Problem
+from opty.utils import parse_free
 import matplotlib.pyplot as plt
 
 # %%
@@ -60,7 +62,7 @@ number_of_measurements = 6
 t0, tf = 0.0, 10.0
 num_nodes = 500
 
-m, c, k, l0 = sm.symbols('m, c, k, l0')
+m, c, k, l0, friction = sm.symbols('m, c, k, l0, friction')
 bias_ident = sm.symbols(f'bias:{number_of_measurements}')
 
 t = me.dynamicsymbols._t
@@ -76,8 +78,13 @@ Points = sm.symbols(f'P:{2*number_of_measurements}', cls=me.Point)
 for i in range(2*number_of_measurements):
     Points[i].set_pos(O, x[i]*N.x)
     Points[i].set_vel(N, u[i]*N.x)
-bodies = [me.Particle('part_' + str(i), Points[i], m) for i in range(2*number_of_measurements)]
-forces = [(Points[i], -c*u[i]*N.x - k*(x[i]-l0)*N.x) for i in range(2*number_of_measurements)]
+bodies = [me.Particle('part_' + str(i), Points[i], m)
+    for i in range(2*number_of_measurements)]
+# %%
+# :math:`\tanh(\alpha \cdot x) \approx sign(x)` for large :math:`\alpha`, and
+# is differentiale everywhere.
+forces = [(Points[i], -c*u[i]*N.x - k*(x[i]-l0)*N.x -
+    friction * sm.tanh(30*u[i])*N.x) for i in range(2*number_of_measurements)]
 
 q_ind = x[: number_of_measurements]
 q_dep = x[number_of_measurements :]
@@ -86,7 +93,7 @@ u_dep = u[number_of_measurements :]
 
 kd = sm.Matrix([u[i] - x[i].diff(t) for i in range(2*number_of_measurements)])
 
-config_constr = sm.Matrix([x[i] - x[number_of_measurements + i] + 2*bias_ident[i]
+config_constr = sm.Matrix([x[i] - x[number_of_measurements + i] + 1*bias_ident[i]
         for i in range(number_of_measurements)])
 speed_constr = config_constr.diff(t)
 
@@ -104,7 +111,18 @@ KM = me.KanesMethod(
 fr, frstar = KM.kanes_equations(bodies, forces)
 eom =kd.col_join(fr+frstar)
 eom = eom.col_join(config_constr)
-sm.pprint(eom)
+
+for i in range(2):
+    sm.pprint(eom[i])
+for i in range(2):
+    print('.........')
+for i in range(2):
+    sm.pprint(eom[2*number_of_measurements+i])
+for i in range(2):
+    print('.........')
+for i in range(2):
+    sm.pprint(eom[-(2-i)])
+
 
 # %%
 # Generate Noisy Measurement Data with Bias
@@ -116,26 +134,28 @@ sm.pprint(eom)
 #
 rhs = KM.rhs()
 states = x + u
-parameters = [m, c, k, l0] + list(bias_ident)
-par_vals = [1.0, 0.75, 2.0, 1.0] + [0] * number_of_measurements
+parameters = [m, c, k, l0, friction] + list(bias_ident)
+par_vals = [1.0, 0.25, 2.0, 1.0, 0.5] + [0] * number_of_measurements
 
 eval_rhs = sm.lambdify(states + parameters, rhs)
 
 times = np.linspace(t0, tf, num=num_nodes)
 
 measurements = []
-np.random.seed(12345)
+np.random.seed(123)
 # %%
 # As the second half of x, u are a shifted copy of the first half, they must get
 # identical initial conditions.
+start1_list, start2_list = [], []
 for i in range(number_of_measurements):
     start1 = 4.0*np.random.randn(number_of_measurements)
     start2 = 4.0*np.random.randn(number_of_measurements)
+
     x0 = np.hstack((start1, start1, start2, start2))
     sol = solve_ivp(lambda t, x, p: eval_rhs(*x, *p).squeeze(),
                     (t0, tf), x0, t_eval=times, args=(par_vals,))
 
-    measurements.append(sol.y[0, :] + 1.0*np.random.randn(num_nodes))
+    measurements.append(sol.y[1, :] + 1.0*np.random.randn(num_nodes))
 # %%
 # Add bias to the measurements
 bias = 4.0 *np.random.uniform(0., 1., size=number_of_measurements)
@@ -147,8 +167,9 @@ print(measurements.shape)
 # Setup the Identification Problem
 # --------------------------------
 #
-# The goal is to identify the damping coefficient :math:`c` and the spring
-# constant :math:`k`. The objective :math:`J` is to minimize the least square
+# The goal is to identify the damping coefficient :math:`c`, the spring
+# constant :math:`k` and the coefficient of friction :math:`friction`.
+# The objective :math:`J` is to minimize the least square
 # difference in the optimal simulation as compared to the measurements.  If
 # some measurement is considered more reliable, its weight :math:`w` may be
 # increased relative to the other measurements.
@@ -177,14 +198,15 @@ def obj_grad(free):
 
 
 # %%
-# By not including :math:`c`, :math:`k`, :math:`bias_i` in the parameter map,
-# they will be treated as unknown parameters.
+# By not including :math:`c`, :math:`k`, :math:`friction`, :math:`bias_i`
+# in the parameter map, they will be treated as unknown parameters.
 par_map = {m: par_vals[0], l0: par_vals[3]}
 
 # %%
 bounds = {
     c: (0.01, 2.0),
     k: (0.1, 10.0),
+    friction: (0.1, 10.0),
 } | {u[i]: (-10, 10) for i in range(2*number_of_measurements)}
 
 problem = Problem(
@@ -215,7 +237,7 @@ initial_guess = np.hstack((np.random.randn(number_of_measurements*num_nodes), #x
                            np.array(measurements).flatten(),  # x1
                            np.zeros(2*number_of_measurements*num_nodes),  # u
                            [0.5 for _ in range(number_of_measurements)], # bias
-                           [0.1, 3.0],  # c, k
+                           [0.1, 3.0, 2.0],  # c, k, friction
 ))
 
 
@@ -223,6 +245,8 @@ initial_guess = np.hstack((np.random.randn(number_of_measurements*num_nodes), #x
 # Solve the Optimization Problem
 # ------------------------------
 #
+# Here, the initial guess is the result of some previous run, stored in
+# 'non_contiguous_parameter_identification_bias_solution.npy'.
 initial_guess = np.load('non_contiguous_parameter_identification_bias_solution.npy')
 solution, info = problem.solve(initial_guess)
 # %%
@@ -243,10 +267,9 @@ problem.plot_constraint_violations(solution)
 # The identified parameters are:
 # ------------------------------
 #
-print(f'Estimate of damping coefficient is {solution[-2]: 1.2f}')
-print(f'Estimate of the spring constant is {solution[-1]: 1.2f} \n')
-for i in range(number_of_measurements):
-    print(f'estimated {i}-th bias is {solution[-8+i]:.2f}, true bias is {bias[i]:.2f}')
+print(f'Estimate of damping coefficient is      {solution[-3]: 1.2f}')
+print(f'Estimate of the spring constant is      {solution[-1]: 1.2f}')
+print(f'Estimate of the friction coefficient is {solution[-2]: 1.2f}')
 
 # %%
 # Plot the measurements and the trajectories calculated.
@@ -264,4 +287,5 @@ prevent_output = True
 # %%
 #
 # sphinx_gallery_thumbnail_number = 3
+
 plt.show()
