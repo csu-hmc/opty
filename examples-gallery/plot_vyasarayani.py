@@ -138,6 +138,8 @@ axes_y1[1].plot(prob.con(initial_guess)[:num_nodes - 1])
 axes_y1[2].set_title('Solution Constraint Violations')
 axes_y1[2].plot(prob.con(solution)[:num_nodes - 1])
 
+# sphinx_gallery_thumbnail_number = 2
+
 # %%
 fig_y2, axes_y2 = plt.subplots(3, 1, layout='constrained')
 
