@@ -57,6 +57,7 @@ import matplotlib.pyplot as plt
 #
 x1, x2, x3, x4 = me.dynamicsymbols('x1, x2, x3, x4')
 u1, u2, u3, u4 = me.dynamicsymbols('u1, u2, u3, u4')
+n1, n2, n3, n4 = me.dynamicsymbols('n1, n2, n3, n4')
 m, c, k, l0 = sm.symbols('m, c, k, l0')
 t = me.dynamicsymbols._t
 
@@ -65,10 +66,10 @@ eom = sm.Matrix([
     x2.diff(t) - u2,
     x3.diff(t) - u3,
     x4.diff(t) - u4,
-    m*u1.diff(t) + c*u1 + k*(x1 - l0),
-    m*u2.diff(t) + c*u2 + k*(x2 - l0),
-    m*u3.diff(t) + c*u3 + k*(x3 - l0),
-    m*u4.diff(t) + c*u4 + k*(x4 - l0),
+    m*u1.diff(t) + c*u1 + k*(x1 - l0) + n1,
+    m*u2.diff(t) + c*u2 + k*(x2 - l0) + n2,
+    m*u3.diff(t) + c*u3 + k*(x3 - l0) + n3,
+    m*u4.diff(t) + c*u4 + k*(x4 - l0) + n4,
 ])
 
 sm.pprint(eom)
@@ -170,6 +171,15 @@ bounds = {
     k: (0.1, 10.0),
 }
 
+noise_scale = 2.0
+
+known_trajectories = {
+    n1: noise_scale*np.random.randn(num_nodes),
+    n2: noise_scale*np.random.randn(num_nodes),
+    n3: noise_scale*np.random.randn(num_nodes),
+    n4: noise_scale*np.random.randn(num_nodes),
+}
+
 problem = Problem(
     obj,
     obj_grad,
@@ -178,6 +188,7 @@ problem = Problem(
     num_nodes,
     interval_value,
     known_parameter_map=par_map,
+    known_trajectory_map=known_trajectories,
     time_symbol=me.dynamicsymbols._t,
     integration_method='midpoint',
     bounds=bounds,
@@ -192,9 +203,10 @@ problem = Problem(
 # are used and the speeds are set to zero. The last two values are the guesses
 # for :math:`c` and :math:`k`, respectively.
 #
-initial_guess = np.hstack((np.array(measurements).flatten(),  # x
+initial_guess = np.hstack((np.zeros(4*num_nodes), #np.array(measurements).flatten(),  # x
                            np.zeros(4*num_nodes),  # u
-                           [0.1, 3.0]))  # c, k
+                           #[0.1, 3.0]))  # c, k
+                           [0.01, 0.1]))  # c, k
 
 # %%
 # Solve the Optimization Problem
