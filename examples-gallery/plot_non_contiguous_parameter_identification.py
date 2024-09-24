@@ -55,9 +55,9 @@ import matplotlib.pyplot as plt
 # Set up the four sets of equations of motion, one for each of the four
 # measurements.
 #
-x1, x2, x3, x4 = me.dynamicsymbols('x1, x2, x3, x4')
-u1, u2, u3, u4 = me.dynamicsymbols('u1, u2, u3, u4')
-n1, n2, n3, n4 = me.dynamicsymbols('n1, n2, n3, n4')
+x1, x2, x3, x4, x5, x6 = me.dynamicsymbols('x1, x2, x3, x4, x5, x6')
+u1, u2, u3, u4, u5, u6 = me.dynamicsymbols('u1, u2, u3, u4, u5, u6')
+n1, n2, n3, n4, n5, n6 = me.dynamicsymbols('n1, n2, n3, n4, n5, n6')
 m, c, k, l0 = sm.symbols('m, c, k, l0')
 t = me.dynamicsymbols._t
 
@@ -66,10 +66,14 @@ eom = sm.Matrix([
     x2.diff(t) - u2,
     x3.diff(t) - u3,
     x4.diff(t) - u4,
+    x5.diff(t) - u5,
+    x6.diff(t) - u6,
     m*u1.diff(t) + c*u1 + k*(x1 - l0) + n1,
     m*u2.diff(t) + c*u2 + k*(x2 - l0) + n2,
     m*u3.diff(t) + c*u3 + k*(x3 - l0) + n3,
     m*u4.diff(t) + c*u4 + k*(x4 - l0) + n4,
+    m*u5.diff(t) + c*u5 + k*(x5 - l0) + n5,
+    m*u6.diff(t) + c*u6 + k*(x6 - l0) + n6,
 ])
 
 sm.pprint(eom)
@@ -87,12 +91,16 @@ rhs = sm.Matrix([
     u2,
     u3,
     u4,
+    u5,
+    u6,
     1/m*(-c*u1 - k*(x1 - l0)),
     1/m*(-c*u2 - k*(x2 - l0)),
     1/m*(-c*u3 - k*(x3 - l0)),
     1/m*(-c*u4 - k*(x4 - l0)),
+    1/m*(-c*u5 - k*(x5 - l0)),
+    1/m*(-c*u6 - k*(x6 - l0)),
 ])
-states = [x1, x2, x3, x4, u1, u2, u3, u4]
+states = [x1, x2, x3, x4, x5, x6, u1, u2, u3, u4, u5, u6]
 parameters = [m, c, k, l0]
 par_vals = [1.0, 0.25, 1.0, 1.0]
 
@@ -103,9 +111,9 @@ num_nodes = 500
 times = np.linspace(t0, tf, num=num_nodes)
 
 measurements = []
-np.random.seed(123)
+#np.random.seed(123)
 for i in range(4):
-    x0 = 4.0*np.random.randn(8)
+    x0 = 4.0*np.random.randn(12)
     sol = solve_ivp(lambda t, x, p: eval_rhs(*x, *p).squeeze(),
                     (t0, tf), x0, t_eval=times, args=(par_vals,))
     measurements.append(sol.y[0, :] +
@@ -135,15 +143,17 @@ print(measurements.shape)
 #
 interval_value = (tf - t0) / (num_nodes - 1)
 
-w = [1.0, 1.0, 1.0, 1.0]
+w = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
 def obj(free):
     return interval_value*np.sum(
         w[0]*(free[0*num_nodes:1*num_nodes] - measurements[0])**2 +
-        w[1]*(free[1*num_nodes:2*num_nodes] - measurements[1])**2 +
-        w[2]*(free[2*num_nodes:3*num_nodes] - measurements[2])**2 +
-        w[3]*(free[3*num_nodes:4*num_nodes] - measurements[3])**2)
+        w[1]*(free[1*num_nodes:2*num_nodes] - measurements[0])**2 +
+        w[2]*(free[2*num_nodes:3*num_nodes] - measurements[0])**2 +
+        w[3]*(free[3*num_nodes:4*num_nodes] - measurements[0])**2 +
+        w[4]*(free[4*num_nodes:5*num_nodes] - measurements[0])**2 +
+        w[5]*(free[5*num_nodes:6*num_nodes] - measurements[0])**2)
 
 
 def obj_grad(free):
@@ -151,11 +161,15 @@ def obj_grad(free):
     grad[:num_nodes] = 2*w[0]*interval_value*(
         free[0*num_nodes:1*num_nodes] - measurements[0])
     grad[num_nodes:2*num_nodes] = 2*w[1]*interval_value*(
-        free[1*num_nodes:2*num_nodes] - measurements[1])
+        free[1*num_nodes:2*num_nodes] - measurements[0])
     grad[2*num_nodes:3*num_nodes] = 2*w[2]*interval_value*(
-        free[2*num_nodes:3*num_nodes] - measurements[2])
+        free[2*num_nodes:3*num_nodes] - measurements[0])
     grad[3*num_nodes:4*num_nodes] = 2*w[3]*interval_value*(
-        free[3*num_nodes:4*num_nodes] - measurements[3])
+        free[3*num_nodes:4*num_nodes] - measurements[0])
+    grad[4*num_nodes:5*num_nodes] = 2*w[4]*interval_value*(
+        free[4*num_nodes:5*num_nodes] - measurements[0])
+    grad[5*num_nodes:6*num_nodes] = 2*w[5]*interval_value*(
+        free[5*num_nodes:6*num_nodes] - measurements[0])
     return grad
 
 
@@ -167,17 +181,19 @@ print(par_map)
 
 # %%
 bounds = {
-    c: (0.01, 2.0),
-    k: (0.1, 10.0),
+    c: (0.0, 100.0),
+    k: (0.0, 100.0),
 }
 
-noise_scale = 2.0
+noise_scale = 0.5
 
 known_trajectories = {
     n1: noise_scale*np.random.randn(num_nodes),
     n2: noise_scale*np.random.randn(num_nodes),
     n3: noise_scale*np.random.randn(num_nodes),
     n4: noise_scale*np.random.randn(num_nodes),
+    n5: noise_scale*np.random.randn(num_nodes),
+    n6: noise_scale*np.random.randn(num_nodes),
 }
 
 problem = Problem(
@@ -203,10 +219,9 @@ problem = Problem(
 # are used and the speeds are set to zero. The last two values are the guesses
 # for :math:`c` and :math:`k`, respectively.
 #
-initial_guess = np.hstack((np.zeros(4*num_nodes), #np.array(measurements).flatten(),  # x
-                           np.zeros(4*num_nodes),  # u
-                           #[0.1, 3.0]))  # c, k
-                           [0.01, 0.1]))  # c, k
+initial_guess = np.hstack((np.zeros(6*num_nodes),  # x
+                           np.zeros(6*num_nodes),  # u
+                           [0.0, 0.0]))  # c, k
 
 # %%
 # Solve the Optimization Problem
@@ -232,9 +247,9 @@ print(f'Estimate of the spring constant is {solution[-1]: 1.2f}')
 # Plot the Measurements and the Estimated Trajectories
 # ----------------------------------------------------
 #
-fig, ax = plt.subplots(8, 1, figsize=(6, 8), sharex=True)
-for i in range(4):
-    ax[i].plot(times, measurements[i])
+fig, ax = plt.subplots(12, 1, figsize=(6, 8), sharex=True)
+for i in range(6):
+    ax[i].plot(times, measurements[0])
 problem.plot_trajectories(solution, axes=ax)
 
 # sphinx_gallery_thumbnail_number = 3
