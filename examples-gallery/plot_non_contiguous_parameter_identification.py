@@ -151,9 +151,9 @@ def obj(free):
         w[0]*(free[0*num_nodes:1*num_nodes] - measurements[0])**2 +
         w[1]*(free[1*num_nodes:2*num_nodes] - measurements[0])**2 +
         w[2]*(free[2*num_nodes:3*num_nodes] - measurements[0])**2 +
-        w[3]*(free[3*num_nodes:4*num_nodes] - measurements[0])**2 +
-        w[4]*(free[4*num_nodes:5*num_nodes] - measurements[0])**2 +
-        w[5]*(free[5*num_nodes:6*num_nodes] - measurements[0])**2)
+        w[3]*(free[3*num_nodes:4*num_nodes] - measurements[1])**2 +
+        w[4]*(free[4*num_nodes:5*num_nodes] - measurements[1])**2 +
+        w[5]*(free[5*num_nodes:6*num_nodes] - measurements[1])**2)
 
 
 def obj_grad(free):
@@ -165,11 +165,11 @@ def obj_grad(free):
     grad[2*num_nodes:3*num_nodes] = 2*w[2]*interval_value*(
         free[2*num_nodes:3*num_nodes] - measurements[0])
     grad[3*num_nodes:4*num_nodes] = 2*w[3]*interval_value*(
-        free[3*num_nodes:4*num_nodes] - measurements[0])
+        free[3*num_nodes:4*num_nodes] - measurements[1])
     grad[4*num_nodes:5*num_nodes] = 2*w[4]*interval_value*(
-        free[4*num_nodes:5*num_nodes] - measurements[0])
+        free[4*num_nodes:5*num_nodes] - measurements[1])
     grad[5*num_nodes:6*num_nodes] = 2*w[5]*interval_value*(
-        free[5*num_nodes:6*num_nodes] - measurements[0])
+        free[5*num_nodes:6*num_nodes] - measurements[1])
     return grad
 
 
@@ -248,8 +248,10 @@ print(f'Estimate of the spring constant is {solution[-1]: 1.2f}')
 # ----------------------------------------------------
 #
 fig, ax = plt.subplots(12, 1, figsize=(6, 8), sharex=True)
-for i in range(6):
+for i in [0, 1, 2]:
     ax[i].plot(times, measurements[0])
+for i in [3, 4, 5]:
+    ax[i].plot(times, measurements[1])
 problem.plot_trajectories(solution, axes=ax)
 
 # sphinx_gallery_thumbnail_number = 3
