@@ -417,14 +417,15 @@ class Problem(cyipopt.Problem):
 
         if axes is None:
             fig, axes = plt.subplots(num_axes, 1, sharex=True,
-                layout='compressed', figsize=(6.4, 0.8*num_axes))
+                                     layout='compressed',
+                                     figsize=(6.4, 0.8*num_axes))
 
         for ax, traj, symbol in zip(axes, trajectories, traj_syms):
             ax.plot(time, traj)
             ax.set_ylabel(sm.latex(symbol, mode='inline'))
         ax.set_xlabel('Time')
         axes[0].set_title('State Trajectories')
-        if self.collocator.num_input_trajectories > 0:
+        if self.collocator.num_unknown_input_trajectories > 0:
             axes[self.collocator.num_states].set_title('Input Trajectories')
 
         return axes
