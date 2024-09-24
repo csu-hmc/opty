@@ -349,8 +349,10 @@ prob = Problem(
 )
 
 # %%
-# The initial guess should meet the configuration constrains. It will be
-# plotted below.
+# The initial guess should meet the configuration constraints. Those below are
+# used to get a better initial guess, stored in
+# ```ball_rolling_on_spinning_disc_solution.npy```.
+
 i1b = np.zeros(num_nodes)
 i2 = np.linspace(initial_state_constraints[x],
     final_state_constraints[x], num_nodes)
@@ -361,10 +363,6 @@ i1 = -i3 / par_map[r]
 i4 = np.zeros(8*num_nodes)
 initial_guess = np.hstack((i1,i1a, i1b, i2, i3, i4, 0.01))
 
-fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 0.75*14), sharex=True,
-    layout='constrained')
-prob.plot_trajectories(initial_guess, ax1)
-
 # %%
 # This way the maximum number of interations may be changed.
 # Default is 3000.
@@ -372,14 +370,18 @@ prob.add_option('max_iter', 1000)
 
 # %%
 # Find the optimal solution.
-
+initial_guess = np.load('ball_rolling_on_spinning_disc_solution.npy')
 solution, info = prob.solve(initial_guess)
 print('message from optimizer:', info['status_msg'])
 print('Iterations needed', len(prob.obj_value))
 print(f'Optimal h = {solution[-1]:.3e} sec')
 
 # %%
-# PLot the objective value.
+# This way the solution may be saved for later use.
+# ```np.save('ball_rolling_on_spinning_disc_solution.npy', solution)```
+
+# %%
+# Plot the objective value.
 prob.plot_objective_value()
 
 # %%
@@ -466,7 +468,7 @@ prevent_output = 1
 
 # %%
 # Animate the system.
-fps = 30
+fps = 20
 
 def add_point_to_data(line, x, y):
     old_x, old_y = line.get_data()
