@@ -1,6 +1,6 @@
 """
-Parameter Identification from Noncontiguous Measurements with Bias and added Noise
-==================================================================================
+Parameter Identification from Noncontiguous Measurements with Bias and Noise
+============================================================================
 
 In parameter estimation it is common to collect measurements of a system's
 trajectories from distinct experiments. For example, if you are identifying the
@@ -302,8 +302,8 @@ print(f'Estimate of the friction coefficient is {solution[-2]: 1.2f}'
       f' Percentage error is {(solution[-2]-par_vals[-1])/solution[-2]*100:1.2f} %')
 
 # %%
-# Plot the measurements and the trajectories calculated.
-#-------------------------------------------------------
+# Plot the measurements and the trajectories calculated
+#------------------------------------------------------
 #
 sol_parsed, _, _ = parse_free(solution, len(states), 0, num_nodes )
 if number_of_measurements > 1:
