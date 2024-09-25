@@ -1,7 +1,6 @@
-# %%
 """
-Parameter Identification from Noncontiguous Measurements with Bias
-==================================================================
+Parameter Identification from Noncontiguous Measurements with Bias and added Noise
+==================================================================================
 
 In parameter estimation it is common to collect measurements of a system's
 trajectories from distinct experiments. For example, if you are identifying the
@@ -15,6 +14,18 @@ A workaround in opty is to create a set of differential equations with unique
 state variables for each measurement trial that all share the same constant
 parameters. You can then identify the parameters from all measurement trials
 simultaneously by passing the uncoupled differential equations to opty.
+This idea is due to Jason Moore.
+
+In addition, for each measurement, one may create a set of differential
+equations with unique state variables that again share the same constant
+parameters. In addition, one adds noise to these equations. (Intuitively this
+noise corresponds to a force acting on the system).
+This idea is due to Huawei Wang and A. J. van den Bogert.
+
+So, if one has 'number_of_measurements' measurements, and one creates
+'number_of_repeats' differential equations for each measurement, one will have
+'number_of_measurements' * 'number_of_repeats' uncoupled differential equations,
+all sharing the same constant parameters.
 
 Mass-spring-damper-friction Example
 ===================================
@@ -26,8 +37,12 @@ and the coefficient of friction will be identified.
 
 **State Variables**
 
-- :math:`x_i`: position of the mass of the i-th measurement trial [m]
-- :math:`u_i`: speed of the mass of the i-th measurement trial [m/s]
+- :math:`x_{i, j}`: position of the mass of the i-th measurement trial [m]
+- :math:`u_{i, j}`: speed of the mass of the i-th measurement trial [m/s]
+
+**Noise Variables**
+
+- :math:`n_{i, j}`: noise added [N]
 
 **Parameters**
 
@@ -49,14 +64,15 @@ import matplotlib.pyplot as plt
 # %%
 # Equations of Motion.
 # --------------------
-#
-number_of_measurements = 4
-number_of_repeats = 3
+#=========================================
+# Basic data may be set here
+number_of_measurements = 3
+number_of_repeats = 5
 t0, tf = 0.0, 10.0
 num_nodes = 500
+#=========================================
 
 m, c, k, l0, friction = sm.symbols('m, c, k, l0, friction')
-bias_ident = sm.symbols(f'bias:{number_of_measurements}')
 
 t = me.dynamicsymbols._t
 x = sm.Matrix([me.dynamicsymbols([f'x{i}_{j}' for j in range(number_of_repeats)])
@@ -97,6 +113,8 @@ def kd_eom_rh(xh, uh, m, c, k, l0, friction):
 
 kd, fr_frstar, rhs = kd_eom_rh(xh, uh, m, c, k, l0, friction)
 
+# %%
+# Stack the equations appropriately.
 kd_total = sm.Matrix([])
 eom_total = sm.Matrix([])
 rhs_total = sm.Matrix([])
@@ -111,6 +129,7 @@ for i in range(number_of_measurements):
         rhs_total = rhs_total.col_join(rhs_h)
 
 eom = kd_total.col_join(eom_total)
+
 uh =sm.Matrix([u[i, j] for i in range(number_of_measurements)
     for j in range(number_of_repeats)])
 rhs = uh.col_join(rhs_total)
@@ -123,12 +142,11 @@ for i in range(number_of_repeats):
     sm.pprint(eom[-(number_of_repeats-i)])
 
 # %%
-# Generate Noisy Measurement Data with Bias
-# -----------------------------------------
+# Generate Noisy Measurement
+# --------------------------
 # Create 'number_of_measurements' sets of measurements with different initial
 # conditions. To get the measurements, the equations of motion are integrated,
-# and then noise is added to each point in time of the solution. Finally a bias
-# is added.
+# and then noise is added to each point in time of the solution.
 #
 
 states = [x[i, j] for i in range(number_of_measurements)
@@ -144,7 +162,8 @@ times = np.linspace(t0, tf, num=num_nodes)
 
 measurements = []
 # %%
-
+# Integrate the differential equations. If np.random.seed(seed) is used, it
+# the seed must be changed for every measurement to ensure they are independent.
 for i in range(number_of_measurements):
     for j in range(number_of_repeats):
         seed = 1234*(i+1)*(j+1)
@@ -154,24 +173,10 @@ for i in range(number_of_measurements):
                     (t0, tf), x0, t_eval=times, args=(par_vals,))
     seed = 10000 + 12345*i
     np.random.seed(seed)
-    measurements.append(sol.y[1, :] + 1.0*np.random.randn(num_nodes))
+    measurements.append(sol.y[0, :] + 1.0*np.random.randn(num_nodes))
 measurements = np.array(measurements)
-print(measurements.shape)
-print(sol.y.shape)
-
-fig, ax = plt.subplots(2*number_of_measurements*number_of_repeats, 1,
-    figsize=(6.4, 1.5*number_of_measurements*number_of_repeats),
-    sharex=True, constrained_layout=True)
-
-for i in range(2*number_of_measurements*number_of_repeats):
-    ax[i].plot(times, sol.y[i, :], color='blue')
-    ax[i].set_ylabel(f'{states[i]}')
-
-# Add bias to the measurements
-bias = 0.0 *np.random.uniform(0., 1., size=number_of_measurements)
-measurements = np.array(measurements) + bias[:, np.newaxis]
-
-print(measurements.shape)
+print('shsape of measurement array', measurements.shape)
+print('shape of solution array', sol.y.shape)
 
 # %%
 # Setup the Identification Problem
@@ -185,7 +190,7 @@ print(measurements.shape)
 # increased relative to the other measurements.
 #
 #
-# objective = :math:`\int_{t_0}^{t_f} \left[ \sum_{i=1}^{i = \text{number_of_measurements}} (w_i (x_i - x_i^m)^2 \right] \hspace{2pt} dt`
+# objective = :math:`\int_{t_0}^{t_f} \sum_{i=1}^{\text{number_of_measurements}} \left[ \sum_{s=1}^{\text{number_of_repeats}} (w_i (x_{i, s} - x_{i,s}^m)^2 \right] \hspace{2pt} dt`
 #
 interval_value = (tf - t0) / (num_nodes - 1)
 
@@ -197,8 +202,9 @@ def obj(free):
     sum = 0.0
     for i in range(nm):
         for j in range(nr):
-            sum += (w[i]*(free[(i*nr+j)*num_nodes:(i*nr+j+1)*num_nodes] -
-                measurements[i])**2)
+            sum += np.sum((w[i]*(free[(i*nr+j)*num_nodes:(i*nr+j+1)*num_nodes] -
+                measurements[i])**2))
+    return sum
 
 
 def obj_grad(free):
@@ -212,17 +218,20 @@ def obj_grad(free):
 
 
 # %%
-# By not including :math:`c`, :math:`k`, :math:`friction`, :math:`bias_i`
+# By not including :math:`c`, :math:`k`, :math:`friction`
 # in the parameter map, they will be treated as unknown parameters.
 par_map = {m: par_vals[0], l0: par_vals[3]}
 
-# %%
 bounds = {
     c: (0.01, 2.0),
     k: (0.1, 10.0),
     friction: (0.1, 10.0),
 }
-noise_scale = 2.0
+# %%
+# Set up the known trajectory map. If np.random.seed(seed) is used, the
+# seed must be changed for every map to ensure they are idependent.
+# noise_scale gives the 'strength' of the noise.
+noise_scale = 1.0
 known_trajectory_map = {}
 for i in range(number_of_measurements):
     for j in range(number_of_repeats):
@@ -230,8 +239,9 @@ for i in range(number_of_measurements):
         np.random.seed(seed)
         known_trajectory_map = (known_trajectory_map |
             {n[i, j]: noise_scale*np.random.randn(num_nodes)})
-print(len(known_trajectory_map))
-print('states', len(states))
+
+# %%
+# Set up the problem.
 problem = Problem(
     obj,
     obj_grad,
@@ -245,11 +255,9 @@ problem = Problem(
     bounds=bounds,
     known_trajectory_map=known_trajectory_map
 )
-print(problem.num_free)
 # %%
 # This give the sequence of the unknown parameters at the tail of solution.
 print(problem.collocator.unknown_parameters)
-print(problem.collocator.unknown_input_trajectories)
 # %%
 # Create an Initial Guess
 # -----------------------
@@ -257,7 +265,7 @@ print(problem.collocator.unknown_input_trajectories)
 # It is reasonable to use the measurements as initial guess for the states
 # because they would be available. Here, only the measurements of the position
 # are used and the speeds are set to zero. The last values are the guesses
-# for :math:`bias_i`, :math:`c` and :math:`k`, respectively.
+# for :math:`c`, :math:`friction` and :math:`k`, respectively.
 #
 initial_guess = np.array([])
 for i in range(number_of_measurements):
@@ -267,20 +275,11 @@ initial_guess = np.hstack((initial_guess,
                 np.zeros(number_of_measurements*number_of_repeats*num_nodes),
                 [0.1, 3.0, 2.0]))
 
-print(len(initial_guess))
-
 # %%
 # Solve the Optimization Problem
 # ------------------------------
 #
-# Here, the initial guess is the result of some previous run, stored in
-# 'non_contiguous_parameter_identification_bias_solution.npy'.
-#initial_guess = np.load('non_contiguous_parameter_identification_bias_solution.npy')
 solution, info = problem.solve(initial_guess)
-# %%
-# This is how the solution may be saved for a future initial guess
-# ```np.save('non_contiguous_parameter_identification_bias_solution', solution)```
-
 print(info['status_msg'])
 print(f'final value of the objective function is {info['obj_val']:.2f}' )
 
@@ -304,20 +303,35 @@ print(f'Estimate of the friction coefficient is {solution[-2]: 1.2f}'
 
 # %%
 # Plot the measurements and the trajectories calculated.
+#-------------------------------------------------------
 #
-fig, ax = plt. subplots(number_of_measurements, 1,
-    figsize=(6.4, 1.25*number_of_measurements), sharex=True, constrained_layout=True)
-for i in range(number_of_measurements):
-    ax[i].plot(times, solution[i*num_nodes:(i+1)*num_nodes], color='red')
-    ax[i].plot(times, measurements[i], color='blue', lw=0.5)
-    ax[i].set_ylabel(f'{states[i]}')
-ax[-1].set_xlabel('Time [s]')
-ax[0].set_title('Trajectories')
+sol_parsed, _, _ = parse_free(solution, len(states), 0, num_nodes )
+if number_of_measurements > 1:
+    fig, ax = plt. subplots(number_of_measurements, 1,
+        figsize=(6.4, 1.25*number_of_measurements), sharex=True, constrained_layout=True)
+
+    for i in range(number_of_measurements):
+        ax[i].plot(times, sol_parsed[i*number_of_repeats, :], color='red')
+        ax[i].plot(times, measurements[i], color='blue', lw=0.5)
+        ax[i].set_ylabel(f'{states[i]}')
+    ax[-1].set_xlabel('Time [s]')
+    ax[0].set_title('Trajectories')
+
+else:
+    fig, ax = plt. subplots(1, 1, figsize=(6.4, 1.25))
+    ax.plot(times, sol_parsed[0, :], color='red')
+    ax.plot(times, measurements[0], color='blue', lw=0.5)
+    ax.set_ylabel(f'{states[0]}')
+    ax.set_xlabel('Time [s]')
+    ax.set_title('Trajectories')
+
+
 prevent_output = True
 
 # %%
+#Plot the Trajectories
+problem.plot_trajectories(solution)
+# %%
 #
 # sphinx_gallery_thumbnail_number = 3
-problem.plot_trajectories(solution)
-
 plt.show()
