@@ -64,13 +64,13 @@ import matplotlib.pyplot as plt
 # %%
 # Equations of Motion.
 # --------------------
-#=========================================
+#
 # Basic data may be set here
 number_of_measurements = 3
 number_of_repeats = 5
 t0, tf = 0.0, 10.0
 num_nodes = 500
-#=========================================
+#
 
 m, c, k, l0, friction = sm.symbols('m, c, k, l0, friction')
 
@@ -89,6 +89,7 @@ xh, uh = me.dynamicsymbols('xh, uh')
 # Form the equations of motion, such that the first number_of_repeats equations
 # belong to the first measurement, the second number_of_repeats equations belong
 # to the second measurement, and so on.
+#
 def kd_eom_rh(xh, uh, m, c, k, l0, friction):
     """" sets up the eoms for the system"""
     N = me.ReferenceFrame('N')
@@ -115,6 +116,7 @@ kd, fr_frstar, rhs = kd_eom_rh(xh, uh, m, c, k, l0, friction)
 
 # %%
 # Stack the equations appropriately.
+#
 kd_total = sm.Matrix([])
 eom_total = sm.Matrix([])
 rhs_total = sm.Matrix([])
@@ -164,6 +166,7 @@ measurements = []
 # %%
 # Integrate the differential equations. If np.random.seed(seed) is used, it
 # the seed must be changed for every measurement to ensure they are independent.
+#
 for i in range(number_of_measurements):
     for j in range(number_of_repeats):
         seed = 1234*(i+1)*(j+1)
@@ -220,6 +223,7 @@ def obj_grad(free):
 # %%
 # By not including :math:`c`, :math:`k`, :math:`friction`
 # in the parameter map, they will be treated as unknown parameters.
+#
 par_map = {m: par_vals[0], l0: par_vals[3]}
 
 bounds = {
@@ -231,6 +235,7 @@ bounds = {
 # Set up the known trajectory map. If np.random.seed(seed) is used, the
 # seed must be changed for every map to ensure they are idependent.
 # noise_scale gives the 'strength' of the noise.
+#
 noise_scale = 1.0
 known_trajectory_map = {}
 for i in range(number_of_measurements):
@@ -242,6 +247,7 @@ for i in range(number_of_measurements):
 
 # %%
 # Set up the problem.
+#
 problem = Problem(
     obj,
     obj_grad,
@@ -330,8 +336,10 @@ prevent_output = True
 
 # %%
 #Plot the Trajectories
+#
 problem.plot_trajectories(solution)
 # %%
 #
 # sphinx_gallery_thumbnail_number = 3
+#
 plt.show()
