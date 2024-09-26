@@ -85,7 +85,7 @@ n = sm.Matrix([me.dynamicsymbols([f'n{i}_{j}' for j in range(number_of_repeats)]
 xh, uh = me.dynamicsymbols('xh, uh')
 
 # %%
-# Form the equations of motion, I use Kane's method here
+# Form the equations of motion, I use Kane's method here.
 #
 def kd_eom_rh(xh, uh, m, c, k, l0, friction):
     """" sets up the eoms for the system"""
