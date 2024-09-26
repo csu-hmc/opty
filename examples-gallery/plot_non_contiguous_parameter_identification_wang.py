@@ -1,3 +1,4 @@
+# %%
 """
 Parameter Identification from Noncontiguous Measurements with Bias and Noise
 ============================================================================
@@ -22,9 +23,9 @@ parameters. In addition, one adds noise to these equations. (Intuitively this
 noise corresponds to a force acting on the system).
 This idea is due to Huawei Wang and A. J. van den Bogert.
 
-So, if one has 'number_of_measurements' measurements, and one creates
-'number_of_repeats' differential equations for each measurement, one will have
-'number_of_measurements' * 'number_of_repeats' uncoupled differential equations,
+So, if one has *number_of_measurements* measurements, and one creates
+*number_of_repeats* differential equations for each measurement, one will have
+*number_of_measurements* * *number_of_repeats* uncoupled differential equations,
 all sharing the same constant parameters.
 
 Mass-spring-damper-friction Example
@@ -32,7 +33,7 @@ Mass-spring-damper-friction Example
 
 The position of a simple system consisting of a mass connected to a fixed point
 by a spring and a damper and subject to friction is simulated and recorded as
-noisy measurements with bias. The spring constant, the damping coefficient
+noisy measurements. The spring constant, the damping coefficient
 and the coefficient of friction will be identified.
 
 **State Variables**
@@ -40,9 +41,6 @@ and the coefficient of friction will be identified.
 - :math:`x_{i, j}`: position of the mass of the i-th measurement trial [m]
 - :math:`u_{i, j}`: speed of the mass of the i-th measurement trial [m/s]
 
-**Noise Variables**
-
-- :math:`n_{i, j}`: noise added [N]
 
 **Parameters**
 
@@ -51,6 +49,7 @@ and the coefficient of friction will be identified.
 - :math:`k`: linear spring constant [N/m]
 - :math:`l_0`: natural length of the spring [m]
 - :math:`friction`: friction coefficient [N]
+- :math:`n_{i, j}`: noise added [N]
 
 """
 import sympy as sm
@@ -66,12 +65,12 @@ import matplotlib.pyplot as plt
 # --------------------
 #
 # Basic data may be set here
-number_of_measurements = 3
-number_of_repeats = 5
+number_of_measurements = 4
+number_of_repeats = 3
 t0, tf = 0.0, 10.0
 num_nodes = 500
+noise_scale = 1.0
 #
-
 m, c, k, l0, friction = sm.symbols('m, c, k, l0, friction')
 
 t = me.dynamicsymbols._t
@@ -86,9 +85,7 @@ n = sm.Matrix([me.dynamicsymbols([f'n{i}_{j}' for j in range(number_of_repeats)]
 xh, uh = me.dynamicsymbols('xh, uh')
 
 # %%
-# Form the equations of motion, such that the first number_of_repeats equations
-# belong to the first measurement, the second number_of_repeats equations belong
-# to the second measurement, and so on.
+# Form the equations of motion, I use Kane's method here
 #
 def kd_eom_rh(xh, uh, m, c, k, l0, friction):
     """" sets up the eoms for the system"""
@@ -101,7 +98,7 @@ def kd_eom_rh(xh, uh, m, c, k, l0, friction):
     bodies = [me.Particle('part', P, m)]
     # :math:`\tanh(\alpha \cdot x) \approx sign(x)` for large :math:`\alpha`, and
     # is differentiale everywhere.
-    forces = [(P, -c*uh*N.x - k*(xh-l0)*N.x - friction * sm.tanh(30*uh)*N.x)]
+    forces = [(P, -c*uh*N.x - k*(xh-l0)*N.x - friction * sm.tanh(60*uh)*N.x)]
     kd = sm.Matrix([uh - xh.diff(t)])
     KM = me.KanesMethod(N,
                         q_ind=[xh],
@@ -115,19 +112,24 @@ def kd_eom_rh(xh, uh, m, c, k, l0, friction):
 kd, fr_frstar, rhs = kd_eom_rh(xh, uh, m, c, k, l0, friction)
 
 # %%
-# Stack the equations appropriately.
+# Stack the equations such that the first number_of_repeats equations
+# belong to the first measurement, the second number_of_repeats equations belong
+# to the second measurement, and so on.
 #
 kd_total = sm.Matrix([])
 eom_total = sm.Matrix([])
 rhs_total = sm.Matrix([])
+
 for i in range(number_of_measurements):
     for j in range(number_of_repeats):
-        eom_h = me.msubs(fr_frstar, {xh: x[i, j], uh: u[i, j], uh.diff(t): u[i, j].diff(t)})
-        eom_h = eom_h + sm.Matrix([n[i, j]])
+        eom_h = fr_frstar.subs({xh: x[i, j], uh: u[i, j],
+            uh.diff(t): u[i, j].diff(t), xh.diff(t): u[i, j]}) + \
+            sm.Matrix([n[i, j]])
         kd_h = kd.subs({xh: x[i, j], uh: u[i, j]})
+        rhs_h = sm.Matrix([rhs[1].subs({xh: x[i, j], uh: u[i, j]})])
+
         kd_total = kd_total.col_join(kd_h)
         eom_total = eom_total.col_join(eom_h)
-        rhs_h = sm.Matrix([rhs[1].subs({xh: x[i, j], uh: u[i, j]})])
         rhs_total = rhs_total.col_join(rhs_h)
 
 eom = kd_total.col_join(eom_total)
@@ -155,6 +157,7 @@ states = [x[i, j] for i in range(number_of_measurements)
                 for j in range(number_of_repeats)] + \
         [u[i, j] for i in range(number_of_measurements)
                 for j in range(number_of_repeats)]
+
 parameters = [m, c, k, l0, friction]
 par_vals = [1.0, 0.25, 2.0, 1.0, 0.5]
 
@@ -164,22 +167,24 @@ times = np.linspace(t0, tf, num=num_nodes)
 
 measurements = []
 # %%
-# Integrate the differential equations. If np.random.seed(seed) is used, it
-# the seed must be changed for every measurement to ensure they are independent.
+# Integrate the differential equations. If np.random.seed(seed) is used, the
+# seed must be changed for every measurement to ensure they are independent.
 #
 for i in range(number_of_measurements):
-    for j in range(number_of_repeats):
-        seed = 1234*(i+1)*(j+1)
-        np.random.seed(seed)
-        x0 = 4*np.random.randn(2*number_of_measurements * number_of_repeats)
-        sol = solve_ivp(lambda t, x, p: eval_rhs(*x, *p).squeeze(),
-                    (t0, tf), x0, t_eval=times, args=(par_vals,))
-    seed = 10000 + 12345*i
+    seed = 1234*(i+1)
+    np.random.seed(seed)
+
+    x0 = 3.0*np.random.randn(2*number_of_measurements * number_of_repeats)
+    sol = solve_ivp(lambda t, x, p: eval_rhs(*x, *p).squeeze(),
+            (t0, tf), x0, t_eval=times, args=(par_vals,))
+
+    seed = 10000 + 12345*(i+1)
     np.random.seed(seed)
     measurements.append(sol.y[0, :] + 1.0*np.random.randn(num_nodes))
+
 measurements = np.array(measurements)
-print('shsape of measurement array', measurements.shape)
-print('shape of solution array', sol.y.shape)
+print('shape of measurement array', measurements.shape)
+print('shape of solution array   ', sol.y.shape)
 
 # %%
 # Setup the Identification Problem
@@ -209,7 +214,6 @@ def obj(free):
                 measurements[i])**2))
     return sum
 
-
 def obj_grad(free):
     grad = np.zeros_like(free)
     for i in range(nm):
@@ -236,7 +240,6 @@ bounds = {
 # seed must be changed for every map to ensure they are idependent.
 # noise_scale gives the 'strength' of the noise.
 #
-noise_scale = 1.0
 known_trajectory_map = {}
 for i in range(number_of_measurements):
     for j in range(number_of_repeats):
@@ -319,7 +322,7 @@ if number_of_measurements > 1:
     for i in range(number_of_measurements):
         ax[i].plot(times, sol_parsed[i*number_of_repeats, :], color='red')
         ax[i].plot(times, measurements[i], color='blue', lw=0.5)
-        ax[i].set_ylabel(f'{states[i]}')
+        ax[i].set_ylabel(f'{states[number_of_repeats* i]}')
     ax[-1].set_xlabel('Time [s]')
     ax[0].set_title('Trajectories')
 
