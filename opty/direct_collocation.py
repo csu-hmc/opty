@@ -78,7 +78,7 @@ class _DocInherit(object):
     @staticmethod
     def _combine_docs(prob_doc, coll_doc):
         beg, end = prob_doc.split('bounds')
-        if sys.version_info[2] >= 13:
+        if sys.version_info[1] >= 13:
             sep = 'Parameters\n==========\n'
         else:
             sep = 'Parameters\n        ==========\n        '
