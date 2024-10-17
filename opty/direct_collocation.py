@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-#
+
+import sys
 from functools import wraps
 import logging
 
@@ -77,7 +78,11 @@ class _DocInherit(object):
     @staticmethod
     def _combine_docs(prob_doc, coll_doc):
         beg, end = prob_doc.split('bounds')
-        _, middle = coll_doc.split('Parameters\n        ==========\n        ')
+        if sys.version_info[2] >= 13:
+            sep = 'Parameters\n==========\n'
+        else:
+            sep = 'Parameters\n        ==========\n        '
+        _, middle = coll_doc.split(sep)
         return beg + middle[:-9] + '        bounds' + end
 
 _doc_inherit = _DocInherit
