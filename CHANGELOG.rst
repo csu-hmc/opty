@@ -2,6 +2,19 @@ Version 1.4.0.dev0
 ==================
 
 - Dropped support for Python 3.8.
+- Added support for Python 3.13.
+- Examples added:
+  - Crane moving a load
+  - Ball rolling on spinning disc
+  - Mississippi steamboat
+  - Noncontiguous parameter identification
+- ``ConstraintCollocator`` raises an error if all equations of motion are
+  algebraic, i.e. none are differential equations.
+- ``plot_constraint_violations()`` now returns a variable number of subplot
+  rows depending on the number of instance constraints. This makes the plot
+  readable with large numbers of instance constraints.
+- Internal common sub expression replacement symbols are now assumed to be
+  real.
 
 Version 1.3.0
 =============
