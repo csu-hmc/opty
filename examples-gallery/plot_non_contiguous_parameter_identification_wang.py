@@ -1,4 +1,3 @@
-# %%
 """
 Parameter Identification from Noncontiguous Measurements with Bias and Noise
 ============================================================================
