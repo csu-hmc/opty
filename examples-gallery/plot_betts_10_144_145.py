@@ -40,7 +40,7 @@ sm.pprint(eom)
 
 # %%
 # Define and Solve the Optimization Problem.
-# -----------------------------------------
+# ------------------------------------------
 num_nodes = 2001
 iterations = 1000
 
