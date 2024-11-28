@@ -1,3 +1,4 @@
+# %%
 """
 Delay Equation (Göllmann, Kern, and Maurer)
 ===========================================
@@ -141,6 +142,7 @@ for i in range(loop):
         num_nodes,
         interval_value,
         instance_constraints= instance_constraints,
+        bounds=bounds,
     )
 
     prob.add_option('max_iter', 1000)
