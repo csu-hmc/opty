@@ -1,4 +1,3 @@
-# %%
 """
 Delay Equation (Göllmann, Kern, and Maurer)
 ===========================================
@@ -6,12 +5,7 @@ Delay Equation (Göllmann, Kern, and Maurer)
 This is example 10.50 from Betts' book "Practical Methods for Optimal Control
 Using NonlinearProgramming", 3rd edition, Chapter 10: Test Problems.
 
-Let :math:`t_0, t_f` be the starting time and final time. There are instance
-constraints: :math:`x_i(t_f) = x_j(t_0), i \\neq j`.
-As presently *opty* does not support such instance constraints, I iterate a
-few times, hoping it will converge - which it does in this example.
-
-There are also inequalities: :math:`x_i(t) + u_i(t) \\geq 0.3`.
+There are inequalities: :math:`x_i(t) + u_i(t) \\geq 0.3`.
 To handle them, I define additional  state variables :math:`q_i(t)` and use
 additional EOMs:
 
@@ -70,7 +64,7 @@ sm.pprint(eom)
 # %%
 # Define and Solve the Optimization Problem
 # -----------------------------------------
-num_nodes = 101
+num_nodes = 501
 t0, tf = 0.0, 1.0
 interval_value = (tf - t0) / (num_nodes - 1)
 
@@ -94,11 +88,9 @@ obj, obj_grad = create_objective_function(
 # %%
 # Specify the instance constraints and bounds. I use the solution from a
 # previous run as the initial guess to save running time in this example.
-# It took 8 iterations to get it.
+
 initial_guess = np.random.rand(18*num_nodes) * 0.1
-np.random.seed(123)
-initial_guess = np.load('betts_10_50_solution.npy')*(1.0 +
-                                                0.001*np.random.rand(1))
+initial_guess = np.load('betts_10_50_solution.npy')
 
 instance_constraints = (
     x1.func(t0) - 1.0,
@@ -130,8 +122,7 @@ bounds = {
 # %%
 # Iterate
 # -------
-# Here I iterate *loop* times, and use the solution to set the instance
-# constraints for the next iteration.
+# Here I iterate *loop* times.
 loop = 2
 for i in range(loop):
 
@@ -147,7 +138,6 @@ for i in range(loop):
 
     prob.add_option('max_iter', 1000)
 
-
 # Find the optimal solution.
     solution, info = prob.solve(initial_guess)
     initial_guess = solution
@@ -160,11 +150,11 @@ for i in range(loop):
     instance_constraints = (
         x1.func(t0) - 1.0,
 
-        x2.func(t0) - solution[num_nodes-1],
-        x3.func(t0) - solution[2*num_nodes-1],
-        x4.func(t0) - solution[3*num_nodes-1],
-        x5.func(t0) - solution[4*num_nodes-1],
-        x6.func(t0) - solution[5*num_nodes-1],
+        x2.func(t0) - x1.func(tf),
+        x3.func(t0) - x2.func(tf),
+        x4.func(t0) - x3.func(tf),
+        x5.func(t0) - x4.func(tf),
+        x6.func(t0) - x5.func(tf),
     )
 
 # %%
@@ -180,26 +170,12 @@ prob.plot_constraint_violations(solution)
 prob.plot_objective_value()
 
 # %%
-# Are the instance constraints satisfied?
-delta = [solution[0] - 1.0]
-for i in range(1, 6):
-    delta.append(solution[i*num_nodes] - solution[i*num_nodes-1])
-
-labels = [r'$x_1(t_0) - 1$', r'$x_1(t_f) - x_2(t_0)$', r'$x_2(t_f) - x_3(t_0)$',
-          r'$x_3(t_f) - x_4(t_0)$', r'$x_4(t_f) - x_5(t_0)$',
-          r'$x_5(t_f) - x_6(t_0)$']
-fig, ax = plt.subplots(figsize=(8, 2), constrained_layout=True)
-ax.bar(labels, delta)
-ax.set_title('Instance constraint violations')
-prevent_print = 1
-
-# %%
 # Are the inequality constraints satisfied?
 min_q = np.min(solution[7*num_nodes: 12*num_nodes-1])
 if min_q >= 0.3:
-    print(f"Minimal value of the q\u1D62 is: {min_q:.3f} >= 0.3, so satisfied")
+    print(f"Minimal value of the q\u1D62 is: {min_q:.12f} >= 0.3, so satisfied")
 else:
-    print(f"Minimal value of the q\u1D62 is: {min_q:.3f} < 0.3, so not satisfied")
+    print(f"Minimal value of the q\u1D62 is: {min_q:.12f} < 0.3, so not satisfied")
 
 # %%
-# sphinx_gallery_thumbnail_number = 4
+# sphinx_gallery_thumbnail_number = 2
