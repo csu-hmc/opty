@@ -241,7 +241,7 @@ specified_symbols = (Fb, Tf)
 unknown_symbols   = ()
 
 num_nodes = 301
-t0, tf    = 0.0, 7.5
+t0, tf    = 0.0, 5.0
 interval_value = (tf - t0) / (num_nodes - 1)
 
 # %%
@@ -273,7 +273,7 @@ obj, obj_grad = create_objective_function(
 
 initial_state_constraints = {
         x: 7.5,
-        y: 10.0,
+        y: 5.5,
         q0: np.pi/2.0,
         qf: 0.5,
         ux: 0.,
@@ -300,6 +300,7 @@ bounds1 = {
         Tf: (-grenze, grenze),
         # restrict the steering angle to avoid locking
         qf: (-np.pi/2. + delta, np.pi/2. - delta),
+        # these bounds on x, y help convergence a lot!
         x: (-10, 10),
         y: (0.0, 25),
 }
@@ -335,6 +336,7 @@ for i in range(1):
     print('Iterations needed',len(prob.obj_value))
     print(f"objective value {info['obj_val']:.3e} \n")
 prob.plot_objective_value()
+#np.save('car_in_garage_solution', solution)
 
 # %%
 # Plot the constraint violations.
@@ -389,47 +391,60 @@ coords_lam = sm.lambdify((*state_symbols, fb, tq, *pL, la), coordinates,
         cse=True)
 
 
+def init():
 # needed to give the picture the right size.
-xmin, xmax = -10, 11.
-ymin, ymax = 0.0, 21.
+        xmin, xmax = -10, 11.
+        ymin, ymax = 0.0, 21.
 
-fig = plt.figure(figsize=(8, 8))
-ax  = fig.add_subplot(111)
-ax.set_xlim(xmin, xmax)
-ax.set_ylim(ymin, ymax)
-ax.set_aspect('equal')
-ax.grid()
+        fig = plt.figure(figsize=(8, 8))
+        ax  = fig.add_subplot(111)
+        ax.set_xlim(xmin, xmax)
+        ax.set_ylim(ymin, ymax)
+        ax.set_aspect('equal')
+        ax.grid()
 
-ax.plot(initial_state_constraints[x], initial_state_constraints[y], 'ro',
-        markersize=10)
-ax.plot((par_map[x1]-la2, par_map[x1]-la2), (0.0, par_map[y12]-la2),
-        color='black', lw=1.5)
-ax.plot((par_map[x2]+la2, par_map[x2]+la2), (0.0, par_map[y12]-la2),
-        color='black', lw=1.5)
-ax.plot((xmin, par_map[x1]-la2), (par_map[y12]-la2, par_map[y12]-la2),
-        color='black', lw=1.5)
-ax.plot((par_map[x2]+la2, xmax), (par_map[y12]-la2, par_map[y12]-la2),
-        color='black', lw=1.5)
-ax.plot((par_map[x1]-la2, par_map[x2]+0.25), (0.0, 0.0),
-        color='black', lw=1.5)
+        ax.plot(initial_state_constraints[x], initial_state_constraints[y], 'ro',
+                markersize=10)
+        ax.plot((par_map[x1]-la2, par_map[x1]-la2), (0.0, par_map[y12]-la2),
+                color='black', lw=1.5)
+        ax.plot((par_map[x2]+la2, par_map[x2]+la2), (0.0, par_map[y12]-la2),
+                color='black', lw=1.5)
+        ax.plot((xmin, par_map[x1]-la2), (par_map[y12]-la2, par_map[y12]-la2),
+                color='black', lw=1.5)
+        ax.plot((par_map[x2]+la2, xmax), (par_map[y12]-la2, par_map[y12]-la2),
+                color='black', lw=1.5)
+        ax.plot((par_map[x1]-la2, par_map[x2]+0.25), (0.0, 0.0),
+                color='black', lw=1.5)
 
-ax.fill_between((xmin, par_map[x1]-la2), (par_map[y12]-la2, par_map[y12]-la2),
-        color='grey', alpha=0.5)
-ax.fill_between((par_map[x2]+la2, xmax), (par_map[y12]-la2, par_map[y12]-la2),
-        color='grey', alpha=0.5)
+        ax.fill_between((xmin, par_map[x1]-la2), (par_map[y12]-la2,
+                par_map[y12]-la2), color='grey', alpha=0.5)
+        ax.fill_between((par_map[x2]+la2, xmax), (par_map[y12]-la2,
+                par_map[y12]-la2), color='grey', alpha=0.5)
+
+        ax.annotate('Starting position of the car',
+                xy=(initial_state_constraints[x], initial_state_constraints[y]),
+                arrowprops=dict(arrowstyle='->',
+                                connectionstyle='arc3, rad=-.2',
+                                lw=0.25, color='blue'),
+                xytext=(0.0, 12.75), fontsize=12, color='red')
+
 
 # Initialize the block
-line1, = ax.plot([], [], color='orange', lw=2)
-line2, = ax.plot([], [], color='red', lw=2)
-line3, = ax.plot([], [], color='magenta', lw=2)
-line4  = ax.quiver([], [], [], [], color='green', scale=35, width=0.004,
-        headwidth=8)
+        line1, = ax.plot([], [], color='orange', lw=2)
+        line2, = ax.plot([], [], color='red', lw=2)
+        line3, = ax.plot([], [], color='magenta', lw=2)
+        line4  = ax.quiver([], [], [], [], color='green', scale=35, width=0.004,
+                headwidth=8)
+
+        return fig, ax, line1, line2, line3, line4
 
 
 # Function to update the plot for each animation frame
+fig, ax, line1, line2, line3, line4 = init()
+
 def update(t):
     message = (f'running time {t:.2f} sec \n The back axle is red, the ' +
-               f'front axle is magenta \n The driving force is green')
+               f'front axle is magenta \n The driving/breaking force is green')
     ax.set_title(message, fontsize=12)
 
     coords = coords_lam(*state_sol(t), *input_sol(t), *pL_vals, la1)
@@ -447,10 +462,13 @@ def update(t):
 frames = np.linspace(t0, tf, int(fps * (tf - t0)))
 animation = FuncAnimation(fig, update, frames=frames, interval=1000 / fps)
 
-plt.show()
-
 # %%
-# sphinx_gallery_thumbnail_number = 3
+# A frame from the animation.
+# sphinx_gallery_thumbnail_number = 6
+fig, ax, line1, line2, line3, line4 = init()
+update(4.15)
+
+plt.show()
 
 
 
