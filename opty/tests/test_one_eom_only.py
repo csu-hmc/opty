@@ -77,10 +77,6 @@ initial_guess = np.zeros(prob.num_free)
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
 print(info['status_msg'])
-print(f'Objective value achieved: {info['obj_val']:.4f}, as per the book ' +
-        f'it is {6.7241}, so the error is: '
-        f'{(info['obj_val'] - 6.7241)/6.7241*100:.3f} % ')
-print(f'Time taken for the simulation: {time.time() - start:.2f} s')
 
 # Plot the optimal state and input trajectories.
 prob.plot_trajectories(solution)
