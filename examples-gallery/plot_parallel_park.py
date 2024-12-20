@@ -173,7 +173,8 @@ prob = Problem(obj, obj_grad, eom, state_symbols,
 prob.add_option('nlp_scaling_method', 'gradient-based')
 
 # %%
-# Give some rough estimates for the x and y trajectories.
+# Give some rough estimates for the x and y trajectories. They were used to
+# generate the initial guess, now stored in the file parallel_park_solution.npy.
 x_guess = 3.0/duration*2.0*time
 x_guess[num_nodes//2:] = 6.0 - 3.0/duration*2.0*time[num_nodes//2:]
 y_guess = 2.0/duration*time
@@ -184,10 +185,16 @@ initial_guess[num_nodes:2*num_nodes] = y_guess
 prob.plot_trajectories(initial_guess)
 
 # %%
-# Find the optimal solution.
+# Solve the optimisation, using the initial guess stored in the file
+# parallel_park_solution.npy.
+initial_guess = np.load('parallel_park_solution.npy')
 solution, info = prob.solve(initial_guess)
 print(info['status_msg'])
 print(info['obj_val'])
+
+# %%
+#Improved initial_guess may be saved and stored like this:
+# ```np.save('parallel_park_solution.npy', solution)```
 
 # %%
 # Plot the optimal state and input trajectories.
@@ -223,8 +230,7 @@ eval_point_coords = sm.lambdify((state_symbols, specified_symbols,
 coords = []
 for xi, ui in zip(xs.T, us.T):
     coords.append(eval_point_coords(xi, ui, list(par_map.values())))
-coords = np.array(coords)  # shape(600, 3, 8)
-
+coords = np.array(coords)  # shape(501, 3, 5)
 
 def frame(i):
 
@@ -252,6 +258,8 @@ def frame(i):
 
 fig, title_text, lines, Pr_path, Pf_path = frame(0)
 
+time = list(time)
+time[-3:] = [time[-1]]*3
 
 def animate(i):
     title_text.set_text('Time = {:1.2f} s'.format(time[i]))
@@ -260,8 +268,8 @@ def animate(i):
     Pf_path.set_data(coords[:i, 0, 2], coords[:i, 1, 2])
 
 
-ani = animation.FuncAnimation(fig, animate, len(time),
-                              interval=int(interval_value*1000))
+ani = animation.FuncAnimation(fig, animate, range(0, len(time), 3),
+                              interval=int(interval_value*1000*2))
 
 # %%
 # A frame from the animation.
