@@ -1,0 +1,58 @@
+# These are some example model parameters. The symbols correspond to the
+# symbols used in the symbolic equations of motion.
+#
+# The body segment parameters are from Winter's book for 75 kg body mass and
+# 1.8 m body height.
+#
+# trunk
+ma: 50.85  # mass [kg]
+ia: 3.1777 # moment of inertia about mass center wrt to the trunk reference frame [kg*m^2]
+xa: 0.0    # local x location of mass center wrt to the hip joint [m]
+ya: 0.3155 # local y location of mass center wrt to the hip joint [m]
+# rthigh
+mb: 7.5    # mass [kg]
+ib: 0.1522 # moment of inertia about mass center wrt to rthigh reference frame [kg*m^2]
+xb: 0.0    # local x location of mass center wrt to the hip joint [m]
+yb: -0.191 # local y location of mass center wrt to the hip joint [m]
+lb: 0.4410 # joint to joint segment length [m]
+# rshank:
+mc: 3.4875  # mass [kg]
+ic: 0.0624  # moment of inertia about mass center wrt to rshank reference frame [kg*m^2]
+xc: 0.0     # x location of mass center wrt to the knee joint [m]
+yc: -0.1917 # y location of mass center wrt to the knee joint [m]
+lc: 0.4428  # joint to joint segment length [m]
+# rfoot
+md: 1.0875  # mass [kg]
+id: 0.0184  # moment of inertia about mass center wrt to rfoot reference frame [kg*m^2]
+xd: 0.0768  # local x location of mass center wrt to the ankle joint [m]
+yd: -0.0351 # local y location of mass center wrt to the ankle joint [m]
+hxd: -0.06  # local x location of heel wrt to the ankle joint [m]
+txd: 0.15   # local x location of toe wrt to the ankle joint [m]
+fyd: -0.07  # local y location of heel and toe relative to ankle joint [m]
+# lthigh
+me: 7.5    # mass [kg]
+ie: 0.1522 # moment of inertia about mass center wrt to the lthigh reference frame[kg*m^2]
+xe: 0.0    # local x location of mass center wrt to the hip joint [m]
+ye: -0.191 # local y location of mass center wrt to the hip joint [m]
+le: 0.4410 # segment length [m]
+# lshank
+mf: 3.4875  # mass [kg]
+if: 0.0624  # moment of inertia about mass center wrt to the lshank reference frame [kg*m^2]
+xf: 0.0     # local x location of mass center wrt to the knee joint [m]
+yf: -0.1917 # local y location of mass center wrt to the knee joint [m]
+lf: 0.4428  # segment length [m]
+# lfoot
+mg: 1.0875  # mass [kg]
+ig: 0.0184  # moment of inertia about mass center wrt to the lfoot reference frame [kg*m^2]
+xg: 0.0768  # local x location of mass center wrt to the ankle joint [m]
+yg: -0.0351 # local y location of mass center wrt to the ankle joint [m]
+hxg: -0.06  # local x location of heel wrt to the ankle joint [m]
+txg: 0.15   # local x location of toe wrt to the ankle joint [m]
+fyg: -0.07  # local y location of heel and toe relative to ankle joint [m]
+# contact
+kc: 5.0e+7  # ground contact stiffness, N/m^3
+cc: 0.85 # ground contact damping, s/m
+mu: 1.0  # friction coefficient
+vs: 0.01 # velocity constant (m/s), for |ve| : vc -> |fx| : 0.4621*c*fy
+# other
+g: 9.81 # acceleration due to gravity, m/s^2
