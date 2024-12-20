@@ -397,7 +397,7 @@ class Problem(cyipopt.Problem):
             node_time_interval = self.collocator.node_time_interval
 
         time = np.linspace(0,
-                           self.collocator.num_collocation_nodes *
+                           (self.collocator.num_collocation_nodes-1) *
                            node_time_interval,
                            num=self.collocator.num_collocation_nodes)
 
