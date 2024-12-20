@@ -396,10 +396,10 @@ class Problem(cyipopt.Problem):
                 variable_duration=self.collocator._variable_duration)
             node_time_interval = self.collocator.node_time_interval
 
-        time = np.linspace(0,
-                           self.collocator.num_collocation_nodes *
-                           node_time_interval,
-                           num=self.collocator.num_collocation_nodes)
+        time = np.arange(0,
+                         self.collocator.num_collocation_nodes *
+                         node_time_interval,
+                         node_time_interval)
 
         num_axes = (self.collocator.num_states +
                     self.collocator.num_input_trajectories)
