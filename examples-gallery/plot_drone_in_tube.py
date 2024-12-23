@@ -9,15 +9,16 @@ that will take it from a starting point to an ending point with minimum power.
 The drone must not leave a tube defined by a curve (centerline) in space and a
 radius.
 
-The only interesting is maybe this:
+Interesting maybe this:
 ( In what follows all components are w.r.t. the inertial frame N.)
 The curve is given as X(r) = (f(r, params), g(r, params), h(r, params)),
 where r is the parameter of the curve. Let :math:`r_1` be the parameter of the
-curve where the distance of thedrone from the curve is closest. Then
-:math:`\\dfrac{df}{dr}, \\dfrac{dg}{dr}, \\dfrac{dh}{dr}`
-at :math:`R = r_1` is the tangential vecor of the curve at the point of closest.
+curve where the distance of the drone from the curve is closest. Then
+:math:`( \\dfrac{df}{dr}, \\dfrac{dg}{dr}, \\dfrac{dh}{dr} ) |_{r = r_1}` is the
+tangential vector on the curve at the point of closest distance from the drone.
+
 So, I form the equation of the plane, which is perpendicular to the curve at the
-point of closest, and contains the point of the drone. The intersection of the
+point of closest distance, and contains the point of the drone. The intersection of the
 curve and the plane gives the point of closest distance of the curve from the
 drone.
 This leads to a nonlinear equation for :math:`r_1`, which I add to the equations
@@ -26,7 +27,7 @@ name for :math:`r_1`.
 
 In addition, I introduce a new state variable :math:`dist`, which is the distance
 of the drone from the curve. The reason I do this is so I can bound it to be less
-than a certain value, which is the radius of the tube.
+than the radius of the tube.
 
 **Constants**
 
@@ -63,14 +64,10 @@ import numpy as np
 from opty import Problem, parse_free, create_objective_function
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import matplotlib
-from IPython.display import HTML
-matplotlib.rcParams['animation.embed_limit'] = 2**128
-
-import time
 
 # %%
-# Generate the equations of motion of the system.
+# Equations of Motion
+# -------------------
 m, l, w, d, g, c = sm.symbols('m, l, w, d, g, c', real=True)
 x, y, z, vx, vy, vz = me.dynamicsymbols('x, y, z, v_x, v_y v_z', real=True)
 q0, q1, q2, q3 = me.dynamicsymbols('q0, q1, q2, q3', real=True)
@@ -141,6 +138,8 @@ fr, frstar = kane.kanes_equations([drone], [prop1, prop2, prop3, prop4, grav])
 eom = kinematical.col_join(fr + frstar).col_join(holonomic)
 
 # %%
+# Define some functions for the distance of the drone to the center
+# curve of the tube.
 def plane(vector, point, x1, x2, x3):
     """
     It returns the plane equations, whose normal vector is vector, and the
@@ -191,6 +190,7 @@ def distance(N, r1, curve, point):
     return dist
 
 # %%
+# Define the curve and enlarge the equations of motion.
 dist, cut_param, cutdt = me.dynamicsymbols('dist, cut_param, cutdt', real=True)
 a1, a2, a3 = sm.symbols('a1, a2, a3', real=True)
 x1, x2, x3 = sm.symbols('x1, x2, x3', real=True)
@@ -198,8 +198,7 @@ x1, x2, x3 = sm.symbols('x1, x2, x3', real=True)
 r = sm.symbols('r', real=True)
 
 # %%
-# Define the curve.
-curve = (a1*sm.sin(2*np.pi*r), a2*sm.cos(2*np.pi*r), a3*r)
+curve = (a1*sm.sin(np.pi*r), a2*sm.cos(np.pi*r), a3*r)
 
 h1 = intersect(cut_param, curve, (x, y, z), x1, x2, x3)
 h2 = distance(N, cut_param, curve, (x, y, z))
@@ -208,13 +207,15 @@ eom = eom.col_join(sm.Matrix([h1, dist-h2, -cutdt + cut_param.diff(t)]))
 print(f'Shape of eoms is {eom.shape}, they contain {sm.count_ops(eom)} operations')
 
 # %%
+# Set up the Optimization and Solve It
+# ------------------------------------
 t0, duration = 0, 5.0
 num_nodes = 101
 interval_value = duration/(num_nodes - 1)
 
 # %%
 # Provide some values for the constants.
-radius = 1.0
+radius = 1.5
 max_z = 12.0
 start_param = 0.1
 par_map = {
@@ -276,7 +277,7 @@ instance_constraints = (
 #    q0.func(duration) - 1.0,
 #    q1.func(duration),
 #    q2.func(duration),
-#    q3.func(duration),
+#     q3.func(duration),
 
     # stationary at start and finish
     vx.func(0.0),
@@ -318,13 +319,14 @@ prob = Problem(obj, obj_grad, eom, state_symbols,
                bounds=bounds)
 
 prob.add_option('nlp_scaling_method', 'gradient-based')
-prob.add_option('max_iter', 12000)
+prob.add_option('max_iter', 1500)
 
 # %%
-# Give a guess of a direct route with constant thrust.
+# Give a guess of a plausible route with constant thrust. Here I use the
+# solution of a previous run as initial guess.
 
 initial_guess = np.zeros(prob.num_free)
-x_guess, y_guess, z_guess = eval_curve(np.linspace(0.0, 10/par_map[a3],
+x_guess, y_guess, z_guess = eval_curve(np.linspace(0.0, max_z/par_map[a3],
             num=num_nodes), par_map[a1], par_map[a2], par_map[a3])
 initial_guess[0*num_nodes:1*num_nodes] = x_guess
 initial_guess[1*num_nodes:2*num_nodes] = y_guess
@@ -335,13 +337,11 @@ initial_guess = np.load('drone_in_tube_solution.npy')
 # %%
 # Find an optimal solution.
 for _ in range(1):
-    zeit = time.time()
     solution, info = prob.solve(initial_guess)
     initial_guess = solution
     print(info['status_msg'])
     print(info['obj_val'])
-    print('Time taken:', time.time()-zeit, '\n')
-
+#np.save('drone_in_tube_solution.npy', solution)
 # %%
 # Plot the optimal state and input trajectories.
 prob.plot_trajectories(solution)
@@ -350,12 +350,13 @@ prob.plot_trajectories(solution)
 # Plot the constraint violations.
 prob.plot_constraint_violations(solution)
 
- # %%
+# %%
 # Plot the objective function as a function of optimizer iteration.
 prob.plot_objective_value()
 
 # %%
-# Animate the motion of the drone.
+# Animate the Motion of the Drone
+# -------------------------------
 time = np.linspace(0.0, duration, num=num_nodes)
 coordinates = Ao.pos_from(O).to_matrix(N)
 for point in [P1, Ao, P2, Ao, P3, Ao, P4]:
@@ -427,7 +428,6 @@ def frame(i):
     ax.set_xlim(-par_map[a1]-1, par_map[a1]+1)
     ax.set_ylim(-par_map[a2]-1, par_map[a2]+1)
     ax.set_zlim(0.0, bounds[z][1]+1)
-#    ax.set_aspect('equal')
 
     ax.set_xlabel(r'$x$ [m]')
     ax.set_ylabel(r'$y$ [m]')
@@ -451,11 +451,6 @@ X, Y, Z = frenet_frame(f, g, h, r=curve_param)
 ax.plot_surface(X, Y, Z, rstride=1, cstride=1, color='grey', alpha=0.1,
         edgecolor='red')
 
-#ax.plot(eval_curve(curve_param, par_map[a1], par_map[a2], par_map[a3])[0],
-#        eval_curve(curve_param, par_map[a1], par_map[a2], par_map[a3])[1],
-#        eval_curve(curve_param, par_map[a1], par_map[a2], par_map[a3])[2],
-#        color='green')
-
 def animate(i):
     title_text.set_text('Time = {:1.2f} s'.format(time[i]))
     drone_lines.set_data_3d(coords[i, 0, :], coords[i, 1, :], coords[i, 2, :])
@@ -465,6 +460,12 @@ ani = animation.FuncAnimation(fig, animate, range(0, len(time), 2),
                               interval=int(interval_value*2000))
 
 
-display(HTML(ani.to_jshtml()))
 
 # %%
+fig, ax, title_text, drone_lines, Ao_path  = frame(50)
+#frame(50)
+ax.plot_surface(X, Y, Z, rstride=1, cstride=1, color='grey', alpha=0.1,
+        edgecolor='red')
+
+# sphinx_gallery_thumbnail_number = 5
+plt.show()
