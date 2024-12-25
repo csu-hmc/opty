@@ -11,21 +11,22 @@ radius.
 Interesting maybe this:
 ( In what follows all components are w.r.t. the inertial frame N.)
 The curve is given as X(r) = (f(r, params), g(r, params), h(r, params)),
-where r is the parameter of the curve. Let :math:`cut_{param}` be the parameter of the
-curve where the distance of the drone from the curve is closest. Then
-:math:`( \\dfrac{df}{dr}, \\dfrac{dg}{dr}, \\dfrac{dh}{dr} ) |_{r = cut_{param}}` is the
-tangential vector on the curve at the point of closest distance from the drone.
+where r is the parameter of the curve. Let :math:`cut_{param}` be the parameter
+of the curve where the distance of the drone from the curve is closest. Then
+:math:`( \\dfrac{df}{dr}, \\dfrac{dg}{dr}, \\dfrac{dh}{dr} ) |_{r = cut_{param}}`
+is the tangential vector on the curve at the point of closest distance from the
+drone.
 
 So, I form the equation of the plane, which is perpendicular to the curve at the
-point of closest distance, and contains the point of the drone. The intersection of the
-curve and the plane gives the point of closest distance of the curve from the
-drone.
-This leads to a nonlinear equation for :math:`cut_{param}`, which I add to the equations
-of motion by declaring a new state variable :math:`cut_{param}`.
+point of closest distance, and contains the point of the drone. The intersection
+of the curve and the plane gives the point of closest distance of the curve
+from the drone.
+This leads to a nonlinear equation for :math:`cut_{param}`, which I add to the
+equations of motion by declaring a new state variable :math:`cut_{param}`.
 
 In addition, I introduce a new state variable :math:`dist`, which is the distance
-of the drone from the curve. The reason I do this is so I can bound it to be less
-than the radius of the tube.
+from the drone from the curve. The reason I do this is so I can bound it to be
+less than the radius of the tube.
 
 **Constants**
 
