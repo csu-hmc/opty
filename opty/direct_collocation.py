@@ -585,9 +585,9 @@ class Problem(cyipopt.Problem):
                         hilfs = a_before * vector[-1]
                         exp1 = exp1.subs(a_before_before,
                                          sm.Float(round(hilfs, 2)))
-                    elif ((isinstance(a_before, sm.Float) and
-                          (a != self.collocator.node_time_interval))):
-                        exp1 = exp1.subs(a_before, round(a_before, 2))
+
+                    elif isinstance(a, sm.Float):
+                        exp1 = exp1.subs(a, round(a, 2))
                     a_before_before = a_before
                     a_before = a
                 instance_constr_plot.append(exp1)
