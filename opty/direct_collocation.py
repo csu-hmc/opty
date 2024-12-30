@@ -727,6 +727,7 @@ class ConstraintCollocator(object):
 
         self._sort_parameters()
         self._check_known_trajectories()
+        self._substitute_timeshift_trajectories()
         self._sort_trajectories()
         self.num_free = ((self.num_states +
                           self.num_unknown_input_trajectories) *
@@ -843,6 +844,32 @@ class ConstraintCollocator(object):
             if len(v) != N:
                 msg = 'The known parameter {} is not length {}.'
                 raise ValueError(msg.format(k, N))
+                
+                
+    def _substitute_timeshift_trajectories(self):
+        """Identify and substitute time-shifted trajectories in the eom. Creates a dictionary 
+        linking the substitutes with the original trajectories and the timeshift parameters."""
+        
+        t_set = {self.time_symbol}
+        
+        trajs = self.eom.atoms(sm.core.backend.AppliedUndef, sm.core.backend.Derivative)
+        self.timeshift_traj_substitutes = {}
+        
+        for traj in trajs:
+            if not len(traj.free_symbols.intersection(t_set)) == 1:
+                continue
+            if not len(traj.free_symbols) == 2:
+                continue
+            
+            traj_subs = sm.symbols(traj.name+"_shift", cls=sm.Function)(self.time_symbol)
+            timeshift_parameter = list(traj.free_symbols - t_set)[0]
+            
+            self.timeshift_traj_substitutes[traj_subs] = (traj, timeshift_parameter)
+            
+            self.eom = self.eom.subs(traj, traj_subs)
+            
+        self.num_timeshift_traj_substitutes = len(self.timeshift_traj_substitutes)
+        
 
     def _sort_trajectories(self):
         """Finds and counts all of the non-state, time varying parameters in
