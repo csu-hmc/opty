@@ -1,3 +1,4 @@
+# %%
 """
 Particle Flight in Tube
 =======================
@@ -437,6 +438,7 @@ def init():
     ax = fig.add_subplot(projection='3d')
 
     line1, = ax.plot([], [], [], marker='o', color='black', markersize=7)
+    line2, = ax.plot([], [], [], color='black', lw=1)
     pfeil = ax.quiver([], [], [], [], [], [], color='green')
 
     ax.set_xlim(-par_map[a1]-1, par_map[a1]+1)
@@ -447,10 +449,10 @@ def init():
     ax.set_ylabel(r'$y$ [m]')
     ax.set_zlabel(r'$z$ [m]')
 
-    return fig, ax, line1, pfeil
+    return fig, ax, line1, line2, pfeil
 
 
-fig, ax, line1, pfeil = init()
+fig, ax, line1, line2, pfeil = init()
 
 # Define the curve functions
 f = lambda r: eval_curve(r, par_map[a1], par_map[a2], par_map[a3])[0]
@@ -488,6 +490,15 @@ def animate(i):
             [(coords[1, 1]-coords[1, 0])/skale],
             [(coords[2, 1]-coords[2, 0])/skale], color='green')
 
+    koords = []
+    for k in range(i):
+        koords.append(eval_coords(state_sol(time[k]), fx1, fy1, fz1,
+            list(par_map.values())))
+
+    line2.set_data_3d([koords[k][0][0] for k in range(i)], [koords[k][1][0]
+            for k in range(i)], [koords[k][2][0] for k in range(i)])
+
+
     ax.set_title(f'Running time = {time[i]:.2f} s. \n The small blue circle '+
             f'is the gate \n The green arrow is proportional to the force.')
 
@@ -495,10 +506,12 @@ ani = animation.FuncAnimation(fig, animate, range(0, len(time), 2),
             interval=int(interval_value*2000))
 
 # %%
-fig, ax, line1, pfeil = init()
+fig, ax, line1, line2, pfeil = init()
 animate(35)
 ax.plot_surface(X, Y, Z, rstride=1, cstride=1, color='grey', alpha=0.1,
         edgecolor='red')
 plot_3d_circle(ax,center=center, radius=radius/3.0, normal=normal)
 # sphinx_gallery_thumbnail_number = 5
 plt.show()
+
+# %%
