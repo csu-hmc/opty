@@ -737,7 +737,8 @@ class ConstraintCollocator(object):
 
         self.integration_method = integration_method
 
-        if instance_constraints is not None:
+        if instance_constraints is not None or self.num_timeshift_traj_substitutes > 0:
+            self._generate_timeshift_constraints()
             self.num_instance_constraints = len(instance_constraints)
             self.num_constraints += self.num_instance_constraints
             self._identify_functions_in_instance_constraints()
@@ -998,7 +999,20 @@ class ConstraintCollocator(object):
             x_sub = {d: (i + n) / 2 for d, i, n in zip(x, xi, xn)}
             u_sub = {d: (i + n) / 2 for d, i, n in zip(u, ui, un)}
             self.discrete_eom = me.msubs(self.eom, xdot_sub, x_sub, u_sub)
+            
+    def _generate_timeshift_constraints(self):
+        """ Generates a set of instance constraints to link the timeshifted trajectories with their
+        substitutes"""
 
+        timeshift_constraints = []
+        
+        for traj_subs, traj in self.timeshift_traj_substitutes.items():
+            for i in range(self.num_collocation_nodes):
+                timeshift_constraints.append(traj_subs.subs(self.time_symbol, i * self.node_time_interval) - 
+                                             traj[0].subs(self.time_symbol, i * self.node_time_interval))
+                
+        self.instance_constraints = tuple(list(self.instance_constraints) + timeshift_constraints)
+        
     def _identify_functions_in_instance_constraints(self):
         """Instantiates a set containing all of the instance functions, i.e.
         x(1.0) in the instance constraints."""
@@ -1014,9 +1028,15 @@ class ConstraintCollocator(object):
         """Instantiates a dictionary mapping the instance functions to the
         nearest index in the free variables vector."""
 
-        def determine_free_index(time_index, state):
-            state_index = self.state_symbols.index(state)
-            return time_index + state_index * self.num_collocation_nodes
+        def determine_free_index(time_index, trajectory):
+            if trajectory in self.state_symbols:
+                traj_index = self.state_symbols.index(trajectory)
+            elif trajectory in self.unknown_input_trajectories:
+                traj_index = self.num_states + self.unknown_input_trajectories.index(trajectory)
+            else:
+                raise ValueError((f"'{trajectory}' is neither a state nor an unknown input"
+                                  "trajectory"))
+            return time_index + traj_index * self.num_collocation_nodes
 
         N = self.num_collocation_nodes
         h = self.node_time_interval
@@ -1041,10 +1061,9 @@ class ConstraintCollocator(object):
                         func, time_idx, self.num_collocation_nodes - 1))
             else:
                 time_value = func.args[0]
-                time_vector = np.linspace(0.0, duration, num=N)
-                time_idx = np.argmin(np.abs(time_vector - time_value))
-            free_index = determine_free_index(time_idx,
-                                              func.__class__(self.time_symbol))
+                time_idx = time_value / h
+                
+            free_index = determine_free_index(time_idx, func.__class__(self.time_symbol))
             node_map[func] = free_index
 
         self.instance_constraints_free_index_map = node_map
