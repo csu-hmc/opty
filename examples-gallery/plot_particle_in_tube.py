@@ -1,4 +1,3 @@
-# %%
 """
 Particle Flight in Tube
 =======================
@@ -476,7 +475,7 @@ normal = normal / np.sqrt([np.sum(normal[i]**2) for i in range(3)])
 plot_3d_circle(ax,center=center, radius=radius/3.0, normal=normal)
 
 def animate(i):
-    global line1, pfeil
+    global line1, pfeil, line2, koords
     fx1 = input_sol(time[i])[0]
     fy1 = input_sol(time[i])[1]
     fz1 = input_sol(time[i])[2]
@@ -494,7 +493,6 @@ def animate(i):
     for k in range(i):
         koords.append(eval_coords(state_sol(time[k]), fx1, fy1, fz1,
             list(par_map.values())))
-
     line2.set_data_3d([koords[k][0][0] for k in range(i)], [koords[k][1][0]
             for k in range(i)], [koords[k][2][0] for k in range(i)])
 
@@ -513,5 +511,3 @@ ax.plot_surface(X, Y, Z, rstride=1, cstride=1, color='grey', alpha=0.1,
 plot_3d_circle(ax,center=center, radius=radius/3.0, normal=normal)
 # sphinx_gallery_thumbnail_number = 5
 plt.show()
-
-# %%
