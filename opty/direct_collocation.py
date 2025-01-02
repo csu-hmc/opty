@@ -1096,18 +1096,16 @@ class ConstraintCollocator(object):
         subbed_constraints = self.instance_constraints
         
         # make def map
-        def_map = {}
+        self.instance_constraint_free_map = {}
         for k,v in self.instance_constraints_free_index_map.items():
             if isinstance(v, sm.core.operations.AssocOp):
                 v = v.subs(timeshift_param_map)
-            def_map[k] = free[v,0]             
+            self.instance_constraint_free_map[k] = free[v,0]             
             
         subbed_constraints = [None]*self.num_instance_constraints
         for i in range(self.num_instance_constraints):
-            subbed_constraints[i] = self.instance_constraints[i]
-            funcs = list(self.instance_constraints[i].atoms(sm.Function))
-            for func in funcs:
-                subbed_constraints[i] = subbed_constraints[i].subs(func, def_map[func])
+            subbed_constraints[i] = me.msubs(self.instance_constraints[i], 
+                                            self.instance_constraints_free_index_map)
 
         f = sm.lambdify(([free] + list(self.known_parameter_map.keys())),
                         subbed_constraints, modules=[{'ImmutableMatrix':
@@ -1138,10 +1136,7 @@ class ConstraintCollocator(object):
     def _instance_constraints_jacobian_values_func(self):
         """Returns the non-zero values of the constraint Jacobian associated
         with the instance constraints."""
-        free = sm.DeferredVector('FREE')
-
-        def_map = {k: free[v] for k, v in
-                   self.instance_constraints_free_index_map.items()}
+        free = sm.MatrixSymbol('FREE', self.num_free, 1)
 
         funcs = []
         num_vals_per_func = []
@@ -1149,7 +1144,7 @@ class ConstraintCollocator(object):
             partials = list(con.atoms(sm.Function))
             num_vals_per_func.append(len(partials))
             jac = sm.Matrix([con]).jacobian(partials)
-            jac = jac.subs(def_map)
+            jac = jac.subs(self.instance_constraint_free_map)
             funcs.append(sm.lambdify(([free] +
                                       list(self.known_parameter_map.keys())),
                                      jac, modules=[{'ImmutableMatrix':
