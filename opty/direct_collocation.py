@@ -868,6 +868,12 @@ class ConstraintCollocator(object):
             
             self.eom = self.eom.subs(traj, traj_subs)
             
+            if traj.subs(timeshift_parameter, 0) not in self.known_trajectory_map:
+                raise ValueError((f'The unshifted original of an input trajectory with unknown'
+                                  f' timeshift has to be provided in the known trajectory map.'
+                                  f' The following trajectory is missing in known_trajectory_map:'
+                                  f' {traj.name}({self.time_symbol})'))
+            
         self.num_timeshift_traj_substitutes = len(self.timeshift_traj_substitutes)
         
 
@@ -1050,9 +1056,14 @@ class ConstraintCollocator(object):
         N = self.num_collocation_nodes
         h = self.node_time_interval
         duration = h * (N - 1)
+        known_trajectory_names = [traj.name for traj in self.known_trajectory_map]
 
         node_map = {}
         for func in self.instance_constraint_function_atoms:
+            
+            if func.name in known_trajectory_names:
+                continue
+            
             if self._variable_duration:
                 if func.args[0] == 0:
                     time_idx = 0
@@ -1070,7 +1081,7 @@ class ConstraintCollocator(object):
                         func, time_idx, self.num_collocation_nodes - 1))
             else:
                 time_value = func.args[0]
-                time_idx = time_value / h
+                time_idx = (time_value / h).round()
                 #for a in sm.preorder_traversal(time_idx):
                 #    if isinstance(a, sm.Float):
                 #        time_idx = time_idx.subs(a, a.round())
@@ -1084,34 +1095,55 @@ class ConstraintCollocator(object):
     def _instance_constraints_func(self):
         """Returns a function that evaluates the instance constraints given
         the free optimization variables."""
+        
+        #create matrix symbols for the free vector and all timshift input trajectories
         free = sm.MatrixSymbol('FREE', self.num_free, 1)
         
-        # make map from timeshift parameters to their value in FREE
-        timeshift_param_map = {}
+        unshifted_trajs = {}
+        unshifted_traj_vals = []
+        for val in self.timeshift_traj_substitutes.values():
+            size = self.known_trajectory_map[val[0].subs(val[1],0)].size
+            unshifted_trajs[val[0].name] = sm.MatrixSymbol(val[0].name.upper(), size, 1)
+            unshifted_traj_vals.append(self.known_trajectory_map[val[0].subs(val[1],0)])
+        
+        # make map from unknown parameters to their value in FREE
+        unknown_param_map = {}
         n_traj_vals = (self.num_states + self.num_unknown_input_trajectories) \
                         * self.num_collocation_nodes
-        for v in self.timeshift_traj_substitutes.values():
-            timeshift_param_map[v[1]] = free[n_traj_vals + self.unknown_parameters.index(v[1]),0]
+        for v in self.unknown_parameters:
+            unknown_param_map[v] = free[n_traj_vals + self.unknown_parameters.index(v),0]
         
-        subbed_constraints = self.instance_constraints
-        
-        # make def map
-        self.instance_constraint_free_map = {}
+        # make instance constraints free (MatrixSymbol) map
+        self.instance_constraints_free_map = {}
         for k,v in self.instance_constraints_free_index_map.items():
-            if isinstance(v, sm.core.operations.AssocOp):
-                v = v.subs(timeshift_param_map)
-            self.instance_constraint_free_map[k] = free[v,0]             
-            
+            self.instance_constraints_free_map[k] = free[v,0]    
+        
+        # substitue matrix symbols into constraints
         subbed_constraints = [None]*self.num_instance_constraints
         for i in range(self.num_instance_constraints):
+            
+            #substitute unknown trajectory values
             subbed_constraints[i] = me.msubs(self.instance_constraints[i], 
-                                            self.instance_constraints_free_index_map)
+                                             self.instance_constraints_free_map,
+                                             unknown_param_map)
+            
+            #substitute known trajectory values
+            for func in subbed_constraints[i].atoms(sm.Function):
+                if func.name in unshifted_trajs:
+                    arg = func.args[0]/self.node_time_interval
+                    for a in sm.preorder_traversal(arg):
+                        if isinstance(a, sm.Float):
+                            arg = arg.subs(a, a.round())
+                    func_subs = unshifted_trajs[func.name][arg,0]
+                    subbed_constraints[i] = subbed_constraints[i].subs(func, func_subs)
 
-        f = sm.lambdify(([free] + list(self.known_parameter_map.keys())),
-                        subbed_constraints, modules=[{'ImmutableMatrix':
-                                                      np.array}, "numpy"])
+        #lambdify
+        args = [free] \
+                + list(unshifted_trajs.values()) \
+                + list(self.known_parameter_map.keys()) 
+        f = sm.lambdify(args, subbed_constraints, modules=[{'ImmutableMatrix': np.array}, "numpy"])
 
-        return lambda free: f(free, *self.known_parameter_map.values())
+        return lambda free: f(free, *unshifted_traj_vals, *self.known_parameter_map.values())
 
     def _instance_constraints_jacobian_indices(self):
         """Returns the row and column indices of the non-zero values in the
@@ -1144,7 +1176,7 @@ class ConstraintCollocator(object):
             partials = list(con.atoms(sm.Function))
             num_vals_per_func.append(len(partials))
             jac = sm.Matrix([con]).jacobian(partials)
-            jac = jac.subs(self.instance_constraint_free_map)
+            jac = me.msubs(jac, self.instance_constraints_free_map)
             funcs.append(sm.lambdify(([free] +
                                       list(self.known_parameter_map.keys())),
                                      jac, modules=[{'ImmutableMatrix':
