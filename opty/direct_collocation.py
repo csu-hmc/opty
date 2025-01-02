@@ -739,8 +739,7 @@ class ConstraintCollocator(object):
 
         if instance_constraints is not None or self.num_timeshift_traj_substitutes > 0:
             self._generate_timeshift_constraints()
-            self.num_instance_constraints = len(instance_constraints)
-            self.num_constraints += self.num_instance_constraints
+            self.num_instance_constraints = len(self.instance_constraints)
             self._identify_functions_in_instance_constraints()
             self._find_closest_free_index()
             self.eval_instance_constraints = self._instance_constraints_func()
@@ -1029,13 +1028,23 @@ class ConstraintCollocator(object):
         nearest index in the free variables vector."""
 
         def determine_free_index(time_index, trajectory):
+            
+            traj_index = None
+            
             if trajectory in self.state_symbols:
                 traj_index = self.state_symbols.index(trajectory)
             elif trajectory in self.unknown_input_trajectories:
                 traj_index = self.num_states + self.unknown_input_trajectories.index(trajectory)
             else:
-                raise ValueError((f"'{trajectory}' is neither a state nor an unknown input"
-                                  "trajectory"))
+                for i_tstraj, key in enumerate(self.timeshift_traj_substitutes):
+                    if self.timeshift_traj_substitutes[key][0].name == trajectory.name:
+                        traj_index = self.num_states + self.unknown_input_trajectories.index(key)
+                        break
+                
+            if traj_index is None:
+                raise ValueError((f"'{trajectory}' is neither a state, a timeshift trajectory nor"
+                                  " an unknown input trajectory"))
+        
             return time_index + traj_index * self.num_collocation_nodes
 
         N = self.num_collocation_nodes
@@ -1062,20 +1071,44 @@ class ConstraintCollocator(object):
             else:
                 time_value = func.args[0]
                 time_idx = time_value / h
+                #for a in sm.preorder_traversal(time_idx):
+                #    if isinstance(a, sm.Float):
+                #        time_idx = time_idx.subs(a, a.round())
                 
             free_index = determine_free_index(time_idx, func.__class__(self.time_symbol))
             node_map[func] = free_index
 
         self.instance_constraints_free_index_map = node_map
 
+        
     def _instance_constraints_func(self):
         """Returns a function that evaluates the instance constraints given
         the free optimization variables."""
-        free = sm.DeferredVector('FREE')
-        def_map = {k: free[v] for k, v in
-                   self.instance_constraints_free_index_map.items()}
-        subbed_constraints = [con.subs(def_map) for con in
-                              self.instance_constraints]
+        free = sm.MatrixSymbol('FREE', self.num_free, 1)
+        
+        # make map from timeshift parameters to their value in FREE
+        timeshift_param_map = {}
+        n_traj_vals = (self.num_states + self.num_unknown_input_trajectories) \
+                        * self.num_collocation_nodes
+        for v in self.timeshift_traj_substitutes.values():
+            timeshift_param_map[v[1]] = free[n_traj_vals + self.unknown_parameters.index(v[1]),0]
+        
+        subbed_constraints = self.instance_constraints
+        
+        # make def map
+        def_map = {}
+        for k,v in self.instance_constraints_free_index_map.items():
+            if isinstance(v, sm.core.operations.AssocOp):
+                v = v.subs(timeshift_param_map)
+            def_map[k] = free[v,0]             
+            
+        subbed_constraints = [None]*self.num_instance_constraints
+        for i in range(self.num_instance_constraints):
+            subbed_constraints[i] = self.instance_constraints[i]
+            funcs = list(self.instance_constraints[i].atoms(sm.Function))
+            for func in funcs:
+                subbed_constraints[i] = subbed_constraints[i].subs(func, def_map[func])
+
         f = sm.lambdify(([free] + list(self.known_parameter_map.keys())),
                         subbed_constraints, modules=[{'ImmutableMatrix':
                                                       np.array}, "numpy"])
