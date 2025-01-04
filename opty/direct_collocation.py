@@ -1201,13 +1201,28 @@ class ConstraintCollocator(object):
         idx_map = self.instance_constraints_free_index_map
 
         num_eom_constraints = self.num_states*(self.num_collocation_nodes - 1)
-
+        unshifted_input_trajs = {v[0].subs(v[0].args[0], self.time_symbol) : v[1] 
+                                 for v in self.timeshift_traj_substitutes.values()}
+        
+        offset_free_params = (self.num_states +  self.num_unknown_input_trajectories) \
+                                * self.num_collocation_nodes 
         rows = []
         cols = []
 
         for i, con in enumerate(self.instance_constraints):
             funcs = con.atoms(sm.Function)
-            indices = [idx_map[f] for f in funcs]
+            indices = []
+            for f in funcs:
+                if f in idx_map:
+                    # partials w.r.t states and unknown input trajectories
+                    indices.append(idx_map[f])
+                else:
+                    # partials w.r.t parameters (i.e. timeshift parameters)
+                    f_general = f.subs(f.args[0], self.time_symbol)
+                    if f_general in unshifted_input_trajs:
+                        indices.append(offset_free_params + self.unknown_parameters.index(
+                                                                unshifted_input_trajs[f_general]))
+                
             row_idxs = num_eom_constraints + i * np.ones(len(indices),
                                                          dtype=int)
             rows += list(row_idxs)
