@@ -1,3 +1,4 @@
+# %%
 """
 Delay Equation (Göllmann, Kern, and Maurer)
 ===========================================
@@ -95,11 +96,11 @@ initial_guess = np.load('betts_10_50_solution.npy')
 instance_constraints = (
     x1.func(t0) - 1.0,
 
-    x2.func(t0) - initial_guess[num_nodes-1],
-    x3.func(t0) - initial_guess[2*num_nodes-1],
-    x4.func(t0) - initial_guess[3*num_nodes-1],
-    x5.func(t0) - initial_guess[4*num_nodes-1],
-    x6.func(t0) - initial_guess[5*num_nodes-1],
+    x2.func(t0) - x1.func(tf),
+    x3.func(t0) - x2.func(tf),
+    x4.func(t0) - x3.func(tf),
+    x5.func(t0) - x4.func(tf),
+    x6.func(t0) - x5.func(tf),
 
     q1.func(t0) - 0.5,
     q2.func(t0) - 0.5,
@@ -120,25 +121,23 @@ bounds = {
 }
 
 # %%
-# Iterate
-# -------
-# Here I iterate *loop* times.
-loop = 2
-for i in range(loop):
+# Solve the Optimization Problem
+# ------------------------------
 
-    prob = Problem(obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval_value,
-        instance_constraints= instance_constraints,
-        bounds=bounds,
-    )
+prob = Problem(obj,
+    obj_grad,
+    eom,
+    state_symbols,
+    num_nodes,
+    interval_value,
+    instance_constraints= instance_constraints,
+    bounds=bounds,
+)
 
-    prob.add_option('max_iter', 1000)
+prob.add_option('max_iter', 1000)
 
 # Find the optimal solution.
+for _ in range(1):
     solution, info = prob.solve(initial_guess)
     initial_guess = solution
     print(info['status_msg'])
@@ -146,16 +145,6 @@ for i in range(loop):
         f'it is {3.10812211}, so the error is: '
         f'{(info['obj_val'] - 3.10812211)/3.10812211*100:.3f} % ')
     print('\n')
-
-    instance_constraints = (
-        x1.func(t0) - 1.0,
-
-        x2.func(t0) - x1.func(tf),
-        x3.func(t0) - x2.func(tf),
-        x4.func(t0) - x3.func(tf),
-        x5.func(t0) - x4.func(tf),
-        x6.func(t0) - x5.func(tf),
-    )
 
 # %%
 # Plot the optimal state and input trajectories.
