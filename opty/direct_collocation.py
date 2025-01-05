@@ -854,7 +854,7 @@ class ConstraintCollocator(object):
         assert len(func.args) <= 1, (f"Trying to replace the argument of a function with more then "
                                      f"one argument: {func}")
         
-        return func.subs(sm.args[0], self.time_symbol)
+        return func.subs(func.args[0], self.time_symbol)
                 
     def _substitute_timeshift_trajectories(self):
         """Identify and substitute time-shifted trajectories in the eom. verifies that timeshift
@@ -875,7 +875,7 @@ class ConstraintCollocator(object):
             if not len(func.free_symbols.intersection(t_set)) == 1:
                 return False
             # must not have more then one argument
-            if not len(func.args) > 1:
+            if len(func.args) > 1:
                 return False
             # must be an addition 
             if not isinstance(func.args[0], sm.core.add.Add):
@@ -916,6 +916,8 @@ class ConstraintCollocator(object):
                     
                     #pack info into dict
                     self.timeshift_traj_substitutes[tr_subs] = (tr, timeshift_param)
+                    
+                    print(self.timeshift_traj_substitutes)
                 
         self.num_timeshift_traj_substitutes = len(self.timeshift_traj_substitutes)
         
@@ -1169,9 +1171,9 @@ class ConstraintCollocator(object):
         unshifted_trajs = {}
         unshifted_traj_vals = []
         for val in self.timeshift_traj_substitutes.values():
-            size = self.known_trajectory_map[val[0].subs(val[1],0)].size
-            unshifted_trajs[val[0].name] = sm.MatrixSymbol(val[0].name.upper(), size, 1)
-            unshifted_traj_vals.append(self.known_trajectory_map[val[0].subs(val[1],0)][:,np.newaxis])
+            trajvals = np.array(self.known_trajectory_map[val[0].subs(val[1],0)])
+            unshifted_trajs[val[0].name] = sm.MatrixSymbol(val[0].name.upper(), trajvals.size, 1)
+            unshifted_traj_vals.append(trajvals[:,np.newaxis])
             
         to_int = sm.Function('int')
         
@@ -1260,9 +1262,9 @@ class ConstraintCollocator(object):
         unshifted_trajs = {}
         unshifted_traj_vals = []
         for val in self.timeshift_traj_substitutes.values():
-            size = self.known_trajectory_map[val[0].subs(val[1],0)].size
-            unshifted_trajs[val[0].name] = sm.MatrixSymbol(val[0].name.upper(), size, 1)
-            unshifted_traj_vals.append(self.known_trajectory_map[val[0].subs(val[1],0)][:,np.newaxis])
+            trajvals = np.array(self.known_trajectory_map[val[0].subs(val[1],0)])
+            unshifted_trajs[val[0].name] = sm.MatrixSymbol(val[0].name.upper(), trajvals.size, 1)
+            unshifted_traj_vals.append(trajvals[:,np.newaxis])
             
         to_int = sm.Function('int')
         

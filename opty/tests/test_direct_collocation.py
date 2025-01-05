@@ -1566,3 +1566,51 @@ def test_for_algebraic_eoms():
         )
 
     assert excinfo.type is ValueError
+
+
+class TestConstraintCollocatorTimeshiftConstraints():
+
+    def setup_method(self):
+        
+        T_0, a_0, a_1, t, t_d = sym.symbols('T_0, a_0, a_1, t, t_d')
+        x_1, x_2, u, u_shift = sym.symbols('x_1, x_2, u, u_shift', cls=sym.Function)
+        self.eom = sym.Matrix(((x_1(t).diff() - x_2(t),),
+                          (x_2(t).diff() + a_0 * T_0 * x_1(t) 
+                                              + a_1 * T_0 * x_2(t) 
+                                              - T_0 * u(t-t_d),)))
+        
+        self.eom_subs = sym.Matrix(((x_1(t).diff() - x_2(t),),
+                          (x_2(t).diff() + a_0 * T_0 * x_1(t) 
+                                              + a_1 * T_0 * x_2(t) 
+                                              - T_0 * u_shift(t),)))
+        
+        
+
+        self.state_symbols = (x_1, x_2)
+        self.constant_symbols = (a_0, a_1)
+        self.constant_values = (1, np.sqrt(2))
+        self.timeshift_inputs = {u_shift(t): (u(t - t_d), t_d)}
+        self.interval_value = 0.01
+        
+        instance_constraints = (x_2(0),)
+
+        par_map = OrderedDict(zip(self.constant_symbols,
+                                  self.constant_values))
+        
+        u_vals = [0,1,1,1]
+        self.u_vals_diff = [0.5, 0.5, 0, 0]
+        self.known_trajectory_map = {u(t): u_vals}
+
+        self.collocator = \
+            ConstraintCollocator(equations_of_motion=self.eom,
+                                 state_symbols=self.state_symbols,
+                                 num_collocation_nodes=4,
+                                 node_time_interval=self.interval_value,
+                                 known_parameter_map=par_map,
+                                 known_trajectory_map=self.known_trajectory_map,
+                                 instance_constraints=instance_constraints,
+                                 time_symbol=t)
+            
+    def test_substitute_timeshift_trajectories(self):
+        assert self.collocator.eom == self.eom_subs
+        assert self.collocator.timeshift_traj_substitutes == self.timeshift_inputs
