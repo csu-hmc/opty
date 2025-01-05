@@ -1154,7 +1154,9 @@ class ConstraintCollocator(object):
         for val in self.timeshift_traj_substitutes.values():
             size = self.known_trajectory_map[val[0].subs(val[1],0)].size
             unshifted_trajs[val[0].name] = sm.MatrixSymbol(val[0].name.upper(), size, 1)
-            unshifted_traj_vals.append(self.known_trajectory_map[val[0].subs(val[1],0)])
+            unshifted_traj_vals.append(self.known_trajectory_map[val[0].subs(val[1],0)][:,np.newaxis])
+            
+        to_int = sm.Function('int')
         
         # make map from unknown parameters to their value in FREE
         unknown_param_map = {}
@@ -1184,7 +1186,7 @@ class ConstraintCollocator(object):
                     for a in sm.preorder_traversal(arg):
                         if isinstance(a, sm.Float):
                             arg = arg.subs(a, a.round())
-                    func_subs = unshifted_trajs[func.name][arg//1,0]    #division by 1 to covert to int
+                    func_subs = unshifted_trajs[func.name][to_int(arg),0]    
                     subbed_constraints[i] = subbed_constraints[i].subs(func, func_subs)
 
         #lambdify
@@ -1193,7 +1195,8 @@ class ConstraintCollocator(object):
                 + list(self.known_parameter_map.keys()) 
         f = sm.lambdify(args, subbed_constraints, modules=[{'ImmutableMatrix': np.array}, "numpy"])
 
-        return lambda free: f(free, *unshifted_traj_vals, *self.known_parameter_map.values())
+        return lambda free: f(free[:,np.newaxis],
+                              *unshifted_traj_vals, *self.known_parameter_map.values())
 
     def _instance_constraints_jacobian_indices(self):
         """Returns the row and column indices of the non-zero values in the
@@ -1242,7 +1245,9 @@ class ConstraintCollocator(object):
         for val in self.timeshift_traj_substitutes.values():
             size = self.known_trajectory_map[val[0].subs(val[1],0)].size
             unshifted_trajs[val[0].name] = sm.MatrixSymbol(val[0].name.upper(), size, 1)
-            unshifted_traj_vals.append(self.known_trajectory_map[val[0].subs(val[1],0)])
+            unshifted_traj_vals.append(self.known_trajectory_map[val[0].subs(val[1],0)][:,np.newaxis])
+            
+        to_int = sm.Function('int')
         
         # make map from unknown parameters to their value in FREE
         unknown_param_map = {}
@@ -1266,7 +1271,7 @@ class ConstraintCollocator(object):
                 if not traj.name in known_traj_set:
                     traj_partials.append(traj)
                 else:
-                    time_idx = me.msubs(traj.args[0], unknown_param_map) // self.node_time_interval
+                    time_idx = to_int(me.msubs(traj.args[0], unknown_param_map) / self.node_time_interval)
                     timeshift_jac.append(
                         unshifted_trajs[traj.name][time_idx,0]/self.node_time_interval)
                         
@@ -1293,7 +1298,7 @@ class ConstraintCollocator(object):
             arr = np.zeros(length)
             j = 0
             for i, (f, num) in enumerate(zip(funcs, num_vals_per_func)):
-                arr[j:j + num] = f(free, *unshifted_traj_vals, *self.known_parameter_map.values())
+                arr[j:j + num] = f(free[:,np.newaxis], *unshifted_traj_vals, *self.known_parameter_map.values())
                 j += num
             return arr
 
