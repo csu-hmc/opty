@@ -1,4 +1,3 @@
- # %%
 """
 Singular Arc Problem
 ====================
@@ -8,11 +7,18 @@ Using NonlinearProgramming", 3rd edition, Chapter 10: Test Problems.
 John T. Betts sent me his detailed results of this example, and when I say
 'error' it is the relative error in the value compared to the values sent.
 
+At the start of phase 2 there is a boundary condition:
+:math:`m \\cdot g - (1 + \\dfrac{v}{c}) \\cdot \\sigma v^2 e^{-h/h_0} = 0`
+I enforce this at the end of phase 1, by introducing a new state variable h_end,
+and set :math:`h_{end} = m \\cdot g - (1 + \\dfrac{v}{c}) \\cdot \\sigma v^2 e^{-h/h_0}`
+and set the instance constraint :math:`h_{end} = 0` at the end of phase 1.
+
 **Phase 1 Maximum Thrust**
 
 **States**
 
 - :math:`h, v, m`: state variables
+- :math:`h_{end}`: state variable to enforce the boundary condition at the end of phase 1
 
 Note: I simply copied the equations of motion, the bounds and the constants
 from the book. I do not know their exact meaning.
@@ -22,18 +28,17 @@ import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 from opty.direct_collocation import Problem
-import time
 
 # %%
 # Equations of motion.
 t = me.dynamicsymbols._t
-h, v, m = me.dynamicsymbols('h v m')
+h, v, m, h_end = me.dynamicsymbols('h v m, h_end')
 h_fast = sm.symbols('h_fast')
 
 # Parameters, the same for all three phases
 Tm = 193.044
 g = 32.174
-sigma = 5.49153 * 1.e-5
+sigma = 5.4915348492 * 1.e-5
 c = 1580.942579
 h0 = 23800
 
@@ -42,15 +47,16 @@ eom = sm.Matrix([
     -h.diff(t) + v,
     -v.diff(t) + 1/m * (Tm - sigma*v**2*sm.exp(-h/h0)) - g,
     -m.diff(t) - Tm/c,
+    -h_end + m*g - (1 + v/c) * sigma*v**2*sm.exp(-h/h0),
 ])
 sm.pprint(eom)
 
 # %%
 num_nodes = 101
-t0, tf = 0*h_fast, num_nodes * h_fast
+t0, tf = 0*h_fast, (num_nodes-1) * h_fast
 interval_value = h_fast
 
-state_symbols = (h, v, m)
+state_symbols = (h, v, m, h_end)
 
 # %%
 # Specify the objective function and form the gradient.
@@ -71,6 +77,8 @@ instance_constraints = (
     h.func(0*h_fast),
     v.func(0*h_fast),
     m.func(0*h_fast) - 3.0,
+
+    h_end.func(tf),
     )
 
 bounds = {
@@ -181,18 +189,23 @@ prob = Problem(obj,
             bounds=bounds,
     )
 
-prob.add_option('max_iter', 1000)
+prob.add_option('max_iter', 3000)
 
 # Give some rough estimates for the trajectories.
+# I use the result of a previous run to save time.
 initial_guess = np.array((*[solution[num_nodes-1] for _ in range(num_nodes)],
                           *[solution[2*num_nodes-1] for _ in range(num_nodes)],
                           *[solution[3*num_nodes-1] for _ in range(num_nodes)],
                           *[Tm/c for _ in range(num_nodes)], solution[-1]))
 
+initial_guess = np.load('betts_10_47_phase2_solution.npy')
+
 # %%
 # Find the optimal solution.
-solution, info = prob.solve(initial_guess)
-print(info['status_msg'])
+for _ in range(1):
+    solution, info = prob.solve(initial_guess)
+    initial_guess = solution
+    print(info['status_msg'])
 t_phase2 = solution[-1]
 
 # %%
