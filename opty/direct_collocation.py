@@ -848,6 +848,13 @@ class ConstraintCollocator(object):
                 msg = 'The known parameter {} is not length {}.'
                 raise ValueError(msg.format(k, N))
                 
+    def _to_general_time(self, func):
+        """Replaces the argument of a function with the time symbol"""
+        
+        assert len(func.args) <= 1, (f"Trying to replace the argument of a function with more then "
+                                     f"one argument: {func}")
+        
+        return func.subs(sm.args[0], self.time_symbol)
                 
     def _substitute_timeshift_trajectories(self):
         """Identify and substitute time-shifted trajectories in the eom. verifies that timeshift
@@ -860,45 +867,55 @@ class ConstraintCollocator(object):
         trajs = self.eom.atoms(sm.Function)
         self.timeshift_traj_substitutes = {}
         
-        
+        def is_timeshift_function(func):
+            """Check if func is a timeshift trajectory. Timeshift trajectories must be of type
+            u(t +/- tau)"""
+            
+            # must be a function of t
+            if not len(func.free_symbols.intersection(t_set)) == 1:
+                return False
+            # must not have more then one argument
+            if not len(func.args) > 1:
+                return False
+            # must be an addition 
+            if not isinstance(func.args[0], sm.core.add.Add):
+                return False
+            # must have two free parameters
+            if not len(traj.free_symbols) == 2:
+                return False
+            
+            return True
+            
         for traj in trajs:
             
-            if not len(traj.free_symbols.intersection(t_set)) == 1:     
-                raise ValueError((f"All functions must be a function of time {self.time_symbol}: "
-                                  f"{traj}"))
+            function_candidates = [traj]
             
-            if len(traj.args) > 1:
-                raise ValueError(f"More then one argument per function is not supportet: {traj}")
-            
-            if len(traj.free_symbols) == 2:
+            for tr in function_candidates:
+                for arg in tr.args:
+                    funcs_in_arg = arg.atoms(sm.Function)
+                    if len(funcs_in_arg) > 0:
+                        function_candidates += list(funcs_in_arg)
+                        
+                if is_timeshift_function(tr):
                 
-                if not isinstance(traj.args[0], sm.core.add.Add):
-                    raise ValueError(f"Function arguments must be the time variable or an addition"
-                                     f" of the time variable with a single constant offset: {traj}")
+                    #find timeshift parameter
+                    timeshift_param = list(tr.free_symbols - t_set)[0]
                 
-                #find timeshift parameter
-                timeshift_param = list(traj.free_symbols - t_set)[0]
-                
-                #check that timeshift original is known and calc its derivative
-                traj_general = traj.subs(traj.args[0], self.time_symbol)
-                if traj_general not in self.known_trajectory_map:
-                    raise ValueError((f'The unshifted original of an input trajectory with unknown'
-                                      f' timeshift has to be provided in the known trajectory map.'
-                                      f' The following trajectory is missing in known_trajectory_'
-                                      f'map: {traj.name}({self.time_symbol})'))
-
+                    #check that timeshift original is known and calc its derivative
+                    tr_general = self._to_general_time(tr)
+                    if tr_general not in self.known_trajectory_map:
+                        raise ValueError((f'The unshifted original of an input trajectory with unknown'
+                                          f' timeshift has to be provided in the known trajectory map.'
+                                          f' The following trajectory is missing in known_trajectory_'
+                                          f'map: {tr_general}'))
+    
+                        
+                    #substitute timeshift trajectory
+                    tr_subs = sm.symbols(tr.name+"_shift", cls=sm.Function)(self.time_symbol)
+                    self.eom = self.eom.subs(tr, tr_subs)
                     
-                #substitute timeshift trajectory
-                traj_subs = sm.symbols(traj.name+"_shift", cls=sm.Function)(self.time_symbol)
-                self.eom = self.eom.subs(traj, traj_subs)
-                
-                #pack info into dict
-                self.timeshift_traj_substitutes[traj_subs] = [traj, timeshift_param]
-                
-            else:
-                if len(traj.free_symbols) > 2:
-                    raise ValueError(f"Only one single constant offset symbol per function is "
-                                     f"allowed:  {traj}")
+                    #pack info into dict
+                    self.timeshift_traj_substitutes[tr_subs] = (tr, timeshift_param)
                 
         self.num_timeshift_traj_substitutes = len(self.timeshift_traj_substitutes)
         
