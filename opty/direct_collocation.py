@@ -1042,10 +1042,14 @@ class ConstraintCollocator(object):
             The column vector of the discretized equations of motion.
 
         """
+        
+        tshift_trajs = \
+            [self._to_general_time(v[0]) for v in self.timeshift_traj_substitutes.values()]
+            
         logging.info('Discretizing the equations of motion.')
         x = self.state_symbols
         xd = self.state_derivative_symbols
-        u = self.input_trajectories
+        u = tuple([t for t in self.input_trajectories if t not in tshift_trajs])
 
         xp = self.previous_discrete_state_symbols
         xi = self.current_discrete_state_symbols
