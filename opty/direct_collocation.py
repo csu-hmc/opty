@@ -726,22 +726,24 @@ class ConstraintCollocator(object):
         self.show_compile_output = show_compile_output
         
        
-
+        self._substitute_timeshift_trajectories()
         self._sort_parameters()
         self._check_known_trajectories()
-        self._substitute_timeshift_trajectories()
+
         self._sort_trajectories()
         self.num_free = ((self.num_states +
                           self.num_unknown_input_trajectories) *
                          self.num_collocation_nodes +
                          self.num_unknown_parameters +
-                         int(self._variable_duration))
+                         int(self._variable_duration) + 
+                         self.num_tshift_parameters)
         
         self.integration_method = integration_method
 
-        if instance_constraints is not None or self.num_timeshift_traj_substitutes > 0:
-            self._generate_timeshift_constraints()
-            self._precalc_timshift_input_derivatives()
+        if instance_constraints is not None or self._timeshift_params:
+            if self._timeshift_params:
+                self._generate_timeshift_constraints()
+                self._precalc_timshift_input_derivatives()
             self.num_instance_constraints = len(self.instance_constraints)
             self._identify_functions_in_instance_constraints()
             self._find_closest_free_index()
@@ -836,6 +838,13 @@ class ConstraintCollocator(object):
 
         self.parameters = res[0] + res[2]
         self.num_parameters = len(self.parameters)
+        
+        if self._timeshift_params:
+            for tsparam in self.unknown_tshift_parameters:
+                if tsparam in self.parameters:
+                    raise ValueError(f"Timeshift parameters cannot be direct parameters of the"
+                                     f"eoms: {tsparam}")
+                
 
     def _check_known_trajectories(self):
         """Raises and error if the known trajectories are not the correct
@@ -866,6 +875,7 @@ class ConstraintCollocator(object):
         
         trajs = self.eom.atoms(sm.Function)
         self.timeshift_traj_substitutes = {}
+        self.unknown_tshift_parameters = []
         
         def is_timeshift_function(func):
             """Check if func is a timeshift trajectory. Timeshift trajectories must be of type
@@ -909,6 +919,10 @@ class ConstraintCollocator(object):
                                           f' The following trajectory is missing in known_trajectory_'
                                           f'map: {tr_general}'))
     
+                    #check that timeshift parameter is not known
+                    if timeshift_param in self.known_parameter_map:
+                        raise ValueError(f"Known timeshift parameters are not supportet:"
+                                         f" {timeshift_param}")
                         
                     #substitute timeshift trajectory
                     tr_subs = sm.symbols(tr.name+"_shift", cls=sm.Function)(self.time_symbol)
@@ -916,10 +930,11 @@ class ConstraintCollocator(object):
                     
                     #pack info into dict
                     self.timeshift_traj_substitutes[tr_subs] = (tr, timeshift_param)
-                    
-                    print(self.timeshift_traj_substitutes)
+                    self.unknown_tshift_parameters.append(timeshift_param)
                 
-        self.num_timeshift_traj_substitutes = len(self.timeshift_traj_substitutes)
+        self.unknown_tshift_parameters = tuple(self.unknown_tshift_parameters)
+        self.num_tshift_parameters = len(self.timeshift_traj_substitutes)        
+        self._timeshift_params = self.num_tshift_parameters > 0
         
 
     def _sort_trajectories(self):
@@ -945,6 +960,9 @@ class ConstraintCollocator(object):
 
         self.input_trajectories = res[0] + res[2]
         self.num_input_trajectories = len(self.input_trajectories)
+        
+
+            
 
     def _discrete_symbols(self):
         """Instantiates discrete symbols for each time varying variable in the
@@ -1111,10 +1129,8 @@ class ConstraintCollocator(object):
             elif trajectory in self.unknown_input_trajectories:
                 traj_index = self.num_states + self.unknown_input_trajectories.index(trajectory)
             else:
-                for i_tstraj, key in enumerate(self.timeshift_traj_substitutes):
-                    if self.timeshift_traj_substitutes[key][0].name == trajectory.name:
-                        traj_index = self.num_states + self.unknown_input_trajectories.index(key)
-                        break
+                raise ValueError(f"{trajectory} is neither a state symbol not an unknown input"
+                                 "trajectory")
                 
             if traj_index is None:
                 raise ValueError((f"'{trajectory}' is neither a state, a timeshift trajectory nor"
@@ -1159,22 +1175,30 @@ class ConstraintCollocator(object):
             node_map[func] = free_index
 
         self.instance_constraints_free_index_map = node_map
+        
+    def _make_free_matrix_symbols(self):
+        """Make matrix symbols representing the vector of free variables and (in case of timeshifts)
+        the timeshfited trajectories
+        """
+        
+        #create matrix symbols for the free vector and all timshift input trajectories
+        free = sm.MatrixSymbol('FREE', self.num_free, 1)
+        
+        unshifted_input_sym = {}
+        unshifted_input_vals = []
+        for val in self.timeshift_traj_substitutes.values():
+            trajvals = np.array(self.known_trajectory_map[val[0].subs(val[1],0)])
+            unshifted_input_sym[val[0].name] = sm.MatrixSymbol(val[0].name.upper(), trajvals.size, 1)
+            unshifted_input_vals.append(trajvals[:,np.newaxis])
+        
+        return free, unshifted_input_sym, unshifted_input_vals
 
         
     def _instance_constraints_func(self):
         """Returns a function that evaluates the instance constraints given
         the free optimization variables."""
         
-        #create matrix symbols for the free vector and all timshift input trajectories
-        free = sm.MatrixSymbol('FREE', self.num_free, 1)
-        
-        unshifted_trajs = {}
-        unshifted_traj_vals = []
-        for val in self.timeshift_traj_substitutes.values():
-            trajvals = np.array(self.known_trajectory_map[val[0].subs(val[1],0)])
-            unshifted_trajs[val[0].name] = sm.MatrixSymbol(val[0].name.upper(), trajvals.size, 1)
-            unshifted_traj_vals.append(trajvals[:,np.newaxis])
-            
+        free, unshifted_input_sym, unshifted_input_vals = self._make_free_matrix_symbols()
         to_int = sm.Function('int')
         
         # make map from unknown parameters to their value in FREE
@@ -1183,6 +1207,11 @@ class ConstraintCollocator(object):
                         * self.num_collocation_nodes
         for v in self.unknown_parameters:
             unknown_param_map[v] = free[n_traj_vals + self.unknown_parameters.index(v),0]
+        for tau in self.unknown_tshift_parameters:
+            unknown_param_map[tau] = free[n_traj_vals + 
+                                          self.num_unknown_parameters +
+                                          int(self._variable_duration) +
+                                          self.unknown_tshift_parameters.index(tau),0]
         
         # make instance constraints free (MatrixSymbol) map
         self.instance_constraints_free_map = {}
@@ -1200,22 +1229,22 @@ class ConstraintCollocator(object):
             
             #substitute known trajectory values
             for func in subbed_constraints[i].atoms(sm.Function):
-                if func.name in unshifted_trajs:
+                if func.name in unshifted_input_sym:
                     arg = (func.args[0]/self.node_time_interval)
-                    for a in sm.preorder_traversal(arg):
-                        if isinstance(a, sm.Float):
-                            arg = arg.subs(a, a.round())
-                    func_subs = unshifted_trajs[func.name][to_int(arg),0]    
+                    #for a in sm.preorder_traversal(arg):
+                    #    if isinstance(a, sm.Float):
+                    #        arg = arg.subs(a, a.round())
+                    func_subs = unshifted_input_sym[func.name][to_int(arg),0]    
                     subbed_constraints[i] = subbed_constraints[i].subs(func, func_subs)
 
         #lambdify
         args = [free] \
-                + list(unshifted_trajs.values()) \
+                + list(unshifted_input_sym.values()) \
                 + list(self.known_parameter_map.keys()) 
         f = sm.lambdify(args, subbed_constraints, modules=[{'ImmutableMatrix': np.array}, "numpy"])
 
         return lambda free: f(free[:,np.newaxis],
-                              *unshifted_traj_vals, *self.known_parameter_map.values())
+                              *unshifted_input_vals, *self.known_parameter_map.values())
 
     def _instance_constraints_jacobian_indices(self):
         """Returns the row and column indices of the non-zero values in the
@@ -1226,8 +1255,10 @@ class ConstraintCollocator(object):
         unshifted_input_trajs = {v[0].subs(v[0].args[0], self.time_symbol) : v[1] 
                                  for v in self.timeshift_traj_substitutes.values()}
         
-        offset_free_params = (self.num_states +  self.num_unknown_input_trajectories) \
-                                * self.num_collocation_nodes 
+        offset_free_params = self.num_unknown_parameters + int(self._variable_duration) \
+                             + (self.num_states +  self.num_unknown_input_trajectories) \
+                                 * self.num_collocation_nodes           
+                             
         rows = []
         cols = []
 
@@ -1239,10 +1270,10 @@ class ConstraintCollocator(object):
                     # partials w.r.t states and unknown input trajectories
                     indices.append(idx_map[f])
                 else:
-                    # partials w.r.t parameters (i.e. timeshift parameters)
+                    # partials w.r.t timeshift parameters
                     f_general = f.subs(f.args[0], self.time_symbol)
                     if f_general in unshifted_input_trajs:
-                        indices.append(offset_free_params + self.unknown_parameters.index(
+                        indices.append(offset_free_params + self.unknown_tshift_parameters.index(
                                                                 unshifted_input_trajs[f_general]))
                 
             row_idxs = num_eom_constraints + i * np.ones(len(indices),
@@ -1257,15 +1288,7 @@ class ConstraintCollocator(object):
         with the instance constraints."""
         
         #create matrix symbols for the free vector and all timshift input trajectories
-        free = sm.MatrixSymbol('FREE', self.num_free, 1)
-        
-        unshifted_trajs = {}
-        unshifted_traj_vals = []
-        for val in self.timeshift_traj_substitutes.values():
-            trajvals = np.array(self.known_trajectory_map[val[0].subs(val[1],0)])
-            unshifted_trajs[val[0].name] = sm.MatrixSymbol(val[0].name.upper(), trajvals.size, 1)
-            unshifted_traj_vals.append(trajvals[:,np.newaxis])
-            
+        free, unshifted_input_sym, unshifted_input_vals = self._make_free_matrix_symbols()
         to_int = sm.Function('int')
         
         # make map from unknown parameters to their value in FREE
@@ -1274,6 +1297,11 @@ class ConstraintCollocator(object):
                         * self.num_collocation_nodes
         for v in self.unknown_parameters:
             unknown_param_map[v] = free[n_traj_vals + self.unknown_parameters.index(v),0]
+        for tau in self.unknown_tshift_parameters:
+            unknown_param_map[tau] = free[n_traj_vals + 
+                                          self.num_unknown_parameters +
+                                          int(self._variable_duration) +
+                                          self.unknown_tshift_parameters.index(tau),0]
         
         known_traj_set = [traj.name for traj in self.known_trajectory_map.keys()]
         timeshift_param_set = set([v[1] for v in self.timeshift_traj_substitutes.values()])
@@ -1292,7 +1320,7 @@ class ConstraintCollocator(object):
                 else:
                     time_idx = to_int(me.msubs(traj.args[0], unknown_param_map) / self.node_time_interval)
                     timeshift_jac.append(
-                        unshifted_trajs[traj.name][time_idx,0]/self.node_time_interval)
+                        unshifted_input_sym[traj.name][time_idx,0]/self.node_time_interval)
                         
             #calculate jacobian entries w.r.t unknown input trajectories.
             traj_jac = sm.Matrix([con]).jacobian(traj_partials)
@@ -1307,7 +1335,7 @@ class ConstraintCollocator(object):
             num_vals_per_func.append(len(jac))
             jac = me.msubs(jac, self.instance_constraints_free_map)
             funcs.append(sm.lambdify(([free] \
-                                      + list(unshifted_trajs.values()) \
+                                      + list(unshifted_input_sym.values()) \
                                       + list(self.known_parameter_map.keys())),
                                      jac, modules=[{'ImmutableMatrix':
                                                     np.array}, "numpy"]))
@@ -1317,7 +1345,7 @@ class ConstraintCollocator(object):
             arr = np.zeros(length)
             j = 0
             for i, (f, num) in enumerate(zip(funcs, num_vals_per_func)):
-                arr[j:j + num] = f(free[:,np.newaxis], *unshifted_traj_vals, *self.known_parameter_map.values())
+                arr[j:j + num] = f(free[:,np.newaxis], *unshifted_input_vals, *self.known_parameter_map.values())
                 j += num
             return arr
 
