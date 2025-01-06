@@ -1299,7 +1299,7 @@ class ConstraintCollocator(object):
             
             #concat jacobian
             if len(timeshift_jac) > 0:
-                jac = traj_jac.row_join(sm.Matrix(timeshift_jac))
+                jac = sm.Matrix(timeshift_jac).row_join(traj_jac)
             else:
                 jac = traj_jac
             
