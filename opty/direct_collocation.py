@@ -1286,7 +1286,7 @@ class ConstraintCollocator(object):
             traj_partials = []
             timeshift_jac = []
             
-            for traj in list(con.atoms(sm.Function)):
+            for traj in con.atoms(sm.Function):
                 if not traj.name in known_traj_set:
                     traj_partials.append(traj)
                 else:
