@@ -995,6 +995,8 @@ class ConstraintCollocator(object):
             inputs.
 
         """
+        tshift_trajs = \
+            [self._to_general_time(v[0]) for v in self.timeshift_traj_substitutes.values()]
 
         # The previus, current, and next states.
         self.previous_discrete_state_symbols = \
@@ -1010,10 +1012,10 @@ class ConstraintCollocator(object):
         # The current and next known input trajectories.
         self.current_known_discrete_specified_symbols = \
             tuple([sm.Symbol(f.__class__.__name__ + 'i', real=True)
-                   for f in self.known_input_trajectories])
+                   for f in self.known_input_trajectories if f not in tshift_trajs])
         self.next_known_discrete_specified_symbols = \
             tuple([sm.Symbol(f.__class__.__name__ + 'n', real=True)
-                   for f in self.known_input_trajectories])
+                   for f in self.known_input_trajectories if f not in tshift_trajs])
 
         # The current and next unknown input trajectories.
         self.current_unknown_discrete_specified_symbols = \
