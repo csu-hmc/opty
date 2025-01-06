@@ -1,4 +1,3 @@
-# %%
 """
 Delay Equation (Göllmann, Kern, and Maurer)
 ===========================================
@@ -87,11 +86,7 @@ obj, obj_grad = create_objective_function(
 )
 
 # %%
-# Specify the instance constraints and bounds. I use the solution from a
-# previous run as the initial guess to save running time in this example.
-
-initial_guess = np.random.rand(18*num_nodes) * 0.1
-initial_guess = np.load('betts_10_50_solution.npy')
+# Specify the instance constraints and bounds
 
 instance_constraints = (
     x1.func(t0) - 1.0,
@@ -134,6 +129,8 @@ prob = Problem(obj,
     bounds=bounds,
 )
 
+# Some initial guess
+initial_guess = np.random.rand(18*num_nodes) * 0.1
 prob.add_option('max_iter', 1000)
 
 # Find the optimal solution.
