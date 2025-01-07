@@ -1591,7 +1591,9 @@ class TestConstraintCollocatorTimeshiftConstraints():
         self.interval_value = 0.01
         self.free = np.array([1.0, 2.0, 3.0, 4.0,  # x
                               5.0, 6.0, 7.0, 8.0,  # v
-                              3.0])  # k
+                              2.0, 2.0, 2.0, 2.0,  # f(t-tau)
+                              3.0, # k
+                              0.0]) #tau
 
         self.eom = sym.Matrix([x(t).diff() - v(t),
                                m * v(t).diff() + c * v(t) + k * x(t) - f(t-tau)])
@@ -1782,23 +1784,17 @@ class TestConstraintCollocatorTimeshiftConstraints():
         expected = np.hstack((expected_kinematic, expected_dynamic))
 
         np.testing.assert_allclose(result, expected)
+        
 
-    def test_gen_multi_arg_con_jac_func_backward_euler(self):
+    def test_generate_jacobian_function(self):
 
-        self.collocator._gen_multi_arg_con_jac_func()
+        jacobian = self.collocator.generate_jacobian_function()
 
-        # Make sure the parameters are in the correct order.
-        constant_values = \
-            np.array([self.constant_values[self.constant_symbols.index(c)]
-                      for c in self.collocator.parameters])
+        jac_vals = jacobian(self.free)
 
-        # TODO : Once there are more than one specified, they will need to
-        # be put in the correct order too.
+        row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jac_vals = self.collocator._multi_arg_con_jac_func(self.state_values,
-                                                           self.specified_values,
-                                                           constant_values,
-                                                           self.interval_value)
+        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
@@ -1812,20 +1808,22 @@ class TestConstraintCollocatorTimeshiftConstraints():
         x = self.state_values[0]
         m, c, k = self.constant_values
         h = self.interval_value
-        c_tau = 1
+        c_tau = 0
 
         expected_jacobian = np.array(
             #     x1,     x2,     x3,    x4,     v1,        v2,         v3,        v4,    f1, f2, f3, f4,    k, tau
-            [[-1 / h,  1 / h,      0,     0,      0,        -1,          0,         0,    0,   0,  0,  0,    0,     0],
-             [     0, -1 / h,  1 / h,     0,      0,         0,         -1,         0,    0,   0,  0,  0,    0,     0],
-             [     0,      0, -1 / h, 1 / h,      0,         0,          0,        -1,    0,   0,  0,  0,    0,     0],
-             [     0,      k,      0,     0, -m / h, c + m / h,          0,         0,    0,   0,  0,  0, x[1],     0],
-             [     0,      0,      k,     0,      0,    -m / h,  c + m / h,         0,    0,   0,  0,  0, x[2],     0],
-             [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h,    0,   0,  0,  0, x[3],     0],
-             [     0,      0,      0,     0,      0,         0,          0,         0,    1,   0,  0,  0,    0, c_tau],
-             [     0,      0,      0,     0,      0,         0,          0,         0,    0,   1,  0,  0,    0, c_tau],
-             [     0,      0,      0,     0,      0,         0,          0,         0,    0,   0,  1,  0,    0, c_tau],
-             [     0,      0,      0,     0,      0,         0,          0,         0,    0,   0,  0,  1,    0, c_tau]],
+            [[-1 / h,  1 / h,      0,     0,      0,        -1,          0,         0,    0,   0,  0,  0,    0,     0],     #eom-node 0
+             [     0, -1 / h,  1 / h,     0,      0,         0,         -1,         0,    0,   0,  0,  0,    0,     0],     #eom-node 1
+             [     0,      0, -1 / h, 1 / h,      0,         0,          0,        -1,    0,   0,  0,  0,    0,     0],     #eom-node 2
+             [     0,      k,      0,     0, -m / h, c + m / h,          0,         0,    0,  -1,  0,  0, x[1],     0],     #eom-node 3
+             [     0,      0,      k,     0,      0,    -m / h,  c + m / h,         0,    0,   0, -1,  0, x[2],     0],     #eom-node 4
+             [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h,    0,   0,  0, -1, x[3],     0],     #eom-node 5
+             [     1,      0,      0,     0,      0,         0,          0,         0,    0,   0,  0,  0,    0,     0],     #c0: x[0] = 0
+             [     0,      0,      0,     0,      1,         0,          0,         0,    0,   0,  0,  0,    0,     0],     #c1: v[0] = 5
+             [     0,      0,      0,     0,      0,         0,          0,         0,    1,   0,  0,  0,    0, c_tau],     #c_tshift_0
+             [     0,      0,      0,     0,      0,         0,          0,         0,    0,   1,  0,  0,    0, c_tau],     #c_tshift_1
+             [     0,      0,      0,     0,      0,         0,          0,         0,    0,   0,  1,  0,    0, c_tau],     #c_tshift_2
+             [     0,      0,      0,     0,      0,         0,          0,         0,    0,   0,  0,  1,    0, c_tau]],    #c_tshift_3
             dtype=float)
 
         np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
