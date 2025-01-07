@@ -165,9 +165,9 @@ class Problem(cyipopt.Problem):
 
         self.collocator = ConstraintCollocator(
             equations_of_motion, state_symbols, num_collocation_nodes,
-            node_time_interval, known_parameter_map, known_trajectory_map,
+            node_time_interval, known_parameter_map, known_trajectory_map, bounds,
             instance_constraints, time_symbol, tmp_dir, integration_method,
-            parallel, show_compile_output=show_compile_output, bounds=bounds)
+            parallel, show_compile_output=show_compile_output)
 
         self.bounds = bounds
         self.obj = obj
@@ -415,12 +415,19 @@ class Problem(cyipopt.Problem):
                      self.collocator.unknown_input_trajectories)
 
         trajectories = state_traj
+        
+        tshift_trajs = \
+            [self.collocator._to_general_time(v[0]) for v in self.collocator.timeshift_traj_substitutes.values()] 
 
         if self.collocator.num_known_input_trajectories > 0:
             for knw_sym in self.collocator.known_input_trajectories:
-                trajectories = np.vstack(
-                    (trajectories,
-                     self.collocator.known_trajectory_map[knw_sym]))
+                
+                traj = self.collocator.known_trajectory_map[knw_sym]
+                
+                if knw_sym in tshift_trajs:
+                    offset = self.collocator.timeshift_traj_offsets[knw_sym]
+                    traj = traj[offset:offset+self.collocator.num_collocation_nodes]
+                trajectories = np.vstack((trajectories,traj))
 
         if self.collocator.num_unknown_input_trajectories > 0:
             # NOTE : input_traj should be in the same order as
@@ -477,7 +484,7 @@ class Problem(cyipopt.Problem):
         # find the number of bars per plot, so the bars per plot are
         # aproximately the same on each plot
         hilfs = []
-        len_constr = self.collocator.num_instance_constraints
+        len_constr = self.collocator.num_instance_constraints - self.collocator.num_tshift_parameters
         for i in range(6, 11):
             hilfs.append((i, i - len_constr % i))
             if len_constr % i == 0:
@@ -501,7 +508,7 @@ class Problem(cyipopt.Problem):
         # ensure that len(axes) is correct, raise ValuError otherwise
         if axes is not None:
             len_axes = len(axes.ravel())
-            len_constr = self.collocator.num_instance_constraints
+            len_constr = self.collocator.num_instance_constraints - self.collocator.num_tshift_parameters
             if (len_constr <= bars_per_plot) and (len_axes < 2):
                 raise ValueError('len(axes) must be equal to 2')
 
@@ -546,11 +553,11 @@ class Problem(cyipopt.Problem):
             # point.  give the time in tha variables with 2 digits after the
             # decimal point.  if variable h is used, use the result for h in
             # the time.
-            num_inst_viols = self.collocator.num_instance_constraints
+            num_inst_viols = self.collocator.num_instance_constraints - self.collocator.num_tshift_parameters
             instance_constr_plot = []
             a_before = ''
             a_before_before = ''
-            for exp1 in self.collocator.instance_constraints:
+            for exp1 in self.collocator.instance_constraints[:num_inst_viols]:
                 for a in sm.preorder_traversal(exp1):
                     if ((isinstance(a_before, sm.Integer) or
                             isinstance(a_before, sm.Float)) and
@@ -2035,7 +2042,7 @@ class ConstraintCollocator(object):
 
             all_specified = self._merge_fixed_free(input_trajectories,
                                                    self.known_trajectory_map,
-                                                   free_specified, 'traj')
+                                                   free_specified, 'traj').squeeze()
 
             all_constants = self._merge_fixed_free(self.parameters,
                                                    self.known_parameter_map,
@@ -2043,9 +2050,7 @@ class ConstraintCollocator(object):
 
             eom_con_vals = func(free_states, all_specified, all_constants,
                                 time_interval)
-
-            if all_specified.shape[0] == 1:
-                all_specified.squeeze()
+            
 
             if self.instance_constraints is not None:
                 if typ == 'con':
