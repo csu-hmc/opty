@@ -745,6 +745,7 @@ class ConstraintCollocator(object):
                 self._generate_timeshift_constraints()
                 self._precalc_timshift_input_derivatives()
             self.num_instance_constraints = len(self.instance_constraints)
+            self.num_constraints += self.num_instance_constraints
             self._identify_functions_in_instance_constraints()
             self._find_closest_free_index()
             self.eval_instance_constraints = self._instance_constraints_func()
@@ -1956,6 +1957,9 @@ class ConstraintCollocator(object):
 
             eom_con_vals = func(free_states, all_specified, all_constants,
                                 time_interval)
+
+            if all_specified.shape[0] == 1:
+                all_specified.squeeze()
 
             if self.instance_constraints is not None:
                 if typ == 'con':
