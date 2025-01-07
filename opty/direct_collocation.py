@@ -205,6 +205,9 @@ class Problem(cyipopt.Problem):
         num_state_nodes = N*self.collocator.num_states
         num_non_par_nodes = N*(self.collocator.num_states +
                                self.collocator.num_unknown_input_trajectories)
+        num_var_dur_node = num_non_par_nodes + \
+                        self.collocator.num_unknown_parameters  
+        num_tshift_nodes = num_var_dur_node + int(self.collocator._variable_duration)
         state_syms = self.collocator.state_symbols
         unk_traj = self.collocator.unknown_input_trajectories
         unk_par = self.collocator.unknown_parameters
@@ -230,8 +233,12 @@ class Problem(cyipopt.Problem):
                     ub[idx] = bounds[1]
                 elif (self.collocator._variable_duration and
                       var == self.collocator.time_interval_symbol):
-                    lb[-1] = bounds[0]
-                    ub[-1] = bounds[1]
+                    lb[num_var_dur_node] = bounds[0]
+                    ub[num_var_dur_node] = bounds[1]
+                elif var in self.collocator.unknown_tshift_parameters:
+                    i = self.collocator.unknown_tshift_parameters.index(var)
+                    lb[num_tshift_nodes+i] = bounds[0]
+                    ub[num_tshift_nodes+i] = bounds[1]
                 else:
                     msg = 'Bound variable {} not present in free variables.'
                     raise ValueError(msg.format(var))
