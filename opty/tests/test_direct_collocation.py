@@ -1586,7 +1586,7 @@ class TestConstraintCollocatorTimeshiftConstraints():
 
         self.state_values = np.array([[1.0, 2.0, 3.0, 4.0],
                                       [5.0, 6.0, 7.0, 8.0]])
-        self.specified_values = np.array([2.0, 2.0, 2.0, 2.0])
+        self.specified_values = np.array([2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
         self.constant_values = np.array([1.0, 2.0, 3.0])
         self.interval_value = 0.01
         self.free = np.array([1.0, 2.0, 3.0, 4.0,  # x
@@ -1603,6 +1603,7 @@ class TestConstraintCollocatorTimeshiftConstraints():
                                   self.constant_values[:2]))
         self.known_trajectory_map = {f(t): self.specified_values}
         self.known_parameter_map = {m: 1.0, c: 2.0}
+        self.bounds = {tau: [-0.02 , 0.02]}
         
         instance_constraints = (x(0)-1, v(0)-5)
 
@@ -1617,16 +1618,19 @@ class TestConstraintCollocatorTimeshiftConstraints():
                                  known_parameter_map=par_map,
                                  known_trajectory_map=self.known_trajectory_map,
                                  instance_constraints=instance_constraints,
+                                 bounds = self.bounds,
                                  time_symbol=t)
             
         self.eom_subs = sym.Matrix([x(t).diff() - v(t),
                                     m * v(t).diff() + c * v(t) + k * x(t) - f_shift(t)])
         self.timeshift_inputs = {f_shift(t): (f(t - tau), tau)}
+        self.timeshift_traj_offsets = {f(t): 2}
         
         
     def test_substitute_timeshift_trajectories(self):
         assert self.collocator.eom == self.eom_subs
         assert self.collocator.timeshift_traj_substitutes == self.timeshift_inputs
+        assert self.collocator.timeshift_traj_offsets == self.timeshift_traj_offsets
         
     def test_init(self):
 
@@ -1723,7 +1727,7 @@ class TestConstraintCollocatorTimeshiftConstraints():
         # be put in the correct order too.
 
         result = self.collocator._multi_arg_con_func(self.state_values,
-                                                     self.specified_values,
+                                                     self.specified_values[2:-2],
                                                      constant_values,
                                                      self.interval_value)
 
@@ -1760,7 +1764,7 @@ class TestConstraintCollocatorTimeshiftConstraints():
         # be put in the correct order too.
 
         result = self.collocator._multi_arg_con_func(self.state_values,
-                                                     self.specified_values,
+                                                     self.specified_values[2:-2],
                                                      constant_values,
                                                      self.interval_value)
 
@@ -1828,4 +1832,3 @@ class TestConstraintCollocatorTimeshiftConstraints():
             dtype=float)
 
         np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
-

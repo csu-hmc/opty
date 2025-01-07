@@ -153,7 +153,7 @@ class Problem(cyipopt.Problem):
             states, unknown trajectories, unknown parameters, or unknown time
             interval to a 2-tuple of floats, the first being the lower bound
             and the second the upper bound for that free variable, e.g.
-            ``{x(t): (-1.0, 5.0)}``.
+            ``{x(t): (-1.0, 5.0)}``. Mandatory for timeshift parameters.
 
         """
 
@@ -167,7 +167,7 @@ class Problem(cyipopt.Problem):
             equations_of_motion, state_symbols, num_collocation_nodes,
             node_time_interval, known_parameter_map, known_trajectory_map,
             instance_constraints, time_symbol, tmp_dir, integration_method,
-            parallel, show_compile_output=show_compile_output)
+            parallel, show_compile_output=show_compile_output, bounds=bounds)
 
         self.bounds = bounds
         self.obj = obj
@@ -626,10 +626,12 @@ class ConstraintCollocator(object):
     - n(N - 1) + o : number of constraints
 
     """
+    
+    INF = 10e19
 
     def __init__(self, equations_of_motion, state_symbols,
                  num_collocation_nodes, node_time_interval,
-                 known_parameter_map={}, known_trajectory_map={},
+                 known_parameter_map={}, known_trajectory_map={}, bounds={},
                  instance_constraints=None, time_symbol=None, tmp_dir=None,
                  integration_method='backward euler', parallel=False,
                  show_compile_output=False):
@@ -666,6 +668,12 @@ class ConstraintCollocator(object):
             free trajectories optimization variables. If solving a variable
             duration problem, note that the values here are fixed at each node
             and will not scale with a varying time interval.
+        bounds : dictionary, optional
+            This dictionary should contain a mapping from any of the symbolic
+            states, unknown trajectories, unknown parameters, or unknown time
+            interval to a 2-tuple of floats, the first being the lower bound
+            and the second the upper bound for that free variable, e.g.
+            ``{x(t): (-1.0, 5.0)}``. Mandatory for timeshift parameters. 
         instance_constraints : iterable of SymPy expressions, optional
             These expressions are for constraints on the states at specific
             times. They can be expressions with any state instance and any of
@@ -725,6 +733,8 @@ class ConstraintCollocator(object):
         self.known_trajectory_map = known_trajectory_map
 
         self.instance_constraints = instance_constraints
+        
+        self.bounds = bounds
 
         self.num_constraints = self.num_states * (num_collocation_nodes - 1)
 
@@ -860,10 +870,15 @@ class ConstraintCollocator(object):
 
         N = self.num_collocation_nodes
 
+        #tshift trajectories are already checked in _substiture_timeshift_trajectories()
+        tshift_trajs = \
+            [self._to_general_time(v[0]) for v in self.timeshift_traj_substitutes.values()] 
+        
         for k, v in self.known_trajectory_map.items():
-            if len(v) != N:
-                msg = 'The known parameter {} is not length {}.'
-                raise ValueError(msg.format(k, N))
+            if k not in tshift_trajs:
+                if len(v) != N:
+                    msg = 'The known parameter {} is not length {}.'
+                    raise ValueError(msg.format(k, N))
                 
     def _to_general_time(self, func):
         """Replaces the argument of a function with the time symbol"""
@@ -872,6 +887,67 @@ class ConstraintCollocator(object):
                                      f"one argument: {func}")
         
         return func.subs(func.args[0], self.time_symbol)
+    
+    
+    def _check_timeshift_parameter(self, param):
+        """Check:
+            - timeshift parameter mustn't be known.
+            - timeshift parameter must have bounds specified. 
+        """
+        
+        if param in self.known_parameter_map:
+            raise ValueError(f"Known timeshift parameters are not supportet: {param}")
+                        
+        if param not in self.bounds:
+            raise ValueError(f"Must provide bounds for timeshift parameter {param}.")
+    
+    def _check_timeshift_trajectory(self, tr, arg, param):
+        """Check:
+            - the unshifted original of the timeshifted trajectory is provided as known
+              trajectory
+            - values for the unshifted original are available for 
+              t in [-upper_bound, N*time_interval + lower_bound]
+              
+        Returns
+        -------
+        idx_offset : int
+            Offset so that x[i + idx_offset] = x(t) for an array x[i] for i in [n_min, n_max].
+        """
+        
+        tr_general = self._to_general_time(tr)
+        if tr_general not in self.known_trajectory_map:
+            raise ValueError((f'The unshifted original of an input trajectory with unknown'
+                              f' timeshift has to be provided in the known trajectory map.'
+                              f' The following trajectory is missing in known_trajectory_'
+                              f'map: {tr_general}'))  
+        
+        t_min = +self.INF
+        t_max = -self.INF
+        
+        for t_val in [0, self.num_collocation_nodes*self.node_time_interval]:   
+            
+            val_dict = {param: self.bounds[param][0], self.time_symbol: t_val}            
+            ext1 = arg.evalf(subs=val_dict)
+            
+            val_dict = {param: self.bounds[param][1], self.time_symbol: t_val}   
+            ext2 = arg.evalf(subs=val_dict)
+        
+            t_min = min(min(ext1, ext2), t_min)
+            t_max = max(max(ext1, ext2), t_max)
+            
+        n_min = int((t_min / self.node_time_interval).floor())
+        n_max = int((t_max / self.node_time_interval).ceiling())
+        N_timeshift = n_max - n_min
+        
+        if N_timeshift != self.known_trajectory_map[tr_general].size:
+            raise ValueError((f'Values of the timeshift original {tr_general} must be '
+                              f'available for all t in the maximum interval defined by the range '
+                              f'of t and the bounds of {param}: [{t_min}, {t_max}[. Provide a '
+                              f'trajectory with {N_timeshift} samples or change the bounds of '
+                              f'{param}!'))
+        idx_offset = - n_min
+        return idx_offset 
+
                 
     def _substitute_timeshift_trajectories(self):
         """Identify and substitute time-shifted trajectories in the eom. verifies that timeshift
@@ -883,6 +959,7 @@ class ConstraintCollocator(object):
         
         trajs = self.eom.atoms(sm.Function)
         self.timeshift_traj_substitutes = {}
+        self.timeshift_traj_offsets = {}
         self.unknown_tshift_parameters = []
         
         def is_timeshift_function(func):
@@ -918,25 +995,20 @@ class ConstraintCollocator(object):
                 
                     #find timeshift parameter
                     timeshift_param = list(tr.free_symbols - t_set)[0]
-                
-                    #check that timeshift original is known and calc its derivative
-                    tr_general = self._to_general_time(tr)
-                    if tr_general not in self.known_trajectory_map:
-                        raise ValueError((f'The unshifted original of an input trajectory with unknown'
-                                          f' timeshift has to be provided in the known trajectory map.'
-                                          f' The following trajectory is missing in known_trajectory_'
-                                          f'map: {tr_general}'))
+                    
     
                     #check that timeshift parameter is not known
-                    if timeshift_param in self.known_parameter_map:
-                        raise ValueError(f"Known timeshift parameters are not supportet:"
-                                         f" {timeshift_param}")
+                    self._check_timeshift_parameter(timeshift_param)
+                    
+                    #check timeshift trajectory
+                    idx_offset = self._check_timeshift_trajectory(tr, arg, timeshift_param)
                         
                     #substitute timeshift trajectory
                     tr_subs = sm.symbols(tr.name+"_shift", cls=sm.Function)(self.time_symbol)
                     self.eom = self.eom.subs(tr, tr_subs)
                     
                     #pack info into dict
+                    self.timeshift_traj_offsets[self._to_general_time(tr)] = idx_offset
                     self.timeshift_traj_substitutes[tr_subs] = (tr, timeshift_param)
                     self.unknown_tshift_parameters.append(timeshift_param)
                 
@@ -1246,11 +1318,13 @@ class ConstraintCollocator(object):
             
             #substitute known trajectory values
             for func in subbed_constraints[i].atoms(sm.Function):
-                if func.name in unshifted_input_sym:
-                    arg = (func.args[0]/self.node_time_interval)
-                    #for a in sm.preorder_traversal(arg):
-                    #    if isinstance(a, sm.Float):
-                    #        arg = arg.subs(a, a.round())
+                if func.name in unshifted_input_sym: 
+                    arg = (func.args[0]/self.node_time_interval) 
+                    
+                    #correct the argument for arrays of values not beginning at t=0
+                    tshift_idx_offset = self.timeshift_traj_offsets[self._to_general_time(func)]
+                    arg += tshift_idx_offset
+                    
                     func_subs = unshifted_input_sym[func.name][to_int(arg),0]    
                     subbed_constraints[i] = subbed_constraints[i].subs(func, func_subs)
 
@@ -1336,6 +1410,11 @@ class ConstraintCollocator(object):
                     jac = jac.row_join(sm.Matrix([con]).jacobian([traj]))
                 else:
                     time_idx = to_int(me.msubs(traj.args[0], unknown_param_map) / self.node_time_interval)
+                    
+                    #correct time_idx for arrays of values not beginning at t=0
+                    idx_offset = self.timeshift_traj_offsets[self._to_general_time(traj)]
+                    time_idx += idx_offset
+                    
                     jac = jac.row_join(sm.Matrix([unshifted_input_sym[traj.name][time_idx,0]/self.node_time_interval]))
                         
             #calculate jacobian entries w.r.t unknown input trajectories.
