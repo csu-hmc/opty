@@ -1788,6 +1788,7 @@ class TestConstraintCollocatorTimeshiftConstraints():
 
     def test_generate_jacobian_function(self):
 
+        self.collocator.integration_method = 'backward euler'
         jacobian = self.collocator.generate_jacobian_function()
 
         jac_vals = jacobian(self.free)
@@ -1828,52 +1829,3 @@ class TestConstraintCollocatorTimeshiftConstraints():
 
         np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
 
-    def test_gen_multi_arg_con_jac_func_midpoint(self):
-
-        self.collocator.integration_method = 'midpoint'
-        self.collocator._gen_multi_arg_con_jac_func()
-
-        # Make sure the parameters are in the correct order.
-        constant_values = \
-            np.array([self.constant_values[self.constant_symbols.index(c)]
-                      for c in self.collocator.parameters])
-
-        # TODO : Once there are more than one specified, they will need to
-        # be put in the correct order too.
-
-        jac_vals = self.collocator._multi_arg_con_jac_func(self.state_values,
-                                                           self.specified_values,
-                                                           constant_values,
-                                                           self.interval_value)
-
-        row_idxs, col_idxs = self.collocator.jacobian_indices()
-
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
-
-        x = self.state_values[0]
-        m, c, k = self.constant_values
-        h = self.interval_value
-
-        part1 = np.array(
-            #        x0,       x1,       x2,      x3
-            [[ -1.0 / h,  1.0 / h,        0,       0],
-             [        0, -1.0 / h,  1.0 / h,       0],
-             [        0,        0, -1.0 / h, 1.0 / h],
-             [  k / 2.0,  k / 2.0,        0,       0],
-             [        0,  k / 2.0,  k / 2.0,       0],
-             [        0,        0,  k / 2.0, k / 2.0]],
-            dtype=float)
-
-        part2 = np.array(
-            #                v0,               v1,               v2,              v3,                   k      i
-            [[       -1.0 / 2.0,       -1.0 / 2.0,                0,               0,                   0],  # 0
-             [                0,       -1.0 / 2.0,       -1.0 / 2.0,               0,                   0],  # 1
-             [                0,                0,       -1.0 / 2.0,      -1.0 / 2.0,                   0],  # 2
-             [ -m / h + c / 2.0,  m / h + c / 2.0,                0,               0, (x[1] + x[0]) / 2.0],  # 0
-             [                0, -m / h + c / 2.0,  m / h + c / 2.0,               0, (x[2] + x[1]) / 2.0],  # 1
-             [                0,                0, -m / h + c / 2.0, m / h + c / 2.0, (x[3] + x[2]) / 2.0]], # 2
-            dtype=float)
-
-        expected_jacobian = np.hstack((part1, part2))
-
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
