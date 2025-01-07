@@ -1939,7 +1939,12 @@ class ConstraintCollocator(object):
                     variable_duration=self._variable_duration)
                 time_interval = self.node_time_interval
 
-            all_specified = self._merge_fixed_free(self.input_trajectories,
+            tshift_trajs = \
+                [self._to_general_time(v[0]) for v in self.timeshift_traj_substitutes.values()]
+            input_trajectories = [traj for traj in self.input_trajectories 
+                                  if not traj in  tshift_trajs]
+
+            all_specified = self._merge_fixed_free(input_trajectories,
                                                    self.known_trajectory_map,
                                                    free_specified, 'traj')
 
