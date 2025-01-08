@@ -480,11 +480,13 @@ class Problem(cyipopt.Problem):
 
         bars_per_plot = None
         rotation = -45
+        
+        num_tshift_constraints = (self.collocator.num_tshift_parameters * self.collocator.num_collocation_nodes)
 
         # find the number of bars per plot, so the bars per plot are
         # aproximately the same on each plot
         hilfs = []
-        len_constr = self.collocator.num_instance_constraints - self.collocator.num_tshift_parameters
+        len_constr = self.collocator.num_instance_constraints - num_tshift_constraints
         for i in range(6, 11):
             hilfs.append((i, i - len_constr % i))
             if len_constr % i == 0:
@@ -504,11 +506,14 @@ class Problem(cyipopt.Problem):
                 num_plots = 1
             else:
                 num_plots = len_constr // bars_per_plot + 1
+                
+        # add timeshift plots
+        num_plots += self.collocator.num_tshift_parameters
 
         # ensure that len(axes) is correct, raise ValuError otherwise
         if axes is not None:
             len_axes = len(axes.ravel())
-            len_constr = self.collocator.num_instance_constraints - self.collocator.num_tshift_parameters
+            len_constr = self.collocator.num_instance_constraints - num_tshift_constraints
             if (len_constr <= bars_per_plot) and (len_axes < 2):
                 raise ValueError('len(axes) must be equal to 2')
 
@@ -547,13 +552,25 @@ class Problem(cyipopt.Problem):
         axes[0].set_title('Constraint violations')
         axes[0].set_xlabel('Node Number')
         axes[0].set_ylabel('EoM violation')
+        
+        
+        #plot tshift constraint violations
+        num_viol = con_violations.size
+        tshift_con_nodes = range(0, N)
+        for itshift in range(self.collocator.num_tshift_parameters):
+            
+            tshift_violations = con_violations[num_viol-(N*(itshift+1)):num_viol-(N*itshift)]
+            
+            axes[-1-itshift].plot(tshift_con_nodes, tshift_violations)
+            axes[-1-itshift].set_ylabel(f'Timeshift violation {self.collocator.unknown_tshift_parameters[-1-itshift]}')
+            axes[-1-itshift].set_xlabel('Node Number')
 
         if self.collocator.instance_constraints is not None:
             # reduce the instance constrtaints to 2 digits after the decimal
             # point.  give the time in tha variables with 2 digits after the
             # decimal point.  if variable h is used, use the result for h in
             # the time.
-            num_inst_viols = self.collocator.num_instance_constraints - self.collocator.num_tshift_parameters
+            num_inst_viols = self.collocator.num_instance_constraints - num_tshift_constraints
             instance_constr_plot = []
             a_before = ''
             a_before_before = ''
@@ -573,7 +590,7 @@ class Problem(cyipopt.Problem):
                     a_before = a
                 instance_constr_plot.append(exp1)
 
-            for i in range(num_plots):
+            for i in range(num_plots-self.collocator.num_tshift_parameters):
                 num_ticks = bars_per_plot
                 if i == num_plots - 1:
                     beginn = i * bars_per_plot
@@ -1184,10 +1201,10 @@ class ConstraintCollocator(object):
             """
             if self.integration_method == 'midpoint':
                 padded = np.pad(trajectory, (1,1), mode='edge')
-                return (padded[2:] - padded[:2])/(2*self.node_time_interval)
+                return (padded[2:] - padded[:-2])/(2*self.node_time_interval)
             elif self.integration_method == 'backward euler':
                 padded = np.pad(trajectory, (1,0), mode='edge')
-                return (padded[1:] - padded[:1])/(self.node_time_interval)
+                return (padded[1:] - padded[:-1])/(self.node_time_interval)
             
         self.timeshift_traj_derivative_map = {}
         
