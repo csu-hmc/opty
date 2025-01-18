@@ -340,7 +340,7 @@ class Problem(cyipopt.Problem):
 
         Returns
         =======
-        jac_vals : ndarray, shape((2*n + q + r + s)*(n*(N - 1) + o), )
+        jac_vals : ndarray, shape((2*n + q + r + s)*(n*(N - 1)) + o, )
             Non-zero Jacobian values in triplet format.
 
         """
