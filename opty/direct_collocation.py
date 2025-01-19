@@ -157,11 +157,11 @@ class Problem(cyipopt.Problem):
 
         """
 
-        if equations_of_motion.has(sm.Derivative) == False:
-            raise ValueError('No time derivatives are present.' +
-                ' The equations of motion must be ordinary ' +
-                'differential equations (ODEs) or ' +
-                'differential algebraic equations (DAEs).')
+    #    if equations_of_motion.has(sm.Derivative) == False:
+    #        raise ValueError('No time derivatives are present.' +
+    #            ' The equations of motion must be ordinary ' +
+    #            'differential equations (ODEs) or ' +
+    #            'differential algebraic equations (DAEs).')
 
         self.collocator = ConstraintCollocator(
             equations_of_motion, state_symbols, num_collocation_nodes,
