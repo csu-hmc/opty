@@ -202,7 +202,7 @@ class Problem(cyipopt.Problem):
     def solve(self, free):
         """
 
-        **solve**(x)
+        **solve(x)**
 
         Returns the optimal solution and an info dictionary.
 
