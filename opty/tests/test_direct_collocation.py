@@ -1566,3 +1566,269 @@ def test_for_algebraic_eoms():
         )
 
     assert excinfo.type is ValueError
+
+
+class TestConstraintCollocatorTimeshiftConstraints():
+
+    def setup_method(self):
+        
+        m, c, k, t, tau = sym.symbols('m, c, k, t, tau')
+        x, v, f, f_shift = sym.symbols('x, v, f, f_shift', cls=sym.Function)
+        
+        self.discrete_symbols = sym.symbols('xi, vi, xp, vp, xn, vn, f_shifti, f_shiftn',
+                                            real=True)
+
+        self.state_symbols = (x(t), v(t))
+        self.time_symbol = t
+        self.constant_symbols = (m, c, k)
+        self.specified_symbols = (f(t),)
+        self.unknown_input_trajectories = (f_shift(t),)
+
+        self.state_values = np.array([[1.0, 2.0, 3.0, 4.0],
+                                      [5.0, 6.0, 7.0, 8.0]])
+        self.specified_values = np.array([2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
+        self.constant_values = np.array([1.0, 2.0, 3.0])
+        self.interval_value = 0.01
+        self.free = np.array([1.0, 2.0, 3.0, 4.0,  # x
+                              5.0, 6.0, 7.0, 8.0,  # v
+                              2.0, 2.0, 2.0, 2.0,  # f(t-tau)
+                              3.0, # k
+                              0.0]) #tau
+
+        self.eom = sym.Matrix([x(t).diff() - v(t),
+                               m * v(t).diff() + c * v(t) + k * x(t) - f(t-tau)])
+        
+
+        par_map = OrderedDict(zip(self.constant_symbols[:2],
+                                  self.constant_values[:2]))
+        self.known_trajectory_map = {f(t): self.specified_values}
+        self.known_parameter_map = {m: 1.0, c: 2.0}
+        self.bounds = {tau: [-0.02 , 0.02]}
+        
+        instance_constraints = (x(0)-1, v(0)-5)
+
+        
+        self.u_vals_diff = [0.5, 0.5, 0, 0]
+        
+        self.collocator = \
+            ConstraintCollocator(equations_of_motion=self.eom,
+                                 state_symbols=self.state_symbols,
+                                 num_collocation_nodes=4,
+                                 node_time_interval=self.interval_value,
+                                 known_parameter_map=par_map,
+                                 known_trajectory_map=self.known_trajectory_map,
+                                 instance_constraints=instance_constraints,
+                                 bounds = self.bounds,
+                                 time_symbol=t)
+            
+        self.eom_subs = sym.Matrix([x(t).diff() - v(t),
+                                    m * v(t).diff() + c * v(t) + k * x(t) - f_shift(t)])
+        self.timeshift_inputs = {f_shift(t): (f(t - tau), tau)}
+        self.timeshift_traj_offsets = {f(t): 2}
+        
+        
+    def test_substitute_timeshift_trajectories(self):
+        assert self.collocator.eom == self.eom_subs
+        assert self.collocator.timeshift_traj_substitutes == self.timeshift_inputs
+        assert self.collocator.timeshift_traj_offsets == self.timeshift_traj_offsets
+        
+    def test_init(self):
+
+        assert self.collocator.state_symbols == self.state_symbols
+        assert self.collocator.state_derivative_symbols == \
+            tuple([s.diff() for s in self.state_symbols])
+        assert self.collocator.num_states == 2
+        assert self.collocator.num_collocation_nodes == 4
+
+    def test_integration_method(self):
+        with raises(ValueError):
+            self.collocator.integration_method = 'booger'
+
+    def test_sort_parameters(self):
+
+        self.collocator._sort_parameters()
+
+        m, c, k = self.constant_symbols
+
+        assert self.collocator.known_parameters == (m, c)
+        assert self.collocator.num_known_parameters == 2
+
+        assert self.collocator.unknown_parameters == (k,)
+        assert self.collocator.num_unknown_parameters == 1
+
+    def test_sort_trajectories(self):
+
+        self.collocator._sort_trajectories()
+
+        assert self.collocator.known_input_trajectories == \
+            self.specified_symbols
+        assert self.collocator.num_known_input_trajectories == 1
+
+        assert self.collocator.unknown_input_trajectories == self.unknown_input_trajectories
+        assert self.collocator.num_unknown_input_trajectories == 1
+
+    def test_discrete_symbols(self):
+
+        self.collocator._discrete_symbols()
+
+        xi, vi, xp, vp, xn, vn, f_shifti, f_shiftn = self.discrete_symbols
+
+        assert self.collocator.previous_discrete_state_symbols == (xp, vp)
+        assert self.collocator.current_discrete_state_symbols == (xi, vi)
+        assert self.collocator.next_discrete_state_symbols == (xn, vn)
+
+        assert self.collocator.current_discrete_specified_symbols == (f_shifti, )
+        assert self.collocator.next_discrete_specified_symbols == (f_shiftn, )
+
+    def test_discretize_eom_backward_euler(self):
+
+        m, c, k = self.constant_symbols
+        xi, vi, xp, vp, xn, vn, fi, fn = self.discrete_symbols
+        h = self.collocator.time_interval_symbol
+
+        expected = sym.Matrix([(xi - xp) / h - vi,
+                               m * (vi - vp) / h + c * vi + k * xi - fi])
+
+        self.collocator._discretize_eom()
+
+        zero = sym.simplify(self.collocator.discrete_eom - expected)
+
+        assert zero == sym.Matrix([0, 0])
+
+    def test_discretize_eom_midpoint(self):
+
+        m, c, k = self.constant_symbols
+        xi, vi, xp, vp, xn, vn, fi, fn = self.discrete_symbols
+
+        h = self.collocator.time_interval_symbol
+
+        expected = sym.Matrix([(xn - xi) / h - (vi + vn) / 2,
+                               m * (vn - vi) / h + c * (vi + vn) / 2 +
+                               k * (xi + xn) / 2 - (fi + fn) / 2])
+
+        self.collocator.integration_method = 'midpoint'
+        self.collocator._discretize_eom()
+
+        zero = sym.simplify(self.collocator.discrete_eom - expected)
+
+        assert zero == sym.Matrix([0, 0])
+        
+    def test_gen_multi_arg_con_func_backward_euler(self):
+
+        self.collocator.integration_method ='backward euler'
+        self.collocator._gen_multi_arg_con_func()
+
+        # Make sure the parameters are in the correct order.
+        constant_values = \
+            np.array([self.constant_values[self.constant_symbols.index(c)]
+                      for c in self.collocator.parameters])
+
+        # TODO : Once there are more than one specified, they will need to
+        # be put in the correct order too.
+
+        result = self.collocator._multi_arg_con_func(self.state_values,
+                                                     self.specified_values[2:-2],
+                                                     constant_values,
+                                                     self.interval_value)
+
+        m, c, k = self.constant_values
+        h = self.interval_value
+
+        expected_dynamic = np.zeros(3)
+        expected_kinematic = np.zeros(3)
+
+        for i in [1, 2, 3]:
+
+            xi, vi = self.state_values[:, i]
+            xp, vp = self.state_values[:, i - 1]
+            fi = self.specified_values[i]
+
+            expected_dynamic[i - 1] = m * (vi - vp) / h + c * vi + k * xi - fi
+            expected_kinematic[i - 1] = (xi - xp) / h - vi
+
+        expected = np.hstack((expected_kinematic, expected_dynamic))
+
+        np.testing.assert_allclose(result, expected)
+
+    def test_gen_multi_arg_con_func_midpoint(self):
+
+        self.collocator.integration_method = 'midpoint'
+        self.collocator._gen_multi_arg_con_func()
+
+        # Make sure the parameters are in the correct order.
+        constant_values = \
+            np.array([self.constant_values[self.constant_symbols.index(c)]
+                      for c in self.collocator.parameters])
+
+        # TODO : Once there are more than one specified, they will need to
+        # be put in the correct order too.
+
+        result = self.collocator._multi_arg_con_func(self.state_values,
+                                                     self.specified_values[2:-2],
+                                                     constant_values,
+                                                     self.interval_value)
+
+        m, c, k = self.constant_values
+        h = self.interval_value
+
+        expected_dynamic = np.zeros(3)
+        expected_kinematic = np.zeros(3)
+
+        for i in [0, 1, 2]:
+
+            xi, vi = self.state_values[:, i]
+            xn, vn = self.state_values[:, i + 1]
+            fi = self.specified_values[i:i + 1][0]
+            fn = self.specified_values[i + 1:i + 2][0]
+
+            expected_kinematic[i] = (xn - xi) / h - (vi + vn) / 2
+            expected_dynamic[i] = (m * (vn - vi) / h + c * (vn + vi) / 2 + k
+                                   * (xn + xi) / 2 - (fi + fn) / 2)
+
+        expected = np.hstack((expected_kinematic, expected_dynamic))
+
+        np.testing.assert_allclose(result, expected)
+        
+
+    def test_generate_jacobian_function(self):
+
+        self.collocator.integration_method = 'backward euler'
+        jacobian = self.collocator.generate_jacobian_function()
+
+        jac_vals = jacobian(self.free)
+
+        row_idxs, col_idxs = self.collocator.jacobian_indices()
+
+        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+
+        row_idxs, col_idxs = self.collocator.jacobian_indices()
+
+        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+
+        # jacobian of eom_vector wrt vi, xi, xp, vp, k
+        #    [     vi,  xi,   vp,   xp,  k]
+        # x: [     -1, 1/h,    0, -1/h,  0]
+        # v: [c + m/h,   k, -m/h,    0, xi]
+
+        x = self.state_values[0]
+        m, c, k = self.constant_values
+        h = self.interval_value
+        c_tau = 0
+
+        expected_jacobian = np.array(
+            #     x1,     x2,     x3,    x4,     v1,        v2,         v3,        v4,    f1, f2, f3, f4,    k, tau
+            [[-1 / h,  1 / h,      0,     0,      0,        -1,          0,         0,    0,   0,  0,  0,    0,     0],     #eom-node 0
+             [     0, -1 / h,  1 / h,     0,      0,         0,         -1,         0,    0,   0,  0,  0,    0,     0],     #eom-node 1
+             [     0,      0, -1 / h, 1 / h,      0,         0,          0,        -1,    0,   0,  0,  0,    0,     0],     #eom-node 2
+             [     0,      k,      0,     0, -m / h, c + m / h,          0,         0,    0,  -1,  0,  0, x[1],     0],     #eom-node 3
+             [     0,      0,      k,     0,      0,    -m / h,  c + m / h,         0,    0,   0, -1,  0, x[2],     0],     #eom-node 4
+             [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h,    0,   0,  0, -1, x[3],     0],     #eom-node 5
+             [     1,      0,      0,     0,      0,         0,          0,         0,    0,   0,  0,  0,    0,     0],     #c0: x[0] = 0
+             [     0,      0,      0,     0,      1,         0,          0,         0,    0,   0,  0,  0,    0,     0],     #c1: v[0] = 5
+             [     0,      0,      0,     0,      0,         0,          0,         0,    1,   0,  0,  0,    0, c_tau],     #c_tshift_0
+             [     0,      0,      0,     0,      0,         0,          0,         0,    0,   1,  0,  0,    0, c_tau],     #c_tshift_1
+             [     0,      0,      0,     0,      0,         0,          0,         0,    0,   0,  1,  0,    0, c_tau],     #c_tshift_2
+             [     0,      0,      0,     0,      0,         0,          0,         0,    0,   0,  0,  1,    0, c_tau]],    #c_tshift_3
+            dtype=float)
+
+        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
