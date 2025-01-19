@@ -197,6 +197,65 @@ class Problem(cyipopt.Problem):
 
         self.obj_value = []
 
+    # this is added only to correct the docstring, which is a bit different with
+    # opty compared to cyipopt.
+    def solve(self, free):
+        """
+        **solve**(x)
+
+        Returns the optimal solution and an info dictionary.
+
+        Solves the posed optimization problem starting at point x.
+
+        Parameters:
+
+            x (array-like, shape(n*N + q*N + r + s, ))
+
+                Initial guess.
+
+        Returns:
+
+            x (array, shape(n*N + q*N + r + s, ))
+
+                optimal solution.
+
+            info (dictionary)
+
+                x: ndarray, shape(n*N + q*N + r + s, )
+
+                    optimal solution
+
+                g: ndarray, shape(n*(N-1) + o, )
+
+                    constraints at the optimal solution
+
+                obj_val: float
+
+                    objective value at optimal solution
+
+                mult_g: ndarray, shape(n*(N-1) + o, )
+
+                    final values of the constraint multipliers
+
+                mult_x_L: ndarray, shape(n*N + q*N + r + s, )
+
+                    bound multipliers at the solution
+
+                mult_x_U: ndarray, shape(n*N + q*N + r + s, )
+
+                    bound multipliers at the solution
+
+                status: integer
+
+                    gives the status of the algorithm
+
+                status_msg: string
+
+                    gives the status of the algorithm as a message
+
+        """
+        return super().solve(free)
+
     def _generate_bound_arrays(self):
         lb = -self.INF * np.ones(self.num_free)
         ub = self.INF * np.ones(self.num_free)
