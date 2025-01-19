@@ -200,59 +200,46 @@ class Problem(cyipopt.Problem):
     # this is added only to correct the docstring, which is a bit different with
     # opty compared to cyipopt.
     def solve(self, free):
-        """
-
-        **solve(x)**
-
-        Returns the optimal solution and an info dictionary.
+        """Returns the optimal solution and an info dictionary.
 
         Solves the posed optimization problem starting at point x.
 
-        Parameters:
+        Parameters
+        ----------
+        x : array-like, shape(n*N + q*N + r + s, )
+            Initial guess.
 
-            x (array-like, shape(n*N + q*N + r + s, ))
+        lagrange : array-like, shape(n*(N-1) + o, ), optional (default=[])
+            Initial values for the constraint multipliers (only if warm start option is chosen).
 
-                Initial guess.
+        zl : array-like, shape(n*N + q*N + r + s, ), optional (default=[])
+            Initial values for the multipliers for lower variable bounds (only if warm start option is chosen).
 
-        Returns:
+        zu : array-like, shape(n*N + q*N + r + s, ), optional (default=[])
+            Initial values for the multipliers for upper variable bounds (only if warm start option is chosen).
 
-            x (array, shape(n*N + q*N + r + s, ))
+        Returns
+        -------
+        x : :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+            Optimal solution.
+        info: :py:class:`dict` with the following entries
 
-                optimal solution.
-
-            info (dictionary)
-
-                x: ndarray, shape(n*N + q*N + r + s, )
-
-                    optimal solution
-
-                g: ndarray, shape(n*(N-1) + o, )
-
-                    constraints at the optimal solution
-
-                obj_val: float
-
-                    objective value at optimal solution
-
-                mult_g: ndarray, shape(n*(N-1) + o, )
-
-                    final values of the constraint multipliers
-
-                mult_x_L: ndarray, shape(n*N + q*N + r + s, )
-
-                    bound multipliers at the solution
-
-                mult_x_U: ndarray, shape(n*N + q*N + r + s, )
-
-                    bound multipliers at the solution
-
-                status: integer
-
-                    gives the status of the algorithm
-
-                status_msg: string
-
-                    gives the status of the algorithm as a message
+            ``x``: :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+                optimal solution
+            ``g``: :py:class:`numpy.ndarray`, shape `(n*(N-1) + o, )`
+                constraints at the optimal solution
+            ``obj_val``: :py:class:`float`
+                objective value at optimal solution
+            ``mult_g``: :py:class:`numpy.ndarray`, shape `(n*(N-1) + o, )`
+                final values of the constraint multipliers
+            ``mult_x_L``: :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+                bound multipliers at the solution
+            ``mult_x_U``: :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+                bound multipliers at the solution
+            ``status``: :py:class:`int`
+                gives the status of the algorithm
+            ``status_msg``: :py:class:`str`
+                gives the status of the algorithm as a message
 
         """
 
