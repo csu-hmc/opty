@@ -201,6 +201,7 @@ class Problem(cyipopt.Problem):
     # opty compared to cyipopt.
     def solve(self, free):
         """
+
         **solve**(x)
 
         Returns the optimal solution and an info dictionary.
@@ -254,6 +255,7 @@ class Problem(cyipopt.Problem):
                     gives the status of the algorithm as a message
 
         """
+
         return super().solve(free)
 
     def _generate_bound_arrays(self):
