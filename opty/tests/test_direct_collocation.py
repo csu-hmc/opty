@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 import numpy as np
 import sympy as sym
+from scipy.optimize import root
 import sympy.physics.mechanics as mech
 from sympy.physics.mechanics.models import n_link_pendulum_on_cart
 from scipy import sparse
@@ -1566,3 +1567,87 @@ def test_for_algebraic_eoms():
         )
 
     assert excinfo.type is ValueError
+
+
+def test_AEs_only():
+    """
+    Test for AEs only
+    =================
+
+    This is to test whether *opty* can solve a problem with algebraic
+    equations only.
+
+    **States**
+
+    - :math:`E_1, E_2` : state variables
+
+    """
+
+    t = mech.dynamicsymbols._t
+    T = sym.symbols('T', cls=sym.Function)
+    E1, E2 = mech.dynamicsymbols('E1 E2')
+
+    # equations of motion
+    eom = sym.Matrix([
+            -E1 + T(t)*sym.sin(E2) + 1.0,
+            -E2 - T(t)*sym.cos(E1) - 1.0,
+    ])
+
+    # Set up and Solve the Optimization Problem
+    num_nodes = 51
+    t0, tf = 0.0, 0.9
+    state_symbols = (E1, E2)
+
+    interval_value = (tf - t0)/(num_nodes - 1)
+    times = np.linspace(t0, tf, num_nodes)
+
+    # Specify the symbolic instance constraints, as per the example.
+    instance_constraints = (
+        E1.func(t0) - 1.0,
+        E2.func(t0) + 1.0,
+    )
+
+    # Specify the objective function and form the gradient.
+
+    def obj(free):
+        return sum([free[i]**2 for i in range(2*num_nodes)])
+
+    def obj_grad(free):
+        grad = np.zeros_like(free)
+        grad[:2*num_nodes] = 2*free[:2*num_nodes]
+        return grad
+
+    # Create the optimization problem and set any options.
+    prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            instance_constraints=instance_constraints,
+            known_trajectory_map={T(t): times}
+)
+
+    # Give some estimates for the trajectory.
+    initial1 = list(np.linspace(1.0, 0, num_nodes))
+    initial2 = list(np.linspace(-1.0, -2.0, num_nodes))
+    initial_guess = np.array(initial1 + initial2)
+
+    # Find the optimal solution.
+    solution, _ = prob.solve(initial_guess)
+
+    # As this amounts to solving a system of nonlinear equation, I compare the
+    # solution of opty to the solution obtained by scipy roots - which is
+    # known to work.
+    def func(x0, param):
+        E1, E2 = x0
+        return E1 - param*np.sin(E2) - 1.0, E2 + param*np.cos(E1) + 1.0
+    x0 = (1.0, -1)
+    zeit = -1
+    for param in times:
+        zeit += 1
+        loesung = root(func, x0, args=(param,))
+        assert np.isclose(solution[zeit] - loesung.x[0], 0.0)
+        assert np.isclose(solution[zeit + num_nodes] - loesung.x[1], 0.0)
+        x0 = loesung.x
