@@ -199,7 +199,7 @@ class Problem(cyipopt.Problem):
 
     # this is added only to correct the docstring, which is a bit different with
     # opty compared to cyipopt.
-    def solve(self, free):
+    def solve(self, free, lagrange=[], zl=[], zu=[]):
         """Returns the optimal solution and an info dictionary.
 
         Solves the posed optimization problem starting at point x.
@@ -243,7 +243,7 @@ class Problem(cyipopt.Problem):
 
         """
 
-        return super().solve(free)
+        return super().solve(free, lagrange=[], zl=[], zu=[])
 
     def _generate_bound_arrays(self):
         lb = -self.INF * np.ones(self.num_free)
