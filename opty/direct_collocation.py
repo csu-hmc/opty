@@ -633,26 +633,7 @@ class Problem(cyipopt.Problem):
         q = self.collocator.num_unknown_input_trajectories
         variable_duration = self.collocator._variable_duration
 
-        len_states = n * N
-        len_specified = q * N
-
-        free_states = free[:len_states].reshape((n, N))
-
-        if q == 0:
-            free_specified = None
-        else:
-            free_specified = free[len_states:len_states + len_specified]
-            if q > 1:
-                free_specified = free_specified.reshape((q, N))
-
-        if variable_duration:
-            free_time_interval = free[-1]
-            free_constants = free[len_states + len_specified:-1]
-            return free_states, free_specified, free_constants, free_time_interval
-        else:
-            free_constants = free[len_states + len_specified:]
-            return free_states, free_specified, free_constants
-
+        return parse_free(free, n, q, N, variable_duration)
 
 class ConstraintCollocator(object):
     """This class is responsible for generating the constraint function and the
