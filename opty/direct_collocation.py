@@ -597,6 +597,62 @@ class Problem(cyipopt.Problem):
 
         return ax
 
+    def parse_free(self, free):
+        """Parses the free parameters vector and returns it's components.
+
+        Parameters
+        ----------
+        free : ndarray, shape(n*N + q*N + r + s)
+            The free parameters of the system.
+
+        where:
+
+        - N : number of collocation nodes
+        - n : number of unknown state trajectories
+        - q : number of unknown input trajectories
+        - r : number of unknown parameters
+        - s : number of unknown time intervals (s=1 if variable duration, else s=0)
+
+
+        Returns
+        -------
+        states : ndarray, shape(n, N)
+            The array of n states through N time steps.
+        specified_values : ndarray, shape(q, N) or shape(N,), or None
+            The array of q specified inputs through N time steps.
+        constant_values : ndarray, shape(r,)
+            The array of r constants.
+        time_interval : float
+            The time between collocation nodes. Only returned if
+            ``variable_duration`` is ``True``.
+
+        """
+
+        n = self.collocator.num_states
+        N = self.collocator.num_collocation_nodes
+        q = self.collocator.num_unknown_input_trajectories
+        variable_duration = self.collocator._variable_duration
+
+        len_states = n * N
+        len_specified = q * N
+
+        free_states = free[:len_states].reshape((n, N))
+
+        if q == 0:
+            free_specified = None
+        else:
+            free_specified = free[len_states:len_states + len_specified]
+            if q > 1:
+                free_specified = free_specified.reshape((q, N))
+
+        if variable_duration:
+            free_time_interval = free[-1]
+            free_constants = free[len_states + len_specified:-1]
+            return free_states, free_specified, free_constants, free_time_interval
+        else:
+            free_constants = free[len_states + len_specified:]
+            return free_states, free_specified, free_constants
+
 
 class ConstraintCollocator(object):
     """This class is responsible for generating the constraint function and the
