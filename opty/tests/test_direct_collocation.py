@@ -1647,9 +1647,9 @@ def test_prob_parse_free():
             len(state_symbols), len(control_symbols), num_nodes)
 
     states, controls, constants = prob.parse_free(initial_guess)
-    assert(np.allclose(states, statesu))
-    assert(np.allclose(controls, controlsu))
-    assert(np.allclose(constants, constantsu))
+    np.testing.assert_allclose(states, statesu)
+    np.testing.assert_allclose(controls, controlsu)
+    np.testing.assert_allclose(constants, constantsu)
 
     # test with variable interval_value
     interval_value = h
@@ -1683,7 +1683,7 @@ def test_prob_parse_free():
         num_nodes, variable_duration=True)
 
     states, controls, constants, times = prob.parse_free(initial_guess)
-    assert(np.allclose(states, statesu))
-    assert(np.allclose(controls, controlsu))
-    assert(np.allclose(constants, constantsu))
-    assert(np.allclose(timeu, times))
+    np.testing.assert_allclose(states, statesu)
+    np.testing.assert_allclose(controls, controlsu)
+    np.testing.assert_allclose(constants, constantsu)
+    np.testing.assert_allclose(timeu, times)
