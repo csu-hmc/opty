@@ -601,21 +601,12 @@ class Problem(cyipopt.Problem):
         """Parses the free parameters vector and returns it's components.
 
         Parameters
-        ----------
+        ==========
         free : ndarray, shape(n*N + q*N + r + s)
             The free parameters of the system.
 
-        where:
-
-        - N : number of collocation nodes
-        - n : number of unknown state trajectories
-        - q : number of unknown input trajectories
-        - r : number of unknown parameters
-        - s : number of unknown time intervals (s=1 if variable duration, else s=0)
-
-
         Returns
-        -------
+        =======
         states : ndarray, shape(n, N)
             The array of n states through N time steps.
         specified_values : ndarray, shape(q, N) or shape(N,), or None
@@ -625,6 +616,15 @@ class Problem(cyipopt.Problem):
         time_interval : float
             The time between collocation nodes. Only returned if
             ``variable_duration`` is ``True``.
+
+        Notes
+        =====
+
+        - N : number of collocation nodes
+        - n : number of unknown state trajectories
+        - q : number of unknown input trajectories
+        - r : number of unknown parameters
+        - s : number of unknown time intervals (s=1 if ``variable duration`` is ``True`` else s=0)
 
         """
 
