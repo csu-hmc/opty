@@ -128,6 +128,8 @@ class Problem(cyipopt.Problem):
                       eomn2, ... eomnN,
                       c1, ..., co]
 
+    The attributes may be accessed as follows: Problem_instance.collocator.name_of_attribute
+
     """
 
     INF = 10e19
@@ -729,10 +731,74 @@ class ConstraintCollocator(object):
 
         Attributes
         ----------
-        eom : sympy.Matrix
+        Some of the attributes are explained in more detail under Parameters above.
+
+        eom: sympy.Matrix
             The equations of motion used.
         state_symbols : tuple
-            The state symbols used. Functions of time.
+            The state symbols used. Functrion of time.
+        state_derivative_symbols : tuple
+            symbols for the time derivatives of the states.
+        num_states : int
+            The number of states = len(state_symbols).
+        num_collocation_nodes : int
+            Number of times spaced evenly between the initial and final time of the optimization.
+        node_time_interval : float or sympy.Symbol
+            The time interval between the collocation nodes. float if the time is fixed, sympy.Symbol if the time is a variable.
+        time_interval_symbol : sympy.Symbol
+            The symbol used to represent the time interval if it is variable, else the internal symbol.
+        known_parameter_map : dict
+            A mapping of known parameters to their values.
+        unknown_parameters : tuple
+            The unknown parameters in the problem, in the sequence in which they appear in the solution of the optimization.
+        num_unknown_parameters : int
+            The number of unknown parameters.
+        parameters : tuple
+            known_parameters + unknown_parameters
+        num_parameters : int
+            The number of parameters = len(parameters).
+        known_trajectory_map : dict
+            A mapping of known trajectories to their values, see also above in Parameters
+        known_trajectory_symbols : tuple
+            The known trajectory symbols.
+        num_known_trajectories : int
+            The number of known trajectories = len(known_trajectory_symbols).
+        unknown_input_trajectories : tuple
+            The unknown input trajectories symbols.
+        num_unknown_input_trajectories : int
+            The number of unknown input trajectories = len(unknown_input_trajectories).
+        input_trajectories : tuple
+            known_input_trajectories + unknown_input_trajectories
+        instance_constraints : tuple
+            The instance constraints used in the optimization.
+        num_constraints : int
+            The number of constraints = (num_collection_nodes-1)*num_states + len(instance_constraints).
+        num_instance_constraints : int
+            The number of instance constraints = len(instance_constraints).
+        previous_discrete_state_symbols : tuple
+            The symbols for the previous discrete states.
+        current_discrete_state_symbols : tuple
+            The symbols for the current discrete states.
+        next_discrete_state_symbols : tuple
+            The symbols for the next discrete states.
+        current_discrete_specified_symbols : tuple
+            The symbols for the current discrete specified inputs.
+        next_discrete_specified_symbols : tuple
+            The symbols for the next discrete specified inputs.
+        integration_method : str
+            The integration method used.
+        discrete_eom : sympy.Matrix
+            Discretized equations of motion. Depending on the integration method used.
+        num_free : int
+            Number of variables to be optimized
+        time_symbol : sympy.Symbol
+            The symbol used to represent time, usually `t`
+        tmp_dir
+            The temporary directory used to store files generated
+        parallel : bool
+            Whether to use parallel processing or not.
+        show_compile_output : bool
+            Whether to show the compile output or not.
 
         """
         self.eom = equations_of_motion
