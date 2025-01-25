@@ -727,6 +727,13 @@ class ConstraintCollocator(object):
             If True, STDOUT and STDERR of the Cython compilation call will be
             shown.
 
+        Attributes
+        ----------
+        eom : sympy.Matrix
+            The equations of motion used.
+        state_symbols : tuple
+            The state symbols used. Functions of time.
+
         """
         self.eom = equations_of_motion
 
