@@ -675,7 +675,7 @@ class ConstraintCollocator(object):
         The symbols for the next discrete states.
     node_time_interval : float or sympy.Symbol
         The time interval between the collocation nodes. float if the interval
-        is fixed, sympy.Symbol if the interval is variable.
+        is fixed, ``sympy.Symbol`` if the interval is variable.
     num_collocation_nodes : int
         Number of times spaced evenly between the initial and final time of
         the optimization = N.
