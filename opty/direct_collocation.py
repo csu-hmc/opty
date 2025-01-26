@@ -128,7 +128,7 @@ class Problem(cyipopt.Problem):
                       eomn2, ... eomnN,
                       c1, ..., co]
 
-    The attributes may be accessed as follows: Problem_instance.collocator.name_of_attribute
+    The attributes may be accessed as follows: ``Problem_instance.collocator.name_of_attribute``
 
     """
 
