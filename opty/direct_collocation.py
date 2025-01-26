@@ -656,9 +656,86 @@ class ConstraintCollocator(object):
     - o : number of instance constraints
     - nN + qN + r + s : number of free variables
     - n(N - 1) + o : number of constraints
+    - Some of the attributes are explained in more detail under Parameters below.
+
+    Attributes
+    ----------
+    ==========
+
+    current_discrete_state_symbols : n-tuple
+        The symbols for the current discrete states.
+    current_discrete_specified_symbols : q-tuple
+        The symbols for the current discrete specified inputs.
+    discrete_eom : sympy.Matrix, shape(n, 1)
+        Discretized equations of motion. Depending on the integration method
+        used.
+    eom: sympy.Matrix, shape(n, 1)
+        The equations of motion used.
+    input_trajectories : tuple
+        known_input_trajectories + unknown_input_trajectories.
+    instance_constraints : o-tuple
+        The instance constraints used in the optimization.
+    integration_method : str
+        The integration method used.
+    known_parameters : tuple
+        The symbols of the known parameters in the problem.
+    known_parameter_map : dict
+        A mapping of known parameters to their values.
+    known_trajectory_map : dict
+        A mapping of known trajectories to their values.
+    known_trajectory_symbols : (m-q)-tuple
+        The known trajectory symbols.
+    next_discrete_specified_symbols : q-tuple
+        The symbols for the next discrete specified inputs.
+    next_discrete_state_symbols : n-tuple
+        The symbols for the next discrete states.
+    node_time_interval : float or sympy.Symbol
+        The time interval between the collocation nodes. float if the interval
+        is fixed, sympy.Symbol if the interval is variable.
+    num_collocation_nodes : int
+        Number of times spaced evenly between the initial and final time of
+        the optimization = N.
+    num_constraints : int
+        The number of constraints = (num_collection_nodes-1)*num_states +
+        len(instance_constraints).
+    num_free : int
+        Number of variables to be optimized = n*N + q*N + r + s.
+    num_input_trajectories : int
+        The number of input trajectories = len(input_trajectories).
+    num_instance_constraints : int
+        The number of instance constraints = len(instance_constraints).
+    num_known_trajectories : int
+        The number of known trajectories = len(known_trajectory_symbols).
+    num_parameters : int
+        The number of parameters = len(parameters).
+    num_states : int
+        The number of states = len(state_symbols) = n.
+    num_unknown_input_trajectories : int
+        The number of unknown input trajectories =
+        len(unknown_input_trajectories).
+    num_unknown_parameters : int
+        The number of unknown parameters = r.
+    parameters : tuple
+        known_parameters + unknown_parameters.
+    parallel : bool
+        Whether to use parallel processing or not.
+    previous_discrete_state_symbols : n-tuple
+        The symbols for the previous discrete states.
+    show_compile_output : bool
+        Whether to show the compile output or not.
+    state_derivative_symbols : n-tuple
+        symbols for the time derivatives of the states.
+    time_symbol : sympy.Symbol
+        The symbol used to represent time, usually `t`.
+    tmp_dir
+        The temporary directory used to store files generated.
+    unknown_input_trajectories : q-tuple
+        The unknown input trajectories symbols.
+    unknown_parameters : r-tuple
+        The unknown parameters in the problem, in the sequence in which they
+        appear in the solution of the optimization.
 
     """
-
     def __init__(self, equations_of_motion, state_symbols,
                  num_collocation_nodes, node_time_interval,
                  known_parameter_map={}, known_trajectory_map={},
@@ -728,77 +805,6 @@ class ConstraintCollocator(object):
         show_compile_output : boolean, optional
             If True, STDOUT and STDERR of the Cython compilation call will be
             shown.
-
-        Attributes
-        ----------
-        Some of the attributes are explained in more detail under Parameters above.
-
-        eom: sympy.Matrix
-            The equations of motion used.
-        state_symbols : tuple
-            The state symbols used. Functrion of time.
-        state_derivative_symbols : tuple
-            symbols for the time derivatives of the states.
-        num_states : int
-            The number of states = len(state_symbols).
-        num_collocation_nodes : int
-            Number of times spaced evenly between the initial and final time of the optimization.
-        node_time_interval : float or sympy.Symbol
-            The time interval between the collocation nodes. float if the time is fixed, sympy.Symbol if the time is a variable.
-        time_interval_symbol : sympy.Symbol
-            The symbol used to represent the time interval if it is variable, else the internal symbol.
-        known_parameter_map : dict
-            A mapping of known parameters to their values.
-        unknown_parameters : tuple
-            The unknown parameters in the problem, in the sequence in which they appear in the solution of the optimization.
-        num_unknown_parameters : int
-            The number of unknown parameters.
-        parameters : tuple
-            known_parameters + unknown_parameters
-        num_parameters : int
-            The number of parameters = len(parameters).
-        known_trajectory_map : dict
-            A mapping of known trajectories to their values, see also above in Parameters
-        known_trajectory_symbols : tuple
-            The known trajectory symbols.
-        num_known_trajectories : int
-            The number of known trajectories = len(known_trajectory_symbols).
-        unknown_input_trajectories : tuple
-            The unknown input trajectories symbols.
-        num_unknown_input_trajectories : int
-            The number of unknown input trajectories = len(unknown_input_trajectories).
-        input_trajectories : tuple
-            known_input_trajectories + unknown_input_trajectories
-        instance_constraints : tuple
-            The instance constraints used in the optimization.
-        num_constraints : int
-            The number of constraints = (num_collection_nodes-1)*num_states + len(instance_constraints).
-        num_instance_constraints : int
-            The number of instance constraints = len(instance_constraints).
-        previous_discrete_state_symbols : tuple
-            The symbols for the previous discrete states.
-        current_discrete_state_symbols : tuple
-            The symbols for the current discrete states.
-        next_discrete_state_symbols : tuple
-            The symbols for the next discrete states.
-        current_discrete_specified_symbols : tuple
-            The symbols for the current discrete specified inputs.
-        next_discrete_specified_symbols : tuple
-            The symbols for the next discrete specified inputs.
-        integration_method : str
-            The integration method used.
-        discrete_eom : sympy.Matrix
-            Discretized equations of motion. Depending on the integration method used.
-        num_free : int
-            Number of variables to be optimized
-        time_symbol : sympy.Symbol
-            The symbol used to represent time, usually `t`
-        tmp_dir
-            The temporary directory used to store files generated
-        parallel : bool
-            Whether to use parallel processing or not.
-        show_compile_output : bool
-            Whether to show the compile output or not.
 
         """
         self.eom = equations_of_motion
