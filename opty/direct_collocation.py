@@ -643,25 +643,9 @@ class ConstraintCollocator(object):
     for a non-linear programming problem where the essential constraints are
     defined from the equations of motion of the system.
 
-    Notes
-    =====
-
-    - N : number of collocation nodes
-    - n : number of states
-    - m : number of input trajectories
-    - q : number of unknown input trajectories
-    - r : number of unknown parameters
-    - s : number of unknown time intervals (0 or 1 if fixed duration or
-      variable duration)
-    - o : number of instance constraints
-    - nN + qN + r + s : number of free variables
-    - n(N - 1) + o : number of constraints
-    - Some of the attributes are explained in more detail under Parameters below.
 
     Attributes
-    ----------
     ==========
-
     current_discrete_state_symbols : n-tuple
         The symbols for the current discrete states.
     current_discrete_specified_symbols : q-tuple
@@ -734,6 +718,23 @@ class ConstraintCollocator(object):
     unknown_parameters : r-tuple
         The unknown parameters in the problem, in the sequence in which they
         appear in the solution of the optimization.
+
+    Notes
+    =====
+
+    - N : number of collocation nodes
+    - n : number of states
+    - m : number of input trajectories
+    - q : number of unknown input trajectories
+    - r : number of unknown parameters
+    - s : number of unknown time intervals (0 or 1 if fixed duration or
+      variable duration)
+    - o : number of instance constraints
+    - nN + qN + r + s : number of free variables
+    - n(N - 1) + o : number of constraints
+
+    Some of the attributes are explained in more detail under Parameters below.
+
 
     """
     def __init__(self, equations_of_motion, state_symbols,
