@@ -20,6 +20,7 @@ setup(
         'cython>=0.29.19',
         'numpy>=1.19.0',
         'scipy>=1.5.0',
+        'setuptools',  # provides distutils for Python >=3.13
         'sympy>=1.6.0',
     ],
     extras_require={
