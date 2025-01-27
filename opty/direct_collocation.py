@@ -626,7 +626,8 @@ class Problem(cyipopt.Problem):
         - n : number of unknown state trajectories
         - q : number of unknown input trajectories
         - r : number of unknown parameters
-        - s : number of unknown time intervals (s=1 if ``variable duration`` is ``True`` else s=0)
+        - s : number of unknown time intervals (s=1 if ``variable duration`` is
+          ``True`` else s=0)
 
         """
 
@@ -642,7 +643,6 @@ class ConstraintCollocator(object):
     sparse Jacobian of the constraint function using direct collocation methods
     for a non-linear programming problem where the essential constraints are
     defined from the equations of motion of the system.
-
 
     Attributes
     ==========
@@ -735,6 +735,8 @@ class ConstraintCollocator(object):
 
     Some of the attributes are explained in more detail under Parameters below.
 
+    It is best to treat ``ConstraintCollocator`` as immutable, changing
+    attributes after initialization will inevitably fail.
 
     """
     def __init__(self, equations_of_motion, state_symbols,
