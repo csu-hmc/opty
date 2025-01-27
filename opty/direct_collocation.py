@@ -719,11 +719,6 @@ class ConstraintCollocator(object):
         The unknown parameters in the problem, in the sequence in which they
         appear in the solution of the optimization.
 
-    Some of the attributes are explained in more detail under Parameters below.
-
-    It is best to treat ``ConstraintCollocator`` as immutable, changing
-    attributes after initialization will inevitably fail.
-
     Notes
     =====
 
@@ -737,6 +732,11 @@ class ConstraintCollocator(object):
     - o : number of instance constraints
     - nN + qN + r + s : number of free variables
     - n(N - 1) + o : number of constraints
+
+    Some of the attributes are explained in more detail under Parameters below.
+
+    It is best to treat ``ConstraintCollocator`` as immutable, changing
+    attributes after initialization will inevitably fail.
 
     """
     def __init__(self, equations_of_motion, state_symbols,
