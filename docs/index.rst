@@ -6,8 +6,6 @@
 Welcome to opty's documentation!
 ================================
 
-Trying out a preview build.
-
 Contents
 --------
 
