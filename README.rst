@@ -79,6 +79,7 @@ The required dependencies are as follows:
 - numpy >= 1.19.0
 - python 3.9-3.13
 - scipy >= 1.5.0
+- setuptools
 - sympy >= 1.6.0
 
 The optional dependencies are as follows:
@@ -136,7 +137,7 @@ set the ``LD_LIBRARY_PATH`` so that you can link to Ipopt when installing
 
 Once Ipopt is installed and accessible, install conda then create an environment::
 
-   $ conda create -n opty-custom -c conda-forge cython numpy pip scipy sympy
+   $ conda create -n opty-custom -c conda-forge cython numpy pip scipy setuptools sympy
    $ source activate opty-custom
    (opty-custom)$ pip install cyipopt  # this will compile cyipopt against the available ipopt
    (opty-custom)$ pip install opty
@@ -145,7 +146,7 @@ If you want to develop opty, create a conda environment with all of the
 dependencies installed::
 
    $ conda config --add channels conda-forge
-   $ conda create -n opty-dev python sympy numpy scipy cython ipopt cyipopt matplotlib pytables pydy pandas pytest sphinx sphinx-gallery numpydoc
+   $ conda create -n opty-dev python sympy numpy scipy cython ipopt cyipopt matplotlib pytables pydy pandas pytest setuptools sphinx sphinx-gallery numpydoc
    $ source activate opty-dev
 
 Next download the opty source files and install with::
