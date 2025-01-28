@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-#
+
+import sys
 from functools import wraps
 import logging
 
@@ -77,7 +78,11 @@ class _DocInherit(object):
     @staticmethod
     def _combine_docs(prob_doc, coll_doc):
         beg, end = prob_doc.split('bounds')
-        _, middle = coll_doc.split('Parameters\n        ==========\n        ')
+        if sys.version_info[1] >= 13:
+            sep = 'Parameters\n==========\n'
+        else:
+            sep = 'Parameters\n        ==========\n        '
+        _, middle = coll_doc.split(sep)
         return beg + middle[:-9] + '        bounds' + end
 
 _doc_inherit = _DocInherit
@@ -122,6 +127,8 @@ class Problem(cyipopt.Problem):
        constraints = [eom12, ... eom1N,
                       eomn2, ... eomnN,
                       c1, ..., co]
+
+    The attributes may be accessed as follows: ``Problem_instance.collocator.name_of_attribute``
 
     """
 
@@ -335,7 +342,7 @@ class Problem(cyipopt.Problem):
 
         Returns
         =======
-        jac_vals : ndarray, shape((2*n + q + r + s)*(n*(N - 1) + o), )
+        jac_vals : ndarray, shape((2*n + q + r + s)*(n*(N - 1)) + o, )
             Non-zero Jacobian values in triplet format.
 
         """
@@ -392,7 +399,7 @@ class Problem(cyipopt.Problem):
             node_time_interval = self.collocator.node_time_interval
 
         time = np.linspace(0,
-                           self.collocator.num_collocation_nodes *
+                           (self.collocator.num_collocation_nodes-1) *
                            node_time_interval,
                            num=self.collocator.num_collocation_nodes)
 
@@ -417,14 +424,15 @@ class Problem(cyipopt.Problem):
 
         if axes is None:
             fig, axes = plt.subplots(num_axes, 1, sharex=True,
-                layout='compressed', figsize=(6.4, 0.8*num_axes))
+                                     layout='compressed',
+                                     figsize=(6.4, 0.8*num_axes))
 
         for ax, traj, symbol in zip(axes, trajectories, traj_syms):
             ax.plot(time, traj)
             ax.set_ylabel(sm.latex(symbol, mode='inline'))
         ax.set_xlabel('Time')
         axes[0].set_title('State Trajectories')
-        if self.collocator.num_input_trajectories > 0:
+        if self.collocator.num_unknown_input_trajectories > 0:
             axes[self.collocator.num_states].set_title('Input Trajectories')
 
         return axes
@@ -591,12 +599,125 @@ class Problem(cyipopt.Problem):
 
         return ax
 
+    def parse_free(self, free):
+        """Parses the free parameters vector and returns it's components.
+
+        Parameters
+        ==========
+        free : ndarray, shape(n*N + q*N + r + s)
+            The free parameters of the system.
+
+        Returns
+        =======
+        states : ndarray, shape(n, N)
+            The array of n states through N time steps.
+        specified_values : ndarray, shape(q, N) or shape(N,), or None
+            The array of q specified inputs through N time steps.
+        constant_values : ndarray, shape(r,)
+            The array of r constants.
+        time_interval : float
+            The time between collocation nodes. Only returned if
+            ``variable_duration`` is ``True``.
+
+        Notes
+        =====
+
+        - N : number of collocation nodes
+        - n : number of unknown state trajectories
+        - q : number of unknown input trajectories
+        - r : number of unknown parameters
+        - s : number of unknown time intervals (s=1 if ``variable duration`` is
+          ``True`` else s=0)
+
+        """
+
+        n = self.collocator.num_states
+        N = self.collocator.num_collocation_nodes
+        q = self.collocator.num_unknown_input_trajectories
+        variable_duration = self.collocator._variable_duration
+
+        return parse_free(free, n, q, N, variable_duration)
 
 class ConstraintCollocator(object):
     """This class is responsible for generating the constraint function and the
     sparse Jacobian of the constraint function using direct collocation methods
     for a non-linear programming problem where the essential constraints are
     defined from the equations of motion of the system.
+
+    Attributes
+    ==========
+    current_discrete_state_symbols : n-tuple
+        The symbols for the current discrete states.
+    current_discrete_specified_symbols : q-tuple
+        The symbols for the current discrete specified inputs.
+    discrete_eom : sympy.Matrix, shape(n, 1)
+        Discretized equations of motion. Depending on the integration method
+        used.
+    eom: sympy.Matrix, shape(n, 1)
+        The equations of motion used.
+    input_trajectories : tuple
+        known_input_trajectories + unknown_input_trajectories.
+    instance_constraints : o-tuple
+        The instance constraints used in the optimization.
+    integration_method : str
+        The integration method used.
+    known_parameters : tuple
+        The symbols of the known parameters in the problem.
+    known_parameter_map : dict
+        A mapping of known parameters to their values.
+    known_trajectory_map : dict
+        A mapping of known trajectories to their values.
+    known_trajectory_symbols : (m-q)-tuple
+        The known trajectory symbols.
+    next_discrete_specified_symbols : q-tuple
+        The symbols for the next discrete specified inputs.
+    next_discrete_state_symbols : n-tuple
+        The symbols for the next discrete states.
+    node_time_interval : float or sympy.Symbol
+        The time interval between the collocation nodes. float if the interval
+        is fixed, ``sympy.Symbol`` if the interval is variable.
+    num_collocation_nodes : int
+        Number of times spaced evenly between the initial and final time of
+        the optimization = N.
+    num_constraints : int
+        The number of constraints = (num_collection_nodes-1)*num_states +
+        len(instance_constraints).
+    num_free : int
+        Number of variables to be optimized = n*N + q*N + r + s.
+    num_input_trajectories : int
+        The number of input trajectories = len(input_trajectories).
+    num_instance_constraints : int
+        The number of instance constraints = len(instance_constraints).
+    num_known_trajectories : int
+        The number of known trajectories = len(known_trajectory_symbols).
+    num_parameters : int
+        The number of parameters = len(parameters).
+    num_states : int
+        The number of states = len(state_symbols) = n.
+    num_unknown_input_trajectories : int
+        The number of unknown input trajectories =
+        len(unknown_input_trajectories).
+    num_unknown_parameters : int
+        The number of unknown parameters = r.
+    parameters : tuple
+        known_parameters + unknown_parameters.
+    parallel : bool
+        Whether to use parallel processing or not.
+    previous_discrete_state_symbols : n-tuple
+        The symbols for the previous discrete states.
+    show_compile_output : bool
+        Whether to show the compile output or not.
+    state_derivative_symbols : n-tuple
+        symbols for the time derivatives of the states.
+    time_symbol : sympy.Symbol
+        The symbol used to represent time, usually `t`.
+    tmp_dir
+        The temporary directory used to store files generated.
+    unknown_input_trajectories : q-tuple
+        The unknown input trajectories symbols.
+    unknown_parameters : r-tuple
+        The unknown parameters in the problem, in the sequence in which they
+        appear in the solution of the optimization.
 
     Notes
     =====
@@ -612,8 +733,12 @@ class ConstraintCollocator(object):
     - nN + qN + r + s : number of free variables
     - n(N - 1) + o : number of constraints
 
-    """
+    Some of the attributes are explained in more detail under Parameters below.
 
+    It is best to treat ``ConstraintCollocator`` as immutable, changing
+    attributes after initialization will inevitably fail.
+
+    """
     def __init__(self, equations_of_motion, state_symbols,
                  num_collocation_nodes, node_time_interval,
                  known_parameter_map={}, known_trajectory_map={},
