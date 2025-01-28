@@ -1300,9 +1300,6 @@ class ConstraintCollocator(object):
 
             """
 
-            if state_values.shape[0] < 2:
-                raise ValueError('There should always be at least two states.')
-
             assert state_values.shape == (self.num_states,
                                           self.num_collocation_nodes)
             # n x N - 1
@@ -1681,9 +1678,6 @@ class ConstraintCollocator(object):
             - n*(N - 1) : number of constraints
 
             """
-            if state_values.shape[0] < 2:
-                raise ValueError('There should always be at least two states.')
-
             # Each of these arrays are shape(n, N - 1). The x_adjacent is
             # either the previous value of the state or the next value of
             # the state, depending on the integration method.
