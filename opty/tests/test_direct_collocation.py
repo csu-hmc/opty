@@ -10,7 +10,7 @@ from scipy import sparse
 from pytest import raises
 
 from ..direct_collocation import Problem, ConstraintCollocator
-from ..utils import create_objective_function, sort_sympy
+from ..utils import create_objective_function, sort_sympy, parse_free
 
 
 def test_pendulum():
@@ -1566,3 +1566,124 @@ def test_for_algebraic_eoms():
         )
 
     assert excinfo.type is ValueError
+
+
+def test_prob_parse_free():
+    """
+    Test for parse_free method of Problem class.
+    ===========================================
+
+    This test whether the parse_free method of the Problem class works as
+    the parse_free in utils.
+
+    **States**
+
+    - :math:`x_1, x_2, ux_1, ux_2` : state variables
+
+    **Control**
+
+    - :math:`u_1, u_2` : control variable
+
+    """
+
+    t = mech.dynamicsymbols._t
+
+    x1, x2, ux1, ux2 = mech.dynamicsymbols('x1 x2 ux1 ux2')
+    u1, u2 = mech.dynamicsymbols('u1 u2')
+    h = sym.symbols('h')
+    a, b = sym.symbols('a b')
+
+    # equations of motion.
+    # (No meaning, just for testing)
+    eom = sym.Matrix([
+            -x1.diff(t) + ux1,
+            -x2.diff(t) + ux2,
+            -ux1.diff(t) + a*u1,
+            -ux2.diff(t) + b*u2,
+    ])
+
+    # Set up and Solve the Optimization Problem
+    num_nodes = 11
+    t0, tf = 0.0, 0.9
+    state_symbols = (x1, x2, ux1, ux2)
+    control_symbols = (u1, u2)
+
+    interval_value = (tf - t0)/(num_nodes - 1)
+    times = np.linspace(t0, tf, num_nodes)
+
+    # Specify the symbolic instance constraints, as per the example.
+    instance_constraints = (
+        x1.func(t0) - 1.0,
+        x2.func(t0) + 1.0,
+    )
+
+    # Specify the objective function and form the gradient.
+
+    def obj(free):
+        return sum([free[i]**2 for i in range(2*num_nodes)])
+
+    def obj_grad(free):
+        grad = np.zeros_like(free)
+        grad[:2*num_nodes] = 2*free[:2*num_nodes]
+        return grad
+
+    # Create the optimization problem and set any options.
+    prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            instance_constraints=instance_constraints,
+)
+
+    # Give some estimates for the trajectory.
+    initial_guess = np.random.rand(prob.num_free)
+    initial_guess1 = initial_guess
+
+    # check whether same results.
+    statesu, controlsu, constantsu = parse_free(initial_guess1,
+            len(state_symbols), len(control_symbols), num_nodes)
+
+    states, controls, constants = prob.parse_free(initial_guess)
+    np.testing.assert_allclose(states, statesu)
+    np.testing.assert_allclose(controls, controlsu)
+    np.testing.assert_allclose(constants, constantsu)
+
+    # test with variable interval_value
+    interval_value = h
+    t0, tf = 0.0, (num_nodes - 1)*interval_value
+    def obj(free):
+        return sum([free[i]**2 for i in range(2*num_nodes)])
+
+    def obj_grad(free):
+        grad = np.zeros_like(free)
+        grad[:2*num_nodes] = 2*free[:2*num_nodes]
+        return grad
+
+    # Create the optimization problem and set any options.
+    prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            instance_constraints=instance_constraints,
+)
+
+    # Give some estimates for the trajectory.
+    initial_guess = np.random.rand(prob.num_free)
+    initial_guess1 = initial_guess
+
+    # check whether same results.
+    statesu, controlsu, constantsu, timeu = parse_free(initial_guess1,
+        len(state_symbols), len(control_symbols),
+        num_nodes, variable_duration=True)
+
+    states, controls, constants, times = prob.parse_free(initial_guess)
+    np.testing.assert_allclose(states, statesu)
+    np.testing.assert_allclose(controls, controlsu)
+    np.testing.assert_allclose(constants, constantsu)
+    np.testing.assert_allclose(timeu, times)
