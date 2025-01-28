@@ -13,6 +13,7 @@ dependencies:
   - pytest-cov
   - python
   - scipy >=1.5.0
+  - setuptools
   - sphinx
   - sphinx-gallery
   - sympy >=1.13  # version required for the docs
