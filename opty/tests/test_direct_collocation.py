@@ -1687,3 +1687,120 @@ def test_prob_parse_free():
     np.testing.assert_allclose(controls, controlsu)
     np.testing.assert_allclose(constants, constantsu)
     np.testing.assert_allclose(timeu, times)
+
+def test_attributes_read_only():
+    """
+    Test to ensure the ConstraintCollocator attributes are read-only.
+    """
+
+    # random optimization problem
+    x1, x2, x3 = mech.dynamicsymbols('x1 x2 x3')
+    ux1, ux2, ux3 = mech.dynamicsymbols('ux1 ux2 ux3')
+    u1, u2, u3 = mech.dynamicsymbols('u1 u2 u3')
+    a1, a2, a3, a4, a5, a6 = sym.symbols('a1 a2 a3 a4 a5 a6')
+    h = sym.symbols('h')
+
+    t = mech.dynamicsymbols._t
+    eom = sym.Matrix([
+        -x1.diff(t) + ux1 + a3,
+        -x2.diff(t) + ux2 + a5,
+        -x3.diff(t) + ux3,
+        -ux1.diff(t) + a6*x1 + a5*u1,
+        -ux2.diff(t) + a4*x2 + a3*u2,
+        -ux3.diff(t) + a2*x3 + a1*u3,
+    ])
+
+    # Set up the Optimization Problem
+
+    state_symbols = [x1, x2, x3, ux1, ux2, ux3]
+
+    num_nodes = 11
+    h = sym.symbols('h')
+
+    # Specify the known symbols.
+    par_map = {}
+    par_map[a2] = 1.0
+    par_map[a4] = 2.0
+    par_map[a6] = 3.0
+
+    duration = (num_nodes - 1)*h
+    t0, tf = 0.0, duration
+    interval_value = h
+
+    # Set up the instance constraints, the bounds and Problem.
+
+    instance_constraints = (
+        x1.func(t0) - 1,
+        x2.func(t0),
+        x3.func(t0),
+        x1.func(tf) - 2,
+    )
+
+    def obj(free):
+        return free[-1]
+
+    def obj_grad(free):
+        grad = np.zeros_like(free)
+        grad[-1] = 1.0
+        return grad
+
+    limit_torque = 100.0
+    bounds = {
+        u1: (-limit_torque, limit_torque),
+        u3: (-limit_torque, limit_torque),
+        h: (0.0, np.inf),
+    }
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        time_symbol=t,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        integration_method='midpoint',
+    )
+    # Test if all these attributes are read-only
+    for XX in [
+        'current_discrete_state_symbols',
+        'current_known_discrete_specified_symbols',
+        'current_unknown_discrete_specified_symbols',
+        'discrete_eom',
+        'eom',
+        'input_trajectories',
+        'instance_constraints',
+        'known_input_trajectories',
+        'known_parameters',
+        'known_parameter_map',
+        'known_trajectory_map',
+        'next_known_discrete_specified_symbols',
+        'next_discrete_state_symbols',
+        'next_unknown_discrete_specified_symbols',
+        'node_time_interval',
+        'num_collocation_nodes',
+        'num_constraints',
+        'num_free',
+        'num_input_trajectories',
+        'num_known_input_trajectories',
+        'num_parameters',
+        'num_states',
+        'num_unknown_input_trajectories',
+        'num_unknown_parameters',
+        'parameters',
+        'parallel',
+        'previous_discrete_state_symbols',
+        'show_compile_output',
+        'state_derivative_symbols',
+        'state_symbols',
+        'time_symbol',
+        'tmp_dir',
+        'unknown_input_trajectories',
+        'unknown_parameters',
+        ]:
+        with raises(AttributeError):
+            setattr(prob.collocator, XX, 5)
+
