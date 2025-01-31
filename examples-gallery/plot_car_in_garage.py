@@ -347,7 +347,7 @@ prob.plot_constraint_violations(solution)
 prob.plot_trajectories(solution)
 
 # %%
-# Aminate the Car
+# Animate the Car
 #-----------------
 # The green arrow symbolizes the force which opty calculated to drive the car.
 # It is perpendicular to the rear axle.
