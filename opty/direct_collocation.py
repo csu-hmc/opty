@@ -1023,7 +1023,7 @@ class ConstraintCollocator(object):
         return self._num_known_input_trajectories
 
     @property
-    def integration_method(self):
+    def integration_method(self.elf):
         return self._integration_method
 
     @integration_method.setter
@@ -1202,7 +1202,7 @@ class ConstraintCollocator(object):
             tuple([sm.Symbol(f.__class__.__name__ + 'n', real=True)
                    for f in self._unknown_input_trajectories])
 
-        self._current_specified_symbols = (
+        self._current_discrete_specified_symbols = (
             self._current_known_discrete_specified_symbols +
             self._current_unknown_discrete_specified_symbols)
         self._next_discrete_specified_symbols = (
@@ -1227,7 +1227,7 @@ class ConstraintCollocator(object):
         xp = self._previous_discrete_state_symbols
         xi = self._current_discrete_state_symbols
         xn = self._next_discrete_state_symbols
-        ui = self._current_specified_symbols
+        ui = self._current_discrete_specified_symbols
         un = self._next_discrete_specified_symbols
 
         h = self._time_interval_symbol
@@ -1398,7 +1398,7 @@ class ConstraintCollocator(object):
         xi_syms = self._current_discrete_state_symbols
         xp_syms = self._previous_discrete_state_symbols
         xn_syms = self._next_discrete_state_symbols
-        si_syms = self._current_specified_symbols
+        si_syms = self._current_discrete_specified_symbols
         sn_syms = self._next_discrete_specified_symbols
         h_sym = self._time_interval_symbol
         constant_syms = self._known_parameters + self._unknown_parameters
@@ -1730,7 +1730,7 @@ class ConstraintCollocator(object):
         xi_syms = self._current_discrete_state_symbols
         xp_syms = self._previous_discrete_state_symbols
         xn_syms = self._next_discrete_state_symbols
-        si_syms = self._current_specified_symbols
+        si_syms = self._current_discrete_specified_symbols
         sn_syms = self._next_discrete_specified_symbols
         ui_syms = self._current_unknown_discrete_specified_symbols
         un_syms = self._next_unknown_discrete_specified_symbols

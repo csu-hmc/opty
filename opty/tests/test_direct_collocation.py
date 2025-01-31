@@ -186,7 +186,7 @@ class TestConstraintCollocator():
 
         xi, vi, xp, vp, xn, vn, fi, fn = self.discrete_symbols
 
-        assert self.collocator._check_known_trajectoriesprevious_discrete_state_symbols == (xp, vp)
+        assert self.collocator._previous_discrete_state_symbols == (xp, vp)
         assert self.collocator._current_discrete_state_symbols == (xi, vi)
         assert self.collocator._next_discrete_state_symbols == (xn, vn)
 
@@ -951,7 +951,7 @@ class TestConstraintCollocatorInstanceConstraints():
                     omega(0.0): 4,
                     omega(0.03): 7}
 
-        assert self.collocator.instance_constraints_free_index_map == expected
+        assert self.collocator._instance_constraints_free_index_map == expected
 
     def test_lambdify_instance_constraints(self):
 
@@ -1273,7 +1273,7 @@ class TestConstraintCollocatorVariableDuration():
             omega((self._num_nodes - 1)*self.interval_symbol): 7,
         }
 
-        assert self.collocator.instance_constraints_free_index_map == expected
+        assert self.collocator._instance_constraints_free_index_map == expected
 
     def test_lambdify_instance_constraints(self):
 
