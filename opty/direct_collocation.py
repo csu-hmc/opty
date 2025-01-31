@@ -199,6 +199,54 @@ class Problem(cyipopt.Problem):
 
         self.obj_value = []
 
+    def solve(self, free, lagrange=[], zl=[], zu=[]):
+        """Returns the optimal solution and an info dictionary.
+
+        Solves the posed optimization problem starting at point x.
+
+        Parameters
+        ----------
+        x : array-like, shape(n*N + q*N + r + s, )
+            Initial guess.
+
+        lagrange : array-like, shape(n*(N-1) + o, ), optional (default=[])
+            Initial values for the constraint multipliers (only if warm start
+            option is chosen).
+
+        zl : array-like, shape(n*N + q*N + r + s, ), optional (default=[])
+            Initial values for the multipliers for lower variable bounds (only
+            if warm start option is chosen).
+
+        zu : array-like, shape(n*N + q*N + r + s, ), optional (default=[])
+            Initial values for the multipliers for upper variable bounds (only
+            if warm start option is chosen).
+
+        Returns
+        -------
+        x : :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+            Optimal solution.
+        info: :py:class:`dict` with the following entries
+            ``x``: :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+                optimal solution
+            ``g``: :py:class:`numpy.ndarray`, shape `(n*(N-1) + o, )`
+                constraints at the optimal solution
+            ``obj_val``: :py:class:`float`
+                objective value at optimal solution
+            ``mult_g``: :py:class:`numpy.ndarray`, shape `(n*(N-1) + o, )`
+                final values of the constraint multipliers
+            ``mult_x_L``: :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+                bound multipliers at the solution
+            ``mult_x_U``: :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+                bound multipliers at the solution
+            ``status``: :py:class:`int`
+                gives the status of the algorithm
+            ``status_msg``: :py:class:`str`
+                gives the status of the algorithm as a message
+
+        """
+
+        return super().solve(free, lagrange=lagrange, zl=zl, zu=zu)
+
     def _generate_bound_arrays(self):
         lb = -self.INF * np.ones(self.num_free)
         ub = self.INF * np.ones(self.num_free)
