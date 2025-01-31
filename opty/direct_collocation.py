@@ -693,8 +693,6 @@ class ConstraintCollocator(object):
     num_input_trajectories : int
         The number of input trajectories = len(input_trajectories).
     num_known_input_trajectories : int
-        The number of known input trajectories = len(known_input_trajectories).
-    num_known_input_trajectories : int
         The number of known trajectories = len(known_trajectory_symbols).
     num_parameters : int
         The number of parameters = len(parameters).
