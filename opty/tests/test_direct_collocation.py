@@ -308,7 +308,7 @@ class TestConstraintCollocator():
         # Make sure the parameters are in the correct order.
         constant_values = \
             np.array([self.constant_values[self.constant_symbols.index(c)]
-                      for c in self.collocator._gen_multi_arg_con_func()])
+                      for c in self.collocator._gen_multi_arg_con_func])
 
         # TODO : Once there are more than one specified, they will need to
         # be put in the correct order too.
