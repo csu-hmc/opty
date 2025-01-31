@@ -210,20 +210,22 @@ class Problem(cyipopt.Problem):
             Initial guess.
 
         lagrange : array-like, shape(n*(N-1) + o, ), optional (default=[])
-            Initial values for the constraint multipliers (only if warm start option is chosen).
+            Initial values for the constraint multipliers (only if warm start
+            option is chosen).
 
         zl : array-like, shape(n*N + q*N + r + s, ), optional (default=[])
-            Initial values for the multipliers for lower variable bounds (only if warm start option is chosen).
+            Initial values for the multipliers for lower variable bounds (only
+            if warm start option is chosen).
 
         zu : array-like, shape(n*N + q*N + r + s, ), optional (default=[])
-            Initial values for the multipliers for upper variable bounds (only if warm start option is chosen).
+            Initial values for the multipliers for upper variable bounds (only
+            if warm start option is chosen).
 
         Returns
         -------
         x : :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
             Optimal solution.
         info: :py:class:`dict` with the following entries
-
             ``x``: :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
                 optimal solution
             ``g``: :py:class:`numpy.ndarray`, shape `(n*(N-1) + o, )`
