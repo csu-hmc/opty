@@ -1023,8 +1023,12 @@ class ConstraintCollocator(object):
         return self._num_known_input_trajectories
 
     @property
-    def integration_method(self.elf):
+    def integration_method(self):
         return self._integration_method
+
+    @property
+    def current_discrete_specified_symbols(self):
+        return self._current_discrete_specified_symbols
 
     @integration_method.setter
     def integration_method(self, method):
