@@ -20,7 +20,6 @@ formulation. The ODE formulation seems to run a bit faster.
 
 """
 
-import time
 import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
@@ -28,44 +27,33 @@ from opty.direct_collocation import Problem
 from opty.utils import create_objective_function
 
 # %%
+# Information Common to Both Formulations
+# ---------------------------------------
+#
 # Define the time varying variables.
 t = me.dynamicsymbols._t
-y = me.dynamicsymbols('y0 y1 y2 y3 y4')
+y = me.dynamicsymbols('y0, y1, y2, y3, y4')
 u = me.dynamicsymbols('u')
 
 # Define the constant parameters.
 g = 9.81
 
-# Define the differential algebraic equations of motion.
-eom = sm.Matrix([
-    -y[0].diff(t) + y[2],
-    -y[1].diff(t) + y[3],
-    -y[2].diff(t) - 2*y[4]*y[0] + u*y[1],
-    -y[3].diff(t) -g - 2*y[4]*y[1] - u*y[0],
-    y[2]**2 + y[3]**2 - 2*y[4] - g*y[1]
-])
-sm.pprint(eom)
-
 # %%
-# Set up and solve the optimization problem.
+# Set up the time intervals.
 tf = 3.0
 num_nodes = 751
 
 t0, tf = 0.0, tf
 interval_value = (tf - t0)/(num_nodes - 1)
 
-state_symbols = y
-specified_symbols = (u,)
-
 # %%
 # Specify the objective function and form the gradient.
-start = time.time()
 obj_func = sm.Integral(u**2, t)
 sm.pprint(obj_func)
 obj, obj_grad = create_objective_function(
     obj_func,
-    state_symbols,
-    specified_symbols,
+    y,
+    (u,),
     tuple(),
     num_nodes,
     node_time_interval=interval_value,
@@ -90,14 +78,28 @@ bounds = {
     y[4]: (-1, 15),
 }
 
+# DAE Formulation
+# ---------------
+#
+# Define the differential algebraic equations of motion.
+eom = sm.Matrix([
+    -y[0].diff(t) + y[2],
+    -y[1].diff(t) + y[3],
+    -y[2].diff(t) - 2*y[4]*y[0] + u*y[1],
+    -y[3].diff(t) - g - 2*y[4]*y[1] - u*y[0],
+    y[2]**2 + y[3]**2 - 2*y[4] - g*y[1],
+])
+sm.pprint(eom)
+
 # %%
 # Create the optimization problem and set any options.
 prob = Problem(
     obj,
     obj_grad,
     eom,
-    state_symbols,
-    num_nodes, interval_value,
+    y,
+    num_nodes,
+    interval_value,
     instance_constraints=instance_constraints,
     bounds=bounds,
 )
@@ -116,8 +118,6 @@ else:
     msg = 'opty with DAE gets a worse result'
 print(f'Minimal objective value achieved: {info['obj_val']:.4f},  ' +
       f'as per the book it is {12.8738850}, {msg} ')
-time_DAE = time.time() - start
-print(f'Time taken for the simulation: {time_DAE:.2f} s')
 
 obj_DAE = info['obj_val']
 
@@ -134,7 +134,6 @@ prob.plot_constraint_violations(solution)
 prob.plot_objective_value()
 
 # %%
-#
 # ODE Formulation
 # ---------------
 #
@@ -144,17 +143,11 @@ prob.plot_objective_value()
 eom = sm.Matrix([
     -y[0].diff(t) + y[2],
     -y[1].diff(t) + y[3],
-    -y[2].diff(t) -2*y[4]*y[0] + u*y[1],
-    -y[3].diff(t) -g -2*y[4]*y[1] - u*y[0],
-    -y[4].diff(t) + y[2]*y[2].diff(t) + y[3]*y[3].diff(t) - g*y[1].diff(t)/2.0,
+    -y[2].diff(t) - 2*y[4]*y[0] + u*y[1],
+    -y[3].diff(t) - g - 2*y[4]*y[1] - u*y[0],
+    -y[4].diff(t) + y[2]*y[2].diff(t) + y[3]*y[3].diff(t) - g*y[1].diff(t)/2,
 ])
 sm.pprint(eom)
-
-# %%
-# Set up and solve the optimization problem.
-
-state_symbols = y
-specified_symbols = (u,)
 
 # %%
 # Create the optimization problem and set any options.
@@ -162,16 +155,12 @@ prob = Problem(
     obj,
     obj_grad,
     eom,
-    state_symbols,
-    num_nodes, interval_value,
+    y,
+    num_nodes,
+    interval_value,
     instance_constraints=instance_constraints,
     bounds=bounds,
 )
-
-prob.add_option('nlp_scaling_method', 'gradient-based')
-
-# Give some rough estimates for the x and y trajectories.
-initial_guess = np.zeros(prob.num_free)
 
 # %%
 # Find the optimal solution.
@@ -183,8 +172,6 @@ else:
     msg = 'opty with ODE gets a worse result'
 print(f'Minimal objective value achieved: {info['obj_val']:.4f},  ' +
       f'as per the book it is {12.8738850}, {msg} ')
-time_ODE = time.time() - start
-print(f'Time taken for the simulation: {time_ODE:.2f} s')
 
 obj_ODE = info['obj_val']
 
@@ -210,10 +197,3 @@ if obj_DAE < obj_ODE:
 else:
     value = (obj_DAE - obj_ODE)/obj_DAE*100
     print(f'ODE formulation gives a better result by {value:.2f} %')
-
-if time_DAE < time_ODE:
-    value = (time_ODE - time_DAE)/time_ODE*100
-    print(f'DAE formulation is faster by {value:.2f} %')
-else:
-    value = (time_DAE - time_ODE)/time_DAE*100
-    print(f'ODE formulation is faster by {value:.2f} %')
