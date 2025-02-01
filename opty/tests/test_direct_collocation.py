@@ -1687,3 +1687,62 @@ def test_prob_parse_free():
     np.testing.assert_allclose(controls, controlsu)
     np.testing.assert_allclose(constants, constantsu)
     np.testing.assert_allclose(timeu, times)
+
+
+def test_one_eom_only():
+    """
+    Only one differential equation should work. This tests for the corrrect
+    shape of the constraints and jacobian.
+
+    """
+    # Equations of motion.
+    t = mech.dynamicsymbols._t
+    y, u = mech.dynamicsymbols('y u')
+
+    eom = sym.Matrix([-y.diff(t) - y**3 + u])
+
+    t0, tf = 0.0, 10.0
+    num_nodes = 100
+    interval_value = (tf - t0)/(num_nodes - 1)
+
+    state_symbols = (y, )
+    specified_symbols = (u,)
+
+    # Specify the objective function and form the gradient.
+    obj_func = sym.Integral(y**2 + u**2, t)
+    obj, obj_grad = create_objective_function(
+        obj_func,
+        state_symbols,
+        specified_symbols,
+        tuple(),
+        num_nodes,
+        node_time_interval=interval_value
+    )
+
+    # Specify the symbolic instance constraints.
+    instance_constraints = (
+        y.func(t0) - 1,
+        y.func(tf) - 1.5,
+    )
+
+        # Create the optimization problem and set any options.
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        instance_constraints=instance_constraints,
+        )
+
+    initial_guess = np.zeros(prob.num_free)
+    initial_guess[0] = 1.0
+    initial_guess[num_nodes-1] = 1.5
+
+    # assert that prob.constraints and prob.jacobian have the correct shape.
+    length = 1*(num_nodes-1) + 2
+    assert prob.constraints(initial_guess).shape == (length,)
+
+    length = (2*1 + 1 + 0 + 0) * (1*(num_nodes-1)) + 2
+    assert prob.jacobian(initial_guess).shape == (length,)
