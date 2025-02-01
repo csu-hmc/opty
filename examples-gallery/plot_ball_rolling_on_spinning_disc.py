@@ -12,7 +12,7 @@ The disc starts at rest and speeds up like this
 where
 
 - :math:`\\alpha` > 0 is a measure of the acceleration and
-- :math:`\Omega` is the final rotational speed.
+- :math:`\\Omega` is the final rotational speed.
 
 A torque is applied to the ball, and the goal is to get it to the
 center of the disc.
