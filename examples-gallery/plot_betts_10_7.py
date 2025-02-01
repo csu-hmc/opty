@@ -2,7 +2,7 @@
 Hypersensitive Control
 ======================
 
-This is example 10.7 from `_[Betts2010]`.
+This is example 10.7 from [Betts2010]_ and demonstrates working with a single differential equation.
 
 **States**
 
