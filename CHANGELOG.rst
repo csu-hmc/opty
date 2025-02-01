@@ -1,3 +1,30 @@
+Version 1.4.0.dev0
+==================
+
+- Dropped support for Python 3.8.
+- Added support for Python 3.13.
+- Added explicit dependency on setuptools.
+- ``ConstraintCollocator`` raises an error if all equations of motion are
+  algebraic, i.e. none are differential equations.
+- ``plot_constraint_violations()`` now returns a variable number of subplot
+  rows depending on the number of instance constraints. This makes the plot
+  readable with large numbers of instance constraints.
+- Internal common sub expression replacement symbols are now assumed to be
+  real.
+- Improvements to docstrings of ``Problem.solve()``.
+- Added ``Problem.parse_free()`` to simplify use of the ``parse_free()``
+  function.
+- Added attribute descriptions to ``ConstraintCollocator`` docstring.
+- Support for single first order differential equation instead of limiting to
+  two first order (i.e. only second order systems).
+- Examples added:
+  - Ball rolling on spinning disc
+  - Car parking into a garage
+  - Crane moving a load
+  - Mississippi steamboat
+  - Non-contiguous parameter identification
+  - Single EoM & hypersensitive control
+
 Version 1.3.0
 =============
 

@@ -20,6 +20,7 @@ setup(
         'cython>=0.29.19',
         'numpy>=1.19.0',
         'scipy>=1.5.0',
+        'setuptools',  # provides distutils for Python >=3.13
         'sympy>=1.6.0',
     ],
     extras_require={
@@ -39,11 +40,11 @@ setup(
     tests_require=['pytest'],
     classifiers=[
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
         'Operating System :: OS Independent',
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Science/Research',

@@ -743,7 +743,7 @@ print('Optimal value h = {:1.3f} s:'.format(h_val))
 problem.plot_objective_value()
 
 # %%
-fig, axes = plt.subplots(2, figsize=(12.8, 9.6),
+fig, axes = plt.subplots(3, 1, figsize=(12.8, 10),
                          layout='constrained')
 problem.plot_constraint_violations(solution, axes=axes)
 

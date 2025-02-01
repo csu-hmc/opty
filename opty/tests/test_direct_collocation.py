@@ -10,7 +10,7 @@ from scipy import sparse
 from pytest import raises
 
 from ..direct_collocation import Problem, ConstraintCollocator
-from ..utils import create_objective_function, sort_sympy
+from ..utils import create_objective_function, sort_sympy, parse_free
 
 
 def test_pendulum():
@@ -53,12 +53,15 @@ def test_pendulum():
                             omega(duration))
 
     # This will test that a compilation works.
-    Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
-            known_parameter_map=par_map,
-            instance_constraints=instance_constraints,
-            time_symbol=t,
-            bounds={T(t): (-2.0, 2.0)},
-            show_compile_output=True)
+    prob = Problem(
+        obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        bounds={T(t): (-2.0, 2.0)},
+        show_compile_output=True)
+
+    assert prob.collocator.num_instance_constraints == 4
 
 
 def test_Problem():
@@ -96,6 +99,8 @@ def test_Problem():
                                8.0, 8.0,
                                0.5, INF, 1.0])
     np.testing.assert_allclose(prob.upper_bound, expected_upper)
+
+    assert prob.collocator.num_instance_constraints == 0
 
 
 class TestConstraintCollocator():
@@ -1508,3 +1513,236 @@ def test_known_and_unknown_order():
     assert col.unknown_parameters == (l2, m0, m2)
     assert col.parameters == (l1, l0, m3, g, m1, l2, m0, m2)
     assert col.state_symbols == (q0, q1, q2, q3, u0, u1, u2, u3)
+
+def test_for_algebraic_eoms():
+    """
+    If algebraic equations of motion are given to Problem, a ValueError should
+    be raised. This a a test for this
+    """
+
+    target_angle = np.pi
+    duration = 10.0
+    num_nodes = 500
+    interval_value = duration / (num_nodes - 1)
+
+    I, m, g, h, t = sym.symbols('I, m, g, h, t', real=True)
+    theta, omega, T = sym.symbols('theta, omega, T', cls=sym.Function)
+
+    state_symbols = (theta(t), omega(t))
+    specified_symbols = (T(t),)
+
+    # removed the .diff(t) from eom to get AEs
+    eom = sym.Matrix([theta(t) - omega(t),
+                     I*omega(t) + m*g*h*sym.sin(theta(t)) - T(t)])
+
+    # Specify the known system parameters.
+    par_map = {}
+    par_map[I] = 1.0
+    par_map[m] = 1.0
+    par_map[g] = 9.81
+    par_map[h] = 1.0
+
+    # Specify the objective function and it's gradient.
+    obj_func = sym.Integral(T(t)**2, t)
+    obj, obj_grad = create_objective_function(
+        obj_func, state_symbols, specified_symbols, tuple(), num_nodes,
+        interval_value, time_symbol=t)
+
+    # Specify the symbolic instance constraints, i.e. initial and end
+    # conditions.
+    instance_constraints = (theta(0.0),
+                            theta(duration) - target_angle,
+                            omega(0.0),
+                            omega(duration))
+
+    # This will test that a ValueError is raised.
+    with raises(ValueError) as excinfo:
+        prob = Problem(
+            obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+            time_symbol=t,
+            bounds={T(t): (-2.0, 2.0)},
+        )
+
+    assert excinfo.type is ValueError
+
+
+def test_prob_parse_free():
+    """
+    Test for parse_free method of Problem class.
+    ===========================================
+
+    This test whether the parse_free method of the Problem class works as
+    the parse_free in utils.
+
+    **States**
+
+    - :math:`x_1, x_2, ux_1, ux_2` : state variables
+
+    **Control**
+
+    - :math:`u_1, u_2` : control variable
+
+    """
+
+    t = mech.dynamicsymbols._t
+
+    x1, x2, ux1, ux2 = mech.dynamicsymbols('x1 x2 ux1 ux2')
+    u1, u2 = mech.dynamicsymbols('u1 u2')
+    h = sym.symbols('h')
+    a, b = sym.symbols('a b')
+
+    # equations of motion.
+    # (No meaning, just for testing)
+    eom = sym.Matrix([
+            -x1.diff(t) + ux1,
+            -x2.diff(t) + ux2,
+            -ux1.diff(t) + a*u1,
+            -ux2.diff(t) + b*u2,
+    ])
+
+    # Set up and Solve the Optimization Problem
+    num_nodes = 11
+    t0, tf = 0.0, 0.9
+    state_symbols = (x1, x2, ux1, ux2)
+    control_symbols = (u1, u2)
+
+    interval_value = (tf - t0)/(num_nodes - 1)
+    times = np.linspace(t0, tf, num_nodes)
+
+    # Specify the symbolic instance constraints, as per the example.
+    instance_constraints = (
+        x1.func(t0) - 1.0,
+        x2.func(t0) + 1.0,
+    )
+
+    # Specify the objective function and form the gradient.
+
+    def obj(free):
+        return sum([free[i]**2 for i in range(2*num_nodes)])
+
+    def obj_grad(free):
+        grad = np.zeros_like(free)
+        grad[:2*num_nodes] = 2*free[:2*num_nodes]
+        return grad
+
+    # Create the optimization problem and set any options.
+    prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            instance_constraints=instance_constraints,
+)
+
+    # Give some estimates for the trajectory.
+    initial_guess = np.random.rand(prob.num_free)
+    initial_guess1 = initial_guess
+
+    # check whether same results.
+    statesu, controlsu, constantsu = parse_free(initial_guess1,
+            len(state_symbols), len(control_symbols), num_nodes)
+
+    states, controls, constants = prob.parse_free(initial_guess)
+    np.testing.assert_allclose(states, statesu)
+    np.testing.assert_allclose(controls, controlsu)
+    np.testing.assert_allclose(constants, constantsu)
+
+    # test with variable interval_value
+    interval_value = h
+    t0, tf = 0.0, (num_nodes - 1)*interval_value
+    def obj(free):
+        return sum([free[i]**2 for i in range(2*num_nodes)])
+
+    def obj_grad(free):
+        grad = np.zeros_like(free)
+        grad[:2*num_nodes] = 2*free[:2*num_nodes]
+        return grad
+
+    # Create the optimization problem and set any options.
+    prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            instance_constraints=instance_constraints,
+)
+
+    # Give some estimates for the trajectory.
+    initial_guess = np.random.rand(prob.num_free)
+    initial_guess1 = initial_guess
+
+    # check whether same results.
+    statesu, controlsu, constantsu, timeu = parse_free(initial_guess1,
+        len(state_symbols), len(control_symbols),
+        num_nodes, variable_duration=True)
+
+    states, controls, constants, times = prob.parse_free(initial_guess)
+    np.testing.assert_allclose(states, statesu)
+    np.testing.assert_allclose(controls, controlsu)
+    np.testing.assert_allclose(constants, constantsu)
+    np.testing.assert_allclose(timeu, times)
+
+
+def test_one_eom_only():
+    """
+    Only one differential equation should work. This tests for the corrrect
+    shape of the constraints and jacobian.
+
+    """
+    # Equations of motion.
+    t = mech.dynamicsymbols._t
+    y, u = mech.dynamicsymbols('y u')
+
+    eom = sym.Matrix([-y.diff(t) - y**3 + u])
+
+    t0, tf = 0.0, 10.0
+    num_nodes = 100
+    interval_value = (tf - t0)/(num_nodes - 1)
+
+    state_symbols = (y, )
+    specified_symbols = (u,)
+
+    # Specify the objective function and form the gradient.
+    obj_func = sym.Integral(y**2 + u**2, t)
+    obj, obj_grad = create_objective_function(
+        obj_func,
+        state_symbols,
+        specified_symbols,
+        tuple(),
+        num_nodes,
+        node_time_interval=interval_value
+    )
+
+    # Specify the symbolic instance constraints.
+    instance_constraints = (
+        y.func(t0) - 1,
+        y.func(tf) - 1.5,
+    )
+
+        # Create the optimization problem and set any options.
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        instance_constraints=instance_constraints,
+        )
+
+    initial_guess = np.zeros(prob.num_free)
+    initial_guess[0] = 1.0
+    initial_guess[num_nodes-1] = 1.5
+
+    # assert that prob.constraints and prob.jacobian have the correct shape.
+    length = 1*(num_nodes-1) + 2
+    assert prob.constraints(initial_guess).shape == (length,)
+
+    length = (2*1 + 1 + 0 + 0) * (1*(num_nodes-1)) + 2
+    assert prob.jacobian(initial_guess).shape == (length,)
