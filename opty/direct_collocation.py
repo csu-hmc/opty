@@ -199,6 +199,54 @@ class Problem(cyipopt.Problem):
 
         self.obj_value = []
 
+    def solve(self, free, lagrange=[], zl=[], zu=[]):
+        """Returns the optimal solution and an info dictionary.
+
+        Solves the posed optimization problem starting at point x.
+
+        Parameters
+        ----------
+        x : array-like, shape(n*N + q*N + r + s, )
+            Initial guess.
+
+        lagrange : array-like, shape(n*(N-1) + o, ), optional (default=[])
+            Initial values for the constraint multipliers (only if warm start
+            option is chosen).
+
+        zl : array-like, shape(n*N + q*N + r + s, ), optional (default=[])
+            Initial values for the multipliers for lower variable bounds (only
+            if warm start option is chosen).
+
+        zu : array-like, shape(n*N + q*N + r + s, ), optional (default=[])
+            Initial values for the multipliers for upper variable bounds (only
+            if warm start option is chosen).
+
+        Returns
+        -------
+        x : :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+            Optimal solution.
+        info: :py:class:`dict` with the following entries
+            ``x``: :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+                optimal solution
+            ``g``: :py:class:`numpy.ndarray`, shape `(n*(N-1) + o, )`
+                constraints at the optimal solution
+            ``obj_val``: :py:class:`float`
+                objective value at optimal solution
+            ``mult_g``: :py:class:`numpy.ndarray`, shape `(n*(N-1) + o, )`
+                final values of the constraint multipliers
+            ``mult_x_L``: :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+                bound multipliers at the solution
+            ``mult_x_U``: :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+                bound multipliers at the solution
+            ``status``: :py:class:`int`
+                gives the status of the algorithm
+            ``status_msg``: :py:class:`str`
+                gives the status of the algorithm as a message
+
+        """
+
+        return super().solve(free, lagrange=lagrange, zl=zl, zu=zu)
+
     def _generate_bound_arrays(self):
         lb = -self.INF * np.ones(self.num_free)
         ub = self.INF * np.ones(self.num_free)
@@ -554,9 +602,9 @@ class Problem(cyipopt.Problem):
                         hilfs = a_before * vector[-1]
                         exp1 = exp1.subs(a_before_before,
                                          sm.Float(round(hilfs, 2)))
-                    elif ((isinstance(a_before, sm.Float) and
-                          (a != self.collocator.node_time_interval))):
-                        exp1 = exp1.subs(a_before, round(a_before, 2))
+
+                    elif isinstance(a, sm.Float):
+                        exp1 = exp1.subs(a, round(a, 2))
                     a_before_before = a_before
                     a_before = a
                 instance_constr_plot.append(exp1)
@@ -1300,9 +1348,6 @@ class ConstraintCollocator(object):
 
             """
 
-            if state_values.shape[0] < 2:
-                raise ValueError('There should always be at least two states.')
-
             assert state_values.shape == (self.num_states,
                                           self.num_collocation_nodes)
             # n x N - 1
@@ -1681,9 +1726,6 @@ class ConstraintCollocator(object):
             - n*(N - 1) : number of constraints
 
             """
-            if state_values.shape[0] < 2:
-                raise ValueError('There should always be at least two states.')
-
             # Each of these arrays are shape(n, N - 1). The x_adjacent is
             # either the previous value of the state or the next value of
             # the state, depending on the integration method.
