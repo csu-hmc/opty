@@ -2,15 +2,14 @@
 Alp Rider
 =========
 
-This is example 10.1 from Betts' book "Practical Methods for Optimal Control
-Using NonlinearProgramming", 3rd edition, Chapter 10: Test Problems.
+This is example 10.1 from `[Betts2010]_`, 3rd edition, Chapter 10: Test Problems.
 More details are in sectionn 4.11.7 of the book.
 
 The main issue here is an inequality constraint for the state variables:
 :math:`y_1^2 + y_2^2 + y_3^2 + y_4^2 \\geq function(time, parameters)`
 
 As presently *opty* does not support inequality constraints, I introduced a new
-state variable `fact` to take care of the inequality. The inequality is then
+state variable ``fact`` to take care of the inequality. The inequality is then
 reformulated as
 :math:`y_1^2 + y_2^2 + y_3^2 + y_4^2 = fact \\cdot function(time, parameters)`.
 
@@ -124,7 +123,6 @@ prob = Problem(
         integration_method=integration_method,
 )
 
-#prob.add_option('nlp_scaling_method', 'gradient-based')
 prob.add_option('max_iter', 7000)
 
 # %%
@@ -156,10 +154,8 @@ prob.plot_constraint_violations(solution)
 # Plot the objective function as a function of optimizer iteration.
 prob.plot_objective_value()
 
+# sphinx_gallery_thumbnail_number = 2
+
 # %%
 # Verify that the inequality is always kept, i.e. that fact >= 1.0 always.
 print(f'minimum value of fact = {np.min(solution[4*num_nodes: 5*num_nodes]):.4e}')
-
-# %%
-# sphinx_gallery_thumbnail_number = 2
-
