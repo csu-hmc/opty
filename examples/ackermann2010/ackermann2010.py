@@ -3,7 +3,7 @@ Bogert 2010.
 
 pygait2d and its dependencies must be installed first to run this example::
 
-    conda install sympy pydy pyyaml cython pip setuptools
+    conda install sympy pydy pyyaml cython pip setuptools symmeplot
     python -m pip install --no-deps --no-build-isolation git+https://github.com/csu-hmc/gait2d
 
 """
@@ -80,6 +80,8 @@ instance_constraints = (
     qe(0*h) - 0.0,
     qf(0*h) - 0.0,
     qg(0*h) - 0.0,
+    uax(0*h) - 0.0,
+    uay(0*h) - 0.0,
     ua(0*h) - 0.0,
     ub(0*h) - 0.0,
     uc(0*h) - 0.0,
@@ -97,6 +99,8 @@ instance_constraints = (
     qe(duration) - 0.0,
     qf(duration) - 0.0,
     qg(duration) - 0.0,
+    uax(duration) - 0.0,
+    uay(duration) - 0.0,
     ua(duration) - 0.0,
     ub(duration) - 0.0,
     uc(duration) - 0.0,
@@ -132,18 +136,79 @@ prob = Problem(obj, obj_grad, eom, states, num_nodes, h,
                instance_constraints=instance_constraints,
                bounds=bounds,
                time_symbol=time_symbol,
-               parallel=True,
-               tmp_dir='ufunc')
+               parallel=True)
+               #tmp_dir='ufunc')
 
 # Use a random positive initial guess.
 #initial_guess = prob.lower_bound + (prob.upper_bound - prob.lower_bound) * np.random.randn(prob.num_free)
-initial_guess = np.zeros(prob.num_free)
 #initial_guess = 0.01*np.ones(prob.num_free)
+initial_guess = np.zeros(prob.num_free)
 
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
 
-state_vals, _, _, h_val = parse_free(solution, num_states, len(specified) -
-                                     len(traj_map), num_nodes,
-                                     variable_duration=True)
-np.savez('solution', x=state_vals, h=h_val, n=num_nodes)
+# TODO : ps is empy, not sure why
+state_vals, rs, ps, h_val = parse_free(solution, num_states, len(specified) -
+                                       len(traj_map), num_nodes,
+                                       variable_duration=True)
+np.savez('solution', solution=solution, x=state_vals, h=h_val, n=num_nodes)
+
+
+def animate():
+
+    import matplotlib.pyplot as plt
+    from symmeplot.matplotlib import Scene3D
+
+    ground, origin, segments = symbolics[8], symbolics[9], symbolics[10]
+    trunk, rthigh, rshank, rfoot, lthigh, lshank, lfoot = segments
+
+    fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
+
+    scene = Scene3D(ground, origin, ax=ax, scale=1.0)
+
+    scene.add_line([
+        rfoot.toe,
+        rfoot.heel,
+        rshank.joint,
+        rthigh.joint,
+        trunk.joint,
+        trunk.mass_center,
+        trunk.joint,
+        lthigh.joint,
+        lshank.joint,
+        lfoot.heel,
+        lfoot.toe,
+    ], color="k")
+    #scene.add_point(nd, color='C0')
+
+    for seg in segments:
+        scene.add_body(seg.rigid_body)
+
+    # TODO : Add ground reaction force vectors
+    #scene.add_vector(A.x, nd, color="black")
+
+    scene.lambdify_system(coordinates + speeds + specified + constants)
+    scene.evaluate_system(*np.hstack((state_vals[:9, 0], state_vals[9:, 0], np.zeros(3), rs[:, 0], np.array(list(par_map.values())))))
+
+    # this is only in dev version of symmeplot
+    #scene.as_orthogonal_projection_plot()
+    scene.axes.set_proj_type("ortho")
+    scene.axes.view_init(90, -90, 0)
+    scene.plot()
+
+    ax.set_xlim((-0.5, distance + 0.5))
+    #ax.set_ylim((-1.0, 1.0))
+    #ax.set_zlim((1.0, -1.0))
+
+    times = np.linspace(0.0, h_val*num_nodes, num=num_nodes)
+
+    slow_factor = 3  # int
+    ani = scene.animate(lambda i: np.hstack((state_vals[:9, i],
+                                             state_vals[9:, i],
+                                             np.zeros(3),
+                                             rs[:, i],
+                                             np.array(list(par_map.values())))),
+                        frames=len(times)) #, interval=slow_factor/FPS*1000)
+    ani.save("animation.gif") #, fps=FPS//slow_factor)
+
+    return ani
