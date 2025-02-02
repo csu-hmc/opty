@@ -140,7 +140,6 @@ prob = Problem(obj, obj_grad, eom, states, num_nodes, h,
                bounds=bounds,
                time_symbol=time_symbol,
                parallel=True)
-               #tmp_dir='ufunc')
 
 # Use a random positive initial guess.
 #initial_guess = prob.lower_bound + (prob.upper_bound - prob.lower_bound) * np.random.randn(prob.num_free)
@@ -170,6 +169,7 @@ def animate():
     scene = Scene3D(ground, origin, ax=ax, scale=1.0)
 
     scene.add_line([
+        rshank.joint,
         rfoot.toe,
         rfoot.heel,
         rshank.joint,
@@ -181,6 +181,7 @@ def animate():
         lshank.joint,
         lfoot.heel,
         lfoot.toe,
+        lshank.joint,
     ], color="k")
     #scene.add_point(nd, color='C0')
 
