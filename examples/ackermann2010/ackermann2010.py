@@ -201,6 +201,7 @@ def animate():
     scene.plot()
 
     ax.set_xlim((-0.5, distance + 0.5))
+    ax.set_aspect('equal')
     #ax.set_ylim((-1.0, 1.0))
     #ax.set_zlim((1.0, -1.0))
 
