@@ -61,7 +61,7 @@ def test_pendulum():
         bounds={T(t): (-2.0, 2.0)},
         show_compile_output=True)
 
-    assert prob.collocator.num_instance_constraints == 4
+    assert prob.collocator._num_instance_constraints == 4
 
 
 def test_Problem():
@@ -100,7 +100,7 @@ def test_Problem():
                                0.5, INF, 1.0])
     np.testing.assert_allclose(prob.upper_bound, expected_upper)
 
-    assert prob.collocator.num_instance_constraints == 0
+    assert prob.collocator._num_instance_constraints == 0
 
 
 class TestConstraintCollocator():
@@ -110,7 +110,7 @@ class TestConstraintCollocator():
         m, c, k, t = sym.symbols('m, c, k, t')
         x, v, f = [s(t) for s in sym.symbols('x, v, f', cls=sym.Function)]
 
-        self.state_symbols = (x, v)
+        self._state_symbols = (x, v)
         self.constant_symbols = (m, c, k)
         self.specified_symbols = (f,)
         self.discrete_symbols = sym.symbols('xi, vi, xp, vp, xn, vn, fi, fn',
@@ -125,7 +125,7 @@ class TestConstraintCollocator():
                               5.0, 6.0, 7.0, 8.0,  # v
                               3.0])  # k
 
-        self.eom = sym.Matrix([x.diff() - v,
+        self._eom = sym.Matrix([x.diff() - v,
                                m * v.diff() + c * v + k * x - f])
 
         par_map = OrderedDict(zip(self.constant_symbols[:2],
@@ -133,8 +133,8 @@ class TestConstraintCollocator():
         traj_map = OrderedDict(zip([f], [self.specified_values]))
 
         self.collocator = \
-            ConstraintCollocator(equations_of_motion=self.eom,
-                                 state_symbols=self.state_symbols,
+            ConstraintCollocator(equations_of_motion=self._eom,
+                                 state_symbols=self._state_symbols,
                                  num_collocation_nodes=4,
                                  node_time_interval=self.interval_value,
                                  known_parameter_map=par_map,
@@ -143,11 +143,11 @@ class TestConstraintCollocator():
 
     def test_init(self):
 
-        assert self.collocator.state_symbols == self.state_symbols
+        assert self.collocator._state_symbols == self._state_symbols
         assert self.collocator.state_derivative_symbols == \
-            tuple([s.diff() for s in self.state_symbols])
-        assert self.collocator.num_states == 2
-        assert self.collocator.num_collocation_nodes == 4
+            tuple([s.diff() for s in self._state_symbols])
+        assert self.collocator._num_states == 2
+        assert self.collocator._num_collocation_nodes == 4
 
     def test_integration_method(self):
         with raises(ValueError):
@@ -161,11 +161,11 @@ class TestConstraintCollocator():
 
         m, c, k = self.constant_symbols
 
-        assert self.collocator.known_parameters == (m, c)
-        assert self.collocator.num_known_parameters == 2
+        assert self.collocator._known_parameters == (m, c)
+        assert self.collocator._num_known_parameters == 2
 
-        assert self.collocator.unknown_parameters == (k,)
-        assert self.collocator.num_unknown_parameters == 1
+        assert self.collocator._unknown_iparameters == (k,)
+        assert self.collocator._num_unknown_parameters == 1
 
     def test_sort_trajectories(self):
 
@@ -173,12 +173,12 @@ class TestConstraintCollocator():
 
         self.collocator._sort_trajectories()
 
-        assert self.collocator.known_input_trajectories == \
+        assert self.collocator._known_input_trajectories == \
             self.specified_symbols
-        assert self.collocator.num_known_input_trajectories == 1
+        assert self.collocator._num_known_input_trajectories == 1
 
-        assert self.collocator.unknown_input_trajectories == tuple()
-        assert self.collocator.num_unknown_input_trajectories == 0
+        assert self.collocator._unknown_input_trajectories == tuple()
+        assert self.collocator._num_unknown_input_trajectories == 0
 
     def test_discrete_symbols(self):
 
@@ -186,25 +186,25 @@ class TestConstraintCollocator():
 
         xi, vi, xp, vp, xn, vn, fi, fn = self.discrete_symbols
 
-        assert self.collocator.previous_discrete_state_symbols == (xp, vp)
-        assert self.collocator.current_discrete_state_symbols == (xi, vi)
-        assert self.collocator.next_discrete_state_symbols == (xn, vn)
+        assert self.collocator._previous_discrete_state_symbols == (xp, vp)
+        assert self.collocator._current_discrete_state_symbols == (xi, vi)
+        assert self.collocator._next_discrete_state_symbols == (xn, vn)
 
-        assert self.collocator.current_discrete_specified_symbols == (fi, )
-        assert self.collocator.next_discrete_specified_symbols == (fn, )
+        assert self.collocator._current_discrete_specified_symbols == (fi, )
+        assert self.collocator._next_discrete_specified_symbols == (fn, )
 
     def test_discretize_eom_backward_euler(self):
 
         m, c, k = self.constant_symbols
         xi, vi, xp, vp, xn, vn, fi, fn = self.discrete_symbols
-        h = self.collocator.time_interval_symbol
+        h = self.collocator._time_interval_symbol
 
         expected = sym.Matrix([(xi - xp) / h - vi,
                                m * (vi - vp) / h + c * vi + k * xi - fi])
 
         self.collocator._discretize_eom()
 
-        zero = sym.simplify(self.collocator.discrete_eom - expected)
+        zero = sym.simplify(self.collocator._discrete_eom - expected)
 
         assert zero == sym.Matrix([0, 0])
 
@@ -213,7 +213,7 @@ class TestConstraintCollocator():
         m, c, k = self.constant_symbols
         xi, vi, xp, vp, xn, vn, fi, fn = self.discrete_symbols
 
-        h = self.collocator.time_interval_symbol
+        h = self.collocator._time_interval_symbol
 
         expected = sym.Matrix([(xn - xi) / h - (vi + vn) / 2,
                                m * (vn - vi) / h + c * (vi + vn) / 2 +
@@ -222,7 +222,7 @@ class TestConstraintCollocator():
         self.collocator.integration_method = 'midpoint'
         self.collocator._discretize_eom()
 
-        zero = sym.simplify(self.collocator.discrete_eom - expected)
+        zero = sym.simplify(self.collocator._discrete_eom - expected)
 
         assert zero == sym.Matrix([0, 0])
 
@@ -233,7 +233,7 @@ class TestConstraintCollocator():
         # Make sure the parameters are in the correct order.
         constant_values = \
             np.array([self.constant_values[self.constant_symbols.index(c)]
-                      for c in self.collocator.parameters])
+                      for c in self.collocator._parameters])
 
         # TODO : Once there are more than one specified, they will need to
         # be put in the correct order too.
@@ -270,7 +270,7 @@ class TestConstraintCollocator():
         # Make sure the parameters are in the correct order.
         constant_values = \
             np.array([self.constant_values[self.constant_symbols.index(c)]
-                      for c in self.collocator.parameters])
+                      for c in self.collocator._parameters])
 
         # TODO : Once there are more than one specified, they will need to
         # be put in the correct order too.
@@ -308,7 +308,7 @@ class TestConstraintCollocator():
         # Make sure the parameters are in the correct order.
         constant_values = \
             np.array([self.constant_values[self.constant_symbols.index(c)]
-                      for c in self.collocator.parameters])
+                      for c in self.collocator._parameters])
 
         # TODO : Once there are more than one specified, they will need to
         # be put in the correct order too.
@@ -351,7 +351,7 @@ class TestConstraintCollocator():
         # Make sure the parameters are in the correct order.
         constant_values = \
             np.array([self.constant_values[self.constant_symbols.index(c)]
-                      for c in self.collocator.parameters])
+                      for c in self.collocator._parameters])
 
         # TODO : Once there are more than one specified, they will need to
         # be put in the correct order too.
@@ -455,7 +455,7 @@ class TestConstraintCollocatorUnknownTrajectories():
         x, v, f, k = [s(t) for s in sym.symbols('x, v, f, k',
                                                 cls=sym.Function)]
 
-        self.state_symbols = (x, v)
+        self._state_symbols = (x, v)
         self.constant_symbols = (m, c)
         self.specified_symbols = (f, k)
         self.discrete_symbols = sym.symbols('xi, vi, xp, vp, fi, ki',
@@ -477,15 +477,15 @@ class TestConstraintCollocatorUnknownTrajectories():
                               13.0, 14.0, 15.0, 16.0,  # k
                               2.0])  # c
 
-        self.eom = sym.Matrix([x.diff() - v,
+        self._eom = sym.Matrix([x.diff() - v,
                                m * v.diff() + c * v + k * x - f])
 
         par_map = OrderedDict(zip([m], [1.0]))
         traj_map = OrderedDict(zip([f], [self.specified_values[0]]))
 
         self.collocator = \
-            ConstraintCollocator(equations_of_motion=self.eom,
-                                 state_symbols=self.state_symbols,
+            ConstraintCollocator(equations_of_motion=self._eom,
+                                 state_symbols=self._state_symbols,
                                  num_collocation_nodes=4,
                                  node_time_interval=self.interval_value,
                                  known_parameter_map=par_map,
@@ -493,10 +493,10 @@ class TestConstraintCollocatorUnknownTrajectories():
 
     def test_init(self):
 
-        assert self.collocator.state_symbols == self.state_symbols
+        assert self.collocator._state_symbols == self._state_symbols
         assert self.collocator.state_derivative_symbols == \
-            tuple([s.diff() for s in self.state_symbols])
-        assert self.collocator.num_states == 2
+            tuple([s.diff() for s in self._state_symbols])
+        assert self.collocator._num_states == 2
 
     def test_sort_parameters(self):
 
@@ -506,11 +506,11 @@ class TestConstraintCollocatorUnknownTrajectories():
 
         m, c = self.constant_symbols
 
-        assert self.collocator.known_parameters == (m,)
-        assert self.collocator.num_known_parameters == 1
+        assert self.collocator._known_parameters == (m,)
+        assert self.collocator._num_known_parameters == 1
 
-        assert self.collocator.unknown_parameters == (c,)
-        assert self.collocator.num_unknown_parameters == 1
+        assert self.collocator._unknown_iparameters == (c,)
+        assert self.collocator._num_unknown_parameters == 1
 
     def test_sort_trajectories(self):
 
@@ -520,11 +520,11 @@ class TestConstraintCollocatorUnknownTrajectories():
 
         f, k = self.specified_symbols
 
-        assert self.collocator.known_input_trajectories == (f,)
-        assert self.collocator.num_known_input_trajectories == 1
+        assert self.collocator._known_input_trajectories == (f,)
+        assert self.collocator._num_known_input_trajectories == 1
 
-        assert self.collocator.unknown_input_trajectories == (k,)
-        assert self.collocator.num_unknown_input_trajectories == 1
+        assert self.collocator._unknown_input_trajectories == (k,)
+        assert self.collocator._num_unknown_input_trajectories == 1
 
     def test_discrete_symbols(self):
 
@@ -532,23 +532,23 @@ class TestConstraintCollocatorUnknownTrajectories():
 
         xi, vi, xp, vp, fi, ki = self.discrete_symbols
 
-        assert self.collocator.current_discrete_state_symbols == (xi, vi)
-        assert self.collocator.previous_discrete_state_symbols == (xp, vp)
+        assert self.collocator._current_discrete_state_symbols == (xi, vi)
+        assert self.collocator._previous_discrete_state_symbols == (xp, vp)
         # The following should be in order of known and unknown.
-        assert self.collocator.current_discrete_specified_symbols == (fi, ki)
+        assert self.collocator._current_discrete_specified_symbols == (fi, ki)
 
     def test_discretize_eom(self):
 
         m, c = self.constant_symbols
         xi, vi, xp, vp, fi, ki = self.discrete_symbols
-        h = self.collocator.time_interval_symbol
+        h = self.collocator._time_interval_symbol
 
         expected = sym.Matrix([(xi - xp) / h - vi,
                                m * (vi - vp) / h + c * vi + ki * xi - fi])
 
         self.collocator._discretize_eom()
 
-        zero = sym.simplify(self.collocator.discrete_eom - expected)
+        zero = sym.simplify(self.collocator._discrete_eom - expected)
 
         assert zero == sym.Matrix([0, 0])
 
@@ -559,7 +559,7 @@ class TestConstraintCollocatorUnknownTrajectories():
         # Make sure the parameters are in the correct order.
         constant_values = \
             np.array([self.constant_values[self.constant_symbols.index(c)]
-                      for c in self.collocator.parameters])
+                      for c in self.collocator._parameters])
 
         # TODO : Once there are more than one specified, they will need to
         # be put in the correct order too.
@@ -611,7 +611,7 @@ class TestConstraintCollocatorUnknownTrajectories():
         # Make sure the parameters are in the correct order.
         constant_values = \
             np.array([self.constant_values[self.constant_symbols.index(c)]
-                      for c in self.collocator.parameters])
+                      for c in self.collocator._parameters])
 
         # TODO : Once there are more than one specified, they will need to
         # be put in the correct order too.
@@ -655,7 +655,7 @@ class TestConstraintCollocatorUnknownTrajectories():
         # Make sure the parameters are in the correct order.
         constant_values = \
             np.array([self.constant_values[self.constant_symbols.index(c)]
-                      for c in self.collocator.parameters])
+                      for c in self.collocator._parameters])
 
         # TODO : Once there are more than one specified, they will need to
         # be put in the correct order too.
@@ -833,7 +833,7 @@ class TestConstraintCollocatorInstanceConstraints():
         theta, omega, T = [f(t) for f in sym.symbols('theta, omega, T',
                                                      cls=sym.Function)]
 
-        self.state_symbols = (theta, omega)
+        self._state_symbols = (theta, omega)
         self.constant_symbols = (I, m, g, d)
         self.specified_symbols = (T,)
         self.discrete_symbols = \
@@ -853,7 +853,7 @@ class TestConstraintCollocatorInstanceConstraints():
                               9.81,  # g
                               1.0])  # d
 
-        self.eom = sym.Matrix([theta.diff() - omega,
+        self._eom = sym.Matrix([theta.diff() - omega,
                                I * omega.diff() + m * g * d * sym.sin(theta) - T])
 
         par_map = OrderedDict(zip(self.constant_symbols,
@@ -867,8 +867,8 @@ class TestConstraintCollocatorInstanceConstraints():
                                 5.0 * omega(0.03))
 
         self.collocator = \
-            ConstraintCollocator(equations_of_motion=self.eom,
-                                 state_symbols=self.state_symbols,
+            ConstraintCollocator(equations_of_motion=self._eom,
+                                 state_symbols=self._state_symbols,
                                  num_collocation_nodes=4,
                                  node_time_interval=self.interval_value,
                                  known_parameter_map=par_map,
@@ -877,30 +877,30 @@ class TestConstraintCollocatorInstanceConstraints():
 
     def test_init(self):
 
-        assert self.collocator.state_symbols == self.state_symbols
+        assert self.collocator._state_symbols == self._state_symbols
         assert self.collocator.state_derivative_symbols == \
-            tuple([s.diff() for s in self.state_symbols])
-        assert self.collocator.num_states == 2
+            tuple([s.diff() for s in self._state_symbols])
+        assert self.collocator._num_states == 2
 
     def test_sort_parameters(self):
 
         self.collocator._sort_parameters()
 
-        assert self.collocator.known_parameters == self.constant_symbols
-        assert self.collocator.num_known_parameters == 4
+        assert self.collocator._known_parameters == self.constant_symbols
+        assert self.collocator._num_known_parameters == 4
 
-        assert self.collocator.unknown_parameters == tuple()
-        assert self.collocator.num_unknown_parameters == 0
+        assert self.collocator._unknown_iparameters == tuple()
+        assert self.collocator._num_unknown_parameters == 0
 
     def test_sort_trajectories(self):
 
         self.collocator._sort_trajectories()
 
-        assert self.collocator.known_input_trajectories == tuple()
-        assert self.collocator.num_known_input_trajectories == 0
+        assert self.collocator._known_input_trajectories == tuple()
+        assert self.collocator._num_known_input_trajectories == 0
 
-        assert self.collocator.unknown_input_trajectories == self.specified_symbols
-        assert self.collocator.num_unknown_input_trajectories == 1
+        assert self.collocator._unknown_input_trajectories == self.specified_symbols
+        assert self.collocator._num_unknown_input_trajectories == 1
 
     def test_discrete_symbols(self):
 
@@ -908,24 +908,24 @@ class TestConstraintCollocatorInstanceConstraints():
 
         thetai, omegai, thetap, omegap, Ti = self.discrete_symbols
 
-        assert self.collocator.current_discrete_state_symbols == (thetai,
+        assert self.collocator._current_discrete_state_symbols == (thetai,
                                                                   omegai)
-        assert self.collocator.previous_discrete_state_symbols == (thetap,
+        assert self.collocator._previous_discrete_state_symbols == (thetap,
                                                                    omegap)
-        assert self.collocator.current_discrete_specified_symbols == (Ti,)
+        assert self.collocator._current_discrete_specified_symbols == (Ti,)
 
     def test_discretize_eom(self):
 
         I, m, g, d = self.constant_symbols
         thetai, omegai, thetap, omegap, Ti = self.discrete_symbols
-        h = self.collocator.time_interval_symbol
+        h = self.collocator._time_interval_symbol
 
         expected = sym.Matrix([(thetai - thetap) / h - omegai,
                                I * (omegai - omegap) / h + m * g * d * sym.sin(thetai) - Ti])
 
         self.collocator._discretize_eom()
 
-        zero = sym.simplify(self.collocator.discrete_eom - expected)
+        zero = sym.simplify(self.collocator._discrete_eom - expected)
 
         assert zero == sym.Matrix([0, 0])
 
@@ -937,7 +937,7 @@ class TestConstraintCollocatorInstanceConstraints():
 
         expected = set((theta(0.0), theta(0.03), omega(0.0), omega(0.03)))
 
-        assert self.collocator.instance_constraint_function_atoms == expected
+        assert self.collocator._instance_constraint_function_atoms == expected
 
     def test_find_free_index(self):
 
@@ -951,7 +951,7 @@ class TestConstraintCollocatorInstanceConstraints():
                     omega(0.0): 4,
                     omega(0.03): 7}
 
-        assert self.collocator.instance_constraints_free_index_map == expected
+        assert self.collocator._instance_constraints_free_index_map == expected
 
     def test_lambdify_instance_constraints(self):
 
@@ -985,7 +985,7 @@ class TestConstraintCollocatorInstanceConstraints():
         # Make sure the parameters are in the correct order.
         constant_values = \
             np.array([self.constant_values[self.constant_symbols.index(c)]
-                      for c in self.collocator.parameters])
+                      for c in self.collocator._parameters])
 
         result = self.collocator._multi_arg_con_func(self.state_values,
                                                      self.specified_values,
@@ -1034,7 +1034,7 @@ class TestConstraintCollocatorInstanceConstraints():
         # Make sure the parameters are in the correct order.
         constant_values = \
             np.array([self.constant_values[self.constant_symbols.index(c)]
-                      for c in self.collocator.parameters])
+                      for c in self.collocator._parameters])
 
         jac_vals = self.collocator._multi_arg_con_jac_func(self.state_values,
                                                            self.specified_values,
@@ -1143,8 +1143,8 @@ class TestConstraintCollocatorVariableDuration():
         theta, omega, T = [f(t) for f in sym.symbols('theta, omega, T',
                                                      cls=sym.Function)]
 
-        self.num_nodes = 4
-        self.state_symbols = (theta, omega)
+        self._num_nodes = 4
+        self._state_symbols = (theta, omega)
         self.constant_symbols = (m, g, d)
         self.specified_symbols = (T,)
         self.discrete_symbols = sym.symbols(
@@ -1165,7 +1165,7 @@ class TestConstraintCollocatorVariableDuration():
                               1.0,  # d
                               0.01])  # h
 
-        self.eom = sym.Matrix([theta.diff() - omega,
+        self._eom = sym.Matrix([theta.diff() - omega,
                                m*d**2*omega.diff() + m*g*d*sym.sin(theta) - T])
 
         par_map = OrderedDict(zip(self.constant_symbols,
@@ -1175,16 +1175,16 @@ class TestConstraintCollocatorVariableDuration():
         theta, omega = sym.symbols('theta, omega', cls=sym.Function)
         # If it is variable duration then use values 0 to N - 1 to specify
         # instance constraints instead of time.
-        t0, tf = 0*h, (self.num_nodes - 1)*h
+        t0, tf = 0*h, (self._num_nodes - 1)*h
         instance_constraints = (theta(t0),
                                 theta(tf) - sym.pi,
                                 omega(t0),
                                 omega(tf))
 
         self.collocator = ConstraintCollocator(
-            equations_of_motion=self.eom,
-            state_symbols=self.state_symbols,
-            num_collocation_nodes=self.num_nodes,
+            equations_of_motion=self._eom,
+            state_symbols=self._state_symbols,
+            num_collocation_nodes=self._num_nodes,
             node_time_interval=self.interval_symbol,
             known_parameter_map=par_map,
             instance_constraints=instance_constraints,
@@ -1192,31 +1192,31 @@ class TestConstraintCollocatorVariableDuration():
 
     def test_init(self):
 
-        assert self.collocator.state_symbols == self.state_symbols
+        assert self.collocator._state_symbols == self._state_symbols
         assert (self.collocator.state_derivative_symbols ==
-                tuple([s.diff() for s in self.state_symbols]))
-        assert self.collocator.num_states == 2
+                tuple([s.diff() for s in self._state_symbols]))
+        assert self.collocator._num_states == 2
 
     def test_sort_parameters(self):
 
         self.collocator._sort_parameters()
 
-        assert self.collocator.known_parameters == self.constant_symbols
-        assert self.collocator.num_known_parameters == 3
+        assert self.collocator._known_parameters == self.constant_symbols
+        assert self.collocator._num_known_parameters == 3
 
-        assert self.collocator.unknown_parameters == tuple()
-        assert self.collocator.num_unknown_parameters == 0
+        assert self.collocator._unknown_iparameters == tuple()
+        assert self.collocator._num_unknown_parameters == 0
 
     def test_sort_trajectories(self):
 
         self.collocator._sort_trajectories()
 
-        assert self.collocator.known_input_trajectories == tuple()
-        assert self.collocator.num_known_input_trajectories == 0
+        assert self.collocator._known_input_trajectories == tuple()
+        assert self.collocator._num_known_input_trajectories == 0
 
-        assert (self.collocator.unknown_input_trajectories ==
+        assert (self.collocator._unknown_input_trajectories ==
                 self.specified_symbols)
-        assert self.collocator.num_unknown_input_trajectories == 1
+        assert self.collocator._num_unknown_input_trajectories == 1
 
     def test_discrete_symbols(self):
 
@@ -1224,17 +1224,17 @@ class TestConstraintCollocatorVariableDuration():
 
         thetai, omegai, thetap, omegap, Ti = self.discrete_symbols
 
-        assert self.collocator.current_discrete_state_symbols == (thetai,
+        assert self.collocator._current_discrete_state_symbols == (thetai,
                                                                   omegai)
-        assert self.collocator.previous_discrete_state_symbols == (thetap,
+        assert self.collocator._previous_discrete_state_symbols == (thetap,
                                                                    omegap)
-        assert self.collocator.current_discrete_specified_symbols == (Ti,)
+        assert self.collocator._current_discrete_specified_symbols == (Ti,)
 
     def test_discretize_eom(self):
 
         m, g, d = self.constant_symbols
         thetai, omegai, thetap, omegap, Ti = self.discrete_symbols
-        h = self.collocator.time_interval_symbol
+        h = self.collocator._time_interval_symbol
 
         expected = sym.Matrix([
             (thetai - thetap)/h - omegai,
@@ -1242,7 +1242,7 @@ class TestConstraintCollocatorVariableDuration():
 
         self.collocator._discretize_eom()
 
-        zero = sym.simplify(self.collocator.discrete_eom - expected)
+        zero = sym.simplify(self.collocator._discrete_eom - expected)
 
         assert zero == sym.Matrix([0, 0])
 
@@ -1253,11 +1253,11 @@ class TestConstraintCollocatorVariableDuration():
         theta, omega = sym.symbols('theta, omega', cls=sym.Function)
 
         expected = set((theta(0*self.interval_symbol),
-                        theta((self.num_nodes - 1)*self.interval_symbol),
+                        theta((self._num_nodes - 1)*self.interval_symbol),
                         omega(0*self.interval_symbol),
-                        omega((self.num_nodes - 1)*self.interval_symbol)))
+                        omega((self._num_nodes - 1)*self.interval_symbol)))
 
-        assert self.collocator.instance_constraint_function_atoms == expected
+        assert self.collocator._instance_constraint_function_atoms == expected
 
     def test_find_free_index(self):
 
@@ -1268,12 +1268,12 @@ class TestConstraintCollocatorVariableDuration():
 
         expected = {
             theta(0*self.interval_symbol): 0,
-            theta((self.num_nodes - 1)*self.interval_symbol): 3,
+            theta((self._num_nodes - 1)*self.interval_symbol): 3,
             omega(0*self.interval_symbol): 4,
-            omega((self.num_nodes - 1)*self.interval_symbol): 7,
+            omega((self._num_nodes - 1)*self.interval_symbol): 7,
         }
 
-        assert self.collocator.instance_constraints_free_index_map == expected
+        assert self.collocator._instance_constraints_free_index_map == expected
 
     def test_lambdify_instance_constraints(self):
 
@@ -1307,7 +1307,7 @@ class TestConstraintCollocatorVariableDuration():
         # Make sure the parameters are in the correct order.
         constant_values = np.array([
             self.constant_values[self.constant_symbols.index(c)]
-            for c in self.collocator.parameters])
+            for c in self.collocator._parameters])
 
         result = self.collocator._multi_arg_con_func(self.state_values,
                                                      self.specified_values,
@@ -1364,7 +1364,7 @@ class TestConstraintCollocatorVariableDuration():
         # Make sure the parameters are in the correct order.
         constant_values = np.array([
             self.constant_values[self.constant_symbols.index(c)]
-            for c in self.collocator.parameters])
+            for c in self.collocator._parameters])
 
         jac_vals = self.collocator._multi_arg_con_jac_func(
             self.state_values, self.specified_values, constant_values,
@@ -1506,13 +1506,13 @@ def test_known_and_unknown_order():
         time_symbol=t,
     )
 
-    assert col.input_trajectories == (T1, F, T2, T3)
-    assert col.known_input_trajectories == (T1, F)
-    assert col.known_parameters == (l1, l0, m3, g, m1)
-    assert col.unknown_input_trajectories == (T2, T3)
-    assert col.unknown_parameters == (l2, m0, m2)
-    assert col.parameters == (l1, l0, m3, g, m1, l2, m0, m2)
-    assert col.state_symbols == (q0, q1, q2, q3, u0, u1, u2, u3)
+    assert col._input_trajectories == (T1, F, T2, T3)
+    assert col._known_input_trajectories == (T1, F)
+    assert col._known_parameters == (l1, l0, m3, g, m1)
+    assert col._unknown_input_trajectories == (T2, T3)
+    assert col._unknown_parameters == (l2, m0, m2)
+    assert col._parameters == (l1, l0, m3, g, m1, l2, m0, m2)
+    assert col._state_symbols == (q0, q1, q2, q3, u0, u1, u2, u3)
 
 def test_for_algebraic_eoms():
     """
@@ -1746,3 +1746,100 @@ def test_one_eom_only():
 
     length = (2*1 + 1 + 0 + 0) * (1*(num_nodes-1)) + 2
     assert prob.jacobian(initial_guess).shape == (length,)
+
+
+def test_attributes_read_only():
+    """
+    Test to ensure the ConstraintCollocator attributes are read-only.
+    """
+    import sympy as sym
+    import sympy.physics.mechanics as mech
+    from opty.direct_collocation import Problem, ConstraintCollocator
+
+    import pytest
+
+    # random optimization problem
+    x1, x2, x3 = mech.dynamicsymbols('x1 x2 x3')
+    ux1, ux2, ux3 = mech.dynamicsymbols('ux1 ux2 ux3')
+    u1, u2, u3 = mech.dynamicsymbols('u1 u2 u3')
+    a1, a2, a3, a4, a5, a6 = sym.symbols('a1 a2 a3 a4 a5 a6')
+    h = sym.symbols('h')
+
+    t = mech.dynamicsymbols._t
+    eom = sym.Matrix([
+        -x1.diff(t) + ux1 + a3,
+        -x2.diff(t) + ux2 + a5,
+        -x3.diff(t) + ux3,
+        -ux1.diff(t) + a6*x1 + a5*u1,
+        -ux2.diff(t) + a4*x2 + a3*u2,
+        -ux3.diff(t) + a2*x3 + a1*u3,
+    ])
+
+    # Set up the Optimization Problem
+
+    state_symbols = [x1, x2, x3, ux1, ux2, ux3]
+
+    num_nodes = 11
+    h = sym.symbols('h')
+
+    # Specify the known symbols.
+    par_map = {}
+    par_map[a2] = 1.0
+    par_map[a4] = 2.0
+    par_map[a6] = 3.0
+
+    interval_value = h
+
+    # Set up the instance constraints, the bounds and Problem.
+
+    test = ConstraintCollocator(
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+    )
+
+    # Test if all these attributes are read-only
+    for XX in [
+        'current_discrete_state_symbols',
+        'current_discrete_specified_symbols',
+        'current_known_discrete_specified_symbols',
+        'current_unknown_discrete_specified_symbols',
+        'discrete_eom',
+        'eom',
+        'input_trajectories',
+        'instance_constraints',
+        'known_input_trajectories',
+        'known_parameters',
+        'known_parameter_map',
+        'known_trajectory_map',
+        'next_known_discrete_specified_symbols',
+        'next_discrete_state_symbols',
+        'next_unknown_discrete_specified_symbols',
+        'node_time_interval',
+        'num_collocation_nodes',
+        'num_constraints',
+        'num_free',
+        'num_input_trajectories',
+        'num_instance_constraints',
+        'num_known_input_trajectories',
+        'num_parameters',
+        'num_states',
+        'num_unknown_input_trajectories',
+        'num_unknown_parameters',
+        'parameters',
+        'parallel',
+        'previous_discrete_state_symbols',
+        'show_compile_output',
+        'state_derivative_symbols',
+        'state_symbols',
+        'time_interval_symbol',
+        'time_symbol',
+        'tmp_dir',
+        'unknown_input_trajectories',
+        'unknown_parameters',
+        ]:
+        print(XX)
+        with pytest.raises(AttributeError):
+            setattr(test, XX, 5)
