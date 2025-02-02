@@ -1,11 +1,21 @@
 """
-Alp Rider
-=========
+Stiff Set of Differential Equations
+===================================
 
 This is example 10.1 from `[Betts2010]_`, 3rd edition, Chapter 10: Test Problems.
 More details are in sectionn 4.11.7 of the book.
 
-The main issue here is an inequality constraint for the state variables:
+This is a set of stiff differential equations without any 'physical' meaning.
+It was proposed to test optimization algorithms.
+The inequality constraint :math:`y^Ty \\geq function(time, parameters)` forces
+the norm of the state vector to the larger than a wildly fluctuating function.
+The objective to be minimized forces :math:`y^Ty` to be close to the
+constraint.
+As a stiff system wants to move 'straight' and here it is forced to turn wildly,
+this is a good system to test optimization algorithms.
+
+The main issue as far as *opty* is concerned is this inequality constraint for
+the state variables:
 :math:`y_1^2 + y_2^2 + y_3^2 + y_4^2 \\geq function(time, parameters)`
 
 As presently *opty* does not support inequality constraints, I introduced a new
