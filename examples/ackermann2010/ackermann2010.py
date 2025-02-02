@@ -15,8 +15,8 @@ from pygait2d.segment import time_symbol
 from opty import Problem, parse_free
 from opty.utils import f_minus_ma
 
-speed = 1.3250  # m/s
-num_nodes = 80
+distance = 3.0  # m
+num_nodes = 60
 h = sm.symbols('h', real=True, positive=True)
 duration = (num_nodes - 1)*h
 
@@ -70,43 +70,43 @@ uneval_states = [s.__class__ for s in states]
 (qax, qay, qa, qb, qc, qd, qe, qf, qg, uax, uay, ua, ub, uc, ud, ue, uf, ug) = uneval_states
 
 instance_constraints = (
+    # start at standstill
     qax(0*h),
-    qax(duration) - 2.0,
     qay(0*h) - 0.953,
+    qa(0*h) - 0.0,
+    qb(0*h) - 0.0,
+    qc(0*h) - 0.0,
+    qd(0*h) - 0.0,
+    qe(0*h) - 0.0,
+    qf(0*h) - 0.0,
+    qg(0*h) - 0.0,
+    ua(0*h) - 0.0,
+    ub(0*h) - 0.0,
+    uc(0*h) - 0.0,
+    ud(0*h) - 0.0,
+    ue(0*h) - 0.0,
+    uf(0*h) - 0.0,
+    ug(0*h) - 0.0,
+    # after distance traveled, back at standstill
+    qax(duration) - distance,
     qay(duration) - 0.953,
-    qa(0*h) - 0.0, #qe(duration),
-    qb(0*h) - 0.0, #qe(duration),
-    qc(0*h) - 0.0, #qf(duration),
-    qd(0*h) - 0.0, #qg(duration),
-    qe(0*h) - 0.0, #qg(duration),
-    qf(0*h) - 0.0, #qg(duration),
-    qg(0*h) - 0.0, #qg(duration),
-    ua(0*h) - 0.0, #ue(duration),
-    ub(0*h) - 0.0, #ue(duration),
-    uc(0*h) - 0.0, #uf(duration),
-    ud(0*h) - 0.0, #ug(duration),
-    ue(0*h) - 0.0, #ug(duration),
-    uf(0*h) - 0.0, #ug(duration),
-    ug(0*h) - 0.0, #ug(duration),
-    qa(duration) - 0.0, #qe(duration),
-    qb(duration) - 0.0, #qe(duration),
-    qc(duration) - 0.0, #qf(duration),
-    qd(duration) - 0.0, #qg(duration),
-    qe(duration) - 0.0, #qg(duration),
-    qf(duration) - 0.0, #qg(duration),
-    qg(duration) - 0.0, #qg(duration),
-    ua(duration) - 0.0, #ue(duration),
-    ub(duration) - 0.0, #ue(duration),
-    uc(duration) - 0.0, #uf(duration),
-    ud(duration) - 0.0, #ug(duration),
-    ue(duration) - 0.0, #ug(duration),
-    uf(duration) - 0.0, #ug(duration),
-    ug(duration) - 0.0, #ug(duration),
-    # TODO : need support for including h outside of a
+    qa(duration) - 0.0,
+    qb(duration) - 0.0,
+    qc(duration) - 0.0,
+    qd(duration) - 0.0,
+    qe(duration) - 0.0,
+    qf(duration) - 0.0,
+    qg(duration) - 0.0,
+    ua(duration) - 0.0,
+    ub(duration) - 0.0,
+    uc(duration) - 0.0,
+    ud(duration) - 0.0,
+    ue(duration) - 0.0,
+    uf(duration) - 0.0,
+    ug(duration) - 0.0,
+    # TODO : need support for including h outside of a (make opty issue)
     # Function argument.
     #qax(duration) - speed * duration,
-    #uax(0*h) - speed,
-    #uax(duration) - speed,
 )
 
 
@@ -136,13 +136,12 @@ prob = Problem(obj, obj_grad, eom, states, num_nodes, h,
                tmp_dir='ufunc')
 
 # Use a random positive initial guess.
-initial_guess = prob.lower_bound + (prob.upper_bound - prob.lower_bound) * np.random.randn(prob.num_free)
+#initial_guess = prob.lower_bound + (prob.upper_bound - prob.lower_bound) * np.random.randn(prob.num_free)
 initial_guess = np.zeros(prob.num_free)
 #initial_guess = 0.01*np.ones(prob.num_free)
 
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
-
 
 state_vals, _, _, h_val = parse_free(solution, num_states, len(specified) -
                                      len(traj_map), num_nodes,
