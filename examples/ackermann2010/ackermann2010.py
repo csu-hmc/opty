@@ -1,5 +1,12 @@
-"""This example replicates some of the work presented in Ackermann and van
-den Bogert 2010."""
+"""This example replicates some of the work presented in Ackermann and van den
+Bogert 2010.
+
+pygait2d and its dependencies must be installed first to run this example::
+
+    conda install sympy pydy pyyaml cython pip setuptools
+    python -m pip install --no-deps --no-build-isolation git+https://github.com/csu-hmc/gait2d
+
+"""
 
 import sympy as sm
 import numpy as np
@@ -9,7 +16,7 @@ from opty import Problem, parse_free
 from opty.utils import f_minus_ma
 
 speed = 1.3250  # m/s
-num_nodes = 60
+num_nodes = 80
 h = sm.symbols('h', real=True, positive=True)
 duration = (num_nodes - 1)*h
 
@@ -64,18 +71,42 @@ uneval_states = [s.__class__ for s in states]
 
 instance_constraints = (
     qax(0*h),
-    qay(0*h) - 0.95,
-    qb(0*h) - qe(duration),
-    qc(0*h) - qf(duration),
-    qd(0*h) - qg(duration),
-    ub(0*h) - ue(duration),
-    uc(0*h) - uf(duration),
-    ud(0*h) - ug(duration),
+    qax(duration) - 2.0,
+    qay(0*h) - 0.953,
+    qay(duration) - 0.953,
+    qa(0*h) - 0.0, #qe(duration),
+    qb(0*h) - 0.0, #qe(duration),
+    qc(0*h) - 0.0, #qf(duration),
+    qd(0*h) - 0.0, #qg(duration),
+    qe(0*h) - 0.0, #qg(duration),
+    qf(0*h) - 0.0, #qg(duration),
+    qg(0*h) - 0.0, #qg(duration),
+    ua(0*h) - 0.0, #ue(duration),
+    ub(0*h) - 0.0, #ue(duration),
+    uc(0*h) - 0.0, #uf(duration),
+    ud(0*h) - 0.0, #ug(duration),
+    ue(0*h) - 0.0, #ug(duration),
+    uf(0*h) - 0.0, #ug(duration),
+    ug(0*h) - 0.0, #ug(duration),
+    qa(duration) - 0.0, #qe(duration),
+    qb(duration) - 0.0, #qe(duration),
+    qc(duration) - 0.0, #qf(duration),
+    qd(duration) - 0.0, #qg(duration),
+    qe(duration) - 0.0, #qg(duration),
+    qf(duration) - 0.0, #qg(duration),
+    qg(duration) - 0.0, #qg(duration),
+    ua(duration) - 0.0, #ue(duration),
+    ub(duration) - 0.0, #ue(duration),
+    uc(duration) - 0.0, #uf(duration),
+    ud(duration) - 0.0, #ug(duration),
+    ue(duration) - 0.0, #ug(duration),
+    uf(duration) - 0.0, #ug(duration),
+    ug(duration) - 0.0, #ug(duration),
     # TODO : need support for including h outside of a
     # Function argument.
     #qax(duration) - speed * duration,
-    uax(0*h) - speed,
-    uax(duration) - speed,
+    #uax(0*h) - speed,
+    #uax(duration) - speed,
 )
 
 
@@ -101,11 +132,13 @@ prob = Problem(obj, obj_grad, eom, states, num_nodes, h,
                instance_constraints=instance_constraints,
                bounds=bounds,
                time_symbol=time_symbol,
+               parallel=True,
                tmp_dir='ufunc')
 
 # Use a random positive initial guess.
 initial_guess = prob.lower_bound + (prob.upper_bound - prob.lower_bound) * np.random.randn(prob.num_free)
 initial_guess = np.zeros(prob.num_free)
+#initial_guess = 0.01*np.ones(prob.num_free)
 
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
