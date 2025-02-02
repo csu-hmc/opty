@@ -58,11 +58,14 @@ bounds = {
     uax: (0.0, 10.0),
     uay: (-10.0, 10.0),
 }
-bounds.update({k: (-np.pi/4.0, 3.0*np.pi/4.0) for k in [qb, qe]})  # hip
-bounds.update({k: (-3.0/np.pi/4.0, 0.0) for k in [qc, qf]})  # knee
-bounds.update({k: (-np.pi/4.0, np.pi/4.0) for k in [qd, qg]})  # foot
+# hip
+bounds.update({k: (-np.deg2rad(40.0), np.deg2rad(40.0)) for k in [qb, qe]})
+# knee
+bounds.update({k: (-np.deg2rad(60.0), 0.0) for k in [qc, qf]})
+# foot
+bounds.update({k: (-np.deg2rad(30.0), np.deg2rad(30.0)) for k in [qd, qg]})
 bounds.update({k: (-6.0, 6.0) for k in [ua, ub, uc, ud, ue, uf, ug]})  # ~200 deg/s
-bounds.update({k: (-1000.0, 1000.0) for k in [Tb, Tc, Td, Te, Tf, Tg]})
+bounds.update({k: (-1200.0, 1200.0) for k in [Tb, Tc, Td, Te, Tf, Tg]})
 
 # Specify the symbolic instance constraints, i.e. initial and end
 # conditions.
