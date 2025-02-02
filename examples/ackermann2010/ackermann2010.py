@@ -142,9 +142,9 @@ prob = Problem(obj, obj_grad, eom, states, num_nodes, h,
                parallel=True)
 
 # Use a random positive initial guess.
-#initial_guess = prob.lower_bound + (prob.upper_bound - prob.lower_bound) * np.random.randn(prob.num_free)
-#initial_guess = 0.01*np.ones(prob.num_free)
-initial_guess = np.zeros(prob.num_free)
+initial_guess = prob.lower_bound + (prob.upper_bound - prob.lower_bound)*np.random.random_sample(prob.num_free)
+initial_guess = -0.01*np.ones(prob.num_free)
+#initial_guess = np.zeros(prob.num_free)
 
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
