@@ -1,31 +1,53 @@
-"""This example replicates some of the work presented in Ackermann and van den
-Bogert 2010.
+"""
+Human Gait
+==========
+
+This example replicates a similar solution as shown in [Ackermann2010]_ using
+joint torques as inputs instead of muscle activations.
 
 pygait2d and its dependencies must be installed first to run this example::
 
     conda install cython pip pydy pyyaml setuptools symmeplot sympy
     python -m pip install --no-deps --no-build-isolation git+https://github.com/csu-hmc/gait2d
 
+gait2d provides a joint torque driven 2d bipedal human dynamical model with
+seven body segments (trunk, thighs, shanks, feet) and foot-ground contact
+forces based on the description in [Ackermann2010]_.
+
+The optimal control goal is to find the joint torques (hip, knee, ankle) that
+generate a minimal mean-torque periodic motion to ambulate at an average speed
+over half a period.
+
+.. [Ackermann2010] Ackermann, M., & van den Bogert, A. J. (2010). Optimality
+   principles for model-based prediction of human gait. Journal of
+   Biomechanics, 43(6), 1055–1060.
+   https://doi.org/10.1016/j.jbiomech.2009.12.012
+
 """
 
-import sympy as sm
-import numpy as np
-from pygait2d import derive, simulate
-from pygait2d.segment import time_symbol
 from opty import Problem, parse_free
 from opty.utils import f_minus_ma
+from pygait2d import derive, simulate
+from pygait2d.segment import time_symbol, contact_force
+from symmeplot.matplotlib import Scene3D
+import matplotlib.pyplot as plt
+import numpy as np
+import sympy as sm
 
-speed = 0.8  # m/s
+# %%
+# Pick an average ambulation speed and the number of discretization nodes for
+# the half period.
+speed = 1.4  # m/s
 num_nodes = 60
 h = sm.symbols('h', real=True, positive=True)
 duration = (num_nodes - 1)*h
-delt = sm.Function('delt', real=True)(time_symbol)
 
+# %%
+# Derive the equations of motion using gait2d.
 symbolics = derive.derive_equations_of_motion()
 
 mass_matrix = symbolics[0]
 forcing_vector = symbolics[1]
-kane = symbolics[2]
 constants = symbolics[3]
 coordinates = symbolics[4]
 speeds = symbolics[5]
@@ -38,29 +60,43 @@ eom = f_minus_ma(mass_matrix, forcing_vector, coordinates + speeds)
 
 # We need to have :math:`t_f - t_0` available to compute the average speed in
 # the instance constraint, so add an extra differential equation that is the
-# time derivative of the the difference in time.
+# time derivative of the difference in time.
 #
 # ..math::
 #
 #   \Delta_t(t) = \int_{t_0}^{t} d\tau
 #
+delt = sm.Function('delt', real=True)(time_symbol)
 eom = eom.col_join(sm.Matrix([delt.diff(time_symbol) - 1]))
 
-# right: b, c, d
-# left: e, f, g
+# %%
+# The generalized coordinates are the hip lateral position (qax) and veritcal
+# position (qay), the trunk angle with respect to vertical (qa) and the
+# relative joint angles:
+#
+# - right: hip (b), knee (c), ankle (d)
+# - left: hip (e), knee (f), ankle (g)
+#
+# Each joint has a joint torque acting between the adjacent bodies.
 qax, qay, qa, qb, qc, qd, qe, qf, qg = coordinates
 uax, uay, ua, ub, uc, ud, ue, uf, ug = speeds
 Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = specified
 
+# The constants are loaded from a file of reasonably realistic geometry, mass,
+# inertia, and foot deformation properties of an adult human.
 par_map = simulate.load_constants(constants, 'example_constants.yml')
 
-# Hand of god is nothing.
+# %%
+# gait2d provides "hand of god" inputs to manipulate the trunk for some
+# modeling purposes. Set these to zero.
 traj_map = {
     Fax: np.zeros(num_nodes),
     Fay: np.zeros(num_nodes),
     Ta: np.zeros(num_nodes),
 }
 
+# %%
+#
 bounds = {
     h: (0.001, 0.1),
     delt: (0.0, 10.0),
@@ -76,50 +112,46 @@ bounds.update({k: (-np.deg2rad(40.0), np.deg2rad(40.0)) for k in [qb, qe]})
 bounds.update({k: (-np.deg2rad(60.0), 0.0) for k in [qc, qf]})
 # foot
 bounds.update({k: (-np.deg2rad(30.0), np.deg2rad(30.0)) for k in [qd, qg]})
-bounds.update({k: (-6.0, 6.0) for k in [ua, ub, uc, ud, ue, uf, ug]})  # ~200 deg/s
-bounds.update({k: (-1200.0, 1200.0) for k in [Tb, Tc, Td, Te, Tf, Tg]})
+bounds.update({k: (-np.deg2rad(400.0), np.deg2rad(400.0))
+               for k in [ua, ub, uc, ud, ue, uf, ug]})
+bounds.update({k: (-120.0, 120.0) for k in [Tb, Tc, Td, Te, Tf, Tg]})
 
-# Specify the symbolic instance constraints, i.e. initial and end
-# conditions.
-uneval_states = [s.__class__ for s in states]
-(qax, qay, qa, qb, qc, qd, qe, qf, qg, uax, uay, ua, ub, uc, ud, ue, uf, ug) = uneval_states
-# TODO : could do qax.func(0.0) instead
-
+# %%
+# The average speed can be fixed by constraining the total distance traveled.
+# To enforce a half period, set the right leg's angles at the initial time to
+# be equal to the left leg's angles at the final time and vice versa. The same
+# goes for the joint angular rates.
+#
 instance_constraints = (
-    qax(0*h) - 0.0,
-    #qay(0*h) - 0.953,
-    # average walking speed
-    qax(duration) - speed*delt.func(duration),
     delt.func(0*h) - 0.0,
-    qay(0*h) - qay(duration),
-
-    qa(0*h) - qa(duration),
-
-    qb(0*h) - qe(duration),
-    qc(0*h) - qf(duration),
-    qd(0*h) - qg(duration),
-
-    qe(0*h) - qb(duration),
-    qf(0*h) - qc(duration),
-    qg(0*h) - qd(duration),
-
-    uax(0*h) - uax(duration),
-    uay(0*h) - uay(duration),
-
-    ua(0*h) - ua(duration),
-
-    ub(0*h) - ue(duration),
-    uc(0*h) - uf(duration),
-    ud(0*h) - ug(duration),
-
-    ue(0*h) - ub(duration),
-    uf(0*h) - uc(duration),
-    ug(0*h) - ud(duration),
+    qax.func(0*h) - 0.0,
+    qax.func(duration) - speed*delt.func(duration),
+    qay.func(0*h) - qay.func(duration),
+    qa.func(0*h) - qa.func(duration),
+    qb.func(0*h) - qe.func(duration),
+    qc.func(0*h) - qf.func(duration),
+    qd.func(0*h) - qg.func(duration),
+    qe.func(0*h) - qb.func(duration),
+    qf.func(0*h) - qc.func(duration),
+    qg.func(0*h) - qd.func(duration),
+    uax.func(0*h) - uax.func(duration),
+    uay.func(0*h) - uay.func(duration),
+    ua.func(0*h) - ua.func(duration),
+    ub.func(0*h) - ue.func(duration),
+    uc.func(0*h) - uf.func(duration),
+    ud.func(0*h) - ug.func(duration),
+    ue.func(0*h) - ub.func(duration),
+    uf.func(0*h) - uc.func(duration),
+    ug.func(0*h) - ud.func(duration),
 )
 
-# Specify the objective function and it's gradient.
+
+# %%
+# The objective is to minimize the mean of all joint torques.
 def obj(free):
-    """Minimize the sum of the squares of the control torque."""
+    """Minimize the sum of the squares of the control torques."""
+    # TODO : there are only 6 joint torques but this is pulling more than that,
+    # needs correction, could use parse free.
     T, h = free[num_states*num_nodes:-1], free[-1]
     return h*np.sum(T**2)
 
@@ -132,12 +164,13 @@ def obj_grad(free):
     return grad
 
 
-# Create an optimization problem.
+# %%
+# Create an optimization problem and solve it.
 prob = Problem(
     obj,
     obj_grad,
     eom,
-    states + [delt],
+    states + [delt],  # add delt as a state
     num_nodes,
     h,
     known_parameter_map=par_map,
@@ -149,16 +182,15 @@ prob = Problem(
 )
 
 # Use a random positive initial guess.
-initial_guess = prob.lower_bound + (prob.upper_bound - prob.lower_bound)*np.random.random_sample(prob.num_free)
+#initial_guess = prob.lower_bound + (prob.upper_bound - prob.lower_bound)*np.random.random_sample(prob.num_free)
 #initial_guess = -0.01*np.ones(prob.num_free)
-initial_guess = np.zeros(prob.num_free)
+#initial_guess = np.zeros(prob.num_free)
 initial_guess = np.load(f'solution-{num_nodes}-nodes.npz')['solution']
 
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
 
-# TODO : ps is empy, not sure why
-state_vals, rs, ps, h_val = parse_free(
+state_vals, rs, _, h_val = parse_free(
     solution, num_states + 1, len(specified) - len(traj_map), num_nodes,
     variable_duration=True)
 np.savez(f'solution-{num_nodes}-nodes', solution=solution, x=state_vals,
@@ -167,16 +199,15 @@ np.savez(f'solution-{num_nodes}-nodes', solution=solution, x=state_vals,
 
 def animate():
 
-    import matplotlib.pyplot as plt
-    from symmeplot.matplotlib import Scene3D
 
     ground, origin, segments = symbolics[8], symbolics[9], symbolics[10]
     trunk, rthigh, rshank, rfoot, lthigh, lshank, lfoot = segments
 
     fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
 
-    scene = Scene3D(ground, origin, ax=ax, scale=1.0)
-    #scene = Scene3D(ground, trunk.mass_center, ax=ax, scale=1.0)
+    #scene = Scene3D(ground, origin, ax=ax, scale=1.0)
+    scene = Scene3D(ground, origin.locatenew('m', qax*ground.x), ax=ax,
+                    scale=1.0)
 
     scene.add_line([
         rshank.joint,
@@ -193,13 +224,23 @@ def animate():
         lfoot.toe,
         lshank.joint,
     ], color="k")
-    #scene.add_point(nd, color='C0')
+    #scene.add_line([
+        #origin.locatenew('m', -1*ground.x),
+        #origin.locatenew('m', 3*ground.x),
+    #], linestyle='--')
 
     for seg in segments:
         scene.add_body(seg.rigid_body)
 
     # TODO : Add ground reaction force vectors
-    #scene.add_vector(A.x, nd, color="black")
+    scene.add_vector(contact_force(rfoot.toe, ground, origin)/600.0, rfoot.toe,
+                     color="tab:green")
+    scene.add_vector(contact_force(rfoot.heel, ground, origin)/600.0,
+                     rfoot.heel, color="tab:green")
+    scene.add_vector(contact_force(lfoot.toe, ground, origin)/600.0, lfoot.toe,
+                     color="tab:green")
+    scene.add_vector(contact_force(lfoot.heel, ground, origin)/600.0,
+                     lfoot.heel, color="tab:green")
 
     scene.lambdify_system(coordinates + speeds + specified + constants)
     scene.evaluate_system(*np.hstack((state_vals[:9, 0],
@@ -208,16 +249,13 @@ def animate():
                                       rs[:, 0],
                                       np.array(list(par_map.values())))))
 
-    # this is only in dev version of symmeplot
-    #scene.as_orthogonal_projection_plot()
     scene.axes.set_proj_type("ortho")
     scene.axes.view_init(90, -90, 0)
     scene.plot()
 
-    ax.set_xlim((-0.5, state_vals[0].max() + 0.5))
+    #ax.set_xlim((-0.5, state_vals[0].max() + 0.5))
+    ax.set_xlim((-1.0, 1.0))
     ax.set_aspect('equal')
-    #ax.set_ylim((-1.0, 1.0))
-    #ax.set_zlim((1.0, -1.0))
 
     times = np.linspace(0.0, h_val*num_nodes, num=num_nodes)
 
