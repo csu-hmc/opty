@@ -694,7 +694,7 @@ class ConstraintCollocator(object):
 
     Attributes
     ==========
-    curren_discrete_specified_symbols : tuple:
+    current_discrete_specified_symbols : tuple:
         The symbols for the current discrete specified inputs.
     current_discrete_state_symbols : n-tuple
         The symbols for the current discrete states.
@@ -927,169 +927,327 @@ class ConstraintCollocator(object):
         else:
             self._num_instance_constraints = 0
 
-    @property
-    def eom(self):
-        return self._eom
 
     @property
-    def time_symbol(self):
-        return self._time_symbol
+    def current_discrete_specified_symbols(self):
+        """
+        The symbols for the current discrete specified inputs.
+        Type: tuple
 
-    @property
-    def state_symbols(self):
-        return self._state_symbols
-
-    @property
-    def state_derivative_symbols(self):
-        return self._state_derivative_symbols
-
-    @property
-    def num_states(self):
-        return self._num_states
-
-    @property
-    def num_collocation_nodes(self):
-        return self._num_collocation_nodes
-
-    @property
-    def time_interval_symbol(self):
-        return self._time_interval_symbol
-
-    @property
-    def node_time_interval(self):
-        return self._node_time_interval
-
-    @property
-    def known_parameter_map(self):
-        return self._known_parameter_map
-
-    @property
-    def known_trajectory_map(self):
-        return self._known_trajectory_map
-
-    @property
-    def instance_constraints(self):
-        return self._instance_constraints
-
-    @property
-    def num_constraints(self):
-        return self._num_constraints
-
-    @property
-    def tmp_dir(self):
-        return self._tmp_dir
-
-    @property
-    def parallel(self):
-        return self._parallel
-
-    @property
-    def show_compile_output(self):
-        return self._show_compile_output
-
-    @property
-    def num_free(self):
-        return self._num_free
-
-    @property
-    def num_instance_constraints(self):
-        return self._num_instance_constraints
-
-    @property
-    def num_unknown_parameters(self):
-        return self._num_unknown_parameters
-
-    @property
-    def unknown_parameters(self):
-        return self._unknown_parameters
-
-    @property
-    def unknown_input_trajectories(self):
-        return self._unknown_input_trajectories
-
-    @property
-    def num_unknown_input_trajectories(self):
-        return self._num_unknown_input_trajectories
-
-    @property
-    def parameters(self):
-        return self._parameters
-
-    @property
-    def num_parameters(self):
-        return self._num_parameters
-
-    @property
-    def num_known_parameters(self):
-        return self._num_known_parameters
-
-    @property
-    def num_input_trajectories(self):
-        return self._num_input_trajectories
-
-    @property
-    def input_trajectories(self):
-        return self._input_trajectories
+        """
+        return self._current_discrete_specified_symbols
 
     @property
     def current_discrete_state_symbols(self):
+        """
+        The symbols for the current discrete states.
+        Type: n-tuple
+        """
         return self._current_discrete_state_symbols
 
     @property
     def current_known_discrete_specified_symbols(self):
+        """
+        The symbols for the current discrete specified inputs.
+        Type: tuple
+        """
         return self._current_known_discrete_specified_symbols
 
     @property
+    def current_unknown_discrete_specified_symbols(self):
+        """
+        The symbols for the current unknown discrete specified inputs.
+        Type: tuple
+        """
+        return self._current_unknown_discrete_specified_symbols
+
+    @property
     def discrete_eom(self):
+        """
+        Discretized equations of motion. Depending on the integration method
+        used.
+        Type: sympy.Matrix, shape(n, 1)
+        """
         return self._discrete_eom
 
     @property
+    def eom(self):
+        """
+        The equations of motion used.
+        Type: sympy.Matrix, shape(n, 1)
+        """
+        return self._eom
+
+    @property
+    def input_trajectories(self):
+        """
+        known_input_trajectories + unknown_input_trajectories.
+        Type: tuple
+        """
+        return self._input_trajectories
+
+    @property
+    def instance_constraints(self):
+        """
+        The instance constraints used in the optimization.
+        Type: o-tuple
+        """
+        return self._instance_constraints
+
+    @property
+    def integration_method(self):
+        """
+        The integration method used. Presently, ``backward euler`` and
+        ``midpoint`` are supported.
+        Type: str
+        """
+        return self._integration_method
+
+    @property
+    def known_input_trajectories(self):
+        """
+        The known input trajectories symbols.
+        Type: tuple
+        """
+        return self._known_input_trajectories
+
+    @property
+    def known_parameters(self):
+        """
+        The symbols of the known parameters in the problem.
+        Type: tuple
+        """
+        return self._known_parameters
+
+    @property
+    def known_parameter_map(self):
+        """
+        A mapping of known parameters to their values.
+        Type: dict
+        """
+        return self._known_parameter_map
+
+    @property
+    def known_trajectory_map(self):
+        """
+        A mapping of known trajectories to their values.
+        Type: dict
+        """
+        return self._known_trajectory_map
+
+    @property
+    def known_trajectory_symbols(self):
+        """
+        The known trajectory symbols.
+        Type: (m-q)-tuple
+        """
+        return self._known_trajectory_symbols
+
+    @property
     def next_known_discrete_specified_symbols(self):
+        """
+        The symbols for the next discrete specified inputs.
+        Type: tuple
+        """
         return self._next_known_discrete_specified_symbols
 
     @property
     def next_discrete_state_symbols(self):
+        """
+        The symbols for the next discrete states.
+        Type: n-tuple
+        """
         return self._next_discrete_state_symbols
 
     @property
-    def previous_discrete_state_symbols(self):
-        return self._previous_discrete_state_symbols
-
-    @property
-    def known_parameters(self):
-        return self._known_parameters
-
-    @property
-    def current_unknown_discrete_specified_symbols(self):
-        return self._current_unknown_discrete_specified_symbols
-
-    @property
     def next_unknown_discrete_specified_symbols(self):
+        """
+        The symbols for the next unknown discrete specified inputs.
+        Type: tuple
+        """
         return self._next_unknown_discrete_specified_symbols
 
     @property
-    def known_input_trajectories(self):
-        return self._known_input_trajectories
+    def node_time_interval(self):
+        """
+        The time interval between collocation nodes. float if the interval is
+        fixed, ``sympy.Symbol`` if the interval is variable.
+        Type: float or sympy.Symbol
+        """
+        return self._node_time_interval
 
     @property
-    def num_known_input_trajectories(self):
-        return self._num_known_input_trajectories
+    def num_collocation_nodes(self):
+        """
+        Number of times spaced evenly between the initial and final time of
+        the optimization
+        Type: int
+        """
+        return self._num_collocation_nodes
 
     @property
-    def integration_method(self):
-        return self._integration_method
+    def num_constraints(self):
+        """
+        The number of constraints = (num_collection_nodes-1)*num_states +
+        len(instance_constraints).
+        Type: int
+        """
+        return self._num_constraints
 
     @property
-    def time_interval_symbol(self):
-        return self._time_interval_symbol
+    def num_free(self):
+        """
+        Number of variables to be optimized = n*N + q*N + r + s.
+        Type: int
+        """
+        return self._num_free
+
+    @property
+    def num_input_trajectories(self):
+        """
+        The number of input trajectories = len(input_trajectories).
+        Type: int
+        """
+        return self._num_input_trajectories
 
     @property
     def num_instance_constraints(self):
+        """
+        The number of instance constraints = len(instance_constraints).
+        Type: int
+        """
         return self._num_instance_constraints
 
     @property
-    def current_discrete_specified_symbols(self):
-        return self._current_discrete_specified_symbols
+    def num_known_input_trajectories(self):
+        """
+        The number of known trajectories = len(known_trajectory_symbols).
+        Type: int
+        """
+        return self._num_known_input_trajectories
+
+    @property
+    def num_parameters(self):
+        """
+        The number of parameters = len(parameters).
+        Type: int
+        """
+        return self._num_parameters
+
+    @property
+    def num_states(self):
+        """
+        The number of states = len(state_symbols) = n.
+        Type: int
+        """
+        return self._num_states
+
+    @property
+    def num_unknown_input_trajectories(self):
+        """
+        The number of unknown input trajectories =
+        len(unknown_input_trajectories).
+        Type: int
+        """
+        return self._num_unknown_input_trajectories
+
+    @property
+    def num_unknown_parameters(self):
+        """
+        The number of unknown parameters = r.
+        Type: int
+        """
+        return self._num_unknown_parameters
+
+    @property
+    def parameters(self):
+        """
+        known_parameters + unknown_parameters.
+        Type: tuple
+        """
+        return self._parameters
+
+    @property
+    def parallel(self):
+        """
+        Whether to use parallel processing or not.
+        Type: bool
+        """
+        return self._parallel
+
+    @property
+    def previous_discrete_state_symbols(self):
+        """
+        The symbols for the previous discrete states.
+        Type: n-tuple
+        """
+        return self._previous_discrete_state_symbols
+
+    @property
+    def show_compile_output(self):
+        """
+        Whether to show the compile output or not.
+        Type: bool
+        """
+        return self._show_compile_output
+
+    @property
+    def state_derivative_symbols(self):
+        """
+        symbols for the time derivatives of the states.
+        Type: n-tuple
+        """
+        return self._state_derivative_symbols
+
+    @property
+    def state_symbols(self):
+        """
+        The symbols for the states.
+        Type: n-tuple
+        """
+        return self._state_symbols
+
+    @property
+    def time_interval_symbol(self):
+        """
+        sympy.Symbol if the time interval is variable, float if the time
+        interval is fixed.
+        Type: sympy.Symbol or float
+        """
+        return self._time_interval_symbol
+
+    @property
+    def time_symbol(self):
+        """
+        The symbol used to represent time, usually `t`.
+        Type: sympy.Symbol
+        """
+        return self._time_symbol
+
+    @property
+    def tmp_dir(self):
+        """
+        The temporary directory used to store files generated.
+        Type: str
+        """
+        return self._tmp_dir
+
+    @property
+    def unknown_input_trajectories(self):
+        """
+        The unknown input trajectories symbols.
+        Type: q-tuple
+        """
+        return self._unknown_input_trajectories
+
+    @property
+    def unknown_parameters(self):
+        """
+        The unknown parameters in the problem, in the sequence in which they
+        appear in the solution of the optimization.
+        Type: r-tuple
+        """
+        return self._unknown_parameters
 
     @integration_method.setter
     def integration_method(self, method):
