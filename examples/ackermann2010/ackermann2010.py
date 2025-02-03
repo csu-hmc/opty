@@ -15,10 +15,11 @@ from pygait2d.segment import time_symbol
 from opty import Problem, parse_free
 from opty.utils import f_minus_ma
 
-speed = 0.5  # m/s
-num_nodes = 40
+speed = 0.8  # m/s
+num_nodes = 60
 h = sm.symbols('h', real=True, positive=True)
 duration = (num_nodes - 1)*h
+delt = sm.Function('delt', real=True)(time_symbol)
 
 symbolics = derive.derive_equations_of_motion()
 
@@ -35,16 +36,21 @@ num_states = len(states)
 
 eom = f_minus_ma(mass_matrix, forcing_vector, coordinates + speeds)
 
+# We need to have :math:`t_f - t_0` available to compute the average speed in
+# the instance constraint, so add an extra differential equation that is the
+# time derivative of the the difference in time.
+#
+# ..math::
+#
+#   \Delta_t(t) = \int_{t_0}^{t} d\tau
+#
+eom = eom.col_join(sm.Matrix([delt.diff(time_symbol) - 1]))
+
 # right: b, c, d
 # left: e, f, g
 qax, qay, qa, qb, qc, qd, qe, qf, qg = coordinates
 uax, uay, ua, ub, uc, ud, ue, uf, ug = speeds
 Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = specified
-
-delt = sm.Function('delt', real=True)(time_symbol)
-speed_con_eoms = sm.Matrix([
-    delt.diff(time_symbol) - 1,
-])
 
 par_map = simulate.load_constants(constants, 'example_constants.yml')
 
@@ -86,22 +92,29 @@ instance_constraints = (
     qax(duration) - speed*delt.func(duration),
     delt.func(0*h) - 0.0,
     qay(0*h) - qay(duration),
+
     qa(0*h) - qa(duration),
-    qb(0*h) + qb(duration),
-    qc(0*h) + qc(duration),
-    qd(0*h) + qd(duration),
-    qe(0*h) + qe(duration),
-    qf(0*h) + qf(duration),
-    qg(0*h) + qg(duration),
+
+    qb(0*h) - qe(duration),
+    qc(0*h) - qf(duration),
+    qd(0*h) - qg(duration),
+
+    qe(0*h) - qb(duration),
+    qf(0*h) - qc(duration),
+    qg(0*h) - qd(duration),
+
     uax(0*h) - uax(duration),
     uay(0*h) - uay(duration),
+
     ua(0*h) - ua(duration),
-    ub(0*h) + ub(duration),
-    uc(0*h) + uc(duration),
-    ud(0*h) + ud(duration),
-    ue(0*h) + ue(duration),
-    uf(0*h) + uf(duration),
-    ug(0*h) + ug(duration),
+
+    ub(0*h) - ue(duration),
+    uc(0*h) - uf(duration),
+    ud(0*h) - ug(duration),
+
+    ue(0*h) - ub(duration),
+    uf(0*h) - uc(duration),
+    ug(0*h) - ud(duration),
 )
 
 # Specify the objective function and it's gradient.
@@ -123,7 +136,7 @@ def obj_grad(free):
 prob = Problem(
     obj,
     obj_grad,
-    eom.col_join(speed_con_eoms),
+    eom,
     states + [delt],
     num_nodes,
     h,
@@ -137,17 +150,19 @@ prob = Problem(
 
 # Use a random positive initial guess.
 initial_guess = prob.lower_bound + (prob.upper_bound - prob.lower_bound)*np.random.random_sample(prob.num_free)
-initial_guess = -0.01*np.ones(prob.num_free)
-#initial_guess = np.zeros(prob.num_free)
+#initial_guess = -0.01*np.ones(prob.num_free)
+initial_guess = np.zeros(prob.num_free)
+initial_guess = np.load(f'solution-{num_nodes}-nodes.npz')['solution']
 
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
 
 # TODO : ps is empy, not sure why
-state_vals, rs, ps, h_val = parse_free(solution, num_states, len(specified) -
-                                       len(traj_map), num_nodes,
-                                       variable_duration=True)
-np.savez('solution', solution=solution, x=state_vals, h=h_val, n=num_nodes)
+state_vals, rs, ps, h_val = parse_free(
+    solution, num_states + 1, len(specified) - len(traj_map), num_nodes,
+    variable_duration=True)
+np.savez(f'solution-{num_nodes}-nodes', solution=solution, x=state_vals,
+         h=h_val, n=num_nodes)
 
 
 def animate():
@@ -161,6 +176,7 @@ def animate():
     fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
 
     scene = Scene3D(ground, origin, ax=ax, scale=1.0)
+    #scene = Scene3D(ground, trunk.mass_center, ax=ax, scale=1.0)
 
     scene.add_line([
         rshank.joint,
@@ -206,12 +222,15 @@ def animate():
     times = np.linspace(0.0, h_val*num_nodes, num=num_nodes)
 
     slow_factor = 3  # int
-    ani = scene.animate(lambda i: np.hstack((state_vals[:9, i],
-                                             state_vals[9:18, i],
+    right = state_vals[:9, :]
+    left = right.copy()
+    left[0, :] += right[0, -1]
+    ani = scene.animate(lambda i: np.hstack((right[:, i] if i < num_nodes else left[:, i - num_nodes],
+                                             state_vals[9:18, 0],
                                              np.zeros(3),
-                                             rs[:, i],
+                                             rs[:, 0],
                                              np.array(list(par_map.values())))),
-                        frames=len(times)) #, interval=slow_factor/FPS*1000)
+                        frames=2*len(times))  #, interval=slow_factor/FPS*1000)
     ani.save("animation.gif") #, fps=FPS//slow_factor)
 
     return ani
