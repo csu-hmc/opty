@@ -725,6 +725,8 @@ class ConstraintCollocator(object):
         The known trajectory symbols.
     next_known_discrete_specified_symbols : tuple
         The symbols for the next discrete specified inputs.
+    next_discrete_specified_symbols : tuple
+        The symbols for the next discrete specified inputs.
     next_discrete_state_symbols : n-tuple
         The symbols for the next discrete states.
     next_unknown_discrete_specified_symbols : tuple
@@ -1050,6 +1052,14 @@ class ConstraintCollocator(object):
         Type: tuple
         """
         return self._next_known_discrete_specified_symbols
+
+    @property
+    def next_discrete_specified_symbols(self):
+        """
+        The symbols for the next discrete specified inputs.
+        Type: tuple
+        """
+        return self._next_discrete_specified_symbols
 
     @property
     def next_discrete_state_symbols(self):
@@ -1428,7 +1438,7 @@ class ConstraintCollocator(object):
         self._current_discrete_specified_symbols = (
             self._current_known_discrete_specified_symbols +
             self._current_unknown_discrete_specified_symbols)
-        self.next_discrete_specified_symbols = (
+        self._next_discrete_specified_symbols = (
             self._next_known_discrete_specified_symbols +
             self._next_unknown_discrete_specified_symbols)
 
@@ -1451,7 +1461,7 @@ class ConstraintCollocator(object):
         xi = self._current_discrete_state_symbols
         xn = self._next_discrete_state_symbols
         ui = self._current_discrete_specified_symbols
-        un = self.next_discrete_specified_symbols
+        un = self._next_discrete_specified_symbols
 
         h = self._time_interval_symbol
 
@@ -1622,7 +1632,7 @@ class ConstraintCollocator(object):
         xp_syms = self._previous_discrete_state_symbols
         xn_syms = self._next_discrete_state_symbols
         si_syms = self._current_discrete_specified_symbols
-        sn_syms = self.next_discrete_specified_symbols
+        sn_syms = self._next_discrete_specified_symbols
         h_sym = self._time_interval_symbol
         constant_syms = self._known_parameters + self._unknown_parameters
 
@@ -1951,7 +1961,7 @@ class ConstraintCollocator(object):
         xp_syms = self._previous_discrete_state_symbols
         xn_syms = self._next_discrete_state_symbols
         si_syms = self._current_discrete_specified_symbols
-        sn_syms = self.next_discrete_specified_symbols
+        sn_syms = self._next_discrete_specified_symbols
         ui_syms = self._current_unknown_discrete_specified_symbols
         un_syms = self._next_unknown_discrete_specified_symbols
         h_sym = self._time_interval_symbol
