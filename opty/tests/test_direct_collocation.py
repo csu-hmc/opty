@@ -164,7 +164,7 @@ class TestConstraintCollocator():
         assert self.collocator._known_parameters == (m, c)
         assert self.collocator._num_known_parameters == 2
 
-        assert self.collocator._unknown_iparameters == (k,)
+        assert self.collocator._unknown_parameters == (k,)
         assert self.collocator._num_unknown_parameters == 1
 
     def test_sort_trajectories(self):
@@ -509,7 +509,7 @@ class TestConstraintCollocatorUnknownTrajectories():
         assert self.collocator._known_parameters == (m,)
         assert self.collocator._num_known_parameters == 1
 
-        assert self.collocator._unknown_iparameters == (c,)
+        assert self.collocator._unknown_parameters == (c,)
         assert self.collocator._num_unknown_parameters == 1
 
     def test_sort_trajectories(self):
@@ -889,7 +889,7 @@ class TestConstraintCollocatorInstanceConstraints():
         assert self.collocator._known_parameters == self.constant_symbols
         assert self.collocator._num_known_parameters == 4
 
-        assert self.collocator._unknown_iparameters == tuple()
+        assert self.collocator._unknown_parameters == tuple()
         assert self.collocator._num_unknown_parameters == 0
 
     def test_sort_trajectories(self):
@@ -937,7 +937,7 @@ class TestConstraintCollocatorInstanceConstraints():
 
         expected = set((theta(0.0), theta(0.03), omega(0.0), omega(0.03)))
 
-        assert self.collocator._instance_constraint_function_atoms == expected
+        assert self.collocator.instance_constraint_function_atoms == expected
 
     def test_find_free_index(self):
 
@@ -1204,7 +1204,7 @@ class TestConstraintCollocatorVariableDuration():
         assert self.collocator._known_parameters == self.constant_symbols
         assert self.collocator._num_known_parameters == 3
 
-        assert self.collocator._unknown_iparameters == tuple()
+        assert self.collocator._unknown_parameters == tuple()
         assert self.collocator._num_unknown_parameters == 0
 
     def test_sort_trajectories(self):
@@ -1257,7 +1257,7 @@ class TestConstraintCollocatorVariableDuration():
                         omega(0*self.interval_symbol),
                         omega((self._num_nodes - 1)*self.interval_symbol)))
 
-        assert self.collocator._instance_constraint_function_atoms == expected
+        assert self.collocator.instance_constraint_function_atoms == expected
 
     def test_find_free_index(self):
 
