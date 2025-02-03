@@ -3,7 +3,7 @@ Bogert 2010.
 
 pygait2d and its dependencies must be installed first to run this example::
 
-    conda install sympy pydy pyyaml cython pip setuptools symmeplot
+    conda install cython pip pydy pyyaml setuptools symmeplot sympy
     python -m pip install --no-deps --no-build-isolation git+https://github.com/csu-hmc/gait2d
 
 """
@@ -15,8 +15,8 @@ from pygait2d.segment import time_symbol
 from opty import Problem, parse_free
 from opty.utils import f_minus_ma
 
-distance = 3.0  # m
-num_nodes = 60
+speed = 0.5  # m/s
+num_nodes = 40
 h = sm.symbols('h', real=True, positive=True)
 duration = (num_nodes - 1)*h
 
@@ -41,6 +41,11 @@ qax, qay, qa, qb, qc, qd, qe, qf, qg = coordinates
 uax, uay, ua, ub, uc, ud, ue, uf, ug = speeds
 Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = specified
 
+delt = sm.Function('delt', real=True)(time_symbol)
+speed_con_eoms = sm.Matrix([
+    delt.diff(time_symbol) - 1,
+])
+
 par_map = simulate.load_constants(constants, 'example_constants.yml')
 
 # Hand of god is nothing.
@@ -52,6 +57,7 @@ traj_map = {
 
 bounds = {
     h: (0.001, 0.1),
+    delt: (0.0, 10.0),
     qax: (0.0, 10.0),
     qay: (0.5, 1.5),
     qa: (-np.pi/3.0, np.pi/3.0),  # +/- 60 deg
@@ -71,51 +77,32 @@ bounds.update({k: (-1200.0, 1200.0) for k in [Tb, Tc, Td, Te, Tf, Tg]})
 # conditions.
 uneval_states = [s.__class__ for s in states]
 (qax, qay, qa, qb, qc, qd, qe, qf, qg, uax, uay, ua, ub, uc, ud, ue, uf, ug) = uneval_states
+# TODO : could do qax.func(0.0) instead
 
 instance_constraints = (
-    # start at standstill
-    qax(0*h),
-    qay(0*h) - 0.953,
-    qa(0*h) - 0.0,
-    qb(0*h) - 0.0,
-    qc(0*h) - 0.0,
-    qd(0*h) - 0.0,
-    qe(0*h) - 0.0,
-    qf(0*h) - 0.0,
-    qg(0*h) - 0.0,
-    uax(0*h) - 0.0,
-    uay(0*h) - 0.0,
-    ua(0*h) - 0.0,
-    ub(0*h) - 0.0,
-    uc(0*h) - 0.0,
-    ud(0*h) - 0.0,
-    ue(0*h) - 0.0,
-    uf(0*h) - 0.0,
-    ug(0*h) - 0.0,
-    # after distance traveled, back at standstill
-    qax(duration) - distance,
-    qay(duration) - 0.953,
-    qa(duration) - 0.0,
-    qb(duration) - 0.0,
-    qc(duration) - 0.0,
-    qd(duration) - 0.0,
-    qe(duration) - 0.0,
-    qf(duration) - 0.0,
-    qg(duration) - 0.0,
-    uax(duration) - 0.0,
-    uay(duration) - 0.0,
-    ua(duration) - 0.0,
-    ub(duration) - 0.0,
-    uc(duration) - 0.0,
-    ud(duration) - 0.0,
-    ue(duration) - 0.0,
-    uf(duration) - 0.0,
-    ug(duration) - 0.0,
-    # TODO : need support for including h outside of a (make opty issue)
-    # Function argument.
-    #qax(duration) - speed * duration,
+    qax(0*h) - 0.0,
+    #qay(0*h) - 0.953,
+    # average walking speed
+    qax(duration) - speed*delt.func(duration),
+    delt.func(0*h) - 0.0,
+    qay(0*h) - qay(duration),
+    qa(0*h) - qa(duration),
+    qb(0*h) + qb(duration),
+    qc(0*h) + qc(duration),
+    qd(0*h) + qd(duration),
+    qe(0*h) + qe(duration),
+    qf(0*h) + qf(duration),
+    qg(0*h) + qg(duration),
+    uax(0*h) - uax(duration),
+    uay(0*h) - uay(duration),
+    ua(0*h) - ua(duration),
+    ub(0*h) + ub(duration),
+    uc(0*h) + uc(duration),
+    ud(0*h) + ud(duration),
+    ue(0*h) + ue(duration),
+    uf(0*h) + uf(duration),
+    ug(0*h) + ug(duration),
 )
-
 
 # Specify the objective function and it's gradient.
 def obj(free):
@@ -133,13 +120,20 @@ def obj_grad(free):
 
 
 # Create an optimization problem.
-prob = Problem(obj, obj_grad, eom, states, num_nodes, h,
-               known_parameter_map=par_map,
-               known_trajectory_map=traj_map,
-               instance_constraints=instance_constraints,
-               bounds=bounds,
-               time_symbol=time_symbol,
-               parallel=True)
+prob = Problem(
+    obj,
+    obj_grad,
+    eom.col_join(speed_con_eoms),
+    states + [delt],
+    num_nodes,
+    h,
+    known_parameter_map=par_map,
+    known_trajectory_map=traj_map,
+    instance_constraints=instance_constraints,
+    bounds=bounds,
+    time_symbol=time_symbol,
+    parallel=True,
+)
 
 # Use a random positive initial guess.
 initial_guess = prob.lower_bound + (prob.upper_bound - prob.lower_bound)*np.random.random_sample(prob.num_free)
@@ -192,7 +186,11 @@ def animate():
     #scene.add_vector(A.x, nd, color="black")
 
     scene.lambdify_system(coordinates + speeds + specified + constants)
-    scene.evaluate_system(*np.hstack((state_vals[:9, 0], state_vals[9:, 0], np.zeros(3), rs[:, 0], np.array(list(par_map.values())))))
+    scene.evaluate_system(*np.hstack((state_vals[:9, 0],
+                                      state_vals[9:18, 0],
+                                      np.zeros(3),
+                                      rs[:, 0],
+                                      np.array(list(par_map.values())))))
 
     # this is only in dev version of symmeplot
     #scene.as_orthogonal_projection_plot()
@@ -200,7 +198,7 @@ def animate():
     scene.axes.view_init(90, -90, 0)
     scene.plot()
 
-    ax.set_xlim((-0.5, distance + 0.5))
+    ax.set_xlim((-0.5, state_vals[0].max() + 0.5))
     ax.set_aspect('equal')
     #ax.set_ylim((-1.0, 1.0))
     #ax.set_zlim((1.0, -1.0))
@@ -209,7 +207,7 @@ def animate():
 
     slow_factor = 3  # int
     ani = scene.animate(lambda i: np.hstack((state_vals[:9, i],
-                                             state_vals[9:, i],
+                                             state_vals[9:18, i],
                                              np.zeros(3),
                                              rs[:, i],
                                              np.array(list(par_map.values())))),
