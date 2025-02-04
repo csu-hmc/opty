@@ -238,13 +238,13 @@ def animate():
         scene.add_body(seg.rigid_body)
 
     scene.add_vector(contact_force(rfoot.toe, ground, origin)/600.0, rfoot.toe,
-                     color="tab:green")
+                     color="tab:blue")
     scene.add_vector(contact_force(rfoot.heel, ground, origin)/600.0,
-                     rfoot.heel, color="tab:green")
+                     rfoot.heel, color="tab:blue")
     scene.add_vector(contact_force(lfoot.toe, ground, origin)/600.0, lfoot.toe,
-                     color="tab:green")
+                     color="tab:blue")
     scene.add_vector(contact_force(lfoot.heel, ground, origin)/600.0,
-                     lfoot.heel, color="tab:green")
+                     lfoot.heel, color="tab:blue")
 
     scene.lambdify_system(coordinates + speeds + specified + constants)
     scene.evaluate_system(*np.hstack((state_vals[:9, 0],
