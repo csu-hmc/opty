@@ -24,8 +24,8 @@ over half a period.
    https://doi.org/10.1016/j.jbiomech.2009.12.012
 
 """
-
-from opty import Problem, parse_free
+import os
+from opty import Problem
 from opty.utils import f_minus_ma
 from pygait2d import derive, simulate
 from pygait2d.segment import time_symbol, contact_force
@@ -37,7 +37,7 @@ import sympy as sm
 # %%
 # Pick an average ambulation speed and the number of discretization nodes for
 # the half period.
-speed = 1.4  # m/s
+speed = 0.8  # m/s
 num_nodes = 60
 h = sm.symbols('h', real=True, positive=True)
 duration = (num_nodes - 1)*h
@@ -114,7 +114,7 @@ bounds.update({k: (-np.deg2rad(60.0), 0.0) for k in [qc, qf]})
 bounds.update({k: (-np.deg2rad(30.0), np.deg2rad(30.0)) for k in [qd, qg]})
 bounds.update({k: (-np.deg2rad(400.0), np.deg2rad(400.0))
                for k in [ua, ub, uc, ud, ue, uf, ug]})
-bounds.update({k: (-120.0, 120.0) for k in [Tb, Tc, Td, Te, Tf, Tg]})
+bounds.update({k: (-1200.0, 1200.0) for k in [Tb, Tc, Td, Te, Tf, Tg]})
 
 # %%
 # The average speed can be fixed by constraining the total distance traveled.
@@ -182,23 +182,28 @@ prob = Problem(
 )
 
 # Use a random positive initial guess.
-#initial_guess = prob.lower_bound + (prob.upper_bound - prob.lower_bound)*np.random.random_sample(prob.num_free)
-#initial_guess = -0.01*np.ones(prob.num_free)
-initial_guess = np.zeros(prob.num_free)
-#initial_guess = np.load(f'solution-{num_nodes}-nodes.npz')['solution']
+fname = f'solution-{num_nodes}-nodes.npz'
+if os.path.exists(fname):
+    initial_guess = np.load(fname)['solution']
+else:
+    #initial_guess = prob.lower_bound + (prob.upper_bound -
+        #prob.lower_bound)*np.random.random_sample(prob.num_free)
+    #initial_guess = -0.01*np.ones(prob.num_free)
+    initial_guess = np.zeros(prob.num_free)
 
+# %%
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
 
-state_vals, rs, _, h_val = parse_free(
-    solution, num_states + 1, len(specified) - len(traj_map), num_nodes,
-    variable_duration=True)
-np.savez(f'solution-{num_nodes}-nodes', solution=solution, x=state_vals,
-         h=h_val, n=num_nodes)
+state_vals, rs, _, h_val = prob.parse_free(solution)
+    #solution, num_states + 1, len(specified) - len(traj_map), num_nodes,
+    #variable_duration=True)
+if info['status'] in (0, 1):
+    np.savez(f'solution-{num_nodes}-nodes', solution=solution, x=state_vals,
+             h=h_val, n=num_nodes)
 
 
 def animate():
-
 
     ground, origin, segments = symbolics[8], symbolics[9], symbolics[10]
     trunk, rthigh, rshank, rfoot, lthigh, lshank, lfoot = segments
@@ -232,7 +237,6 @@ def animate():
     for seg in segments:
         scene.add_body(seg.rigid_body)
 
-    # TODO : Add ground reaction force vectors
     scene.add_vector(contact_force(rfoot.toe, ground, origin)/600.0, rfoot.toe,
                      color="tab:green")
     scene.add_vector(contact_force(rfoot.heel, ground, origin)/600.0,
@@ -257,7 +261,8 @@ def animate():
     ax.set_xlim((-1.0, 1.0))
     ax.set_aspect('equal')
 
-    times = np.linspace(0.0, h_val*num_nodes, num=num_nodes)
+    #times = np.linspace(0.0, h_val*num_nodes, num=num_nodes)
+    times = np.arange(0.0, dur + h_val, h_val)
 
     slow_factor = 3  # int
     right = state_vals[:9, :]
