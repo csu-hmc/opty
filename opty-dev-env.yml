@@ -19,6 +19,7 @@ dependencies:
   # docs/examples
   - numpydoc
   - pip <24
+  - pydy
   - scipy >=1.5.0
   - sphinx
   - sphinx-gallery
