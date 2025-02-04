@@ -3,7 +3,7 @@ Human Gait
 ==========
 
 This example replicates a similar solution as shown in [Ackermann2010]_ using
-joint torques as inputs instead of muscle activations[1]_.
+joint torques as inputs instead of muscle activations [1]_.
 
 pygait2d and symmeplot and their dependencies must be installed first to run
 this example. Note that pygait2d has not been released to PyPi or Conda Forge::
@@ -246,15 +246,18 @@ def animate():
     ], color="k")
 
     # creates a moving ground
-    scene.add_line([
-        hip_proj.locatenew('gl', -0.8*ground.x),
-        hip_proj.locatenew('gr', 0.8*ground.x),
-    ], linestyle='--', color='tab:green')
+    #scene.add_line([
+        #hip_proj.locatenew('gl', -0.8*ground.x),
+        #hip_proj.locatenew('gr', 0.8*ground.x),
+    #], linestyle='--', color='tab:green')
     # TODO : the ground line displays outside the xlim
     #scene.add_line([
         #origin.locatenew('gl', -0.8*ground.x),
         #origin.locatenew('gr', 0.8*ground.x),
     #], linestyle='--')
+    scene.add_line([origin.locatenew('gl', s*ground.x)
+                    for s in np.linspace(-2.0, 2.0)],
+                   linestyle='--', color='tab:green', axlim_clip=True)
 
     # adds CoM and unit vectors for each body segment
     for seg in segments:
@@ -304,6 +307,43 @@ def animate():
 animation = animate()
 animation
 
+# %%
+# Now see what the solution looks like in the Moon's gravitational field.
+g = constants[0]
+
+# %%
+par_map[g] = 1.625  # m/s**2
+par_map
+
+# %%
+# Create an optimization problem and solve it.
+prob = Problem(
+    obj,
+    obj_grad,
+    eom,
+    states,
+    num_nodes,
+    h,
+    known_parameter_map=par_map,
+    known_trajectory_map=traj_map,
+    instance_constraints=instance_constraints,
+    bounds=bounds,
+    time_symbol=time_symbol,
+    parallel=True,
+)
+
+fname = f'human_gait_{num_nodes}_nodes_solution.npz'
+initial_guess = np.load(fname)['solution']
+
+# %%
+# Find the optimal solution and save it if it converges.
+solution, info = prob.solve(initial_guess)
+
+state_vals, rs, _, h_val = prob.parse_free(solution)
+times = np.arange(0.0, num_nodes*h_val, h_val)
+
+animation = animate()
+animation
 
 plt.show()
 
@@ -319,7 +359,7 @@ plt.show()
 # Footnotes
 # ---------
 #
-# .. [1] The 2010 Ackermman and van den Bogert solution was the original target
+# .. [1] The 2010 Ackermann and van den Bogert solution was the original target
 #    problem opty was written to solve, with an aim to extend it to parameter
 #    identification of closed loop control walking. For various reasons, this
 #    example was not added until 2025, 10 years after the example was first
