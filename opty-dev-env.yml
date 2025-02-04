@@ -19,7 +19,8 @@ dependencies:
   # docs/examples
   - numpydoc
   - pip <24
-  - pydy
+  - pydy  # gait2d
+  - pyyaml  # gait2d
   - scipy >=1.5.0
   - sphinx
   - sphinx-gallery

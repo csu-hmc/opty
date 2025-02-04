@@ -1,11 +1,12 @@
-"""
+r"""
 Human Gait
 ==========
 
 This example replicates a similar solution as shown in [Ackermann2010]_ using
-joint torques as inputs instead of muscle activations.
+joint torques as inputs instead of muscle activations[1]_.
 
-pygait2d and its dependencies must be installed first to run this example::
+pygait2d and symmeplot and their dependencies must be installed first to run
+this example. Note that pygait2d has not been released to PyPi or Conda Forge::
 
     conda install cython pip pydy pyyaml setuptools symmeplot sympy
     python -m pip install --no-deps --no-build-isolation git+https://github.com/csu-hmc/gait2d
@@ -18,13 +19,19 @@ The optimal control goal is to find the joint torques (hip, knee, ankle) that
 generate a minimal mean-torque periodic motion to ambulate at an average speed
 over half a period.
 
-.. [Ackermann2010] Ackermann, M., & van den Bogert, A. J. (2010). Optimality
-   principles for model-based prediction of human gait. Journal of
-   Biomechanics, 43(6), 1055–1060.
-   https://doi.org/10.1016/j.jbiomech.2009.12.012
+This example highlights two points of interest that other examples may not
+have:
+
+- instance constraints are used to make the start state (almost) the same as
+  the end state, for example :math:`q_b(t_0) = q_e(t_f)`.
+- the average speed is constrained in this variable time step solution by
+  introducing an additional differential equation that, when integrated, gives
+  the duration at :math:`t_i`, which can be used to calculate distance traveled
+  with :math:`q_{ax}(t_f) = v_\textrm{avg} (t_f - t_0)` and used as a constraint.
 
 """
 import os
+import pprint
 from opty import Problem
 from opty.utils import f_minus_ma
 from pygait2d import derive, simulate
@@ -36,7 +43,7 @@ import sympy as sm
 
 # %%
 # Pick an average ambulation speed and the number of discretization nodes for
-# the half period.
+# the half period and define the time step as a variable :math:`h`.
 speed = 0.8  # m/s
 num_nodes = 40
 h = sm.symbols('h', real=True, positive=True)
@@ -51,10 +58,7 @@ forcing_vector = symbolics[1]
 constants = symbolics[3]
 coordinates = symbolics[4]
 speeds = symbolics[5]
-states = coordinates + speeds
 specified = symbolics[6]
-
-num_states = len(states)
 
 eom = f_minus_ma(mass_matrix, forcing_vector, coordinates + speeds)
 
@@ -63,12 +67,15 @@ eom = f_minus_ma(mass_matrix, forcing_vector, coordinates + speeds)
 # the instance constraint, so add an extra differential equation that is the
 # time derivative of the difference in time.
 #
-# ..math::
+# .. math::
 #
-#   \Delta_t(t) = \int_{t_0}^{t} d\tau
+#    \Delta_t(t) = \int_{t_0}^{t} d\tau
 #
 delt = sm.Function('delt', real=True)(time_symbol)
 eom = eom.col_join(sm.Matrix([delt.diff(time_symbol) - 1]))
+
+states = coordinates + speeds + [delt]
+num_states = len(states)
 
 # %%
 # The generalized coordinates are the hip lateral position (qax) and veritcal
@@ -86,6 +93,7 @@ Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = specified
 # The constants are loaded from a file of reasonably realistic geometry, mass,
 # inertia, and foot deformation properties of an adult human.
 par_map = simulate.load_constants(constants, 'human-gait-constants.yml')
+pprint.pprint(par_map)
 
 # %%
 # gait2d provides "hand of god" inputs to manipulate the trunk for some
@@ -97,13 +105,18 @@ traj_map = {
 }
 
 # %%
+# Bound all the states to human realizable ranges.
 #
+# - The trunk should stay generally upright and be at a possible walking
+#   height.
+# - Only let the hip, knee, and ankle flex and extend to realistic limits.
+# - Put a maximum on the peak torque values.
 bounds = {
     h: (0.001, 0.1),
     delt: (0.0, 10.0),
     qax: (0.0, 10.0),
     qay: (0.5, 1.5),
-    qa: (-np.pi/3.0, np.pi/3.0),  # +/- 60 deg
+    qa: np.deg2rad((-60.0, 60.0)),
     uax: (0.0, 10.0),
     uay: (-10.0, 10.0),
 }
@@ -113,8 +126,10 @@ bounds.update({k: (-np.deg2rad(40.0), np.deg2rad(40.0)) for k in [qb, qe]})
 bounds.update({k: (-np.deg2rad(60.0), 0.0) for k in [qc, qf]})
 # foot
 bounds.update({k: (-np.deg2rad(30.0), np.deg2rad(30.0)) for k in [qd, qg]})
+# all rotational speeds
 bounds.update({k: (-np.deg2rad(400.0), np.deg2rad(400.0))
                for k in [ua, ub, uc, ud, ue, uf, ug]})
+# all joint torques
 bounds.update({k: (-100.0, 100.0) for k in [Tb, Tc, Td, Te, Tf, Tg]})
 
 # %%
@@ -151,8 +166,6 @@ instance_constraints = (
 # The objective is to minimize the mean of all joint torques.
 def obj(free):
     """Minimize the sum of the squares of the control torques."""
-    # TODO : there are only 6 joint torques but this is pulling more than that,
-    # needs correction, could use parse free.
     T, h = free[num_states*num_nodes:-1], free[-1]
     return h*np.sum(T**2)
 
@@ -171,7 +184,7 @@ prob = Problem(
     obj,
     obj_grad,
     eom,
-    states + [delt],  # add delt as a state
+    states,
     num_nodes,
     h,
     known_parameter_map=par_map,
@@ -212,8 +225,8 @@ def animate():
 
     fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
 
-    scene = Scene3D(ground, origin.locatenew('m', qax*ground.x), ax=ax,
-                    scale=1.0)
+    hip_proj = origin.locatenew('m', qax*ground.x)
+    scene = Scene3D(ground, hip_proj, ax=ax)
 
     # creates the stick person
     scene.add_line([
@@ -231,15 +244,24 @@ def animate():
         lfoot.toe,
         lshank.joint,
     ], color="k")
-    scene.add_line([
-        origin.locatenew('m', -0.8*ground.x),
-        origin.locatenew('m', 2*0.8*ground.x),
-    ], linestyle='--')
 
+    # creates a moving ground
+    scene.add_line([
+        hip_proj.locatenew('gl', -0.8*ground.x),
+        hip_proj.locatenew('gr', 0.8*ground.x),
+    ], linestyle='--', color='tab:green')
+    # TODO : the ground line displays outside the xlim
+    #scene.add_line([
+        #origin.locatenew('gl', -0.8*ground.x),
+        #origin.locatenew('gr', 0.8*ground.x),
+    #], linestyle='--')
+
+    # adds CoM and unit vectors for each body segment
     for seg in segments:
         scene.add_body(seg.rigid_body)
 
-    # show ground reaction force vectors at the heels and toes
+    # show ground reaction force vectors at the heels and toes, scaled to
+    # visually reasonable length
     scene.add_vector(contact_force(rfoot.toe, ground, origin)/600.0, rfoot.toe,
                      color="tab:blue")
     scene.add_vector(contact_force(rfoot.heel, ground, origin)/600.0,
@@ -260,7 +282,6 @@ def animate():
     scene.axes.view_init(90, -90, 0)
     scene.plot()
 
-    # TODO : the ground line displays outside the xlim, not sure why.
     ax.set_xlim((-0.8, 0.8))
     ax.set_ylim((-0.2, 1.4))
     ax.set_aspect('equal')
@@ -285,3 +306,21 @@ animation
 
 
 plt.show()
+
+# %%
+# References
+# ----------
+#
+# .. [Ackermann2010] Ackermann, M., & van den Bogert, A. J. (2010). Optimality
+#    principles for model-based prediction of human gait. Journal of
+#    Biomechanics, 43(6), 1055–1060.
+#    https://doi.org/10.1016/j.jbiomech.2009.12.012
+#
+# Footnotes
+# ---------
+#
+# .. [1] The 2010 Ackermman and van den Bogert solution was the original target
+#    problem opty was written to solve, with an aim to extend it to parameter
+#    identification of closed loop control walking. For various reasons, this
+#    example was not added until 2025, 10 years after the example was first
+#    proposed.
