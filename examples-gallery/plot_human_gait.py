@@ -182,7 +182,7 @@ prob = Problem(
 )
 
 # Use a random positive initial guess.
-fname = f'solution-{num_nodes}-nodes.npz'
+fname = f'human-gait-{num_nodes}-nodes.npz'
 if os.path.exists(fname):
     initial_guess = np.load(fname)['solution']
 else:
@@ -198,7 +198,7 @@ solution, info = prob.solve(initial_guess)
 state_vals, rs, _, h_val = prob.parse_free(solution)
 times = np.arange(0.0, num_nodes*h_val, h_val)
 if info['status'] in (0, 1):
-    np.savez(f'solution-{num_nodes}-nodes', solution=solution, x=state_vals,
+    np.savez(f'human-gait-{num_nodes}-nodes', solution=solution, x=state_vals,
              h=h_val, n=num_nodes, times=times)
 
 
