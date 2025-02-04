@@ -84,7 +84,7 @@ Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = specified
 
 # The constants are loaded from a file of reasonably realistic geometry, mass,
 # inertia, and foot deformation properties of an adult human.
-par_map = simulate.load_constants(constants, 'example_constants.yml')
+par_map = simulate.load_constants(constants, 'human-gait-constants.yml')
 
 # %%
 # gait2d provides "hand of god" inputs to manipulate the trunk for some
@@ -182,7 +182,7 @@ prob = Problem(
 )
 
 # Use a random positive initial guess.
-fname = f'human-gait-{num_nodes}-nodes.npz'
+fname = f'human_gait_{num_nodes}_nodes_solution'
 if os.path.exists(fname):
     initial_guess = np.load(fname)['solution']
 else:
@@ -198,8 +198,8 @@ solution, info = prob.solve(initial_guess)
 state_vals, rs, _, h_val = prob.parse_free(solution)
 times = np.arange(0.0, num_nodes*h_val, h_val)
 if info['status'] in (0, 1):
-    np.savez(f'human-gait-{num_nodes}-nodes', solution=solution, x=state_vals,
-             h=h_val, n=num_nodes, times=times)
+    np.savez(f'human_gait_{num_nodes}_nodes_solution', solution=solution,
+             x=state_vals, h=h_val, n=num_nodes, times=times)
 
 
 # %%
@@ -233,7 +233,7 @@ def animate():
     scene.add_line([
         origin.locatenew('m', -0.8*ground.x),
         origin.locatenew('m', 2*0.8*ground.x),
-    ], linestyle='--')
+    ], linestyle='--', axlim_clip=True)
 
     for seg in segments:
         scene.add_body(seg.rigid_body)
