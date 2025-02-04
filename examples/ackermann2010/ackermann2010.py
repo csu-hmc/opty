@@ -114,7 +114,7 @@ bounds.update({k: (-np.deg2rad(60.0), 0.0) for k in [qc, qf]})
 bounds.update({k: (-np.deg2rad(30.0), np.deg2rad(30.0)) for k in [qd, qg]})
 bounds.update({k: (-np.deg2rad(400.0), np.deg2rad(400.0))
                for k in [ua, ub, uc, ud, ue, uf, ug]})
-bounds.update({k: (-1200.0, 1200.0) for k in [Tb, Tc, Td, Te, Tf, Tg]})
+bounds.update({k: (-100.0, 100.0) for k in [Tb, Tc, Td, Te, Tf, Tg]})
 
 # %%
 # The average speed can be fixed by constraining the total distance traveled.
@@ -192,17 +192,18 @@ else:
     initial_guess = np.zeros(prob.num_free)
 
 # %%
-# Find the optimal solution.
+# Find the optimal solution and save it if it converges.
 solution, info = prob.solve(initial_guess)
 
 state_vals, rs, _, h_val = prob.parse_free(solution)
-    #solution, num_states + 1, len(specified) - len(traj_map), num_nodes,
-    #variable_duration=True)
+times = np.arange(0.0, num_nodes*h_val, h_val)
 if info['status'] in (0, 1):
     np.savez(f'solution-{num_nodes}-nodes', solution=solution, x=state_vals,
-             h=h_val, n=num_nodes)
+             h=h_val, n=num_nodes, times=times)
 
 
+# %%
+# Use symmeplot to make an animation of the motion.
 def animate():
 
     ground, origin, segments = symbolics[8], symbolics[9], symbolics[10]
@@ -210,10 +211,10 @@ def animate():
 
     fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
 
-    #scene = Scene3D(ground, origin, ax=ax, scale=1.0)
     scene = Scene3D(ground, origin.locatenew('m', qax*ground.x), ax=ax,
                     scale=1.0)
 
+    # creates the stick person
     scene.add_line([
         rshank.joint,
         rfoot.toe,
@@ -229,14 +230,15 @@ def animate():
         lfoot.toe,
         lshank.joint,
     ], color="k")
-    #scene.add_line([
-        #origin.locatenew('m', -1*ground.x),
-        #origin.locatenew('m', 3*ground.x),
-    #], linestyle='--')
+    scene.add_line([
+        origin.locatenew('m', -0.8*ground.x),
+        origin.locatenew('m', 2*0.8*ground.x),
+    ], linestyle='--')
 
     for seg in segments:
         scene.add_body(seg.rigid_body)
 
+    # show ground reaction force vectors at the heels and toes
     scene.add_vector(contact_force(rfoot.toe, ground, origin)/600.0, rfoot.toe,
                      color="tab:blue")
     scene.add_vector(contact_force(rfoot.heel, ground, origin)/600.0,
@@ -257,23 +259,26 @@ def animate():
     scene.axes.view_init(90, -90, 0)
     scene.plot()
 
-    #ax.set_xlim((-0.5, state_vals[0].max() + 0.5))
-    ax.set_xlim((-1.0, 1.0))
+    # TODO : the ground line displays outside the xlim, not sure why.
+    ax.set_xlim((-0.8, 0.8))
+    ax.set_ylim((-0.2, 1.4))
     ax.set_aspect('equal')
 
-    #times = np.linspace(0.0, h_val*num_nodes, num=num_nodes)
-    times = np.arange(0.0, num_nodes*h_val, h_val)
-
-    slow_factor = 3  # int
     right = state_vals[:9, :]
     left = right.copy()
     left[0, :] += right[0, -1]
-    ani = scene.animate(lambda i: np.hstack((right[:, i] if i < num_nodes else left[:, i - num_nodes],
-                                             state_vals[9:18, 0],
-                                             np.zeros(3),
-                                             rs[:, 0],
-                                             np.array(list(par_map.values())))),
-                        frames=2*len(times))  #, interval=slow_factor/FPS*1000)
-    ani.save("animation.gif") #, fps=FPS//slow_factor)
+    ani = scene.animate(lambda i: np.hstack((
+        right[:, i] if i < num_nodes else left[:, i - num_nodes],
+        state_vals[9:18, 0],
+        np.zeros(3),
+        rs[:, 0],
+        np.array(list(par_map.values())))),
+        frames=2*len(times), interval=h_val*1000)
+    ani.save("animation.gif", fps=int(1/h_val))
 
     return ani
+
+
+animate()
+
+plt.show()
