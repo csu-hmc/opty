@@ -58,6 +58,7 @@ num_states = len(states)
 
 eom = f_minus_ma(mass_matrix, forcing_vector, coordinates + speeds)
 
+# %%
 # We need to have :math:`t_f - t_0` available to compute the average speed in
 # the instance constraint, so add an extra differential equation that is the
 # time derivative of the difference in time.
@@ -182,7 +183,7 @@ prob = Problem(
 )
 
 # Use a random positive initial guess.
-fname = f'human_gait_{num_nodes}_nodes_solution'
+fname = f'human_gait_{num_nodes}_nodes_solution.npz'
 if os.path.exists(fname):
     initial_guess = np.load(fname)['solution']
 else:
@@ -233,7 +234,7 @@ def animate():
     scene.add_line([
         origin.locatenew('m', -0.8*ground.x),
         origin.locatenew('m', 2*0.8*ground.x),
-    ], linestyle='--', axlim_clip=True)
+    ], linestyle='--')
 
     for seg in segments:
         scene.add_body(seg.rigid_body)
@@ -279,6 +280,8 @@ def animate():
     return ani
 
 
-animate()
+animation = animate()
+animation
+
 
 plt.show()
