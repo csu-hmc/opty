@@ -18,9 +18,10 @@ dependencies:
   - pytest-cov
   # docs/examples
   - numpydoc
-  - pip:
-    - git+https://github.com/csu-hmc/gait2d
+  - pip <24
   - scipy >=1.5.0
   - sphinx
   - sphinx-gallery
   - symmeplot
+  - pip:
+    - -e git+https://github.com/csu-hmc/gait2d#egg=gait2d
