@@ -218,7 +218,7 @@ if info['status'] in (0, 1):
 
 # %%
 # Use symmeplot to make an animation of the motion.
-def animate():
+def animate(fname='animation.gif'):
 
     ground, origin, segments = symbolics[8], symbolics[9], symbolics[10]
     trunk, rthigh, rshank, rfoot, lthigh, lshank, lfoot = segments
@@ -299,12 +299,12 @@ def animate():
         rs[:, 0],
         np.array(list(par_map.values())))),
         frames=2*len(times), interval=h_val*1000)
-    ani.save("animation.gif", fps=int(1/h_val))
+    ani.save(fname, fps=int(1/h_val))
 
     return ani
 
 
-animation = animate()
+animation = animate('human-gait-earth.gif')
 animation
 
 # %%
@@ -342,7 +342,7 @@ solution, info = prob.solve(initial_guess)
 state_vals, rs, _, h_val = prob.parse_free(solution)
 times = np.arange(0.0, num_nodes*h_val, h_val)
 
-animation = animate()
+animation = animate('human-gait-moon.gif')
 animation
 
 plt.show()
