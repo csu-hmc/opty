@@ -38,7 +38,7 @@ import sympy as sm
 # Pick an average ambulation speed and the number of discretization nodes for
 # the half period.
 speed = 0.8  # m/s
-num_nodes = 60
+num_nodes = 40
 h = sm.symbols('h', real=True, positive=True)
 duration = (num_nodes - 1)*h
 
@@ -262,7 +262,7 @@ def animate():
     ax.set_aspect('equal')
 
     #times = np.linspace(0.0, h_val*num_nodes, num=num_nodes)
-    times = np.arange(0.0, dur + h_val, h_val)
+    times = np.arange(0.0, num_nodes*h_val, h_val)
 
     slow_factor = 3  # int
     right = state_vals[:9, :]
