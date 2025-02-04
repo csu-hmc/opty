@@ -11,24 +11,27 @@ this example. Note that pygait2d has not been released to PyPi or Conda Forge::
     conda install cython pip pydy pyyaml setuptools symmeplot sympy
     python -m pip install --no-deps --no-build-isolation git+https://github.com/csu-hmc/gait2d
 
-gait2d provides a joint torque driven 2d bipedal human dynamical model with
+gait2d provides a joint torque driven 2D bipedal human dynamical model with
 seven body segments (trunk, thighs, shanks, feet) and foot-ground contact
 forces based on the description in [Ackermann2010]_.
 
 The optimal control goal is to find the joint torques (hip, knee, ankle) that
-generate a minimal mean-torque periodic motion to ambulate at an average speed
-over half a period.
+generate a minimal mean-torque periodic motion to ambulate at a specified
+average speed over half a period.
 
-This example highlights two points of interest that other examples may not
+This example highlights two points of interest that the other examples may not
 have:
 
-- instance constraints are used to make the start state (almost) the same as
-  the end state, for example :math:`q_b(t_0) = q_e(t_f)`.
-- the average speed is constrained in this variable time step solution by
+- Instance constraints are used to make the start state the same as the end
+  state, for example :math:`q_b(t_0) = q_e(t_f)`, except for forward
+  translation.
+- The average speed is constrained in this variable time step solution by
   introducing an additional differential equation that, when integrated, gives
-  the duration at :math:`t_i`, which can be used to calculate distance traveled
-  with :math:`q_{ax}(t_f) = v_\textrm{avg} (t_f - t_0)` and used as a constraint.
+  the duration at :math:`\Delta_t(t)`, which can be used to calculate distance
+  traveled with :math:`q_{ax}(t_f) = v_\textrm{avg} (t_f - t_0)` and used as a
+  constraint.
 
+Import all necessary modules, functions, and classes:
 """
 import os
 import pprint
@@ -61,6 +64,7 @@ speeds = symbolics[5]
 specified = symbolics[6]
 
 eom = f_minus_ma(mass_matrix, forcing_vector, coordinates + speeds)
+eom.shape
 
 # %%
 # We need to have :math:`t_f - t_0` available to compute the average speed in
@@ -78,9 +82,9 @@ states = coordinates + speeds + [delt]
 num_states = len(states)
 
 # %%
-# The generalized coordinates are the hip lateral position (qax) and veritcal
-# position (qay), the trunk angle with respect to vertical (qa) and the
-# relative joint angles:
+# The generalized coordinates are the hip lateral position :math:`q_{ax}` and
+# veritcal position :math:`q_{ay}`, the trunk angle with respect to vertical
+# :math:`q_a` and the relative joint angles:
 #
 # - right: hip (b), knee (c), ankle (d)
 # - left: hip (e), knee (f), ankle (g)
@@ -90,8 +94,9 @@ qax, qay, qa, qb, qc, qd, qe, qf, qg = coordinates
 uax, uay, ua, ub, uc, ud, ue, uf, ug = speeds
 Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = specified
 
-# The constants are loaded from a file of reasonably realistic geometry, mass,
-# inertia, and foot deformation properties of an adult human.
+# %%
+# The constants are loaded from a file of realistic geometry, mass, inertia,
+# and foot deformation properties of an adult human.
 par_map = simulate.load_constants(constants, 'human-gait-constants.yml')
 pprint.pprint(par_map)
 
@@ -121,16 +126,20 @@ bounds = {
     uay: (-10.0, 10.0),
 }
 # hip
-bounds.update({k: (-np.deg2rad(40.0), np.deg2rad(40.0)) for k in [qb, qe]})
+bounds.update({k: (-np.deg2rad(40.0), np.deg2rad(40.0))
+               for k in [qb, qe]})
 # knee
-bounds.update({k: (-np.deg2rad(60.0), 0.0) for k in [qc, qf]})
+bounds.update({k: (-np.deg2rad(60.0), 0.0)
+               for k in [qc, qf]})
 # foot
-bounds.update({k: (-np.deg2rad(30.0), np.deg2rad(30.0)) for k in [qd, qg]})
+bounds.update({k: (-np.deg2rad(30.0), np.deg2rad(30.0))
+               for k in [qd, qg]})
 # all rotational speeds
 bounds.update({k: (-np.deg2rad(400.0), np.deg2rad(400.0))
                for k in [ua, ub, uc, ud, ue, uf, ug]})
 # all joint torques
-bounds.update({k: (-100.0, 100.0) for k in [Tb, Tc, Td, Te, Tf, Tg]})
+bounds.update({k: (-100.0, 100.0)
+               for k in [Tb, Tc, Td, Te, Tf, Tg]})
 
 # %%
 # The average speed can be fixed by constraining the total distance traveled.
@@ -195,14 +204,16 @@ prob = Problem(
     parallel=True,
 )
 
-# Use a random positive initial guess.
+# %%
+# This loads a precomputed solution to save computation time. Delete the file
+# to try one of the suggested initial guesses.
 fname = f'human_gait_{num_nodes}_nodes_solution.npz'
 if os.path.exists(fname):
     initial_guess = np.load(fname)['solution']
 else:
-    #initial_guess = prob.lower_bound + (prob.upper_bound -
-        #prob.lower_bound)*np.random.random_sample(prob.num_free)
-    #initial_guess = -0.01*np.ones(prob.num_free)
+    initial_guess = prob.lower_bound + (prob.upper_bound -
+        prob.lower_bound)*np.random.random_sample(prob.num_free)
+    initial_guess = 0.01*np.ones(prob.num_free)
     initial_guess = np.zeros(prob.num_free)
 
 # %%
@@ -245,16 +256,7 @@ def animate(fname='animation.gif'):
         lshank.joint,
     ], color="k")
 
-    # creates a moving ground
-    #scene.add_line([
-        #hip_proj.locatenew('gl', -0.8*ground.x),
-        #hip_proj.locatenew('gr', 0.8*ground.x),
-    #], linestyle='--', color='tab:green')
-    # TODO : the ground line displays outside the xlim
-    #scene.add_line([
-        #origin.locatenew('gl', -0.8*ground.x),
-        #origin.locatenew('gr', 0.8*ground.x),
-    #], linestyle='--')
+    # creates a moving ground (many points to deal with matplotlib limitation)
     scene.add_line([origin.locatenew('gl', s*ground.x)
                     for s in np.linspace(-2.0, 2.0)],
                    linestyle='--', color='tab:green', axlim_clip=True)
@@ -265,12 +267,12 @@ def animate(fname='animation.gif'):
 
     # show ground reaction force vectors at the heels and toes, scaled to
     # visually reasonable length
-    scene.add_vector(contact_force(rfoot.toe, ground, origin)/600.0, rfoot.toe,
-                     color="tab:blue")
+    scene.add_vector(contact_force(rfoot.toe, ground, origin)/600.0,
+                     rfoot.toe, color="tab:blue")
     scene.add_vector(contact_force(rfoot.heel, ground, origin)/600.0,
                      rfoot.heel, color="tab:blue")
-    scene.add_vector(contact_force(lfoot.toe, ground, origin)/600.0, lfoot.toe,
-                     color="tab:blue")
+    scene.add_vector(contact_force(lfoot.toe, ground, origin)/600.0,
+                     lfoot.toe, color="tab:blue")
     scene.add_vector(contact_force(lfoot.heel, ground, origin)/600.0,
                      lfoot.heel, color="tab:blue")
 
@@ -305,15 +307,17 @@ def animate(fname='animation.gif'):
 
 
 animation = animate('human-gait-earth.gif')
-animation
 
 # %%
 # Now see what the solution looks like in the Moon's gravitational field.
 g = constants[0]
+par_map[g] = 1.625  # m/s**2
+pprint.pprint(par_map)
 
 # %%
-par_map[g] = 1.625  # m/s**2
-par_map
+# Use the Earth solution as an initial guess.
+fname = f'human_gait_{num_nodes}_nodes_solution.npz'
+initial_guess = np.load(fname)['solution']
 
 # %%
 # Create an optimization problem and solve it.
@@ -332,18 +336,14 @@ prob = Problem(
     parallel=True,
 )
 
-fname = f'human_gait_{num_nodes}_nodes_solution.npz'
-initial_guess = np.load(fname)['solution']
-
-# %%
-# Find the optimal solution and save it if it converges.
 solution, info = prob.solve(initial_guess)
 
+# %%
+# Animate the second solution.
 state_vals, rs, _, h_val = prob.parse_free(solution)
 times = np.arange(0.0, num_nodes*h_val, h_val)
 
 animation = animate('human-gait-moon.gif')
-animation
 
 plt.show()
 
