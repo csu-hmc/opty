@@ -210,10 +210,11 @@ prob = Problem(
 # %%
 # This loads a precomputed solution to save computation time. Delete the file
 # to try one of the suggested initial guesses.
-fname = f'human_gait_{num_nodes}_nodes_solution.npz'
+fname = f'human_gait_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
-    initial_guess = np.load(fname)['solution']
+    initial_guess = np.loadtxt(fname)
 else:
+    # choose one, comment others
     initial_guess = prob.lower_bound + (prob.upper_bound -
         prob.lower_bound)*np.random.random_sample(prob.num_free)
     initial_guess = 0.01*np.ones(prob.num_free)
@@ -226,8 +227,8 @@ solution, info = prob.solve(initial_guess)
 state_vals, rs, _, h_val = prob.parse_free(solution)
 times = np.arange(0.0, num_nodes*h_val, h_val)
 if info['status'] in (0, 1):
-    np.savez(f'human_gait_{num_nodes}_nodes_solution', solution=solution,
-             x=state_vals, h=h_val, n=num_nodes, times=times)
+    np.savetxt(f'human_gait_{num_nodes}_nodes_solution.csv', solution,
+               fmt='%.4f')
 
 
 # %%
@@ -319,8 +320,7 @@ pprint.pprint(par_map)
 
 # %%
 # Use the Earth solution as an initial guess.
-fname = f'human_gait_{num_nodes}_nodes_solution.npz'
-initial_guess = np.load(fname)['solution']
+initial_guess = np.loadtxt(fname)
 
 # %%
 # Create an optimization problem and solve it.
