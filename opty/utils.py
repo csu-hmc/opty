@@ -695,7 +695,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     d['memory_views'] = '\n    '.join(memory_views)
 
     if os.name == 'nt':
-        d['win_math_def'] = '#define _USE_MATH_DEFINES'
+        d['win_math_def'] = ''
     else:
         d['win_math_def'] = ''
 
