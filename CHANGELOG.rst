@@ -44,11 +44,11 @@ Version 1.3.0
 - Moved the three documentation examples to the Sphinx Gallery page.
 - Added new examples:
 
-   - A variable duration pendulum swing up example.
-   - A car parallel parking example.
-   - A quadcopter drone flight example.
-   - A cycling time trial example that uses SymPy's new muscle models.
-   - A block sliding over a hill example.
+  - A variable duration pendulum swing up example.
+  - A car parallel parking example.
+  - A quadcopter drone flight example.
+  - A cycling time trial example that uses SymPy's new muscle models.
+  - A block sliding over a hill example.
 
 - Updated the generated Cython code to use memory views.
 - ``Problem`` now supports solving problems with no unknown input trajectories.
