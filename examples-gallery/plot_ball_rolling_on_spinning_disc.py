@@ -1,5 +1,5 @@
  # %%
-"""
+r"""
 Ball Rolling on Spinning Disc
 =============================
 
@@ -7,12 +7,12 @@ A uniform, solid ball with radius :math:`r` and mass :math:`m_b` is rolling
 on a horizontal spinning disc without slipping.
 The disc starts at rest and speeds up like this
 
-- :math:`u_{3}(t) = \Omega \cdot (1 - e^{(-\\alpha \cdot t)})`
+- :math:`u_{3}(t) = \Omega \cdot (1 - e^{(-\alpha \cdot t)})`
 
 where
 
-- :math:`\\alpha` > 0 is a measure of the acceleration and
-- :math:`\\Omega` is the final rotational speed.
+- :math:`\alpha` > 0 is a measure of the acceleration and
+- :math:`\Omega` is the final rotational speed.
 
 A torque is applied to the ball, and the goal is to get it to the
 center of the disc.
@@ -26,7 +26,7 @@ to the surface the ball.
 - :math:`r` : radius of the ball [m]
 - :math:`m_o` : mass of the observer [kg]
 - :math:`\Omega`: final rotational speed of the disc around [rad/sec]
-- :math:`\\alpha`: measure of the acceleration of the disc [1/sec]
+- :math:`\alpha`: measure of the acceleration of the disc [1/sec]
 
 **States**
 
