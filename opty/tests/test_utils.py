@@ -236,7 +236,7 @@ def test_ufuncify_matrix():
 
     a, b, c, d, I, i = sym.symbols('a, b, if, d_{badsym}, I, i')
 
-    expr_00 = a**2 * sym.cos(sm.pi*b)**c
+    expr_00 = a**2 * sym.cos(sym.pi*b)**c
     expr_01 = sym.tan(b) / sym.sin(a + b) + c**4
     expr_10 = a**2 + b**2 - sym.sqrt(c)
     expr_11 = ((a + b + c) * (a + b)) / a * sym.sin(b)
