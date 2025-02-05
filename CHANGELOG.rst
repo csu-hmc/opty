@@ -18,6 +18,7 @@ Version 1.4.0.dev0
 - Support for single first order differential equation instead of limiting to
   two first order (i.e. only second order systems).
 - Examples added:
+
   - Ball rolling on spinning disc
   - Car parking into a garage
   - Crane moving a load
