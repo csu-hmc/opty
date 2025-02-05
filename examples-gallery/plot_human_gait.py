@@ -30,6 +30,9 @@ have:
   the duration at :math:`\Delta_t(t)`, which can be used to calculate distance
   traveled with :math:`q_{ax}(t_f) = v_\textrm{avg} (t_f - t_0)` and used as a
   constraint.
+- The parallel option is enabled because the equations of motion are on the
+  large side. This speeds up the evaluation of the constraints and its Jacobian
+  about 1.3X.
 
 Import all necessary modules, functions, and classes:
 """
