@@ -366,7 +366,7 @@ initial_guess = np.hstack((i1, i1a, i1b, i2, i3, i4, 0.01))
 
 fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 0.75*14), sharex=True,
                          layout='constrained')
-prob.plot_trajectories(initial_guess, ax=ax1)
+prob.plot_trajectories(initial_guess, axes=ax1)
 
 # %%
 # This way the maximum number of interations may be changed.  Default is 3000.
@@ -391,7 +391,7 @@ prob.plot_constraint_violations(solution)
 # Plot the results.
 fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 1.25*14), sharex=True,
                          layout='constrained')
-prob.plot_trajectories(solution, ax=ax1)
+prob.plot_trajectories(solution, axes=ax1)
 
 # %%
 # Calculate and Plot the Reaction Forces
