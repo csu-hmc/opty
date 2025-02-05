@@ -28,7 +28,7 @@ ball.
 - :math:`r` : radius of the ball [m]
 - :math:`m_o` : mass of the observer [kg]
 - :math:`\Omega`: final rotational speed of the disc around [rad/sec]
-- :math:`\alpha`: measure of the acceleration of the disc [rad/sec/sec]
+- :math:`\alpha`: measure of the acceleration of the disc [1/sec]
 
 **States**
 
