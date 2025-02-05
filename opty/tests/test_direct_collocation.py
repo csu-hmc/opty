@@ -1746,3 +1746,102 @@ def test_one_eom_only():
 
     length = (2*1 + 1 + 0 + 0) * (1*(num_nodes-1)) + 2
     assert prob.jacobian(initial_guess).shape == (length,)
+
+def test_time_vector():
+    """Test to see if time_vector returns the correct values"""
+
+    x, ux = mech.dynamicsymbols('x ux')
+    t = mech.dynamicsymbols._t
+    m = sym.symbols('m')
+    F = mech.dynamicsymbols('F')
+
+    eom = sym.Matrix([
+        -x.diff(t) + ux,
+        -ux.diff(t) + F/m,
+        ])
+
+    par_map = {m: 1.0}
+
+    state_symbols = (x, ux)
+    num_nodes = 76
+
+    # fixed time interval
+    t0, tf = 0.0, 1.0
+    interval_value = tf/(num_nodes - 1)
+
+    def obj(free):
+        Fx = free[2*num_nodes:3*num_nodes]
+        return interval_value*np.sum(Fx**2)
+
+    def obj_grad(free):
+        grad = np.zeros_like(free)
+        l1 = 2*num_nodes
+        l2 = 3*num_nodes
+        grad[l1: l2] = 2.0*free[l1:l2]*interval_value
+        return grad
+
+    instance_constraints = (
+        x.func(t0),
+        ux.func(t0),
+        x.func(tf) - 1.0,
+        ux.func(tf),
+    )
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+    )
+
+    initial_guess = np.ones(prob.num_free) * 0.1
+    solution, _ = prob.solve(initial_guess)
+    comparison = np.arange(t0, t0 + num_nodes*interval_value, interval_value)
+    np.testing.assert_almost_equal(prob.time_vector(), comparison)
+    np.testing.assert_almost_equal(prob.collocator.time_vector(),
+                    comparison)
+
+    # variable time interval
+    h = sym.symbols('h')
+    interval_value = h
+    t0, tf = 0.0, (num_nodes - 1)*h
+
+    def obj(free):
+        return free[-1]
+
+    def obj_grad(free):
+        grad = np.zeros_like(free)
+        grad[-1] = 1.0
+        return grad
+
+    instance_constraints = (
+        x.func(t0),
+        ux.func(t0),
+        x.func(tf) - 10.0,
+        ux.func(tf),
+    )
+    bounds = {h: (0.0, 10.0), F: (-15.0, 15.0)}
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+    )
+
+    initial_guess = np.array(list(solution) + [0.3])
+    solution, _ = prob.solve(initial_guess)
+    comparison = np.arange(t0, t0 + num_nodes*solution[-1], solution[-1])
+    np.testing.assert_almost_equal(prob.time_vector(solution=solution),
+                    comparison)
+    np.testing.assert_almost_equal(prob.collocator.time_vector(solution=solution)
+                    , comparison)

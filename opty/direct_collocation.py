@@ -686,6 +686,35 @@ class Problem(cyipopt.Problem):
 
         return parse_free(free, n, q, N, variable_duration)
 
+    def time_vector(self, t0=0.0, solution=None):
+        """Returns the time instances of the problem as an numpy ndarray.
+
+        Parameters
+        ----------
+        t0 : float, optional
+            The initial time of the problem. Default is 0.0.
+        solution : (n*N + q*N + r + s)-ndarray, optional
+            The solution to to problem. Needed if the interval is variable.
+
+        Returns
+        -------
+        A numpy num_collocation_nodes-array of time instances.
+
+        """
+        if isinstance(self.collocator.node_time_interval, sm.Symbol):
+            if solution is None:
+                msg = 'Solution vector must be provided for variable duration.'
+                raise ValueError(msg)
+            else:
+                return np.arange(t0, t0+self.collocator.num_collocation_nodes*
+                    solution[-1], solution[-1])
+
+        else:
+            return np.arange(t0, t0+self.collocator.num_collocation_nodes*
+                self.collocator.node_time_interval,
+                self.collocator.node_time_interval)
+
+
 class ConstraintCollocator(object):
     """This class is responsible for generating the constraint function and the
     sparse Jacobian of the constraint function using direct collocation methods
@@ -867,6 +896,7 @@ class ConstraintCollocator(object):
             self.time_symbol = me.dynamicsymbols._t
 
         self.state_symbols = tuple(state_symbols)
+
         self.state_derivative_symbols = tuple([s.diff(self.time_symbol) for
                                                s in state_symbols])
         self.num_states = len(self.state_symbols)
@@ -917,6 +947,33 @@ class ConstraintCollocator(object):
     @property
     def integration_method(self):
         return self._integration_method
+
+    def time_vector(self, t0=0.0, solution=None):
+        """Returns the time instances of the problem as an numpy ndarray.
+
+        Parameters
+        ----------
+        t0 : float, optional
+            The initial time of the problem. Default is 0.0.
+        solution : (n*N + q*N + r + s)-ndarray, optional
+            The solution to to problem. Needed if the interval is variable.
+
+        Returns
+        -------
+        A numpy num_collocation_nodes-array of time instances.
+        """
+        if isinstance(self.node_time_interval, sm.Symbol):
+            if solution is None:
+                msg = 'Solution vector must be provided for variable duration.'
+                raise ValueError(msg)
+            else:
+                return np.arange(t0, t0+self.num_collocation_nodes*solution[-1]
+                   , solution[-1])
+
+        else:
+            return np.arange(t0, t0+self.num_collocation_nodes*
+                self.node_time_interval, self.node_time_interval)
+
 
     @integration_method.setter
     def integration_method(self, method):
