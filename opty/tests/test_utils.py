@@ -236,7 +236,7 @@ def test_ufuncify_matrix():
 
     a, b, c, d, I, i = sym.symbols('a, b, if, d_{badsym}, I, i')
 
-    expr_00 = a**2 * sym.cos(b)**c
+    expr_00 = a**2 * sym.cos(sym.pi*b)**c
     expr_01 = sym.tan(b) / sym.sin(a + b) + c**4
     expr_10 = a**2 + b**2 - sym.sqrt(c)
     expr_11 = ((a + b + c) * (a + b)) / a * sym.sin(b)
@@ -262,7 +262,7 @@ def test_ufuncify_matrix():
 
         result = np.empty((n, 2, 2))
 
-        result[:, 0, 0] = a_vals**2 * np.cos(b_vals)**c_vals
+        result[:, 0, 0] = a_vals**2 * np.cos(np.pi*b_vals)**c_vals
         result[:, 0, 1] = np.tan(b_vals) / np.sin(a_vals + b_vals) + c_vals**4
         result[:, 1, 0] = a_vals**2 + b_vals**2 - np.sqrt(c_vals)
         result[:, 1, 1] = (((a_vals + b_vals + c_vals) * (a_vals + b_vals)) /

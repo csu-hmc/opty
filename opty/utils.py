@@ -439,6 +439,7 @@ def sort_sympy(seq):
 
 
 _c_template = """\
+{win_math_def}
 #include <math.h>
 #include "{file_prefix}_h.h"
 
@@ -692,6 +693,11 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
                                loop_spacer.join(indexed_input_args))
 
     d['memory_views'] = '\n    '.join(memory_views)
+
+    if os.name == 'nt':
+        d['win_math_def'] = '#define _USE_MATH_DEFINES'
+    else:
+        d['win_math_def'] = ''
 
     files = {}
     files[d['file_prefix'] + '_c.c'] = _c_template.format(**d)
