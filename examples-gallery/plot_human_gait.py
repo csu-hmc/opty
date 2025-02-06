@@ -228,7 +228,7 @@ state_vals, rs, _, h_val = prob.parse_free(solution)
 times = np.arange(0.0, num_nodes*h_val, h_val)
 if info['status'] in (0, 1):
     np.savetxt(f'human_gait_{num_nodes}_nodes_solution.csv', solution,
-               fmt='%.4f')
+               fmt='%.3f')
 
 
 # %%
