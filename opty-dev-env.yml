@@ -4,12 +4,13 @@ channels:
 dependencies:
   # build
   - setuptools
-  # run
+  # run (includes optional run deps)
   - cyipopt >=1.1.0
   - cython >=0.29.19
   - matplotlib >=3.2.0
   - numpy >=1.19.0
   - python
+  - scipy >=1.5.0
   - sympy >=1.13  # version required for the docs
   # dev
   - coverage
@@ -21,7 +22,6 @@ dependencies:
   - pip <24  # pin required for the gait2d pip install below
   - pydy  # gait2d
   - pyyaml  # gait2d
-  - scipy >=1.5.0
   - sphinx
   - sphinx-gallery
   - symmeplot

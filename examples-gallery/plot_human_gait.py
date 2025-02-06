@@ -224,7 +224,7 @@ else:
 # Find the optimal solution and save it if it converges.
 solution, info = prob.solve(initial_guess)
 
-state_vals, rs, _, h_val = prob.parse_free(solution)
+xs, rs, _, h_val = prob.parse_free(solution)
 times = np.arange(0.0, num_nodes*h_val, h_val)
 if info['status'] in (0, 1):
     np.savetxt(f'human_gait_{num_nodes}_nodes_solution.csv', solution,
@@ -280,12 +280,15 @@ def animate(fname='animation.gif'):
     scene.add_vector(contact_force(lfoot.heel, ground, origin)/600.0,
                      lfoot.heel, color="tab:blue")
 
-    scene.lambdify_system(coordinates + speeds + specified + constants)
-    scene.evaluate_system(*np.hstack((state_vals[:9, 0],
-                                      state_vals[9:18, 0],
-                                      np.zeros(3),
-                                      rs[:, 0],
-                                      np.array(list(par_map.values())))))
+    scene.lambdify_system(states + specified + constants)
+    gait_cycle = np.vstack((
+        xs,  # q, u shape(2n, N)
+        np.zeros((3, len(times))),  # Fax, Fay, Ta (hand of god), shape(3, N)
+        rs,  # r, shape(q, N)
+        np.repeat(np.atleast_2d(np.array(list(par_map.values()))).T,
+                  len(times), axis=1),  # p, shape(r, N)
+    ))
+    scene.evaluate_system(*gait_cycle[:, 0])
 
     scene.axes.set_proj_type("ortho")
     scene.axes.view_init(90, -90, 0)
@@ -295,16 +298,8 @@ def animate(fname='animation.gif'):
     ax.set_ylim((-0.2, 1.4))
     ax.set_aspect('equal')
 
-    right = state_vals[:9, :]
-    left = right.copy()
-    left[0, :] += right[0, -1]
-    ani = scene.animate(lambda i: np.hstack((
-        right[:, i] if i < num_nodes else left[:, i - num_nodes],
-        state_vals[9:18, 0],
-        np.zeros(3),
-        rs[:, 0],
-        np.array(list(par_map.values())))),
-        frames=2*len(times), interval=h_val*1000)
+    ani = scene.animate(lambda i: gait_cycle[:, i], frames=len(times),
+                        interval=h_val*1000)
     ani.save(fname, fps=int(1/h_val))
 
     return ani
@@ -343,7 +338,7 @@ solution, info = prob.solve(initial_guess)
 
 # %%
 # Animate the second solution.
-state_vals, rs, _, h_val = prob.parse_free(solution)
+xs, rs, _, h_val = prob.parse_free(solution)
 times = np.arange(0.0, num_nodes*h_val, h_val)
 
 animation = animate('human-gait-moon.gif')

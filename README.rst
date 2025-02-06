@@ -78,7 +78,6 @@ The required dependencies are as follows:
 - cython >= 0.29.19 [with a C compiler]
 - numpy >= 1.19.0
 - python 3.9-3.13
-- scipy >= 1.5.0
 - setuptools
 - sympy >= 1.6.0
 
@@ -86,12 +85,15 @@ The optional dependencies are as follows:
 
 - matplotlib >= 3.2.0
 - openmp
+- scipy >= 1.5.0
 
 To run all of the examples the following additional dependencies may be needed:
 
+- gait2d
 - pandas
 - pydy >= 0.5.0
 - pytables
+- symmeplot
 - yeadon
 
 The easiest way to install opty is to first install Anaconda_ (or Miniconda_ or
