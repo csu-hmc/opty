@@ -791,14 +791,14 @@ class ConstraintCollocator(object):
         else:
             self._time_symbol = me.dynamicsymbols._t
 
-        self.state_symbols = tuple(state_symbols)
-        if len(self.state_symbols) != len(set(self.state_symbols)):
+        self._state_symbols = tuple(state_symbols)
+        if len(self._state_symbols) != len(set(self._state_symbols)):
             raise ValueError('State symbols must be unique.')
-        if len(self.state_symbols) != self.eom.shape[0]:
+        if len(self._state_symbols) != self._eom.shape[0]:
             raise ValueError('The number of states must match the number of '
                              'equations of motion.')
 
-        self.state_derivative_symbols = tuple([s.diff(self.time_symbol) for
+        self._state_derivative_symbols = tuple([s.diff(self.time_symbol) for
                                                s in state_symbols])
         self._num_states = len(self._state_symbols)
 
