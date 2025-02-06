@@ -2,18 +2,28 @@ name: opty-dev
 channels:
   - conda-forge
 dependencies:
-  - coverage
+  # build
+  - setuptools
+  # run
   - cyipopt >=1.1.0
   - cython >=0.29.19
-  - ipython
   - matplotlib >=3.2.0
   - numpy >=1.19.0
-  - numpydoc
+  - python
+  - sympy >=1.13  # version required for the docs
+  # dev
+  - coverage
+  - ipython
   - pytest
   - pytest-cov
-  - python
+  # docs/examples
+  - numpydoc
+  - pip <24  # pin required for the gait2d pip install below
+  - pydy  # gait2d
+  - pyyaml  # gait2d
   - scipy >=1.5.0
-  - setuptools
   - sphinx
   - sphinx-gallery
-  - sympy >=1.13  # version required for the docs
+  - symmeplot
+  - pip:
+    - -e git+https://github.com/csu-hmc/gait2d#egg=gait2d

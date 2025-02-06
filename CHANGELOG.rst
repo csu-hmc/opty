@@ -18,6 +18,7 @@ Version 1.4.0.dev0
 - Support for single first order differential equation instead of limiting to
   two first order (i.e. only second order systems).
 - Examples added:
+
   - Ball rolling on spinning disc
   - Car parking into a garage
   - Crane moving a load
@@ -43,11 +44,11 @@ Version 1.3.0
 - Moved the three documentation examples to the Sphinx Gallery page.
 - Added new examples:
 
-   - A variable duration pendulum swing up example.
-   - A car parallel parking example.
-   - A quadcopter drone flight example.
-   - A cycling time trial example that uses SymPy's new muscle models.
-   - A block sliding over a hill example.
+  - A variable duration pendulum swing up example.
+  - A car parallel parking example.
+  - A quadcopter drone flight example.
+  - A cycling time trial example that uses SymPy's new muscle models.
+  - A block sliding over a hill example.
 
 - Updated the generated Cython code to use memory views.
 - ``Problem`` now supports solving problems with no unknown input trajectories.

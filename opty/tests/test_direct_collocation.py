@@ -1838,3 +1838,71 @@ def test_attributes_read_only():
         print(XX)
         with raises(AttributeError):
             setattr(test, XX, 5)
+
+def test_duplicate_state_symbols():
+    """Test for duplicate state symbols and for number of state_symbols is
+    equal to the number of of eoms"""
+
+    x, ux, z = mech.dynamicsymbols('x, ux, z')
+    t = mech.dynamicsymbols._t
+    m = sym.symbols('m')
+    F = mech.dynamicsymbols('F')
+
+    eom = sym.Matrix([
+        -x.diff(t) + ux,
+        -ux.diff(t) + F/m,
+        ])
+
+    par_map = {m: 1.0}
+
+    num_nodes = 76
+
+    t0, tf = 0.0, 1.0
+    interval_value = tf/(num_nodes - 1)
+
+    def obj(free):
+        Fx = free[2*num_nodes:3*num_nodes]
+        return interval_value*np.sum(Fx**2)
+
+    def obj_grad(free):
+        grad = np.zeros_like(free)
+        l1 = 2*num_nodes
+        l2 = 3*num_nodes
+        grad[l1: l2] = 2.0*free[l1:l2]*interval_value
+        return grad
+
+    instance_constraints = (
+        x.func(t0),
+        ux.func(t0),
+        x.func(tf) - 1.0,
+        ux.func(tf),
+    )
+
+     # Test for duplicate state symbols
+    state_symbols = (x, ux, x)
+    with raises(ValueError):
+        prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+        )
+
+    # Test that No of state_symbols is equal to the No of eoms
+    state_symbols = (x, ux, z)
+    with raises(ValueError):
+        prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+        )
+

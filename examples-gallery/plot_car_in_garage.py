@@ -269,6 +269,7 @@ obj, obj_grad = create_objective_function(
     tuple(),
     num_nodes,
     interval_value,
+    time_symbol=t,
 )
 
 initial_state_constraints = {
@@ -318,6 +319,7 @@ prob = Problem(
         known_parameter_map=par_map,
         instance_constraints=instance_constraints,
         bounds=bounds,
+        time_symbol=t,
 )
 
 # %%
