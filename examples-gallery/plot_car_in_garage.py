@@ -1,11 +1,21 @@
 """
 Park a Car in a Garage
 ======================
-I try to model a **conventional car**: The rear axle is driven,
+A **conventional car** is modeled: The rear axle is driven,
 the front axle does the steering.
 No speed possible perpendicular to the wheels.
 
-The car should enter the garage without colliding with the walls.
+The car must enter the garage without colliding with the walls.
+
+The **idea** is as follows:
+
+- the garage is modeled as a differentiable trough.
+- ``number`` of points evenly spread on the body of the car are considered.
+- the y-coordinates of these points must be above the trough at all times.
+- as it is not clear *a priori* whether the car will drive straight into the
+        garage or back in, the variable ``pmin`` is introduced, which is the
+        lower end of the car. To ackomplish this, a differentialble version
+        of the minimum function is used.
 
 **states**
 
@@ -14,7 +24,8 @@ The car should enter the garage without colliding with the walls.
 - :math:`q_0, q_f`: orientation of the car and the steering angle of the front axle
 - :math:`u_0, u_f`: angular velocities of the car and the front axle
 - :math:`p_{min}`: the lowest point of the car
-- :math:`p_{y_1}....p_{y_{number}}`: the y-coordinate of the points on the body of the car
+- :math:`p_{y_1}....p_{y_\\textrm{number}}`: the y-coordinates of the points on
+        the body of the car
 
 **controls**
 
@@ -116,16 +127,8 @@ eom = kd.col_join(fr + frstar)
 eom = eom.col_join(speed_constr)
 
 # %%
-# Restrictions so the car does not crash into the walls.
-#
-# I define a (differentiable) 'trough' the shape of the garage and the walls.
-# No part of (the body of) the car may be 'below' the trough.
-#
-# As *a priori* one does not know whether the car will drive straight into the
-# garage, or back in, I take care of this with the variable *pmin*, which is the
-# lower end of the car.
-
-# number of points considered on the body of the car.
+# Define the various differentiable approximations, add the eoms, which
+# constrain the car.
 number = 4
 
 x1, x2, y12 = sm.symbols('x1 x2 y12')
@@ -231,7 +234,7 @@ ax[5].set_title('differentiable in_0_1')
 prevent_print = 1.
 
 # %%
-# Set the Optimization Problem and Solve it
+# Set the Optimization Problem and Solve It
 #------------------------------------------
 
 state_symbols     = [x, y, q0, qf, ux, uy, u0, uf, pmin] + py
@@ -323,7 +326,7 @@ prob = Problem(
 )
 
 # %%
-# I use the result of a previous run as initial guess, to speed up
+# The result of a previous run is used as initial guess, to speed up
 # the optimization process.
 initial_guess = np.ones(prob.num_free)
 initial_guess = np.load('car_in_garage_solution.npy')
@@ -338,7 +341,6 @@ for i in range(1):
     print('Iterations needed',len(prob.obj_value))
     print(f"objective value {info['obj_val']:.3e} \n")
 prob.plot_objective_value()
-#np.save('car_in_garage_solution', solution)
 
 # %%
 # Plot the constraint violations.
@@ -350,7 +352,7 @@ prob.plot_trajectories(solution)
 
 # %%
 # Animate the Car
-#-----------------
+#----------------
 # The green arrow symbolizes the force which opty calculated to drive the car.
 # It is perpendicular to the rear axle.
 fps = 20
