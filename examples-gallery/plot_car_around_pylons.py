@@ -1,48 +1,44 @@
-"""
+r"""
 Car around Pylons
 =================
-A car with rear wheel drive and front steering must move close to two points and
-return to its starting point.
-It can only move forward.
 
-The car is modeled as a rigid body with three bodies.
+A car with rear wheel drive and front steering must move close to two points
+and return to its starting point. It can only move forward. The car is modeled
+as a rigid body with three bodies. The car is driven by a force at the rear
+axis and steered by a torque at the front axis. The acceleration is limited at
+the front and at the rear end of the car to avoid sliding off the road.
 
-The car is driven by a force at the rear axis and steered by a torque at the
-front axis.
-
-Also I limit the acceleration at the front and at the rear end of the car to
-avoid sliding off the road.
-
-There is no speed allowed perpendicular to the wheels, realized by two speed
-constraints. (The trajectories show, that the car is at the limit often, as
-one would expect if, as it is the case here, duration has to be minimized)
+There is no speed allowed perpendicular to the wheels, realized by two velocity
+constraints. (The trajectories show, that the car is at the limit often, as one
+would expect if, as it is the case here, duration has to be minimized)
 
 The **main point** in this simulation is this:
 
-I want the car to come 'close' to two points, but I do not want to specify the
-time when it should be there. I want *opty* to find the best time for
-the car to be there.
-As presently -to the best of my knowledge- with *opty* intermediate points
-must be specified as :math:`t_{intermediate} = integer \\cdot interval_{value}`,
-with :math:`0 < integer < num_{nodes}` fixed, I do it like this:
+Make the car to come 'close' to two points, but without specifying the time
+when it should be there. *opty* should find the best time for the car to be
+there. Presently intermediate points must be specified as
+:math:`t_\textrm{intermediate} = \textrm{integer} \cdot
+\textrm{interval}_\textrm{value}`, with :math:`0 < \textrm{integer} <
+\textrm{num}_\textrm{nodes}` fixed, so:
 
-- I specify the two points as :math:`(x_{b_1}, y_{b_1})` and :math:`(x_{b_2}, y_{b_2})`
-    and an allowable 'radius' called *epsilon* around these points.
-- I define a differentiable function :math:`hump(x, a, b, g_r)` such that it is
-    one for :math:`a \\leq x \\leq b` and zero otherwise. :math:`g_r > 0` is a
-    parameter that determines how 'sharp' the transition is, the larger the sharper.
-- In order to know at the end of the run whether the car came close to the points
-    during its course, I integrate the hump function over time. These are the variables
-    :math:`punkt_1, punkt_2` with :math:`punkt_1 = \\int_{t0}^{tf} hump(...) \\, dt > 0`
-    if the car came close to the point, = 0 otherwise. Same for :math:`punkt_2`
-- As I do not know the exact values of :math:`punkt_1, punkt_2` and also do not
-    care as long as they are positive 'enough' , I define two additional
-    state variables :math:`dist_1, dist_2` and specified variables :math:`h_1, h_2`.
-- by setting :math:`dist_1 = punkt_1 \\cdot h_1` and :math:`dist_2 = punkt_2 \\cdot h_2`
-    and bounding :math:`h_1, h_2 \\in (1, value)`, and setting :math:`dist_1(t_f) = 1`,
-    I can ensure that :math:`punkt_1 > \\dfrac{1}{value}` and
-    :math:`punkt_2 > \\dfrac{1}{value}`.
-
+- Set the two points as :math:`(x_{b_1}, y_{b_1})` and :math:`(x_{b_2},
+  y_{b_2})` and an allowable 'radius' called *epsilon* around these points.
+- Create a differentiable function :math:`\textrm{hump}(x, a, b, g_r)` such
+  that it is one for :math:`a \leq x \leq b` and zero otherwise. :math:`g_r >
+  0` is a parameter that determines how 'sharp' the transition is, the larger
+  the sharper.
+- In order to know at the end of the run whether the car came close to the
+  points during its course, integrate the hump function over time. These are
+  the variables :math:`punkt_1, punkt_2` with :math:`punkt_1 = \int_{t0}^{tf}
+  hump(...) \\, dt > 0` if the car came close to the point, = 0 otherwise. Same
+  for :math:`punkt_2`.
+- The exact values of :math:`punkt_1, punkt_2` are not known and should simple
+  be positive 'enough', include two additional state variables :math:`dist_1,
+  dist_2` and specified variables :math:`h_1, h_2`.
+- By setting :math:`dist_1 = punkt_1 \cdot h_1` and :math:`dist_2 = punkt_2
+  \cdot h_2` and bounding :math:`h_1, h_2 \in (1, value)`, and setting
+  :math:`dist_1(t_f) = 1`, one can ensure that :math:`punkt_1 >
+  \dfrac{1}{value}` and :math:`punkt_2 > \dfrac{1}{value}`.
 
 **States**
 
@@ -55,9 +51,11 @@ with :math:`0 < integer < num_{nodes}` fixed, I do it like this:
 - :math:`acc_f` : acceleration of the front of the car
 - :math:`acc_b` : acceleration of the back of the car
 - :math:`forward` : variable to ensure the car can only move forward
-- :math:`punkt_1, punkt_2` : variables to ensure the car comes close to the points
-- :math:`punkt_{dt_1}, punkt_{dt_2}` : time derivatives of the above.
-- :math:`dist_1, dist_2` : variables to ensure the car comes close to the points
+- :math:`punkt_1, punkt_2` : variables to ensure the car comes close to the
+  points
+- :math:`punkt_{dt_1}, punkt_{dt_2}` : time derivatives of the above
+- :math:`dist_1, dist_2` : variables to ensure the car comes close to the
+  points
 
 **Specifieds**
 
@@ -80,13 +78,11 @@ with :math:`0 < integer < num_{nodes}` fixed, I do it like this:
 - :math:`x_{b_2}` : x coordinate of pylon 2
 - :math:`y_{b_2}`: y coordinate of pylon 2
 
-
 **Unknown Parameters**
 
 - :math:`h` : time step
 
 """
-
 import sympy.physics.mechanics as me
 import numpy as np
 import sympy as sm
@@ -101,10 +97,9 @@ from matplotlib.patches import Circle
 # %%
 # Equations of Motion
 # -------------------
-
-N, A0, Ab, Af = sm.symbols('N A0 Ab Af', cls= me.ReferenceFrame)
+N, A0, Ab, Af = sm.symbols('N A0 Ab Af', cls=me.ReferenceFrame)
 t = me.dynamicsymbols._t
-O, Pb, Dmc, Pf = sm.symbols('O Pb Dmc Pf', cls= me.Point)
+O, Pb, Dmc, Pf = sm.symbols('O Pb Dmc Pf', cls=me.Point)
 O.set_vel(N, 0)
 
 q0, qf = me.dynamicsymbols('q_0 q_f')
@@ -149,9 +144,9 @@ Ib = me.inertia(Ab, 0, 0, iZZb)
 bodyb = me.RigidBody('bodyb', Pb, Ab, mb, (Ib, Pb))
 If = me.inertia(Af, 0, 0, iZZf)
 bodyf = me.RigidBody('bodyf', Pf, Af, mf, (If, Pf))
-BODY = [body0, bodyb, bodyf]
+bodies = [body0, bodyb, bodyf]
 
-FL = [(Pb, Fb * Ab.y), (Af, Tf * N.z), (Dmc, -reibung * Dmc.vel(N))]
+forces = [(Pb, Fb * Ab.y), (Af, Tf * N.z), (Dmc, -reibung * Dmc.vel(N))]
 
 kd = sm.Matrix([ux - x.diff(t), uy - y.diff(t), u0 - q0.diff(t),
                 me.dot(rot1- rot, N.z)])
@@ -162,29 +157,31 @@ u_ind = [u0, uf]
 u_dep = [ux, uy]
 
 KM = me.KanesMethod(
-        N, q_ind=q_ind, u_ind=u_ind,
-        kd_eqs=kd,
-        u_dependent=u_dep,
-        velocity_constraints=speed_constr,
+    N,
+    q_ind=q_ind,
+    u_ind=u_ind,
+    kd_eqs=kd,
+    u_dependent=u_dep,
+    velocity_constraints=speed_constr,
 )
-(fr, frstar) = KM.kanes_equations(BODY, FL)
+(fr, frstar) = KM.kanes_equations(bodies, forces)
 eom = fr + frstar
 eom = kd.col_join(eom)
 eom = eom.col_join(speed_constr)
 
-# %%
-# Constraints so the car approaches the points :math:`(x_{b_1}, y_{b_1})`,
-# and :math:`(x_{b_2}, y_{b_2})` at whatever times opty chooses, explanation above.
-# Also here it is enforced that it can only move forward in that the
-# state variable *forward* is bound to be positive.
 
-# If gr is large, say, gr = 75 the optimazation will not work. I think
-# (I do not know, of course!), it becomes too 'non-differentiable' for *opty*.
+# %%
+# Constraints so the car approaches the points :math:`(x_{b_1}, y_{b_1})`, and
+# :math:`(x_{b_2}, y_{b_2})` at whatever times opty chooses, explanation above.
+# Also here it is enforced that it can only move forward in that the state
+# variable *forward* is bound to be positive. If gr is large, say, gr = 75 the
+# optimazation will not work it may become too 'non-differentiable' for *opty*.
 def hump(x, a, b, gr):
     # approx one for x in [a, b]
     # approx zero otherwise
     # the higher gr the closer the approximation
-    return 1.0 -  (1/(1 + sm.exp(gr*(x - a))) + 1/(1 + sm.exp(-gr*(x - b))))
+    return 1.0 - (1/(1 + sm.exp(gr*(x - a))) + 1/(1 + sm.exp(-gr*(x - b))))
+
 
 forward = me.dynamicsymbols('forward')
 punkt1, punktdt1 = me.dynamicsymbols('punkt1 punktdt1')
@@ -195,18 +192,19 @@ h1, h2 = me.dynamicsymbols('h1 h2')
 xb1, yb1, xb2, yb2= sm.symbols('xb yb xb2 yb2')
 epsilon = sm.symbols('epsilon')
 
-treffer1 = (hump(x, xb1-epsilon, xb1+epsilon, 5) *
-        hump(y, yb1-epsilon, yb1+epsilon, 5))
-treffer2 = (hump(x, xb2-epsilon, xb2+epsilon, 5) *
-        hump(y, yb2-epsilon, yb2+epsilon, 5))
+treffer1 = (hump(x, xb1-epsilon, xb1+epsilon, 5)*hump(y, yb1-epsilon,
+                                                      yb1+epsilon, 5))
+treffer2 = (hump(x, xb2-epsilon, xb2+epsilon, 5)*hump(y, yb2-epsilon,
+                                                      yb2+epsilon, 5))
 
-eom_add = sm.Matrix([-forward + Pb.vel(N).dot(Ab.y),
-        -punkt1.diff(t) + punktdt1,
-        -punktdt1 + treffer1,
-        -punkt2.diff(t) + punktdt2,
-        -punktdt2 + treffer2,
-        -dist1 + punkt1 * h1,
-        -dist2 + punkt2 * h2,
+eom_add = sm.Matrix([
+    -forward + Pb.vel(N).dot(Ab.y),
+    -punkt1.diff(t) + punktdt1,
+    -punktdt1 + treffer1,
+    -punkt2.diff(t) + punktdt2,
+    -punktdt2 + treffer2,
+    -dist1 + punkt1 * h1,
+    -dist2 + punkt2 * h2,
 ])
 
 eom = eom.col_join(eom_add)
@@ -221,7 +219,7 @@ beschleunigung = sm.Matrix([-acc_f + accel_front, -acc_b + accel_back])
 
 eom = eom.col_join(beschleunigung)
 
-print(f'eom too large to print out. Its shape is {eom.shape} and it has ' +
+print(f'eom too large to print out. Its shape is {eom.shape} and it has '
       f'{sm.count_ops(eom)} operations')
 
 # %%
@@ -229,12 +227,12 @@ print(f'eom too large to print out. Its shape is {eom.shape} and it has ' +
 # --------------------------------------------
 h = sm.symbols('h')
 state_symbols = ([x, y, q0, qf, ux, uy, u0, uf] + [acc_f, acc_b, forward] +
-        [punkt1, punktdt1, punkt2, punktdt2] + [dist1, dist2])
+                 [punkt1, punktdt1, punkt2, punktdt2] + [dist1, dist2])
 constant_symbols = (l, m0, mb, mf, iZZ0, iZZb, iZZf, reibung)
 specified_symbols = (Fb, Tf, h1, h2)
 
 num_nodes = 401
-t0    = 0.0
+t0 = 0.0
 interval_value = h
 tf = h * (num_nodes - 1)
 
@@ -255,11 +253,13 @@ par_map[xb2] = -5.0
 par_map[yb2] = 10.0
 par_map[epsilon] = 0.5
 
+
 # %%
 # Define the objective function and its gradient.
 # The time needed is to be minimized.
 def obj(free):
     return free[-1]
+
 
 def obj_grad(free):
     grad = np.zeros_like(free)
@@ -269,56 +269,55 @@ def obj_grad(free):
 # %%
 # Set up the constraints, the bounds and the Problem.
 instance_constraints = (
-        x.func(t0),
-        y.func(t0),
-        q0.func(t0),
-        ux.func(t0),
-        uy.func(t0),
-        u0.func(t0),
-        uf.func(t0),
-        punkt1.func(t0),
-        punktdt1.func(t0),
-        punkt2.func(t0),
-        punktdt2.func(t0),
-        dist1.func(t0),
-        dist2.func(t0),
-
-        x.func(tf),
-        y.func(tf),
-        ux.func(tf),
-        uy.func(tf),
-        dist1.func(tf) - 1.0,
-        dist2.func(tf) - 1.0,
+    x.func(t0),
+    y.func(t0),
+    q0.func(t0),
+    ux.func(t0),
+    uy.func(t0),
+    u0.func(t0),
+    uf.func(t0),
+    punkt1.func(t0),
+    punktdt1.func(t0),
+    punkt2.func(t0),
+    punktdt2.func(t0),
+    dist1.func(t0),
+    dist2.func(t0),
+    x.func(tf),
+    y.func(tf),
+    ux.func(tf),
+    uy.func(tf),
+    dist1.func(tf) - 1.0,
+    dist2.func(tf) - 1.0,
 )
 
 grenze = 20.0
 grenze1 = 5.0
 delta = np.pi/4.0
 bounds = {
-        Fb: (-grenze, grenze),
-        Tf: (-grenze, grenze),
-        # restrict the steering angle
-        qf: (-np.pi/2. + delta, np.pi/2. - delta),
-        x: (-20, 20 ),
-        y: (-15, 30),
-        h: (0.0, 0.5),
-        acc_f: (-grenze1, grenze1),
-        acc_b: (-grenze1, grenze1),
-        forward: (0.0, np.inf),
-        h1: (1.0, 5.0),
-        h2: (1.0, 5.0),
+    Fb: (-grenze, grenze),
+    Tf: (-grenze, grenze),
+    # restrict the steering angle
+    qf: (-np.pi/2. + delta, np.pi/2. - delta),
+    x: (-20, 20),
+    y: (-15, 30),
+    h: (0.0, 0.5),
+    acc_f: (-grenze1, grenze1),
+    acc_b: (-grenze1, grenze1),
+    forward: (0.0, np.inf),
+    h1: (1.0, 5.0),
+    h2: (1.0, 5.0),
 }
 
 prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
+    obj,
+    obj_grad,
+    eom,
+    state_symbols,
+    num_nodes,
+    interval_value,
+    known_parameter_map=par_map,
+    instance_constraints=instance_constraints,
+    bounds=bounds,
 )
 
 # %%
@@ -327,12 +326,12 @@ prob = Problem(
 initial_guess = np.load('car_around_pylons_solution.npy')
 prob.add_option('max_iter', 1000)
 for i in range(1):
-# Find the optimal solution.
+    # Find the optimal solution.
     solution, info = prob.solve(initial_guess)
     initial_guess = solution
     print(f'{i+1} - th iteration')
     print('message from optimizer:', info['status_msg'])
-    print('Iterations needed',len(prob.obj_value))
+    print('Iterations needed', len(prob.obj_value))
     print(f"objective value {info['obj_val']:.3e} \n")
 prob.plot_objective_value()
 #np.save('car_around_pylons_solution', solution)
@@ -355,13 +354,13 @@ fps = 10
 tf = solution[-1] * (num_nodes - 1)
 
 state_vals, input_vals, _ = parse_free(solution, len(state_symbols),
-    len(specified_symbols), num_nodes)
+                                       len(specified_symbols), num_nodes)
 t_arr = np.linspace(t0, tf, num_nodes)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 
 # create additional points for the axles
-Pbl, Pbr, Pfl, Pfr = sm.symbols('Pbl Pbr Pfl Pfr', cls= me.Point)
+Pbl, Pbr, Pfl, Pfr = sm.symbols('Pbl Pbr Pfl Pfr', cls=me.Point)
 
 # end points of the force, length of the axles
 Fbq = me.Point('Fbq')
@@ -383,73 +382,73 @@ pL, pL_vals = zip(*par_map.items())
 la1 = par_map[l] / 4.                      # length of an axle
 
 coords_lam = sm.lambdify((*state_symbols, fb, tq, *pL, la), coordinates,
-        cse=True)
+                         cse=True)
+
 
 def init():
     xmin, xmax = -15, 15.
     ymin, ymax = -5, 25.
 
     fig = plt.figure(figsize=(8, 8))
-    ax  = fig.add_subplot(111)
+    ax = fig.add_subplot(111)
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
     ax.set_aspect('equal')
     ax.grid()
     circle1 = Circle((par_map[xb1], par_map[yb1]), par_map[epsilon],
-            edgecolor='red', facecolor='none', linewidth=1)
+                     edgecolor='red', facecolor='none', linewidth=1)
     ax.add_patch(circle1)
     circle2 = Circle((par_map[xb2], par_map[yb2]), par_map[epsilon],
-                        edgecolor='green', facecolor='none', linewidth=1)
+                     edgecolor='green', facecolor='none', linewidth=1)
     ax.add_patch(circle2)
 
     line1, = ax.plot([], [], color='orange', lw=2)
     line2, = ax.plot([], [], color='red', lw=2)
     line3, = ax.plot([], [], color='magenta', lw=2)
-    line4  = ax.quiver([], [], [], [], color='green', scale=35, width=0.004,
-            headwidth=8)
+    line4 = ax.quiver([], [], [], [], color='green', scale=35, width=0.004,
+                      headwidth=8)
     line5, = ax.plot([], [], color='blue', lw=1)
 
     return fig, ax, line1, line2, line3, line4, line5
 
+
 fig, ax, line1, line2, line3, line4, line5 = init()
 
 zeiten = np.linspace(t0, tf, int(fps * (tf - t0)))
+
+
 def update(t):
-    message = (f'running time {t:.2f} sec \n The rear axle is red, the ' +
+    message = (f'running time {t:.2f} sec \n The rear axle is red, the '
                f'front axle is magenta \n The driving/breaking force is green')
     ax.set_title(message, fontsize=12)
 
     coords = coords_lam(*state_sol(t), input_sol(t)[0], input_sol(t)[1],
-                *pL_vals, la1)
+                        *pL_vals, la1)
 
     koords = []
     for zeit in zeiten:
         koords.append(coords_lam(*state_sol(zeit), input_sol(zeit)[0],
-                input_sol(zeit)[1], *pL_vals, la))
+                                 input_sol(zeit)[1], *pL_vals, la))
 
     line1.set_data([coords[0, 0], coords[0, 2]], [coords[1, 0], coords[1, 2]])
     line2.set_data([coords[0, 3], coords[0, 4]], [coords[1, 3], coords[1, 4]])
     line3.set_data([coords[0, 5], coords[0, 6]], [coords[1, 5], coords[1, 6]])
 
     line4.set_offsets([coords[0, 0], coords[1, 0]])
-    line4.set_UVC(coords[0, 7] - coords[0, 0] , coords[1, 7] - coords[1, 0])
+    line4.set_UVC(coords[0, 7] - coords[0, 0], coords[1, 7] - coords[1, 0])
 
     zaehler1 = np.argwhere(zeiten >= t)[0][0] + 1
     line5.set_data([koords[i][0, 2] for i in range(zaehler1)],
                    [koords[i][1, 2] for i in range(zaehler1)])
 
 
-
-frames = np.linspace(t0, tf, int(fps * (tf - t0)))
+frames = np.linspace(t0, tf, int(fps*(tf - t0)))
 animation = FuncAnimation(fig, update, frames=frames, interval=1000/fps)
-#plt.close(fig)
-#display(HTML(animation.to_jshtml()))
 
 # %%
-
-# sphinx_gallery_thumbnail_number = 5
-
 fig, ax, line1, line2, line3, line4, line5 = init()
 update(6.26)
 
 plt.show()
+
+# sphinx_gallery_thumbnail_number = 5
