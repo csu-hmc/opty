@@ -24,7 +24,7 @@ The **idea** is as follows:
 - :math:`q_0, q_f`: orientation of the car and the steering angle of the front axle
 - :math:`u_0, u_f`: angular velocities of the car and the front axle
 - :math:`p_{min}`: the lowest point of the car
-- :math:`p_{y_1}....p_{y_\\textrm{number}}`: the y-coordinates of the points on
+- :math:`p_{y_1}....p_{y_{\\textrm{number}}}`: the y-coordinates of the points on
         the body of the car
 
 **controls**
