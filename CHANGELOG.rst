@@ -17,14 +17,22 @@ Version 1.4.0.dev0
 - Added attribute descriptions to ``ConstraintCollocator`` docstring.
 - Support for single first order differential equation instead of limiting to
   two first order (i.e. only second order systems).
+- Enabled math constants on Windows to support ``sympy.pi``, for example.
+- Made SciPy and optional dependency (was required).
+- Fixed bug from backwards incompatible change in Python 3.13 for docstring
+  indentation.
 - Examples added:
 
   - Ball rolling on spinning disc
   - Car parking into a garage
+  - Car moving around pylons
   - Crane moving a load
   - Mississippi steamboat
   - Non-contiguous parameter identification
   - Single EoM & hypersensitive control
+  - ODE vs DAE comparison
+  - Delay equation (inequality constraints example)
+  - Human gait
 
 Version 1.3.0
 =============
