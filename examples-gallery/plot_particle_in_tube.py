@@ -51,8 +51,8 @@ are introduced.
 - :math:`x, y, z` : position of the particle [m]
 - :math:`v_1, v_2, v_3` : speed of particle [m]
 - :math:`dist` : distance of the particle from the curve [m]
-- :math:`cut_{param}` : parameter of the curve where the distance is closest.
-- :math:`cut_{dt} = \dfrac{d}{dt} cut_{param}` : :math:`cut_{dt} \geq 0`,
+- :math:`cut_{\textrm{param}}` : parameter of the curve where the distance is closest.
+- :math:`cut_{\textrm{dt}} = \dfrac{d}{dt} cut_{param}` : :math:`cut_{\textrm{dt}} \geq 0`,
     so the particle never flies backwards.
 - :math:`gate` : explained further down.
 
@@ -232,6 +232,7 @@ obj, obj_grad = create_objective_function(
     tuple(),
     num_nodes,
     interval_value,
+    time_symbol=t,
 )
 
 
@@ -294,7 +295,8 @@ prob = Problem(
     num_nodes, interval_value,
     known_parameter_map=par_map,
     instance_constraints=instance_constraints,
-    bounds=bounds
+    bounds=bounds,
+    time_symbol=t,
 )
 
 prob.add_option('max_iter', 3000)
