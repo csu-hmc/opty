@@ -122,14 +122,14 @@ O.set_vel(N, 0)
 # - :math:`\dfrac{d}{dt}(y) = -r \dfrac{d}{dt}(q_1)`
 #
 # The time :math:`t  appears explicitly in the EOMs.  So, declare a function
-# :math:`T(t)`, and then pass the time as known trajectory. My EOMs also
+# :math:`T(t)`, and then pass the time as known trajectory. The EOMs also
 # contain :math:`\dfrac{d}{dt}(T(t))` and :math:`\dfrac{d^2}{dt^2}(T(t))` As
-# :math:`T(t) = const \cdot t` I set these derivatives accordingly.
+# :math:`T(t) = const \cdot t` the derivatives accordingly are set accordingly.
 
 # %%
-# I do not use ``qdisc = sm.integrate(udisc, t)``, as this gives a
-# ``sm.Piecewise(..)`` result, likely not differentiable everywhere, but I use
-# the result of this integration for :math:`\alpha \neq 0`.
+# ``qdisc = sm.integrate(udisc, t)`` is not used, as this gives a
+# ``sm.Piecewise(..)`` result, likely not differentiable everywhere, but
+# the result of this integration is still used for :math:`\alpha \neq 0`.
 
 udisc = Omega*(1 - sm.exp(-alpha*T(t)))
 qdisc = (Omega*T(t) + Omega*sm.exp(-alpha*T(t))/alpha - Omega/alpha)
@@ -229,7 +229,7 @@ t0, tf = 0.0, duration
 # %%
 # Disc time is the final time of :math:`T(t)`. Ideally it would be ``(num_nodes
 # - 1)*h``, but it is not possible to use the result of the optimization as
-# input of a known trajectory. I set it to 7.5 sec.
+# input of a known trajectory. It is set to 7.5 sec.
 disc_time = 7.5
 
 # %%
