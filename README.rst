@@ -199,8 +199,8 @@ and open the result with your web browser, for example::
 Acknowledgements
 ================
 
-opty was created to generalize and make more accessible the optimal methods
-Prof. Ton van den Bogert and his collaborators developed and used for
+opty was created to generalize and make more accessible the optimal control
+methods Prof. Ton van den Bogert and his collaborators developed and use for
 investigating control of musculoskeletal models. His pioneering work and help
 made the development of opty possible.
 
