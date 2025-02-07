@@ -1,4 +1,4 @@
-"""
+r"""
 Particle Flight in Tube
 =======================
 
@@ -9,36 +9,39 @@ radius. At one point during the motion, it must pass through a narrow gate,
 modelled as a circle.
 
 Interesting maybe this:
+
 ( In what follows all components are w.r.t. the inertial frame N.)
-The curve is given as :math:`X(r) = (f(r, params), g(r, params), h(r, params))`,
-where :math:`r` is the parameter of the curve. Let :math:`cut_{param}` be the parameter
-of the curve where the distance of the particle from the curve is closest. Then
-:math:`( \\dfrac{df}{dr}, \\dfrac{dg}{dr}, \\dfrac{dh}{dr} ) |_{r = cut_{param}}`
+The curve is given as :math:`X(r) = (f(r, \textrm{params}), g(r, \textrm{params}),
+h(r, \textrm{params}))`, where :math:`r` is the parameter of the curve.
+Let :math:`cut_{\textrm{param}}` be the parameter of the curve where the
+distance of the particle from the curve is closest. Then :math:`( \dfrac{df}{dr},
+\dfrac{dg}{dr}, \dfrac{dh}{dr} ) |_{r = cut_{\textrm{param}}}`
 is the tangential vector on the curve at the point of closest distance from the
 particle.
 
-So, I form the equation of the plane, which is perpendicular to the curve at the
-point of closest distance, and contains the point of the particle. The intersection
-of the curve and the plane gives the point of closest distance of the curve
-from the particle.
-This leads to a nonlinear equation for :math:`cut_{param}`, which I add to the
-equations of motion by declaring a new state variable :math:`cut_{param}`.
+The equation of the plane, which is perpendicular to the curve at the
+point of closest distance and contains the point of the particle is formed.
+The intersection of the curve and the plane gives the point of closest distance
+of the curve from the particle.
+This leads to a nonlinear equation for :math:`cut_{\textrm{param}}`, which is
+added to the equations of motion by declaring a new state variable
+:math:`cut_{\textrm{param}}`.
 
-In addition, I introduce a new state variable :math:`dist`, which is the distance
-from the particle from the curve. The reason I do this is so I can bound it to be
-less than the radius of the tube.
+In addition, a new state variable ``dist`` is introduced, which is the
+distance from the particle from the curve. This way the distance particle to
+the centerline of the tube may be bounded to be less than the radius of the tube.
 
-The particle must pass through a narrow gate at an intermediate time. I model the
-gate as a circle with its center on the curve.
-As opty presently does not allow inequalities in instance constraints, I
-introduce a new state variable :math:`gate`, and a new specified variable,
-:math:`gate_h`.
+The particle must pass through a narrow gate at an intermediate time. The gate
+is modeled as a circle with its center on the curve.
+As opty presently does not allow inequalities in instance constraints, a new
+state variable ``gate``, and a new specified variable, :math:`gate_h`
+are introduced.
 
 **Constants**
 
 - :math:`m` : particle mass, [kg]
 - :math:`c` : viscous friction coefficient of air [Nms]
-- :math:`a1, a2, a3` : parameters of the curve (centerline) [m]
+- :math:`a_1, a_2, a_3` : parameters of the curve (centerline) [m]
 - :math:`radius` : radius of the tube [m]
 - :math:`max_z` : maximum height of the particle [m]
 
@@ -49,7 +52,8 @@ introduce a new state variable :math:`gate`, and a new specified variable,
 - :math:`v_1, v_2, v_3` : speed of particle [m]
 - :math:`dist` : distance of the particle from the curve [m]
 - :math:`cut_{param}` : parameter of the curve where the distance is closest.
-- :math:`cut_{dt} = \\dfrac{d}{dt} cut_{param}` : :math:`cut_{dt} \\geq 0`, so the particle never flies backwards.
+- :math:`cut_{dt} = \dfrac{d}{dt} cut_{param}` : :math:`cut_{dt} \geq 0`,
+    so the particle never flies backwards.
 - :math:`gate` : explained further down.
 
 
@@ -59,7 +63,6 @@ introduce a new state variable :math:`gate`, and a new specified variable,
 - :math:`gate_h` : explained further down.
 
 """
-
 import sympy as sm
 import sympy.physics.mechanics as me
 import numpy as np
@@ -167,7 +170,7 @@ def distance(N, r1, curve, point):
 # A.
 # :math:`h_1` is a nonlinear equation for :math:`cut_{param}`, the parameter
 # for the point on the curve closest to the particle. :math:`h_2` is the
-# distance of the particle from the curve, so I can bound :math:`dist` to be
+# distance of the particle from the curve, so :math:`dist` can be bound to be
 # less than the radius of the tube.
 dist, cut_param, cutdt = me.dynamicsymbols('dist, cut_param, cutdt', real=True)
 a1, a2, a3 = sm.symbols('a1, a2, a3', real=True)
@@ -185,7 +188,7 @@ eom = eom.col_join(sm.Matrix([h1, dist-h2, -cutdt + cut_param.diff(t)]))
 # %%
 # B.
 # At an intermediate time :math:`t_m`, the particle must go through a narrow gate.
-# I set :math:`gate = gate_h \cdot dist`, set :math:`gat_h \geq 1`,
+# Set :math:`gate = gate_h \cdot dist`, set :math:`gat_h \geq 1`,
 # and :math:`gate(t_m)` = radius of the gate.
 
 gate, gate_h = me.dynamicsymbols('gate, gate_h', real=True)
@@ -297,8 +300,8 @@ prob = Problem(
 prob.add_option('max_iter', 3000)
 
 # %%
-# Give a guess of a plausible route with constant thrust. Here I use the
-# solution of a previous run as initial guess.
+# Give a guess of a plausible route with constant thrust. Here the
+# solution of a previous run is used as initial guess.
 
 initial_guess = np.zeros(prob.num_free)
 x_guess, y_guess, z_guess = eval_curve(np.linspace(0.0, max_z/par_map[a3],
