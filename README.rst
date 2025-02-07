@@ -123,7 +123,7 @@ Custom Ipopt
 ------------
 
 If you want a custom installation of any of the dependencies, e.g. Ipopt, you
-must first install Ipopt along with it's headers.  For example, on Debian based
+must first install Ipopt along with it's headers. For example, on Debian based
 systems you can use the package manager::
 
    $ sudo apt-get install coinor-libipopt1v5 coinor-libipopt-dev
@@ -147,14 +147,13 @@ Once Ipopt is installed and accessible, install conda then create an environment
 If you want to develop opty, create a conda environment with all of the
 dependencies installed::
 
-   $ conda config --add channels conda-forge
-   $ conda create -n opty-dev python sympy numpy scipy cython ipopt cyipopt matplotlib pytables pydy pandas pytest setuptools sphinx sphinx-gallery numpydoc
-   $ source activate opty-dev
+   $ cd /path/to/opty/
+   $ conda env -create -f opty-dev-env.yml
+   $ conda activate opty-dev
 
 Next download the opty source files and install with::
 
-   (opty-dev)$ cd /path/to/opty
-   (opty-dev)$ python setup.py develop
+   (opty-dev)$ python -m pip install --no-deps --no-build-isolation --editable .
 
 Usage
 =====
@@ -197,8 +196,16 @@ and open the result with your web browser, for example::
 
    $ firefox _build/html/index.html
 
+Acknowledgements
+================
+
+opty was created to generalize and make more accessible the optimal methods
+Prof. Ton van den Bogert and his collaborators developed and used for
+investigating control of musculoskeletal models. His pioneering work and help
+made the development of opty possible.
+
 Funding
-=======
+-------
 
 The work was partially funded by the State of Ohio Third Frontier Commission
 through the Wright Center for Sensor Systems Engineering (WCSSE), by the USA
