@@ -229,7 +229,7 @@ t0, tf = 0.0, duration
 # %%
 # Disc time is the final time of :math:`T(t)`. Ideally it would be ``(num_nodes
 # - 1)*h``, but it is not possible to use the result of the optimization as
-# input of a known trajectory. It is set to 7.5 sec.
+# input of a known trajectory. It is simply set to 7.5 sec.
 disc_time = 7.5
 
 # %%
