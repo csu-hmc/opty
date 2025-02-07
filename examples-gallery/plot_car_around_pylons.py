@@ -321,7 +321,7 @@ prob = Problem(
 )
 
 # %%
-# For the initial guess I use the result of some previous run, to expedite
+# For the initial guess the result of some previous run is used, to expedite
 # execution.
 initial_guess = np.load('car_around_pylons_solution.npy')
 prob.add_option('max_iter', 1000)
