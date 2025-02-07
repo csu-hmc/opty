@@ -58,7 +58,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'opty'
-copyright = '2014-2024, opty authors'
+copyright = '2014-2025, opty authors'
 author = 'Jason K. Moore'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -99,7 +99,7 @@ sphinx_gallery_conf = {
     'examples_dirs': os.path.join(REPO_DIR, 'examples-gallery'),
     'gallery_dirs': 'examples',
     'matplotlib_animations': True,
-    'copyfile_regex': r'.*\.svg',
+    'copyfile_regex': r'.*\.(svg|npy|csv|yml)',
     'remove_config_comments': True,
 }
 
