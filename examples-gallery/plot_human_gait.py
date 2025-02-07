@@ -70,9 +70,9 @@ eom = f_minus_ma(mass_matrix, forcing_vector, coordinates + speeds)
 eom.shape
 
 # %%
-# We need to have :math:`t_f - t_0` available to compute the average speed in
-# the instance constraint, so add an extra differential equation that is the
-# time derivative of the difference in time.
+# :math:`t_f - t_0` needs to be available to compute the average speed in the
+# instance constraint, so add an extra differential equation that is the time
+# derivative of the difference in time.
 #
 # .. math::
 #

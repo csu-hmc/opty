@@ -198,9 +198,9 @@ gravD = me.Force(Do, -mD*g*N.y)
 # Crank Resistance
 # ~~~~~~~~~~~~~~~~
 #
-# We model the resistance torque at the crank to be that which you would feel
-# when accelerating the bicycle and cyclist along flat ground. The basic
-# equations of motion of a point mass model of a cyclist are:
+# Model the resistance torque at the crank to be that which one would feel when
+# accelerating the bicycle and cyclist along flat ground. The basic equations
+# of motion of a point mass model of a cyclist are:
 #
 # .. math::
 #
@@ -253,9 +253,9 @@ resistance = me.Torque(
 # Muscles
 # ~~~~~~~
 #
-# We lump all the muscles that contribute to joint torques at the knee and
-# ankle into four simplified muscles. The quadriceps wrap over the knee. The
-# other three muscle groups act on linear pathways.
+# Lump all the muscles that contribute to joint torques at the knee and ankle
+# into four simplified muscles. The quadriceps wrap over the knee. The other
+# three muscle groups act on linear pathways.
 
 
 class ExtensorPathway(me.PathwayBase):
