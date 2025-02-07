@@ -29,7 +29,8 @@ added to the equations of motion by declaring a new state variable
 
 In addition, a new state variable ``dist`` is introduced, which is the
 distance from the particle from the curve. This way the distance particle to
-the centerline of the tube may be bounded to be less than the radius of the tube.
+the centerline of the tube may be bounded to be less than the radius of the
+tube.
 
 The particle must pass through a narrow gate at an intermediate time. The gate
 is modeled as a circle with its center on the curve.
