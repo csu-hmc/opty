@@ -3,4 +3,8 @@ include CHANGELOG.rst
 include LICENSE
 include README.rst
 include examples-gallery/plot_*.py
-include examples-gallery/plot_*.npy
+include examples-gallery/*.csv
+include examples-gallery/*.npy
+include examples-gallery/*.rst
+include examples-gallery/*.svg
+include examples-gallery/*.yml
