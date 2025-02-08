@@ -42,6 +42,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
     'sphinx_gallery.gen_gallery',
+    'sphinx_reredirects',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -94,13 +95,57 @@ autoclass_content = 'both'
 # Display long function signatures better.
 maximum_signature_line_length = 50
 
+
 # sphinx-gallery settings
+def sort_subsections(path):
+    if 'beginner' in path:
+        return '101'
+    elif 'intermediate' in path:
+        return '102'
+    elif 'advanced' in path:
+        return '103'
+    else:
+        return path
+
+
 sphinx_gallery_conf = {
     'examples_dirs': os.path.join(REPO_DIR, 'examples-gallery'),
     'gallery_dirs': 'examples',
     'matplotlib_animations': True,
     'copyfile_regex': r'.*\.(svg|npy|csv|yml)',
     'remove_config_comments': True,
+    'subsection_order': sort_subsections,
+    'parallel': True,
+}
+
+# sphinx-reredirects
+redirects = {
+    'examples/plot_betts2003':
+    'beginner/plot_betts2003.html',
+
+    'examples/plot_drone':
+    'intermediate/plot_drone.html',
+
+    'examples/plot_one_legged_time_trial':
+    'advanced/plot_one_legged_time_trial.html',
+
+    'examples/plot_parallel_park':
+    'intermediate/plot_parallel_park.html',
+
+    'examples/plot_pendulum_swing_up_fixed_duration':
+    'beginner/plot_pendulum_swing_up_fixed_duration.html',
+
+    'examples/plot_pendulum_swing_up_variable_duration':
+    'beginner/plot_pendulum_swing_up_variable_duration.html',
+
+    'examples/plot_sliding_block':
+    'intermediate/plot_sliding_block.html',
+
+    'examples/plot_two_link_pendulum_on_a_cart':
+    'intermediate/plot_two_link_pendulum_on_a_cart.html',
+
+    'examples/plot_vyasarayani':
+    'beginner/plot_vyasarayani.html',
 }
 
 # -- Options for HTML output ----------------------------------------------
