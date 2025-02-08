@@ -144,7 +144,7 @@ redirects = {
     'beginner/plot_pendulum_swing_up_variable_duration.html',
 
     'examples/plot_sliding_block':
-    'intermediate/plot_sliding_block.html',
+    'beginner/plot_sliding_block.html',
 
     'examples/plot_two_link_pendulum_on_a_cart':
     'intermediate/plot_two_link_pendulum_on_a_cart.html',
