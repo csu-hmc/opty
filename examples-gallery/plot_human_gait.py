@@ -298,8 +298,8 @@ def animate(fname='animation.gif'):
     ))
     scene.evaluate_system(*gait_cycle[:, 0])
 
-    #scene.axes.set_proj_type("ortho")
-    #scene.axes.view_init(90, -90, 0)
+    scene.axes.set_proj_type("ortho")
+    scene.axes.view_init(90, -90, 0)
     scene.plot(prettify=False)
 
     ax3d.set_xlim((-0.8, 0.8))
