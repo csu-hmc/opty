@@ -70,6 +70,10 @@ eom = f_minus_ma(mass_matrix, forcing_vector, coordinates + speeds)
 eom.shape
 
 # %%
+# The equations of motion have this many mathematical operations:
+sm.count_ops(eom)
+
+# %%
 # :math:`t_f - t_0` needs to be available to compute the average speed in the
 # instance constraint, so add an extra differential equation that is the time
 # derivative of the difference in time.
