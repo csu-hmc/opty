@@ -242,10 +242,13 @@ def animate(fname='animation.gif'):
     ground, origin, segments = symbolics[8], symbolics[9], symbolics[10]
     trunk, rthigh, rshank, rfoot, lthigh, lshank, lfoot = segments
 
-    fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
+    fig = plt.figure(figsize=(8.0, 4.0))
+
+    ax3d = fig.add_subplot(1, 2, 1, projection='3d')
+    ax2d = fig.add_subplot(1, 2, 2)
 
     hip_proj = origin.locatenew('m', qax*ground.x)
-    scene = Scene3D(ground, hip_proj, ax=ax)
+    scene = Scene3D(ground, hip_proj, ax=ax3d)
 
     # creates the stick person
     scene.add_line([
@@ -285,6 +288,7 @@ def animate(fname='animation.gif'):
                      lfoot.heel, color="tab:blue")
 
     scene.lambdify_system(states + specified + constants)
+    # TODO : this is a half gait cycle, double it to get a full cycle
     gait_cycle = np.vstack((
         xs,  # q, u shape(2n, N)
         np.zeros((3, len(times))),  # Fax, Fay, Ta (hand of god), shape(3, N)
@@ -294,17 +298,49 @@ def animate(fname='animation.gif'):
     ))
     scene.evaluate_system(*gait_cycle[:, 0])
 
-    scene.axes.set_proj_type("ortho")
-    scene.axes.view_init(90, -90, 0)
-    scene.plot()
+    #scene.axes.set_proj_type("ortho")
+    #scene.axes.view_init(90, -90, 0)
+    scene.plot(prettify=False)
 
-    ax.set_xlim((-0.8, 0.8))
-    ax.set_ylim((-0.2, 1.4))
-    ax.set_aspect('equal')
+    ax3d.set_xlim((-0.8, 0.8))
+    ax3d.set_ylim((-0.2, 1.4))
+    ax3d.set_aspect('equal')
+    for axis in (ax3d.xaxis, ax3d.yaxis, ax3d.zaxis):
+        axis.set_ticklabels([])
+        axis.set_ticks_position("none")
 
-    ani = scene.animate(lambda i: gait_cycle[:, i], frames=len(times),
-                        interval=h_val*1000)
-    ani.save(fname, fps=int(1/h_val))
+    eval_contact_force = sm.lambdify(
+        states + specified + constants,
+        (contact_force(rfoot.toe, ground, origin) +
+         contact_force(rfoot.heel, ground, origin)).to_matrix(ground),
+        cse=True)
+
+    rforces = np.array([eval_contact_force(*gci).squeeze()
+                        for gci in gait_cycle.T])
+
+    ax2d.plot(times, rforces[:, :2])
+    ax2d.grid()
+    ax2d.set_ylabel('Force [N]')
+    ax2d.set_xlabel('Time [s]')
+    ax2d.legend(['Horizontal GRF', 'Vertical GRF'], loc='upper right')
+    ax2d.set_title('Right Foot Ground Reaction Force Components')
+    vline = ax2d.axvline(times[0], color='black')
+
+    def update(i):
+        scene.evaluate_system(*gait_cycle[:, i])
+        scene.update()
+        vline.set_xdata([times[i], times[i]])
+        return scene.artists + (vline,)
+
+    from matplotlib.animation import FuncAnimation
+    ani = FuncAnimation(
+        fig,
+        update,
+        frames=range(len(times)),
+        interval=h_val*1000,
+    )
+
+    #ani.save(fname, fps=int(1/h_val))
 
     return ani
 
