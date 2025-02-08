@@ -97,6 +97,11 @@ maximum_signature_line_length = 50
 
 
 # sphinx-gallery settings
+# for this see: https://github.com/sphinx-doc/sphinx/issues/12300
+if ("READTHEDOCS" in os.environ) or ("ONGITHUB" in os.environ):
+    suppress_warnings = ["config.cache"]
+
+
 def sort_subsections(path):
     if 'beginner' in path:
         return '101'
