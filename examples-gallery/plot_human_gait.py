@@ -309,21 +309,28 @@ def animate(fname='animation.gif'):
         axis.set_ticklabels([])
         axis.set_ticks_position("none")
 
-    eval_contact_force = sm.lambdify(
+    eval_rforce = sm.lambdify(
         states + specified + constants,
         (contact_force(rfoot.toe, ground, origin) +
          contact_force(rfoot.heel, ground, origin)).to_matrix(ground),
         cse=True)
 
-    rforces = np.array([eval_contact_force(*gci).squeeze()
-                        for gci in gait_cycle.T])
+    eval_lforce = sm.lambdify(
+        states + specified + constants,
+        (contact_force(lfoot.toe, ground, origin) +
+         contact_force(lfoot.heel, ground, origin)).to_matrix(ground),
+        cse=True)
 
-    ax2d.plot(times, rforces[:, :2])
+    rforces = np.array([eval_rforce(*gci).squeeze() for gci in gait_cycle.T])
+    lforces = np.array([eval_lforce(*gci).squeeze() for gci in gait_cycle.T])
+
+    ax2d.plot(times, rforces[:, :2], times, lforces[:, :2])
     ax2d.grid()
     ax2d.set_ylabel('Force [N]')
     ax2d.set_xlabel('Time [s]')
-    ax2d.legend(['Horizontal GRF', 'Vertical GRF'], loc='upper right')
-    ax2d.set_title('Right Foot Ground Reaction Force Components')
+    ax2d.legend(['Horizontal GRF (r)', 'Vertical GRF (r)',
+                 'Horizontal GRF (l)', 'Vertical GRF (l)'], loc='upper right')
+    ax2d.set_title('Foot Ground Reaction Force Components')
     vline = ax2d.axvline(times[0], color='black')
 
     def update(i):
@@ -340,7 +347,7 @@ def animate(fname='animation.gif'):
         interval=h_val*1000,
     )
 
-    #ani.save(fname, fps=int(1/h_val))
+    ani.save(fname, fps=int(1/h_val))
 
     return ani
 
