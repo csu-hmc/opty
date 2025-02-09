@@ -1818,11 +1818,6 @@ def test_attributes_read_only():
     """
     Test to ensure the ConstraintCollocator attributes are read-only.
     """
-    import sympy as sym
-    import sympy.physics.mechanics as mech
-    from opty.direct_collocation import Problem, ConstraintCollocator
-
-    import pytest
 
     # random optimization problem
     x1, x2, x3 = mech.dynamicsymbols('x1 x2 x3')
@@ -1910,5 +1905,5 @@ def test_attributes_read_only():
         'unknown_parameters',
         ]:
 
-        with pytest.raises(AttributeError):
+        with raises(AttributeError):
             setattr(test, XX, 5)
