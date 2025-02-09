@@ -215,7 +215,7 @@ def _optional_plt_dep(func):
         if plt is None:
             raise ImportError('Install matplotlib for plotting features.')
         else:
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
     return wrapper
 
 
