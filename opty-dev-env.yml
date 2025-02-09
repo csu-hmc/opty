@@ -24,6 +24,7 @@ dependencies:
   - pyyaml  # gait2d
   - sphinx
   - sphinx-gallery
+  - sphinx-reredirects
   - symmeplot
   - pip:
     - -e git+https://github.com/csu-hmc/gait2d#egg=gait2d
