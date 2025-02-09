@@ -1861,6 +1861,7 @@ def test_attributes_read_only():
         num_nodes,
         interval_value,
         known_parameter_map=par_map,
+        time_symbol=t,
     )
 
     # Test if all these attributes are read-only
