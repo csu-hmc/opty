@@ -4,16 +4,22 @@ Standing Balance Control Identification
 
 This example shows how to solve the human control parameter identification
 problem presented in [Park2004]_ using simulated noisy measurement data. The
-goal is to find a set of balance controller gains from data of perturbed
-standing balance. The dynamics model is a 2D planar two-body model representing
-a human standing on a antero-posteriorly moving platform, similar to
-[Park2004]_'s. The dynamics model is developed in :download:`model_park_2004.py
+goal is to find a set of balance controller feedback gains from data of
+perturbed standing balance. The dynamics model is a 2D planar two-body model
+representing a human standing on a antero-posteriorly moving platform. The
+dynamics model is developed in :download:`model_park_2004.py
 <model_park2004.py>`.
 
 .. note::
 
    This example requires SciPy, symmeplot, yeadon, and PyDy in addition to opty
    and its required dependencies.
+
+Objectives
+----------
+
+- Demonstrate closed loop controller parameter identification on a realistic
+  system.
 
 References
 ----------
@@ -55,8 +61,8 @@ time = np.linspace(0.0, duration, num=num_nodes)
 # identification of controllers in closed loop systems. The first is process
 # noise and it is added to the four states before entering the controller in a
 # forward simulation. This represents the human's inaccuracy in knowing its own
-# plant model. This can be set to zero with
-# ``process_noise = np.zeros((len(time), 4))`` if desired.
+# plant model. This can be set to zero with ``process_noise =
+# np.zeros((len(time), 4))`` if desired.
 process_noise = np.random.normal(scale=np.deg2rad(1.0), size=(len(time), 4))
 
 # %%
@@ -94,9 +100,14 @@ x_meas_vec = x_meas.T.flatten()
 #   velocity, acceleration)
 #
 # To identify the eight gains, define an objective that minimizes the least
-# square difference in the controlled plant's motion and the measured motion.
+# square difference in the controlled plant's motion and the measured motion:
+#
+# .. math::
+#
+#    J(\mathbf{p}_u) = \int_{t_0}^{t_f} \left[\mathbf{y}_\textrm{measured}(t) -
+#    \mathbf{y}_\textrm{simulated}(t) \right]^2 dt
 def obj(free):
-    """Minimize the error in the angle, y1."""
+    """Minimize the error in all of the states."""
     return interval*np.sum((x_meas_vec - free[:4*num_nodes])**2)
 
 
@@ -106,10 +117,17 @@ def obj_grad(free):
     return grad
 
 
+# %%
+# The gains were scaled in the model definition to allow IPOPT to work with
+# small magnitude values in the solution. The gains should be between 0 and 1,
+# so bound them. When working with real measurement data, more consideration
+# may be needed for this scaling.
 bounds = {}
 for g in h.gain_symbols:
     bounds[g] = (0.0, 1.0)
 
+# %%
+# Create the problem.
 prob = Problem(
     obj,
     obj_grad,
@@ -124,28 +142,41 @@ prob = Problem(
     integration_method='midpoint',
 )
 
+# %%
+# In such an experiment, the measurement data of the states can be used as an
+# initial guess. Below are four possible initial guesses, all of which converge
+# for this demo problem, with some taking IPOPT longer than others.
+initial_guess = np.zeros(prob.num_free)
+initial_guess = np.hstack((x_meas_vec, np.zeros(8)))
+initial_guess = np.hstack((x_meas_vec, np.random.random(8)))
 initial_guess = np.hstack((x_meas_vec,
                            (h.gain_scale_factors*h.numerical_gains).flatten()))
-initial_guess = np.hstack((x_meas_vec, np.random.random(8)))
-initial_guess = np.hstack((x_meas_vec, np.zeros(8)))
-#initial_guess = np.zeros(prob.num_free)
 
 # %%
-# Find the optimal solution.
+# Find the optimal solution and compare to the values used to generate the
+# data.
 solution, info = prob.solve(initial_guess)
-p_sol = solution[-8:]
-
 xs, rs, ps = prob.parse_free(solution)
-
 print("Gain initial guess: {}".format(
-    h.gain_scale_factors.flatten()*initial_guess[-8:]))
-print("Known value of p = {}".format(h.numerical_gains.flatten()))
+    initial_guess[-8:]/h.gain_scale_factors.flatten()))
+print("Known value of p = {}".format(
+    h.numerical_gains.flatten()))
 print("Identified value of p = {}".format(
-    h.gain_scale_factors.flatten()*p_sol))
+    h.gain_scale_factors.flatten()*ps))
+
+# %%
+# Plot the constraint violations.
+prob.plot_constraint_violations(solution)
+
+# %%
+# Show the difference in the measured state trajectories and the ones for the
+# identified controller.
+axes = prob.plot_trajectories(initial_guess)
+axes = prob.plot_trajectories(solution, axes=axes)
 
 
 # %%
-# Use symmeplot to make an animation of the motion.
+# Below is an animation of the motion.
 def animate(fname='park2004.gif'):
 
     fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
@@ -154,9 +185,9 @@ def animate(fname='park2004.gif'):
 
     # create the platform
     scene.add_line([
-        h.points['ankle'].locatenew('right', 0.5*h.frames['inertial'].x -
+        h.points['ankle'].locatenew('right', 0.3*h.frames['inertial'].x -
                                     0.02*h.frames['inertial'].y),
-        h.points['ankle'].locatenew('left', -0.5*h.frames['inertial'].x -
+        h.points['ankle'].locatenew('left', -0.3*h.frames['inertial'].x -
                                     0.02*h.frames['inertial'].y),
     ], linewidth=6, color="tab:blue")
 
@@ -189,12 +220,12 @@ def animate(fname='park2004.gif'):
 
     y = np.vstack((
         # x.T  # orig sim
-        #x_meas.T,  # q, u shape(2n, N)  # sim with noise
+        # x_meas.T,  # q, u shape(2n, N)  # sim with noise
         xs,  # q, u shape(2n, N)  # solution
         np.atleast_2d(pos),  # x (1, N)
         np.zeros((4, len(time))),  # v, a, T_h, T_a
-        np.repeat(np.atleast_2d(np.array(list(h.open_loop_par_map.values()))).T,
-                  len(time), axis=1),  # p, shape(r, N)
+        np.repeat(np.atleast_2d(np.array(list(  # p, shape(r, N)
+            h.open_loop_par_map.values()))).T, len(time), axis=1),
     ))
 
     scene.evaluate_system(*y[:, 0])
