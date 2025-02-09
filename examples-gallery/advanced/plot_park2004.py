@@ -4,13 +4,13 @@ Standing Balance Control Identification
 
 This example shows how to solve the human control parameter identification
 problem presented in [Park2004]_ using simulated noisy measurement data. The
-goal is to find a set of human standing balance controller gains from data of
-perturbed standing balance. The dynamics model is a 2D planar two-body model
-representing a human standing on a antero-posteriorly moving platform, similar
-to [Park2004]_'s. The dynamics model is developed in
-:download:`<model_park2004.py>`.
+goal is to find a set of balance controller gains from data of perturbed
+standing balance. The dynamics model is a 2D planar two-body model representing
+a human standing on a antero-posteriorly moving platform, similar to
+[Park2004]_'s. The dynamics model is developed in :download:`model_park_2004.py
+<model_park2004.py>`.
 
-.. warning::
+.. note::
 
    This example requires SciPy, symmeplot, yeadon, and PyDy in addition to opty
    and its required dependencies.
@@ -50,21 +50,32 @@ duration = 20.0
 interval = duration/(num_nodes - 1)
 time = np.linspace(0.0, duration, num=num_nodes)
 
-# ref noise seems to introduce error in the parameter id
-ref_noise = np.random.normal(scale=np.deg2rad(1.0), size=(len(time), 4))
-#ref_noise = np.zeros((len(time), 4))
+# %%
+# There are two types of noise that cause difficulties in parameter
+# identification of controllers in closed loop systems. The first is process
+# noise and it is added to the four states before entering the controller in a
+# forward simulation. This represents the human's inaccuracy in knowing its own
+# plant model. This can be set to zero with
+# ``process_noise = np.zeros((len(time), 4))`` if desired.
+process_noise = np.random.normal(scale=np.deg2rad(1.0), size=(len(time), 4))
 
 # %%
-# Create a sum of sinusoids to excite the platform.
+# The platform's kinematics are specified as a sum of sinusoids to represent a
+# pseudo-random perturbation of a wide bandwidth. The platform motion will
+# drive the initial forward simulation but its motion would also be measured in
+# the real experiment, so measurement noise is added later for use in the
+# parameter identification.
 nums = [7, 11, 16, 25, 38, 61, 103, 131, 151, 181, 313, 523]
 freq = 2.0*np.pi*np.array(nums, dtype=float)/240.0
 pos, vel, accel = sum_of_sines(0.02, freq, time)
 accel_meas = accel + np.random.normal(scale=np.deg2rad(0.25), size=accel.shape)
 
 # %%
-# Simulate the motion of the human under the sinusoidal excitation and add
-# Gaussian measurement noise.
-rhs, r, p = h.closed_loop_ode_func(time, ref_noise, accel)
+# Simulate the closed loop controlled motion of the human under the sinusoidal
+# excitation and add Gaussian measurement noise to the resulting state
+# trajectories to represent the motion measurements from a motion capture
+# system, for example.
+rhs, r, p = h.closed_loop_ode_func(time, process_noise, accel)
 x0 = np.zeros(4)
 x = odeint(rhs, x0, time, args=(r, p))
 x_meas = x + np.random.normal(scale=np.deg2rad(0.25), size=x.shape)
@@ -72,7 +83,18 @@ x_meas_vec = x_meas.T.flatten()
 
 
 # %%
-# Set up the control parameter identification problem.
+# At this point there, all information for the parameter identification is
+# available:
+#
+# - plant model of the standing human with known geometry and inertial
+#   parameters
+# - feedback controller model with 8 unknown control gains the human used
+#   during the simulated balancing
+# - noisy measurements of the platform's and human's kinematics (position,
+#   velocity, acceleration)
+#
+# To identify the eight gains, define an objective that minimizes the least
+# square difference in the controlled plant's motion and the measured motion.
 def obj(free):
     """Minimize the error in the angle, y1."""
     return interval*np.sum((x_meas_vec - free[:4*num_nodes])**2)
@@ -104,8 +126,8 @@ prob = Problem(
 
 initial_guess = np.hstack((x_meas_vec,
                            (h.gain_scale_factors*h.numerical_gains).flatten()))
-#initial_guess = np.hstack((x_meas_vec, np.random.random(8)))
-#initial_guess = np.hstack((x_meas_vec, np.zeros(8)))
+initial_guess = np.hstack((x_meas_vec, np.random.random(8)))
+initial_guess = np.hstack((x_meas_vec, np.zeros(8)))
 #initial_guess = np.zeros(prob.num_free)
 
 # %%
