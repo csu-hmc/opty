@@ -18,6 +18,7 @@ dependencies:
   - pytest
   - pytest-cov
   # docs/examples
+  - joblib
   - numpydoc
   - pip <24  # pin required for the gait2d pip install below
   - pydy  # gait2d

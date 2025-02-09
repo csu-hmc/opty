@@ -30,7 +30,7 @@ REPO_DIR = os.path.realpath(os.path.join(DOCS_DIR, '..'))
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-# needs_sphinx = '1.0'
+# needs_sphinx = '8.1'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -87,14 +87,16 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 pygments_style = 'sphinx'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
-todo_include_todos = False
+if ("READTHEDOCS" in os.environ) or ("ONGITHUB" in os.environ):
+    todo_include_todos = False
+else:
+    todo_include_todos = True
 
 # Show the __init__ docstring on classes.
 autoclass_content = 'both'
 
 # Display long function signatures better.
 maximum_signature_line_length = 50
-
 
 # sphinx-gallery settings
 # for this see: https://github.com/sphinx-doc/sphinx/issues/12300
