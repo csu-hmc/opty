@@ -324,7 +324,6 @@ solution, info = prob.solve(solution)
 # %%
 # Animate the second solution.
 xs, rs, _, h_val = prob.parse_free(solution)
-times = np.arange(0.0, num_nodes*h_val, h_val)
 
 animation = animate('human-gait-moon.gif')
 
