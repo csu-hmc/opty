@@ -4,8 +4,8 @@ Standing Balance Control Identification
 
 This example shows how to solve the human control parameter identification
 problem presented in [Park2004]_ using simulated noisy measurement data. The
-goal is to find a set of balance controller feedback gains from data of
-perturbed standing balance. The dynamics model is a 2D planar two-body model
+goal is to find a set of balance controller full-state feedback gains from data
+of perturbed standing balance. The dynamics model is a 2D planar two-body model
 representing a human standing on a antero-posteriorly moving platform. The
 dynamics model is developed in :download:`model_park_2004.py
 <model_park2004.py>`.
@@ -20,6 +20,7 @@ Objectives
 
 - Demonstrate closed loop controller parameter identification on a realistic
   system.
+- Demonstrate manual scaling for IPOPT.
 
 References
 ----------
@@ -42,8 +43,8 @@ from model_park2004 import PlanarStandingHumanOnMovingPlatform
 
 # %%
 # Generate the equations of motion and scale the control gains so that the
-# values we search for with IPOPT are all close to 0.5 instead of the large
-# gain values.
+# values searched for with IPOPT are all close to 0.5 instead of the large gain
+# values.
 h = PlanarStandingHumanOnMovingPlatform(unscaled_gain=0.5)
 h.derive()
 eom = h.first_order_implicit()
@@ -52,8 +53,8 @@ sm.pprint(sm.simplify(eom))
 # %%
 # Define the time discretization.
 num_nodes = 4000
-duration = 20.0
-interval = duration/(num_nodes - 1)
+duration = 20.0  # seconds
+interval = duration/(num_nodes - 1)  # seconds
 time = np.linspace(0.0, duration, num=num_nodes)
 
 # %%
@@ -78,9 +79,9 @@ accel_meas = accel + np.random.normal(scale=np.deg2rad(0.25), size=accel.shape)
 
 # %%
 # Simulate the closed loop controlled motion of the human under the sinusoidal
-# excitation and add Gaussian measurement noise to the resulting state
-# trajectories to represent the motion measurements from a motion capture
-# system, for example.
+# excitation and add Gaussian measurement noise (second type of noise) to the
+# resulting state trajectories to represent the motion measurements from a
+# motion capture system, for example.
 rhs, r, p = h.closed_loop_ode_func(time, process_noise, accel)
 x0 = np.zeros(4)
 x = odeint(rhs, x0, time, args=(r, p))
@@ -169,8 +170,8 @@ print("Identified value of p = {}".format(
 prob.plot_constraint_violations(solution)
 
 # %%
-# Show the difference in the measured state trajectories and the ones for the
-# identified controller.
+# Show the difference in the measured state trajectories (blue) and the ones
+# for the identified controller (orange).
 axes = prob.plot_trajectories(initial_guess)
 axes = prob.plot_trajectories(solution, axes=axes)
 

@@ -106,7 +106,6 @@ sphinx_gallery_conf = {
     'copyfile_regex': r'.*\.(svg|npy|csv|yml)',
     'remove_config_comments': True,
     'parallel': True,
-    'ignore_pattern': 'model_park2004.py',
 }
 
 # NOTE : The subsections are only sorted online due to it preventing caching.
