@@ -158,11 +158,12 @@ Next download the opty source files and install with::
 Usage
 =====
 
-There are several examples available in the ``examples`` and
-``examples-gallery`` directories. The optimal torque to swing up a pendulum
-with minimal energy can be run with::
+There are several examples available in the ``examples`` directory and the
+``examples-gallery/beginner``, ``examples-gallery/intermediate`` and
+``examples-gallery/advanced``directories. The optimal torque to swing up a
+pendulum with minimal energy can be run with::
 
-   $ python examples-gallery/plot_pendulum_swing_up_fixed_duration.py
+   $ python examples-gallery/beginner/plot_pendulum_swing_up_fixed_duration.py
 
 Failed Compilation
 ------------------
