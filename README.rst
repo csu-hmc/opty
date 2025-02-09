@@ -148,7 +148,7 @@ If you want to develop opty, create a conda environment with all of the
 dependencies installed::
 
    $ cd /path/to/opty/
-   $ conda env -create -f opty-dev-env.yml
+   $ conda env create -f opty-dev-env.yml
    $ conda activate opty-dev
 
 Next download the opty source files and install with::
