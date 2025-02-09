@@ -99,32 +99,32 @@ autoclass_content = 'both'
 maximum_signature_line_length = 50
 
 # sphinx-gallery settings
-# for this see: https://github.com/sphinx-doc/sphinx/issues/12300
-if ("READTHEDOCS" in os.environ) or ("ONGITHUB" in os.environ):
-    suppress_warnings = ["config.cache"]
-
-
-def sort_subsections(path):
-    if 'beginner' in path:
-        return '101'
-    elif 'intermediate' in path:
-        return '102'
-    elif 'advanced' in path:
-        return '103'
-    else:
-        return path
-
-
 sphinx_gallery_conf = {
     'examples_dirs': os.path.join(REPO_DIR, 'examples-gallery'),
     'gallery_dirs': 'examples',
     'matplotlib_animations': True,
     'copyfile_regex': r'.*\.(svg|npy|csv|yml)',
     'remove_config_comments': True,
-    'subsection_order': sort_subsections,
     'parallel': True,
     'ignore_pattern': 'model_park2004.py',
 }
+
+# NOTE : The subsections are only sorted online due to it preventing caching.
+# See https://github.com/sphinx-doc/sphinx/issues/12300 for more info.
+if ("READTHEDOCS" in os.environ) or ("ONGITHUB" in os.environ):
+    suppress_warnings = ["config.cache"]
+
+    def sort_subsections(path):
+        if 'beginner' in path:
+            return '101'
+        elif 'intermediate' in path:
+            return '102'
+        elif 'advanced' in path:
+            return '103'
+        else:
+            return path
+
+    sphinx_gallery_conf['subsection_order'] = sort_subsections
 
 # sphinx-reredirects
 redirects = {
