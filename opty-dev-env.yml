@@ -18,12 +18,14 @@ dependencies:
   - pytest
   - pytest-cov
   # docs/examples
+  - joblib
   - numpydoc
   - pip <24  # pin required for the gait2d pip install below
   - pydy  # gait2d
   - pyyaml  # gait2d
   - sphinx
   - sphinx-gallery
+  - sphinx-reredirects
   - symmeplot
   - pip:
     - -e git+https://github.com/csu-hmc/gait2d#egg=gait2d

@@ -129,7 +129,8 @@ obj, obj_grad = create_objective_function(obj_func,
                                           specified_symbols,
                                           tuple(),
                                           num_nodes,
-                                          interval_value)
+                                          interval_value,
+                                          time_symbol=t)
 
 # %%
 # Specify the symbolic instance constraints, i.e. initial and end conditions.
@@ -168,7 +169,7 @@ prob = Problem(obj, obj_grad, eom, state_symbols,
                num_nodes, interval_value,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
-               bounds=bounds)
+               bounds=bounds, time_symbol=t)
 
 prob.add_option('nlp_scaling_method', 'gradient-based')
 

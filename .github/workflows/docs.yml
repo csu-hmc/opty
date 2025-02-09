@@ -2,6 +2,9 @@ name: Build Docs
 
 on: [push, pull_request]
 
+env:
+  ONGITHUB: true
+
 # cancels prior builds for this workflow when new commit is pushed
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
