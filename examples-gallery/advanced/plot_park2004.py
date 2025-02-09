@@ -2,7 +2,7 @@
 Standing Balance Control Identification
 =======================================
 
-This example shows how to solve the same human control parameter identification
+This example shows how to solve the human control parameter identification
 problem presented in [Park2004]_ using simulated noisy measurement data. The
 goal is to find a set of human standing balance controller gains from data of
 perturbed standing balance. The dynamics model is a 2D planar two-body model
@@ -12,8 +12,8 @@ to [Park2004]_'s. The dynamics model is developed in
 
 .. warning::
 
-   This example requires SciPy, yeadon, and PyDy in addition to opty and its
-   required dependencies.
+   This example requires SciPy, symmeplot, yeadon, and PyDy in addition to opty
+   and its required dependencies.
 
 References
 ----------
@@ -27,6 +27,8 @@ References
 from opty import Problem
 from opty.utils import sum_of_sines
 from scipy.integrate import odeint
+from symmeplot.matplotlib import Scene3D
+import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sm
 
@@ -56,7 +58,7 @@ ref_noise = np.random.normal(scale=np.deg2rad(1.0), size=(len(time), 4))
 # Create a sum of sinusoids to excite the platform.
 nums = [7, 11, 16, 25, 38, 61, 103, 131, 151, 181, 313, 523]
 freq = 2.0*np.pi*np.array(nums, dtype=float)/240.0
-pos, vel, accel = sum_of_sines(0.01, freq, time)
+pos, vel, accel = sum_of_sines(0.02, freq, time)
 accel_meas = accel + np.random.normal(scale=np.deg2rad(0.25), size=accel.shape)
 
 # %%
@@ -102,17 +104,87 @@ prob = Problem(
 
 initial_guess = np.hstack((x_meas_vec,
                            (h.gain_scale_factors*h.numerical_gains).flatten()))
-initial_guess = np.hstack((x_meas_vec, np.random.random(8)))
-initial_guess = np.hstack((x_meas_vec, np.zeros(8)))
-initial_guess = np.zeros(prob.num_free)
+#initial_guess = np.hstack((x_meas_vec, np.random.random(8)))
+#initial_guess = np.hstack((x_meas_vec, np.zeros(8)))
+#initial_guess = np.zeros(prob.num_free)
 
 # %%
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
 p_sol = solution[-8:]
 
+xs, rs, ps = prob.parse_free(solution)
+
 print("Gain initial guess: {}".format(
     h.gain_scale_factors.flatten()*initial_guess[-8:]))
 print("Known value of p = {}".format(h.numerical_gains.flatten()))
 print("Identified value of p = {}".format(
     h.gain_scale_factors.flatten()*p_sol))
+
+
+# %%
+# Use symmeplot to make an animation of the motion.
+def animate(fname='park2004.gif'):
+
+    fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
+
+    scene = Scene3D(h.frames['inertial'], h.points['origin'], ax=ax)
+
+    # create the platform
+    scene.add_line([
+        h.points['ankle'].locatenew('right', 0.5*h.frames['inertial'].x -
+                                    0.02*h.frames['inertial'].y),
+        h.points['ankle'].locatenew('left', -0.5*h.frames['inertial'].x -
+                                    0.02*h.frames['inertial'].y),
+    ], linewidth=6, color="tab:blue")
+
+    shoulder = h.points['hip'].locatenew(
+        'shoulder', 2*h.parameters['torso_com_length']*h.frames['torso'].y)
+
+    # creates the stick person
+    scene.add_line([
+        h.points['ankle'].locatenew('left', -0.05*h.frames['inertial'].x),
+        h.points['ankle'].locatenew('right', 0.15*h.frames['inertial'].x),
+        h.points['ankle'],
+        h.points['hip'],
+        shoulder,
+    ], linewidth=3, color="black")
+
+    scene.add_point(h.points['hip'], color='tab:orange')
+    scene.add_point(h.points['ankle'], color='tab:orange')
+    scene.add_point(shoulder, color='tab:orange')
+
+    # adds CoM and unit vectors for each body segment
+    for body in h.rigid_bodies.values():
+        scene.add_body(body)
+
+    scene.lambdify_system(
+        list(h.coordinates.values()) +
+        list(h.speeds.values()) +
+        list(h.specified.values()) +
+        list(h.parameters.values())
+    )
+
+    y = np.vstack((
+        # x.T  # orig sim
+        #x_meas.T,  # q, u shape(2n, N)  # sim with noise
+        xs,  # q, u shape(2n, N)  # solution
+        np.atleast_2d(pos),  # x (1, N)
+        np.zeros((4, len(time))),  # v, a, T_h, T_a
+        np.repeat(np.atleast_2d(np.array(list(h.open_loop_par_map.values()))).T,
+                  len(time), axis=1),  # p, shape(r, N)
+    ))
+
+    scene.evaluate_system(*y[:, 0])
+
+    scene.axes.set_proj_type("ortho")
+    scene.axes.view_init(90, -90, 0)
+    scene.plot()
+
+    ani = scene.animate(lambda i: y[:, i], frames=range(0, len(time), 10))
+    ani.save(fname)
+
+    return ani
+
+
+animate()
