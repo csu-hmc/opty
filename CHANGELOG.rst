@@ -18,7 +18,7 @@ Version 1.4.0.dev0
 - Support for single first order differential equation instead of limiting to
   two first order (i.e. only second order systems).
 - Enabled math constants on Windows to support ``sympy.pi``, for example.
-- Made SciPy and optional dependency (was required).
+- Made SciPy an optional dependency (was required).
 - Fixed bug from backwards incompatible change in Python 3.13 for docstring
   indentation.
 - Examples added:
