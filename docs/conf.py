@@ -123,6 +123,7 @@ sphinx_gallery_conf = {
     'remove_config_comments': True,
     'subsection_order': sort_subsections,
     'parallel': True,
+    'ignore_pattern': 'model_park2004.py',
 }
 
 # sphinx-reredirects

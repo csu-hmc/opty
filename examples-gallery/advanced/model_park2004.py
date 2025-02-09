@@ -348,8 +348,9 @@ class PlanarStandingHumanOnMovingPlatform(object):
                                    list(self.speeds.values()),
                                    self.kin_diff_eqs)
 
-        fr, frstar = self.kane.kanes_equations(list(self.loads.values()),
-                                               list(self.rigid_bodies.values()))
+        fr, frstar = self.kane.kanes_equations(
+            list(self.rigid_bodies.values()),
+            loads=list(self.loads.values()))
 
         sub = {self.specified['platform_speed'].diff(self.time):
                self.specified['platform_acceleration']}
