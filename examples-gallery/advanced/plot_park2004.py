@@ -2,18 +2,15 @@
 Standing Balance Control Identification
 =======================================
 
-This example shows how to solve the human control parameter identification
-problem presented in [Park2004]_ using simulated noisy measurement data. The
-goal is to find a set of balance controller full-state feedback gains from data
-of perturbed standing balance. The dynamics model is a 2D planar two-body model
-representing a human standing on a antero-posteriorly moving platform. The
-dynamics model is developed in :download:`model_park_2004.py
-<model_park2004.py>`.
-
 .. note::
 
-   This example requires SciPy, symmeplot, yeadon, and PyDy in addition to opty
-   and its required dependencies.
+   This example requires SciPy_, symmeplot_, yeadon_, and PyDy_ in addition to
+   opty and its required dependencies.
+
+.. _SciPy: https://scipy.org/
+.. _symmeplot: https://github.com/TJStienstra/symmeplot
+.. _yeadon: https://yeadon.readthedocs.io
+.. _PyDy: https://pydy.readthedocs.io
 
 Objectives
 ----------
@@ -22,13 +19,17 @@ Objectives
   system.
 - Demonstrate manual scaling for IPOPT.
 
-References
-----------
+Introduction
+------------
 
-.. [Park2004] Park, S., Horak, F. B., & Kuo, A. D. (2004). Postural feedback
-   responses scale with biomechanical constraints in human standing.
-   Experimental Brain Research, 154(4), 417–427.
-   https://doi.org/10.1007/s00221-003-1674-3
+This example shows how to solve the human control parameter identification
+problem presented in [Park2004]_ using simulated noisy measurement data. The
+goal is to find a set of balance controller full-state feedback gains from data
+of perturbed standing balance. The dynamics model is a 2D planar two-body model
+representing a human standing on a antero-posteriorly moving platform. The
+dynamics model is developed in :download:`model_park_2004.py
+<model_park2004.py>` and the yeadon input parameters for the body segment
+properties are in :download:`JasonYeadonMeas.txt`.
 
 """
 from opty import Problem
@@ -42,6 +43,9 @@ import sympy as sm
 from model_park2004 import PlanarStandingHumanOnMovingPlatform
 
 # %%
+# Equations of Motion
+# -------------------
+#
 # Generate the equations of motion and scale the control gains so that the
 # values searched for with IPOPT are all close to 0.5 instead of the large gain
 # values.
@@ -51,6 +55,9 @@ eom = h.first_order_implicit()
 MathJaxRepr(sm.simplify(eom))
 
 # %%
+# Simulate Measurement Data
+# -------------------------
+#
 # Define the time discretization.
 num_nodes = 4000
 duration = 20.0  # seconds
@@ -90,6 +97,9 @@ x_meas_vec = x_meas.T.flatten()
 
 
 # %%
+# Define Parameter Identification Problem
+# ---------------------------------------
+#
 # At this point there, all information for the parameter identification is
 # available:
 #
@@ -144,6 +154,9 @@ prob = Problem(
 )
 
 # %%
+# Solve the Parameter Identification Problem
+# ------------------------------------------
+#
 # In such an experiment, the measurement data of the states can be used as an
 # initial guess. Below are four possible initial guesses, all of which converge
 # for this demo problem, with some taking IPOPT longer than others.
@@ -241,6 +254,15 @@ def animate(fname='park2004.gif'):
     return ani
 
 
-animate()
+_ = animate()
 
-# sphinx_gallery_thumbnail_number = 3
+# sphinx_gallery_thumbnail_number = 2
+
+# %%
+# References
+# ----------
+#
+# .. [Park2004] Park, S., Horak, F. B., & Kuo, A. D. (2004). Postural feedback
+#    responses scale with biomechanical constraints in human standing.
+#    Experimental Brain Research, 154(4), 417–427.
+#    https://doi.org/10.1007/s00221-003-1674-3

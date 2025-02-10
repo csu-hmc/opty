@@ -109,7 +109,7 @@ mathjax2_config = {
 
 # sphinx-gallery settings
 sphinx_gallery_conf = {
-    'copyfile_regex': r'.*\.(svg|npy|csv|yml)',
+    'copyfile_regex': r'.*\.(svg|npy|csv|yml|txt)',
     'examples_dirs': os.path.join(REPO_DIR, 'examples-gallery'),
     'gallery_dirs': 'examples',
     'matplotlib_animations': True,
