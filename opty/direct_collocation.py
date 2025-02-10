@@ -80,10 +80,16 @@ class _DocInherit(object):
         beg, end = prob_doc.split('bounds')
         if sys.version_info[1] >= 13:
             sep = 'Parameters\n==========\n'
+            _, middle = coll_doc.split(sep)
+            bounds = 'bounds'
+            mid = middle[:-1]
         else:
             sep = 'Parameters\n        ==========\n        '
-        _, middle = coll_doc.split(sep)
-        return beg + middle[:-9] + '        bounds' + end
+            bounds = '        bounds'
+            _, middle = coll_doc.split(sep)
+            mid = middle[:-9]
+        pause
+        return beg + mid + bounds + end
 
 _doc_inherit = _DocInherit
 
