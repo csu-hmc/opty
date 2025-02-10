@@ -176,9 +176,10 @@ html_theme = 'alabaster'
 # documentation.
 #
 html_theme_options = {
-    'github_user': 'csu-hmc',
     'github_repo': 'opty',
-    'page_width': '1080px',
+    'github_type': 'star',
+    'github_user': 'csu-hmc',
+    'page_width': '1080px',  # 960 doesn't show 79 linewidth examples
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

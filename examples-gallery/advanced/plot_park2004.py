@@ -183,22 +183,15 @@ print("Identified value of p = {}".format(
 prob.plot_constraint_violations(solution)
 
 # %%
-# Now do a forward simulation with the identified gains and no process noise.
-h.numerical_gains = ps.reshape(2, 4)
-h._numerical_parameters()  # must be run again if gains are changed
-rhs, r, p = h.closed_loop_ode_func(time, np.zeros((len(time), 4)), accel)
-x = odeint(rhs, x0, time, args=(r, p))
-
-# %%
 # Show the difference in the measured state trajectories (blue) and the ones
 # for the identified controller (orange).
-new_sim = np.hstack((x.T.flatten(), np.zeros(8)))
 axes = prob.plot_trajectories(initial_guess)
-axes = prob.plot_trajectories(new_sim, axes=axes)
+axes = prob.plot_trajectories(solution, axes=axes)
 
 
 # %%
 # Below is an animation of the motion.
+# sphinx_gallery_thumbnail_number = 3
 def animate(fname='park2004.gif'):
 
     fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
@@ -241,7 +234,7 @@ def animate(fname='park2004.gif'):
     )
 
     y = np.vstack((
-        x.T,  # q, u shape(2n, N)  # solution
+        xs,  # q, u shape(2n, N)  # solution
         np.atleast_2d(pos),  # x (1, N)
         np.zeros((4, len(time))),  # v, a, T_h, T_a
         np.repeat(np.atleast_2d(np.array(list(  # p, shape(r, N)
@@ -261,6 +254,7 @@ def animate(fname='park2004.gif'):
 
 
 _ = animate()
+
 
 # %%
 # References
