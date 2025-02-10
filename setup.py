@@ -32,18 +32,25 @@ setup(
             'matplotlib>=3.2.0',
             'pandas',
             'pydy>=0.5.0',
+            'pyyaml',  # gait2d dep
             'scipy>=1.5.0',
+            'symmeplot',
             'tables',
             'yeadon',
         ],
         'doc': [
             # 'gait2d',  # when available on PyPi
+            'joblib',
             'matplotlib>=3.2.0',
             'numpydoc',
             'pydy>=0.5.0',
+            'pyyaml',  # gait2d dep
             'scipy>=1.5.0',
             'sphinx',
             'sphinx-gallery',
+            'sphinx-reredirects',
+            'symmeplot',
+            'yeadon',
         ],
     },
     tests_require=['pytest'],
