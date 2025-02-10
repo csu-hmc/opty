@@ -7,4 +7,5 @@ recursive-include examples-gallery/*.csv
 recursive-include examples-gallery/*.npy
 recursive-include examples-gallery/*.rst
 recursive-include examples-gallery/*.svg
+recursive-include examples-gallery/*.txt
 recursive-include examples-gallery/*.yml
