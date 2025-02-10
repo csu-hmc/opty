@@ -21,18 +21,26 @@ Version 1.4.0.dev0
 - Made SciPy an optional dependency (was required).
 - Fixed bug from backwards incompatible change in Python 3.13 for docstring
   indentation.
+- Fixed bug where ``Problem.plot_`` methods did not return anything.
+- Fixed bug in trajectory plots so that the input trajectories are labeled with
+  known, unknown, or both types of inputs.
+- Made all ``ConstraintCollocator`` attributes properties with no setter
+  methods, i.e. everything must be passed into the constructor to properly
+  construct the object.
+- Separated examples into beginner, intermediate, and advanced groups.
 - Examples added:
 
   - Ball rolling on spinning disc
-  - Car parking into a garage
   - Car moving around pylons
+  - Car parking into a garage
   - Crane moving a load
-  - Mississippi steamboat
-  - Non-contiguous parameter identification
-  - Single EoM & hypersensitive control
-  - ODE vs DAE comparison
   - Delay equation (inequality constraints example)
   - Human gait
+  - Mississippi steamboat
+  - Non-contiguous parameter identification
+  - ODE vs DAE comparison
+  - Single EoM & hypersensitive control
+  - Standing balance control identification
 
 Version 1.3.0
 =============
