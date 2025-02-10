@@ -46,8 +46,7 @@ class print_html():
         r"""
         Creates ``$$\begin{equation}...\end{equation}$$``
         """
-        from sympy.physics.mechanics import vlatex
-        return vlatex(self.expr, mode='equation', itex=True)
+        return me.vlatex(self.expr, mode='equation', itex=True)
 
 
 class OptyC99CodePrinter(C99CodePrinter):
