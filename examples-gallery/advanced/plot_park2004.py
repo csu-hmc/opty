@@ -32,7 +32,7 @@ References
 
 """
 from opty import Problem
-from opty.utils import sum_of_sines
+from opty.utils import sum_of_sines, print_html
 from scipy.integrate import odeint
 from symmeplot.matplotlib import Scene3D
 import matplotlib.pyplot as plt
@@ -48,7 +48,7 @@ from model_park2004 import PlanarStandingHumanOnMovingPlatform
 h = PlanarStandingHumanOnMovingPlatform(unscaled_gain=0.5)
 h.derive()
 eom = h.first_order_implicit()
-sm.pprint(sm.simplify(eom))
+print_html(sm.simplify(eom))
 
 # %%
 # Define the time discretization.

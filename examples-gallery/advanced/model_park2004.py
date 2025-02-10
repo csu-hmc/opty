@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
 Planar 2D Human Standing Model
+==============================
 """
 
 from collections import OrderedDict
