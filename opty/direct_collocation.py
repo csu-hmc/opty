@@ -88,7 +88,6 @@ class _DocInherit(object):
             bounds = '        bounds'
             _, middle = coll_doc.split(sep)
             mid = middle[:-9]
-        pause
         return beg + mid + bounds + end
 
 _doc_inherit = _DocInherit
