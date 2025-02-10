@@ -197,6 +197,10 @@ and open the result with your web browser, for example::
 
    $ firefox _build/html/index.html
 
+Alternatively, in the windows explorer open ``opyt/docs/_build/html/index.html``
+
+
+
 Acknowledgements
 ================
 
