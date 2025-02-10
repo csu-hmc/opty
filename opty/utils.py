@@ -36,9 +36,10 @@ __all__ = [
 ]
 
 
-class print_html():
-    """Returns an object wrapping a SymPy expression that will render as HTML
-    in Sphinx Gallery."""
+class MathJaxRepr():
+    """Returns an object wrapping a SymPy expression that will render output in
+    MathJax LaTeX syntax compatible with rendering in HTML in Sphinx
+    Gallery."""
     def __init__(self, expr):
         self.expr = expr
 

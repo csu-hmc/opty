@@ -32,7 +32,7 @@ References
 
 """
 from opty import Problem
-from opty.utils import sum_of_sines, print_html
+from opty.utils import sum_of_sines, MathJaxRepr
 from scipy.integrate import odeint
 from symmeplot.matplotlib import Scene3D
 import matplotlib.pyplot as plt
@@ -48,7 +48,7 @@ from model_park2004 import PlanarStandingHumanOnMovingPlatform
 h = PlanarStandingHumanOnMovingPlatform(unscaled_gain=0.5)
 h.derive()
 eom = h.first_order_implicit()
-print_html(sm.simplify(eom))
+MathJaxRepr(sm.simplify(eom))
 
 # %%
 # Define the time discretization.
@@ -242,3 +242,5 @@ def animate(fname='park2004.gif'):
 
 
 animate()
+
+# sphinx_gallery_thumbnail_number = 3
