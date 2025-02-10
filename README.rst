@@ -93,6 +93,7 @@ To run all of the examples the following additional dependencies may be needed:
 - pandas
 - pydy >= 0.5.0
 - pytables
+- pyyaml
 - symmeplot
 - yeadon
 
@@ -104,7 +105,7 @@ optional dependencies from the Conda Forge channel, e.g. opty::
 
 and the optional dependencies::
 
-   $ conda install --channel conda-forge matplotlib openmp pandas pydy pytables yeadon
+   $ conda install --channel conda-forge matplotlib openmp scipy
 
 .. _Anaconda: https://www.continuum.io/downloads
 .. _Miniconda: https://conda.io/miniconda.html
@@ -118,6 +119,12 @@ cyipopt if it is not already installed::
 See the `cyipopt documentation`_ for information on installing that package.
 
 .. _cyipopt documentation: https://cyipopt.readthedocs.io
+
+There are also several dependency groups::
+
+   $ pip install opty[optional]  # use extra functionality in opty
+   $ pip install opty[examples]  # run all example sripts
+   $ pip install opty[doc]  # build the documentation
 
 Custom Ipopt
 ------------
@@ -139,19 +146,19 @@ set the ``LD_LIBRARY_PATH`` so that you can link to Ipopt when installing
 
 Once Ipopt is installed and accessible, install conda then create an environment::
 
-   $ conda create -n opty-custom -c conda-forge cython numpy pip scipy setuptools sympy
+   $ conda create -n opty-custom -c conda-forge cython numpy pip setuptools sympy
    $ source activate opty-custom
    (opty-custom)$ pip install cyipopt  # this will compile cyipopt against the available ipopt
    (opty-custom)$ pip install opty
 
 If you want to develop opty, create a conda environment with all of the
-dependencies installed::
+development dependencies installed::
 
    $ cd /path/to/opty/
    $ conda env create -f opty-dev-env.yml
    $ conda activate opty-dev
 
-Next download the opty source files and install with::
+Next install the development version of opty with::
 
    (opty-dev)$ python -m pip install --no-deps --no-build-isolation --editable .
 
@@ -197,9 +204,7 @@ and open the result with your web browser, for example::
 
    $ firefox _build/html/index.html
 
-Alternatively, in the windows explorer open ``opyt/docs/_build/html/index.html``
-
-
+Alternatively, in the windows explorer open ``opyt/docs/_build/html/index.html``.
 
 Acknowledgements
 ================

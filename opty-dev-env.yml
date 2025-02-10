@@ -21,7 +21,7 @@ dependencies:
   - joblib
   - numpydoc
   - pip <24  # pin required for the gait2d pip install below
-  - pydy  # gait2d
+  - pydy >=0.5.0  # gait2d
   - pyyaml  # gait2d
   - sphinx
   - sphinx-gallery
