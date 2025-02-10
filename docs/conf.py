@@ -98,14 +98,23 @@ autoclass_content = 'both'
 # Display long function signatures better.
 maximum_signature_line_length = 50
 
+# Sphinx >=4 default to MathJax v3, but v3 does not support wrapping lines. So
+# force Sphinx to use v2 and config MathJax to wrap long lines.
+mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+mathjax2_config = {
+    "HTML-CSS": {
+        "linebreaks": {"automatic": True}
+    }
+}
+
 # sphinx-gallery settings
 sphinx_gallery_conf = {
+    'copyfile_regex': r'.*\.(svg|npy|csv|yml)',
     'examples_dirs': os.path.join(REPO_DIR, 'examples-gallery'),
     'gallery_dirs': 'examples',
     'matplotlib_animations': True,
-    'copyfile_regex': r'.*\.(svg|npy|csv|yml)',
-    'remove_config_comments': True,
     'parallel': True,
+    'remove_config_comments': True,
 }
 
 # NOTE : The subsections are only sorted online due to it preventing caching.

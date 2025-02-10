@@ -36,6 +36,20 @@ __all__ = [
 ]
 
 
+class print_html():
+    """Returns an object wrapping a SymPy expression that will render as HTML
+    in Sphinx Gallery."""
+    def __init__(self, expr):
+        self.expr = expr
+
+    def _repr_html_(self):
+        r"""
+        Creates ``$$\begin{equation}...\end{equation}$$``
+        """
+        from sympy.physics.mechanics import vlatex
+        return vlatex(self.expr, mode='equation', itex=True)
+
+
 class OptyC99CodePrinter(C99CodePrinter):
     """Printer that appends an underscore to all C variable names, to minimize
     clashes with variables declared in headers we link against."""
