@@ -2,6 +2,9 @@
 """
 Planar 2D Human Standing Model
 ==============================
+
+This is the model used in ``plot_park2004.py``.
+
 """
 
 from collections import OrderedDict
@@ -573,18 +576,21 @@ class PlanarStandingHumanOnMovingPlatform(object):
 
             return controls
 
-        rhs = generate_ode_function(self.forcing_vector_full,
-                                    list(self.coordinates.values()),
-                                    list(self.speeds.values()),
-                                    list(self.parameters.values()),
-                                    mass_matrix=self.mass_matrix_full,
-                                    specifieds=list(self.specified.values())[-3:],
-                                    generator='lambdify')
+        rhs = generate_ode_function(
+            self.forcing_vector_full,
+            list(self.coordinates.values()),
+            list(self.speeds.values()),
+            list(self.parameters.values()),
+            mass_matrix=self.mass_matrix_full,
+            specifieds=list(self.specified.values())[-3:],
+            generator='lambdify',
+        )
 
         return rhs, controller, np.array(list(self.open_loop_par_map.values()))
 
     def first_order_implicit(self):
-        return sy.Matrix(self.kin_diff_eqs).col_join(self.fr_plus_frstar_closed)
+        return sy.Matrix(self.kin_diff_eqs).col_join(
+            self.fr_plus_frstar_closed)
 
     def states(self):
         return list(self.coordinates.values()) + list(self.speeds.values())
