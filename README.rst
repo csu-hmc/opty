@@ -197,8 +197,9 @@ and open the result with your web browser, for example::
 
    $ firefox _build/html/index.html
 
-Alternatively, in the windows explorer go to ``opty/docs``, open ``docs`` and
-search for ``index.html``. Several files will show, click them.
+Alternatively, in the windows explorer open ``opyt/docs/_build/html/index.html``
+
+
 
 Acknowledgements
 ================
