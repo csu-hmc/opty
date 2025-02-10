@@ -68,8 +68,8 @@ time = np.linspace(0.0, duration, num=num_nodes)
 # There are two types of noise that cause difficulties in parameter
 # identification of controllers in closed loop systems. The first is process
 # noise and it is added to the four states before entering the controller in a
-# forward simulation. This represents the human's inaccuracy in knowing its own
-# plant model. This can be set to zero with ``process_noise =
+# forward simulation. This represents the human's inaccuracies in knowing its
+# own plant model. This can be set to zero with ``process_noise =
 # np.zeros((len(time), 4))`` if desired.
 process_noise = np.random.normal(scale=np.deg2rad(1.0), size=(len(time), 4))
 
@@ -86,8 +86,8 @@ accel_meas = accel + np.random.normal(scale=np.deg2rad(0.25), size=accel.shape)
 
 # %%
 # Simulate the closed loop controlled motion of the human under the sinusoidal
-# excitation and add Gaussian measurement noise (second type of noise) to the
-# resulting state trajectories to represent the motion measurements from a
+# excitation and add Gaussian measurement noise (the second type of noise) to
+# the resulting state trajectories to represent the motion measurements from a
 # motion capture system, for example.
 rhs, r, p = h.closed_loop_ode_func(time, process_noise, accel)
 x0 = np.zeros(4)
@@ -130,9 +130,9 @@ def obj_grad(free):
 
 # %%
 # The gains were scaled in the model definition to allow IPOPT to work with
-# small magnitude values in the solution. The gains should be between 0 and 1,
-# so bound them. When working with real measurement data, more consideration
-# may be needed for this scaling.
+# small magnitude values in the solution. The scaled gains should be between 0
+# and 1, so bound them. When working with real measurement data, more
+# consideration may be needed for this scaling.
 bounds = {}
 for g in h.gain_symbols:
     bounds[g] = (0.0, 1.0)
@@ -183,10 +183,18 @@ print("Identified value of p = {}".format(
 prob.plot_constraint_violations(solution)
 
 # %%
+# Now do a forward simulation with the identified gains and no process noise.
+h.numerical_gains = ps.reshape(2, 4)
+h._numerical_parameters()  # must be run again if gains are changed
+rhs, r, p = h.closed_loop_ode_func(time, np.zeros((len(time), 4)), accel)
+x = odeint(rhs, x0, time, args=(r, p))
+
+# %%
 # Show the difference in the measured state trajectories (blue) and the ones
 # for the identified controller (orange).
+new_sim = np.hstack((x.T.flatten(), np.zeros(8)))
 axes = prob.plot_trajectories(initial_guess)
-axes = prob.plot_trajectories(solution, axes=axes)
+axes = prob.plot_trajectories(new_sim, axes=axes)
 
 
 # %%
@@ -233,9 +241,7 @@ def animate(fname='park2004.gif'):
     )
 
     y = np.vstack((
-        # x.T  # orig sim
-        # x_meas.T,  # q, u shape(2n, N)  # sim with noise
-        xs,  # q, u shape(2n, N)  # solution
+        x.T,  # q, u shape(2n, N)  # solution
         np.atleast_2d(pos),  # x (1, N)
         np.zeros((4, len(time))),  # v, a, T_h, T_a
         np.repeat(np.atleast_2d(np.array(list(  # p, shape(r, N)
@@ -255,8 +261,6 @@ def animate(fname='park2004.gif'):
 
 
 _ = animate()
-
-# sphinx_gallery_thumbnail_number = 2
 
 # %%
 # References

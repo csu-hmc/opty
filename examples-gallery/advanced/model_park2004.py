@@ -146,6 +146,10 @@ class PlanarStandingHumanOnMovingPlatform(object):
             gain matrix. If None, the gains are not scaled.
 
         """
+        # These are taken from Samin's paper. She may have gotten them from
+        # the Park paper.
+        self.numerical_gains = np.array([[950.0, 175.0, 185.0, 50.0],
+                                         [45.0, 290.0, 60.0, 26.0]])
 
         self.unscaled_gain = unscaled_gain
 
@@ -459,10 +463,6 @@ class PlanarStandingHumanOnMovingPlatform(object):
         for k, v in self.parameters.items():
             self.open_loop_par_map[v] = p[k]
 
-        # These are taken from Samin's paper. She may have gotten them from
-        # the Park paper.
-        self.numerical_gains = np.array([[950.0, 175.0, 185.0, 50.0],
-                                         [45.0, 290.0, 60.0, 26.0]])
         if self.unscaled_gain is None:
             self.gain_scale_factors = np.ones_like(self.numerical_gains)
         else:
@@ -579,7 +579,7 @@ class PlanarStandingHumanOnMovingPlatform(object):
                                     list(self.parameters.values()),
                                     mass_matrix=self.mass_matrix_full,
                                     specifieds=list(self.specified.values())[-3:],
-                                    generator='cython')
+                                    generator='lambdify')
 
         return rhs, controller, np.array(list(self.open_loop_par_map.values()))
 
