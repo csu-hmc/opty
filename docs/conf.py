@@ -98,32 +98,41 @@ autoclass_content = 'both'
 # Display long function signatures better.
 maximum_signature_line_length = 50
 
+# Sphinx >=4 default to MathJax v3, but v3 does not support wrapping lines. So
+# force Sphinx to use v2 and config MathJax to wrap long lines.
+mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+mathjax2_config = {
+    "HTML-CSS": {
+        "linebreaks": {"automatic": True}
+    }
+}
+
 # sphinx-gallery settings
-# for this see: https://github.com/sphinx-doc/sphinx/issues/12300
-if ("READTHEDOCS" in os.environ) or ("ONGITHUB" in os.environ):
-    suppress_warnings = ["config.cache"]
-
-
-def sort_subsections(path):
-    if 'beginner' in path:
-        return '101'
-    elif 'intermediate' in path:
-        return '102'
-    elif 'advanced' in path:
-        return '103'
-    else:
-        return path
-
-
 sphinx_gallery_conf = {
+    'copyfile_regex': r'.*\.(svg|npy|csv|yml|txt)',
     'examples_dirs': os.path.join(REPO_DIR, 'examples-gallery'),
     'gallery_dirs': 'examples',
     'matplotlib_animations': True,
-    'copyfile_regex': r'.*\.(svg|npy|csv|yml)',
-    'remove_config_comments': True,
-    'subsection_order': sort_subsections,
     'parallel': True,
+    'remove_config_comments': True,
 }
+
+# NOTE : The subsections are only sorted online due to it preventing caching.
+# See https://github.com/sphinx-doc/sphinx/issues/12300 for more info.
+if ("READTHEDOCS" in os.environ) or ("ONGITHUB" in os.environ):
+    suppress_warnings = ["config.cache"]
+
+    def sort_subsections(path):
+        if 'beginner' in path:
+            return '101'
+        elif 'intermediate' in path:
+            return '102'
+        elif 'advanced' in path:
+            return '103'
+        else:
+            return path
+
+    sphinx_gallery_conf['subsection_order'] = sort_subsections
 
 # sphinx-reredirects
 redirects = {
@@ -166,7 +175,12 @@ html_theme = 'alabaster'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    'github_repo': 'opty',
+    'github_type': 'star',
+    'github_user': 'csu-hmc',
+    'page_width': '1080px',  # 960 doesn't show 79 linewidth examples
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

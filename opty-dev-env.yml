@@ -27,5 +27,6 @@ dependencies:
   - sphinx-gallery
   - sphinx-reredirects
   - symmeplot
+  - yeadon
   - pip:
     - -e git+https://github.com/csu-hmc/gait2d#egg=gait2d

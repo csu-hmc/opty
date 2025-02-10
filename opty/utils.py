@@ -36,6 +36,20 @@ __all__ = [
 ]
 
 
+class MathJaxRepr():
+    """Returns an object wrapping a SymPy expression that will render output in
+    MathJax LaTeX syntax compatible with rendering in HTML in Sphinx
+    Gallery."""
+    def __init__(self, expr):
+        self.expr = expr
+
+    def _repr_html_(self):
+        r"""
+        Creates ``$$\begin{equation}...\end{equation}$$``
+        """
+        return me.vlatex(self.expr, mode='equation', itex=True)
+
+
 class OptyC99CodePrinter(C99CodePrinter):
     """Printer that appends an underscore to all C variable names, to minimize
     clashes with variables declared in headers we link against."""
@@ -215,7 +229,7 @@ def _optional_plt_dep(func):
         if plt is None:
             raise ImportError('Install matplotlib for plotting features.')
         else:
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
     return wrapper
 
 
