@@ -28,6 +28,8 @@ Version 1.4.0.dev0
   methods, i.e. everything must be passed into the constructor to properly
   construct the object.
 - Separated examples into beginner, intermediate, and advanced groups.
+- Added ``MathJaxRepr`` for printing SymPy expressions in the example gallery.
+- Use MathJax v2 in the documentation so that long expressions will line wrap.
 - Examples added:
 
   - Ball rolling on spinning disc
@@ -39,6 +41,7 @@ Version 1.4.0.dev0
   - Mississippi steamboat
   - Non-contiguous parameter identification
   - ODE vs DAE comparison
+  - Particle moving through a helical tube
   - Single EoM & hypersensitive control
   - Standing balance control identification
 
