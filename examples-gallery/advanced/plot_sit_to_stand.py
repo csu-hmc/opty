@@ -2,6 +2,13 @@ r"""
 Sit to Stand
 ============
 
+The optimal control goal is to find the joint torques (hip, knee, ankle) that
+generate a minimal mean-torque for a person to stand from a seated position.
+gait2d provides a joint torque driven 2D bipedal human dynamical model with
+seven body segments (trunk, thighs, shanks, feet) and foot-ground contact
+forces based on the description in [Ackermann2010]_ suitable for this
+simulation.
+
 .. note::
 
    pygait2d and symmeplot and their dependencies must be installed first to run
@@ -10,13 +17,6 @@ Sit to Stand
 
       conda install cython pip pydy pyyaml setuptools symmeplot sympy
       python -m pip install --no-deps --no-build-isolation git+https://github.com/csu-hmc/gait2d
-
-   gait2d provides a joint torque driven 2D bipedal human dynamical model with
-   seven body segments (trunk, thighs, shanks, feet) and foot-ground contact
-   forces based on the description in [Ackermann2010]_.
-
-The optimal control goal is to find the joint torques (hip, knee, ankle) that
-generate a minimal mean-torque for a person to stand from a seated position.
 
 Import all necessary modules, functions, and classes:
 """
@@ -52,7 +52,7 @@ specified = symbolics[6]
 states = coordinates + speeds
 num_states = len(states)
 
-eom = f_minus_ma(mass_matrix, forcing_vector, coordinates + speeds)
+eom = f_minus_ma(mass_matrix, forcing_vector, states)
 eom.shape
 
 # %%
@@ -76,17 +76,17 @@ Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = specified
 # The model constants describe the geometry, mass, and inertia of the human. We
 # will need some geometry for defining the seating position:
 #
-# - ya: trunk hip to mass center length
-# - lb: thigh length
-# - lc: shank length
-# - fyd: foot depth
+# - ``ya``: trunk hip to mass center length
+# - ``lb``: thigh length
+# - ``lc``: shank length
+# - ``fyd``: foot depth
 (g, ma, ia, xa, ya, mb, ib, lb, xb, yb, mc, ic, lc, xc, yc, md, id_, xd, yd,
  hxd, txd, fyd, me, ie, le, xe, ye, mf, if_, lf, xf, yf, mg, ig, xg, yg, hxg,
  txg, fyg, kc, cc, mu, vs) = constants
 
 # %%
-# The constants are loaded from a file of realistic geometry, mass, inertia,
-# and foot deformation properties of an adult human.
+# The constant values are loaded from a file of realistic geometry, mass,
+# inertia, and foot deformation properties of an adult human.
 par_map = simulate.load_constants(constants, 'human-gait-constants.yml')
 pprint.pprint(par_map)
 
@@ -104,7 +104,7 @@ traj_map = {
 #
 # - The trunk should stay generally upright but can lean back and forth.
 # - Only let the hip, knee, and ankle flex and extend to realistic limits.
-# - Put a maximum on the peak torque values.
+# - Put a maximum on the peak joint torque values.
 bounds = {
     h: (0.001, 0.1),
     qax: (0.0, 5.0),
@@ -130,7 +130,7 @@ bounds.update({k: (-500.0, 500.0)
                for k in [Tb, Tc, Td, Te, Tf, Tg]})
 
 # %%
-# Set the configuration to be seated at the start and standing at the finish. #
+# Set the configuration to be seated at the start and standing at the finish.
 # Subtract a bit from the final height because the feet compress into the
 # ground.
 instance_constraints = (
@@ -242,19 +242,10 @@ else:
         np.deg2rad(-90.0), 0.0, num=num_nodes)
 
 # %%
-# Plot the initial guess.
-prob.plot_trajectories(initial_guess)
-
-# %%
-# Plot the guess constraint violations.
-prob.plot_constraint_violations(initial_guess)
-
-# %%
 # Find the optimal solution and save it if it converges.
 solution, info = prob.solve(initial_guess)
 if info['status'] in (0, 1):
-    np.savetxt(f'human_sit_to_stand_{num_nodes}_nodes_solution.csv', solution,
-               fmt='%.2f')
+    np.savetxt(fname, solution, fmt='%.2f')
 
 # %%
 # Plot the solution.
@@ -296,11 +287,13 @@ def animate(fname='animation.gif'):
         lshank.joint,
     ], color="k")
 
+    # ground
     scene.add_line([
         origin.locatenew('left', -0.8*ground.x),
         origin.locatenew('right', 0.8*ground.x),
     ], color='black')
 
+    # seat
     seat_level = origin.locatenew('seat', (segments[2].length_symbol -
                                            segments[3].foot_depth)*ground.y)
 
@@ -314,9 +307,10 @@ def animate(fname='animation.gif'):
     for seg in segments:
         scene.add_body(seg.rigid_body)
 
-    # show ground reaction force vectors at the heels and toes, scaled to
+    # show ground reaction force vectors at the heels, toes, and hip, scaled to
     # visually reasonable length
-    # TODO : add seat force
+    scene.add_vector(contact_force(trunk.joint, ground, seat_level)/600.0,
+                     trunk.joint, color="tab:blue")
     scene.add_vector(contact_force(rfoot.toe, ground, origin)/600.0,
                      rfoot.toe, color="tab:blue")
     scene.add_vector(contact_force(rfoot.heel, ground, origin)/600.0,
@@ -327,20 +321,20 @@ def animate(fname='animation.gif'):
                      lfoot.heel, color="tab:blue")
 
     scene.lambdify_system(states + specified + constants)
-    gait_cycle = np.vstack((
+    sim_data = np.vstack((
         xs,  # q, u shape(2n, N)
         np.zeros((3, len(times))),  # Fax, Fay, Ta (hand of god), shape(3, N)
         rs,  # r, shape(q, N)
         np.repeat(np.atleast_2d(np.array(list(par_map.values()))).T,
                   len(times), axis=1),  # p, shape(r, N)
     ))
-    scene.evaluate_system(*gait_cycle[:, 0])
+    scene.evaluate_system(*sim_data[:, 0])
 
     scene.axes.set_proj_type("ortho")
     scene.axes.view_init(90, -90, 0)
     scene.plot()
 
-    ani = scene.animate(lambda i: gait_cycle[:, i], frames=len(times),
+    ani = scene.animate(lambda i: sim_data[:, i], frames=len(times),
                         interval=h_val*1000)
     ani.save(fname, fps=int(1/h_val))
 
@@ -350,12 +344,3 @@ def animate(fname='animation.gif'):
 animation = animate('human-sit-to-stand.gif')
 
 plt.show()
-
-# %%
-# References
-# ----------
-#
-# .. [Ackermann2010] Ackermann, M., & van den Bogert, A. J. (2010). Optimality
-#    principles for model-based prediction of human gait. Journal of
-#    Biomechanics, 43(6), 1055–1060.
-#    https://doi.org/10.1016/j.jbiomech.2009.12.012
