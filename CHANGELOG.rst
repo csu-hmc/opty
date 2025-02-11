@@ -43,6 +43,7 @@ Version 1.4.0.dev0
   - ODE vs DAE comparison
   - Particle moving through a helical tube
   - Single EoM & hypersensitive control
+  - Sit-to-stand
   - Standing balance control identification
 
 Version 1.3.0
