@@ -2,11 +2,7 @@
 Parameter Identification: Betts & Huffman 2003
 ==============================================
 
-This is the problem presented in section 7 of:
-
-Betts, John T. and Huffman, William P. "Large Scale Parameter Estimation
-Using Sparse Nonlinear Programming Methods". SIAM J. Optim., Vol 14, No. 1,
-pp. 223-244, 2003.
+This is the problem presented in section 7 of [Betts2003]_.
 
 """
 

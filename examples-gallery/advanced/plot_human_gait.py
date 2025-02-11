@@ -330,14 +330,6 @@ animation = animate('human-gait-moon.gif')
 plt.show()
 
 # %%
-# References
-# ----------
-#
-# .. [Ackermann2010] Ackermann, M., & van den Bogert, A. J. (2010). Optimality
-#    principles for model-based prediction of human gait. Journal of
-#    Biomechanics, 43(6), 1055–1060.
-#    https://doi.org/10.1016/j.jbiomech.2009.12.012
-#
 # Footnotes
 # ---------
 #
