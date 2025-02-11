@@ -153,8 +153,8 @@ instance_constraints = (
     qf.func(0*h) + np.deg2rad(90.0),
     qg.func(0*h) - 0.0,
     # end standing
-    qax.func(duration) - 0.5,
-    qay.func(duration) - (-fyd + lb + lc),
+    qax.func(duration) - lb,
+    qay.func(duration) - (-fyd + lb + lc - 0.02),
     qa.func(duration) - 0.0,
     qb.func(duration) - 0.0,
     qc.func(duration) - 0.0,
@@ -230,7 +230,7 @@ else:
     initial_guess[-1] = 2.0/num_nodes
     # qax
     initial_guess[0*num_nodes:1*num_nodes] = np.linspace(
-        0.0, 0.5, num=num_nodes)
+        0.0, par_map[lb], num=num_nodes)
     # qay
     initial_guess[1*num_nodes:2*num_nodes] = np.linspace(
         (-par_map[fyd] + par_map[lc]),
