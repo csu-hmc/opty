@@ -529,5 +529,5 @@ ax.plot_surface(X, Y, Z, rstride=1, cstride=1, color='grey', alpha=0.1,
                 edgecolor='red')
 plot_3d_circle(ax, center=center, radius=radius/3.0, normal=normal)
 
-# sphinx_gallery_thumbnail_number = 5
+# sphinx_gallery_thumbnail_number = 4
 plt.show()

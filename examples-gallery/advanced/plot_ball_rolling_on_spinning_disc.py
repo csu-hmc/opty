@@ -601,6 +601,6 @@ x_phi = r_disc * np.cos(phi)
 y_phi = r_disc * np.sin(phi)
 ax.plot(x_phi, y_phi, color='black', lw=2)
 ax.plot(old_x, old_y, color='magenta', lw=0.5)
-# sphinx_gallery_thumbnail_number = 7
+# sphinx_gallery_thumbnail_number = 6
 update(2)
 plt.show()

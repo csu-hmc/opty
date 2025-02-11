@@ -123,7 +123,7 @@ See the `cyipopt documentation`_ for information on installing that package.
 There are also several dependency groups::
 
    $ pip install opty[optional]  # use extra functionality in opty
-   $ pip install opty[examples]  # run all example sripts
+   $ pip install opty[examples]  # run all example scripts
    $ pip install opty[doc]  # build the documentation
 
 Custom Ipopt

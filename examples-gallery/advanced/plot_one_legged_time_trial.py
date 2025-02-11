@@ -617,7 +617,7 @@ def plot_configuration(q_vals, p_vals, ax=None):
     return ax, fig, bike_lines, leg_lines, mus_lines, knee_circle, title_text
 
 
-# sphinx_gallery_thumbnail_number = 1
+# sphinx_gallery_thumbnail_number = 9
 _ = plot_configuration(q_ext, p_vals)
 
 

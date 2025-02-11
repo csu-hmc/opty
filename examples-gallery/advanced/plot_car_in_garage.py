@@ -446,8 +446,9 @@ def init():
 # Function to update the plot for each animation frame
 fig, ax, line1, line2, line3, line4 = init()
 
+
 def update(t):
-    message = (f'running time {t:.2f} sec \n The back axle is red, the ' +
+    message = (f'running time {t:.2f} sec \n The back axle is red, the '
                f'front axle is magenta \n The driving/breaking force is green')
     ax.set_title(message, fontsize=12)
 
@@ -459,20 +460,18 @@ def update(t):
     line3.set_data([coords[0, 5], coords[0, 6]], [coords[1, 5], coords[1, 6]])
 
     line4.set_offsets([coords[0, 0], coords[1, 0]])
-    line4.set_UVC(coords[0, 7] - coords[0, 0] , coords[1, 7] - coords[1, 0])
+    line4.set_UVC(coords[0, 7] - coords[0, 0], coords[1, 7] - coords[1, 0])
 
     return line1, line2, line3, line4,
+
 
 frames = np.linspace(t0, tf, int(fps * (tf - t0)))
 animation = FuncAnimation(fig, update, frames=frames, interval=1000 / fps)
 
 # %%
 # A frame from the animation.
-# sphinx_gallery_thumbnail_number = 6
+# sphinx_gallery_thumbnail_number = 5
 fig, ax, line1, line2, line3, line4 = init()
 update(4.15)
 
 plt.show()
-
-
-
