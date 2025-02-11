@@ -57,6 +57,7 @@ obj, obj_grad = create_objective_function(
     tuple(),
     num_nodes,
     node_time_interval=interval_value,
+    time_symbol=t,
 )
 
 # %%
