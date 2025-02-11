@@ -16,8 +16,7 @@ Sit to Stand
    forces based on the description in [Ackermann2010]_.
 
 The optimal control goal is to find the joint torques (hip, knee, ankle) that
-generate a minimal mean-torque for a person to stand from seating and step
-forward.
+generate a minimal mean-torque for a person to stand from a seated position.
 
 Import all necessary modules, functions, and classes:
 """
@@ -50,6 +49,8 @@ constants = symbolics[3]
 coordinates = symbolics[4]
 speeds = symbolics[5]
 specified = symbolics[6]
+states = coordinates + speeds
+num_states = len(states)
 
 eom = f_minus_ma(mass_matrix, forcing_vector, coordinates + speeds)
 eom.shape
@@ -58,12 +59,9 @@ eom.shape
 # The equations of motion have this many mathematical operations:
 sm.count_ops(eom)
 
-states = coordinates + speeds
-num_states = len(states)
-
 # %%
 # The generalized coordinates are the hip lateral position :math:`q_{ax}` and
-# veritcal position :math:`q_{ay}`, the trunk angle with respect to vertical
+# vertical position :math:`q_{ay}`, the trunk angle with respect to vertical
 # :math:`q_a` and the relative joint angles:
 #
 # - right: hip (b), knee (c), ankle (d)
@@ -78,7 +76,7 @@ Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = specified
 # The model constants describe the geometry, mass, and inertia of the human. We
 # will need some geometry for defining the seating position:
 #
-# - ya: trunk CoM length
+# - ya: trunk hip to mass center length
 # - lb: thigh length
 # - lc: shank length
 # - fyd: foot depth
@@ -132,15 +130,9 @@ bounds.update({k: (-2000.0, 2000.0)
                for k in [Tb, Tc, Td, Te, Tf, Tg]})
 
 # %%
-# The average speed can be fixed by constraining the total distance traveled.
-# To enforce a half period, set the right leg's angles at the initial time to
-# be equal to the left leg's angles at the final time and vice versa. The same
-# goes for the joint angular rates.
-#
-# fyd, gyd : right and left foot height
-# lb, le: thigh length
-# lc, lf: knee length
-# ya: com height
+# Set the configuration to be seated at the start and standing at the finish. #
+# Subtract a bit from the final height because the feet compress into the
+# ground.
 instance_constraints = (
     # start seated
     qax.func(0*h) - 0.0,
@@ -154,7 +146,7 @@ instance_constraints = (
     qg.func(0*h) - 0.0,
     # end standing
     qax.func(duration) - lb,
-    qay.func(duration) - (-fyd + lb + lc - 0.02),
+    qay.func(duration) - (-fyd + lb + lc - 0.04),
     qa.func(duration) - 0.0,
     qb.func(duration) - 0.0,
     qc.func(duration) - 0.0,
@@ -219,7 +211,7 @@ prob = Problem(
 
 # %%
 # This loads a precomputed solution to save computation time. Delete the file
-# to try one of the suggested initial guesses.
+# to try one the suggested initial guess.
 fname = f'human_sit_to_stand_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
     initial_guess = np.loadtxt(fname)
@@ -250,30 +242,34 @@ else:
         np.deg2rad(-90.0), 0.0, num=num_nodes)
 
 # %%
+# Plot the initial guess.
 prob.plot_trajectories(initial_guess)
 
 # %%
+# Plot the guess constraint violations.
 prob.plot_constraint_violations(initial_guess)
 
 # %%
 # Find the optimal solution and save it if it converges.
 solution, info = prob.solve(initial_guess)
-
-# %%
-prob.plot_trajectories(solution)
-
-# %%
-prob.plot_constraint_violations(solution)
-
-xs, rs, _, h_val = prob.parse_free(solution)
-times = np.linspace(0.0, (num_nodes - 1)*h_val, num=num_nodes)
 if info['status'] in (0, 1):
     np.savetxt(f'human_sit_to_stand_{num_nodes}_nodes_solution.csv', solution,
                fmt='%.2f')
 
+# %%
+# Plot the solution.
+prob.plot_trajectories(solution)
+
+# %%
+# Plot the constraint violations of the solution.
+prob.plot_constraint_violations(solution)
 
 # %%
 # Use symmeplot to make an animation of the motion.
+xs, rs, _, h_val = prob.parse_free(solution)
+times = np.linspace(0.0, (num_nodes - 1)*h_val, num=num_nodes)
+
+
 def animate(fname='animation.gif'):
 
     ground, origin, segments = symbolics[8], symbolics[9], symbolics[10]
@@ -303,15 +299,16 @@ def animate(fname='animation.gif'):
     scene.add_line([
         origin.locatenew('left', -0.8*ground.x),
         origin.locatenew('right', 0.8*ground.x),
-    ])
+    ], color='black')
 
     seat_level = origin.locatenew('seat', (segments[2].length_symbol -
                                            segments[3].foot_depth)*ground.y)
 
     scene.add_line([
+        seat_level.locatenew('top', -0.1*ground.x + 0.1*ground.y),
         seat_level.locatenew('left', -0.1*ground.x),
         seat_level.locatenew('right', 0.1*ground.x),
-    ])
+    ], color='black', linewidth=4)
 
     # adds CoM and unit vectors for each body segment
     for seg in segments:
@@ -342,10 +339,6 @@ def animate(fname='animation.gif'):
     scene.axes.set_proj_type("ortho")
     scene.axes.view_init(90, -90, 0)
     scene.plot()
-
-    ax.set_xlim((-0.8, 0.8))
-    ax.set_ylim((-0.2, 1.4))
-    ax.set_aspect('equal')
 
     ani = scene.animate(lambda i: gait_cycle[:, i], frames=len(times),
                         interval=h_val*1000)
