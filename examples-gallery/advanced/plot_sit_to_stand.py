@@ -126,7 +126,7 @@ bounds.update({k: (-np.deg2rad(30.0), np.deg2rad(30.0))
 bounds.update({k: (-np.deg2rad(400.0), np.deg2rad(400.0))
                for k in [ua, ub, uc, ud, ue, uf, ug]})
 # all joint torques
-bounds.update({k: (-2000.0, 2000.0)
+bounds.update({k: (-500.0, 500.0)
                for k in [Tb, Tc, Td, Te, Tf, Tg]})
 
 # %%
