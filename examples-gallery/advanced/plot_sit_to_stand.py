@@ -146,7 +146,7 @@ instance_constraints = (
     qg.func(0*h) - 0.0,
     # end standing
     qax.func(duration) - lb,
-    qay.func(duration) - (-fyd + lb + lc - 0.04),
+    qay.func(duration) - (-fyd + lb + lc - 0.02),
     qa.func(duration) - 0.0,
     qb.func(duration) - 0.0,
     qc.func(duration) - 0.0,
