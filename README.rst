@@ -72,7 +72,11 @@ Features
 Example Solutions
 -----------------
 
+Animations from some of the `examples
+<https://opty.readthedocs.io/stable/examples/index.html>`_.
+
 .. list-table::
+   :align: center
 
    * - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_one_legged_time_trial_thumb.gif
           :width: 200px
