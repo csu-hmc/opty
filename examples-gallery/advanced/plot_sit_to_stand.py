@@ -211,7 +211,7 @@ prob = Problem(
 
 # %%
 # This loads a precomputed solution to save computation time. Delete the file
-# to try one the suggested initial guess.
+# to try the suggested initial guess.
 fname = f'human_sit_to_stand_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
     initial_guess = np.loadtxt(fname)
@@ -249,14 +249,15 @@ if info['status'] in (0, 1):
 
 # %%
 # Plot the solution.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations of the solution.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Use symmeplot to make an animation of the motion.
+# sphinx_gallery_thumbnail_number = 3
 xs, rs, _, h_val = prob.parse_free(solution)
 times = np.linspace(0.0, (num_nodes - 1)*h_val, num=num_nodes)
 
@@ -298,9 +299,9 @@ def animate(fname='animation.gif'):
                                            segments[3].foot_depth)*ground.y)
 
     scene.add_line([
-        seat_level.locatenew('top', -0.1*ground.x + 0.1*ground.y),
-        seat_level.locatenew('left', -0.1*ground.x),
-        seat_level.locatenew('right', 0.1*ground.x),
+        seat_level.locatenew('top', -0.2*ground.x + 0.5*ground.y),
+        seat_level.locatenew('left', -0.2*ground.x),
+        seat_level.locatenew('right', 0.2*ground.x),
     ], color='black', linewidth=4)
 
     # adds CoM and unit vectors for each body segment
