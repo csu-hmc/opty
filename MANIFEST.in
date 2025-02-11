@@ -2,10 +2,11 @@ include AUTHORS
 include CHANGELOG.rst
 include LICENSE
 include README.rst
-recursive-include examples-gallery/plot_*.py
-recursive-include examples-gallery/*.csv
-recursive-include examples-gallery/*.npy
-recursive-include examples-gallery/*.rst
-recursive-include examples-gallery/*.svg
-recursive-include examples-gallery/*.txt
-recursive-include examples-gallery/*.yml
+include docs/conf.py
+include docs/Makefile
+include docs/make.bat
+include docs/*.rst
+exclude docs/sg_execution_times.rst
+recursive-exclude docs/examples/ *
+recursive-include examples-gallery/ plot_*.py *.csv *.npy *.rst *.svg *.txt
+*.yml
