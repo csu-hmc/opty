@@ -35,7 +35,7 @@ import sympy as sm
 # %%
 # Pick the number of discretization nodes and define the time step as a
 # variable :math:`h`.
-num_nodes = 40
+num_nodes = 60
 h = sm.symbols('h', real=True, positive=True)
 duration = (num_nodes - 1)*h
 
@@ -152,9 +152,8 @@ instance_constraints = (
     qe.func(0*h) - np.deg2rad(90.0),
     qf.func(0*h) + np.deg2rad(90.0),
     qg.func(0*h) - 0.0,
-
     # end standing
-    qax.func(duration) - 0.6,
+    qax.func(duration) - 0.5,
     qay.func(duration) - (-fyd + lb + lc),
     qa.func(duration) - 0.0,
     qb.func(duration) - 0.0,
@@ -163,7 +162,6 @@ instance_constraints = (
     qe.func(duration) - 0.0,
     qf.func(duration) - 0.0,
     qg.func(duration) - 0.0,
-
     # stationary at start and end
     uax.func(0*h) - 0.0,
     uay.func(0*h) - 0.0,
@@ -232,7 +230,7 @@ else:
     initial_guess[-1] = 2.0/num_nodes
     # qax
     initial_guess[0*num_nodes:1*num_nodes] = np.linspace(
-        0.0, 0.6, num=num_nodes)
+        0.0, 0.5, num=num_nodes)
     # qay
     initial_guess[1*num_nodes:2*num_nodes] = np.linspace(
         (-par_map[fyd] + par_map[lc]),
@@ -260,8 +258,6 @@ prob.plot_constraint_violations(initial_guess)
 # %%
 # Find the optimal solution and save it if it converges.
 solution, info = prob.solve(initial_guess)
-#solution = initial_guess
-#info = {'status': 10}
 
 # %%
 prob.plot_trajectories(solution)
@@ -305,16 +301,16 @@ def animate(fname='animation.gif'):
     ], color="k")
 
     scene.add_line([
-        origin.locatenew('left', -1.0*ground.x),
-        origin.locatenew('right', 1.0*ground.x),
+        origin.locatenew('left', -0.8*ground.x),
+        origin.locatenew('right', 0.8*ground.x),
     ])
 
     seat_level = origin.locatenew('seat', (segments[2].length_symbol -
                                            segments[3].foot_depth)*ground.y)
 
     scene.add_line([
-        seat_level.locatenew('left', -1.0*ground.x),
-        seat_level.locatenew('right', 1.0*ground.x),
+        seat_level.locatenew('left', -0.1*ground.x),
+        seat_level.locatenew('right', 0.1*ground.x),
     ])
 
     # adds CoM and unit vectors for each body segment
@@ -324,14 +320,14 @@ def animate(fname='animation.gif'):
     # show ground reaction force vectors at the heels and toes, scaled to
     # visually reasonable length
     # TODO : add seat force
-    #scene.add_vector(contact_force(rfoot.toe, ground, origin)/600.0,
-                     #rfoot.toe, color="tab:blue")
-    #scene.add_vector(contact_force(rfoot.heel, ground, origin)/600.0,
-                     #rfoot.heel, color="tab:blue")
-    #scene.add_vector(contact_force(lfoot.toe, ground, origin)/600.0,
-                     #lfoot.toe, color="tab:blue")
-    #scene.add_vector(contact_force(lfoot.heel, ground, origin)/600.0,
-                     #lfoot.heel, color="tab:blue")
+    scene.add_vector(contact_force(rfoot.toe, ground, origin)/600.0,
+                     rfoot.toe, color="tab:blue")
+    scene.add_vector(contact_force(rfoot.heel, ground, origin)/600.0,
+                     rfoot.heel, color="tab:blue")
+    scene.add_vector(contact_force(lfoot.toe, ground, origin)/600.0,
+                     lfoot.toe, color="tab:blue")
+    scene.add_vector(contact_force(lfoot.heel, ground, origin)/600.0,
+                     lfoot.heel, color="tab:blue")
 
     scene.lambdify_system(states + specified + constants)
     gait_cycle = np.vstack((
@@ -370,12 +366,3 @@ plt.show()
 #    principles for model-based prediction of human gait. Journal of
 #    Biomechanics, 43(6), 1055–1060.
 #    https://doi.org/10.1016/j.jbiomech.2009.12.012
-#
-# Footnotes
-# ---------
-#
-# .. [1] The 2010 Ackermann and van den Bogert solution was the original target
-#    problem opty was written to solve, with an aim to extend it to parameter
-#    identification of closed loop control walking. For various reasons, this
-#    example was not added until 2025, 10 years after the example was first
-#    proposed.
