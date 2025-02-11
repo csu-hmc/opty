@@ -124,15 +124,15 @@ obj_DAE = info['obj_val']
 
 # %%
 # Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # ODE Formulation
@@ -178,15 +178,15 @@ obj_ODE = info['obj_val']
 
 # %%
 # Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # Compare the results

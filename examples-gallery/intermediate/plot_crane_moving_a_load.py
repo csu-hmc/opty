@@ -227,26 +227,26 @@ initial_guess = np.array(i1 + i2 + i3 + i4 + i5 + i6)
 # overwritten.
 
 initial_guess = np.load('crane_moving_a_load_solution.npy')
-prob.plot_trajectories(initial_guess)
+_ = prob.plot_trajectories(initial_guess)
 
 # %%
 # Find the optimal solution.
 
 solution, info = prob.solve(initial_guess)
 print('Message from optimizer:', info['status_msg'])
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 print('Iterations needed', len(prob.obj_value))
 print(f"Objective value {solution[-1]: .3e}")
 
 # %%
 # Plot the accuracy of the solution.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the state trajectories.
 fig, ax = plt.subplots(9, 1, figsize=(6.00, 1.0*9), sharex=True,
     layout='constrained')
-prob.plot_trajectories(solution, ax)
+_ = prob.plot_trajectories(solution, ax)
 
 # %%
 # Animate the Simulation.

@@ -133,9 +133,9 @@ axes_y2[2].set_title('Solution Constraint Violations')
 axes_y2[2].plot(prob.con(solution)[num_nodes - 1:])
 
 # %%
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 plt.show()

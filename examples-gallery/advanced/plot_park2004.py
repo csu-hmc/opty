@@ -180,7 +180,7 @@ print("Identified value of p = {}".format(
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Show the difference in the measured state trajectories (blue) and the ones

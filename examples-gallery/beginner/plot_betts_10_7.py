@@ -81,15 +81,15 @@ print(f'Objective value achieved: {info['obj_val']:.4f}, as per the book '
 
 # %%
 # Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # With the value of tf = 10000 above, opty converged to a locally optimal
@@ -107,14 +107,14 @@ print(f'Objective value achieved: {info['obj_val']:.4f}, as per the book '
 
 # %%
 # Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # sphinx_gallery_thumbnail_number = 4

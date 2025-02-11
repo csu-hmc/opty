@@ -183,7 +183,7 @@ initial_guess[-1] = 0.01
 
 # %%
 # Plot the initial guess.
-prob.plot_trajectories(initial_guess)
+_ = prob.plot_trajectories(initial_guess)
 
 # Find the optimal solution.
 # As initial guess the solution of a previous run, stored in
@@ -200,15 +200,15 @@ print(f"Objective value {solution[-1]: .3e}")
 
 # %%
 # Plot the evolution of the objective function.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # Plot the accuracy of the solution.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the state trajectories.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # animate the solution.

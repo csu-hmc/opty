@@ -345,15 +345,15 @@ initial_guess = np.array(i1 + i2 + i3 + i4 + [0.01])
 solution, info = prob.solve(initial_guess)
 print('Message from optimizer:', info['status_msg'])
 print(f'Optimal h value is: {solution[-1]:.3f} sec')
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # Plot errors in the solution.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the trajectories of the solution.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Animate the Solution

@@ -340,15 +340,15 @@ for i in range(1):
     print('message from optimizer:', info['status_msg'])
     print('Iterations needed',len(prob.obj_value))
     print(f"objective value {info['obj_val']:.3e} \n")
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %% [markdown]
 # Plot generalized coordinates / speeds and forces / torques
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Animate the Car

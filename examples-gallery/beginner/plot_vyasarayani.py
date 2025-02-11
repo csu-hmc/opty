@@ -110,7 +110,7 @@ print(divider)
 
 # %%
 # Plot constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Simulate with the identified parameter.
