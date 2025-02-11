@@ -1,6 +1,21 @@
 Introduction
 ============
 
+.. list-table:: Opty Optimal Control Solutions
+
+   * - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_one_legged_time_trial_thumb.gif
+          :width: 200px
+     - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_ball_rolling_on_spinning_disc_thumb.gif
+          :width: 200px
+     - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_sit_to_stand_thumb.gif
+          :width: 200px
+   * - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_particle_in_tube_thumb.gif
+          :width: 200px
+     - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_human_gait_thumb.gif
+          :width: 200px
+     - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_mississippi_steam_boat_thumb.gif
+          :width: 200px
+
 .. list-table::
 
    * - PyPi
