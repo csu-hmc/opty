@@ -13,7 +13,7 @@ Introduction
           :width: 200px
      - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_human_gait_thumb.gif
           :width: 200px
-     - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_mississippi_steam_boat_thumb.gif
+     - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_park2004_thumb.gif
           :width: 200px
 
 .. list-table::
