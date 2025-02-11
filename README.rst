@@ -97,11 +97,13 @@ Installation
 The required dependencies are as follows:
 
 - cyipopt >= 1.1.0 [with ipopt >= 3.11 (Linux & OSX), >= 3.13 (Windows)]
-- cython >= 0.29.19 [with a C compiler]
+- cython >= 0.29.19 [with a `C compiler`_]
 - numpy >= 1.19.0
 - python 3.9-3.13
 - setuptools
 - sympy >= 1.6.0
+
+.. _C compiler: https://cython.readthedocs.io/en/stable/src/quickstart/install.html
 
 The optional dependencies are as follows:
 

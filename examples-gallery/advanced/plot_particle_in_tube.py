@@ -328,15 +328,15 @@ for _ in range(1):
 
 # %%
 # Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # Animate the Motion of the Particle

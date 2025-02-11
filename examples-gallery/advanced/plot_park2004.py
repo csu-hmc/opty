@@ -180,7 +180,7 @@ print("Identified value of p = {}".format(
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Show the difference in the measured state trajectories (blue) and the ones
@@ -254,13 +254,3 @@ def animate(fname='park2004.gif'):
 
 
 _ = animate()
-
-
-# %%
-# References
-# ----------
-#
-# .. [Park2004] Park, S., Horak, F. B., & Kuo, A. D. (2004). Postural feedback
-#    responses scale with biomechanical constraints in human standing.
-#    Experimental Brain Research, 154(4), 417–427.
-#    https://doi.org/10.1007/s00221-003-1674-3
