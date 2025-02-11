@@ -1,6 +1,3 @@
-Introduction
-============
-
 .. list-table::
 
    * - PyPi
@@ -24,6 +21,9 @@ Introduction
           :target: https://doi.org/10.5281/zenodo.1162870
    * - Continous Integration
      - .. image:: https://github.com/csu-hmc/opty/actions/workflows/tests.yml/badge.svg
+
+Introduction
+============
 
 ``opty`` utilizes symbolic descriptions of differential algebraic equations
 expressed with SymPy_ to form the constraints needed to solve optimal control
@@ -68,6 +68,28 @@ Features
 - Efficient numerical execution of large equations of motion.
 - Automatic parallel execution using openmp if installed.
 - Built with support of sympy.physics.mechanics and PyDy in mind.
+
+Example Solutions
+-----------------
+
+Animations from some of the `examples
+<https://opty.readthedocs.io/stable/examples/index.html>`_.
+
+.. list-table::
+   :align: center
+
+   * - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_one_legged_time_trial_thumb.gif
+          :width: 200px
+     - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_ball_rolling_on_spinning_disc_thumb.gif
+          :width: 200px
+     - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_sit_to_stand_thumb.gif
+          :width: 200px
+   * - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_particle_in_tube_thumb.gif
+          :width: 200px
+     - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_human_gait_thumb.gif
+          :width: 200px
+     - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_park2004_thumb.gif
+          :width: 200px
 
 Installation
 ============
