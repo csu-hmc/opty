@@ -204,7 +204,7 @@ class Problem(cyipopt.Problem):
 
         self.obj_value = []
 
-    def solve(self, free, respect_bounds=True, lagrange=[], zl=[], zu=[]):
+    def solve(self, free, lagrange=[], zl=[], zu=[], respect_bounds=True):
         """Returns the optimal solution and an info dictionary.
 
         Solves the posed optimization problem starting at point x.
@@ -254,15 +254,15 @@ class Problem(cyipopt.Problem):
                 gives the status of the algorithm as a message
 
         """
-        if respect_bounds == True:
+        if respect_bounds:
             self.bounds_conflict_initial_guess(free)
         return super().solve(free, lagrange=lagrange, zl=zl, zu=zu)
 
     def bounds_conflict_initial_guess(self, free):
         """
         Ascertains that the initial guesses for all variables are within the
-        limits prescribed by their respective bounds. As such possible
-        conflicts are not fatal for opty, only a UserWarning is raised.
+        limits prescribed by their respective bounds. Raises a ValueError if
+        for any variable the initial guess is outside its bounds.
 
         Parameters
         ----------
