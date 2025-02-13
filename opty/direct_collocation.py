@@ -3,6 +3,7 @@
 import sys
 from functools import wraps
 import logging
+import warnings
 
 import numpy as np
 import sympy as sm
@@ -249,8 +250,56 @@ class Problem(cyipopt.Problem):
                 gives the status of the algorithm as a message
 
         """
-
+        self.bounds_conflict_initial_guess(free)
         return super().solve(free, lagrange=lagrange, zl=zl, zu=zu)
+
+    def bounds_conflict_initial_guess(self, free):
+        """
+        Ascertains that the initial guesses for all variables are within the
+        limits prescribed by their respective bounds. As such possible
+        conflicts are not fatal for opty, only a UserWarning is raised.
+
+        Parameters
+        ----------
+        free : array-like, shape(n*N + q*N + r + s, )
+            Initial guess given to solve.
+
+        """
+        if self.bounds is not None:
+            violating_variables = []
+
+            if self.collocator._variable_duration == True:
+                local_ts = self.collocator.time_interval_symbol
+                if local_ts in self.bounds.keys():
+                    if (free[-1] < self.bounds[local_ts][0]
+                        or free[-1] > self.bounds[local_ts][1]):
+                        violating_variables.append(local_ts)
+
+            symbole = self.collocator.state_symbols + \
+            self.collocator.unknown_input_trajectories
+            for symb in symbole:
+                if symb in self.bounds.keys():
+                    idx = symbole.index(symb)
+                    feld = free[idx*self.collocator.num_collocation_nodes:
+                            (idx+1)*self.collocator.num_collocation_nodes]
+                    if (np.any(feld < self.bounds[symb][0])
+                        or np.any(feld > self.bounds[symb][1])):
+                        violating_variables.append(symb)
+
+            startidx = len(symbole)
+            for symb in self.collocator.unknown_parameters:
+                if symb in self.bounds.keys():
+                    idx = self.collocator.unknown_parameters.index(symb)
+                    if (free[startidx+idx] < self.bounds[symb][0]
+                        or free[startidx+idx] > self.bounds[symb][1]):
+                        violating_variables.append(symb)
+
+            if len(violating_variables) > 0:
+                msg = f'The initial guesses for {violating_variables} are in '+\
+                f'conflict with their bounds.'
+                warnings.warn(msg)
+        else:
+            pass
 
     def _generate_bound_arrays(self):
         lb = -self.INF * np.ones(self.num_free)
