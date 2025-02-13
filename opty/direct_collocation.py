@@ -3,7 +3,6 @@
 import sys
 from functools import wraps
 import logging
-import warnings
 
 import numpy as np
 import sympy as sm
@@ -205,7 +204,7 @@ class Problem(cyipopt.Problem):
 
         self.obj_value = []
 
-    def solve(self, free, lagrange=[], zl=[], zu=[]):
+    def solve(self, free, respect_bounds=True, lagrange=[], zl=[], zu=[]):
         """Returns the optimal solution and an info dictionary.
 
         Solves the posed optimization problem starting at point x.
@@ -226,6 +225,11 @@ class Problem(cyipopt.Problem):
         zu : array-like, shape(n*N + q*N + r + s, ), optional (default=[])
             Initial values for the multipliers for upper variable bounds (only
             if warm start option is chosen).
+
+        respect_bounds : bool, optional (default=True)
+            If True, the initial guess is checked to ensure that it is within
+            the bounds, and a ValueError is raised if it is not. If False, the
+            initial guess is not checked.
 
         Returns
         -------
@@ -250,7 +254,8 @@ class Problem(cyipopt.Problem):
                 gives the status of the algorithm as a message
 
         """
-        self.bounds_conflict_initial_guess(free)
+        if respect_bounds == True:
+            self.bounds_conflict_initial_guess(free)
         return super().solve(free, lagrange=lagrange, zl=zl, zu=zu)
 
     def bounds_conflict_initial_guess(self, free):
@@ -297,7 +302,7 @@ class Problem(cyipopt.Problem):
             if len(violating_variables) > 0:
                 msg = f'The initial guesses for {violating_variables} are in '+\
                 f'conflict with their bounds.'
-                warnings.warn(msg)
+                raise ValueError(msg)
         else:
             pass
 
