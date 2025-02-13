@@ -1909,9 +1909,11 @@ def test_attributes_read_only():
         with raises(AttributeError):
             setattr(test, XX, 5)
 
-def test_bounds_conflict_method():
+def test_bounds_conflict():
     """Test to ensure that the method of Problem, bounds_conflict_initial_guess
-    raises a ValueError when the initial guesses violates the bounds."""
+    raises a ValueError when the initial guesses violates the bounds.
+    Then the test that the kwarg respect_bounds works as expected in solve.
+    """
 
     x, y, z, ux, uy, uz = mech.dynamicsymbols('x y z ux uy uz')
     u1, u2, u3 = mech.dynamicsymbols('u1 u2 u3')
@@ -2057,94 +2059,10 @@ def test_bounds_conflict_method():
     with raises(ValueError):
         prob.bounds_conflict_initial_guess(initial_guess)
 
-def test_solve_kwarg_respect_bounds():
-    """
-    If the kwarg of solve, respect_bounds, is set to True, or not set,
-    the initial guess must be within the bounds, else a ValueError is raised.
-    If set to False, this is ignored.
-    """
-
-    x, y, z, ux, uy, uz = mech.dynamicsymbols('x y z ux uy uz')
-    u1, u2, u3 = mech.dynamicsymbols('u1 u2 u3')
-    a1, a2, a3 = sym.symbols('a1 a2 a3')
-    b1, b2, b3 = sym.symbols('b1 b2 b3')
-    t = mech.dynamicsymbols._t
-
-    # just random eoms, no physical meaning.
-    eom = sym.Matrix([
-        -x.diff(t) + ux,
-        -ux.diff(t) + a1 * x + u1 + b1,
-        -y.diff(t) + uy,
-        -uy.diff(t) + a2 * y + u2 + b2,
-        -z.diff(t) + uz,
-        -uz.diff(t) + a3 * z + u3 + b3,
-        ])
-
-    state_symbols = (x, y, z, ux, uy, uz)
-    par_map = {b1: 1.0,
-               b2: 2.0,
-               b3: 3.0
-               }
-    num_nodes = 26
-
-    # A: respect_bounds=True
-    t0, tf = 0.0, 1.0
-    interval_value = tf/(num_nodes - 1)
-
-    def obj(free):
-        Fx = free[2*num_nodes:3*num_nodes]
-        return interval_value*np.sum(Fx**2)
-
-    def obj_grad(free):
-        grad = np.zeros_like(free)
-        l1 = 2*num_nodes
-        l2 = 3*num_nodes
-        grad[l1: l2] = 2.0*free[l1:l2]*interval_value
-        return grad
-
-    instance_constraints = (
-        x.func(t0),
-        ux.func(t0),
-        x.func(tf) - 1.0,
-        ux.func(tf),
-    )
-
-    bounds= {
-        a1: (-1.0, 1.0),
-        a2: (-1.0, 1.0),
-        a3: (-1.0, 1.0),
-
-        u1: (-1.0, 1.0),
-        u2: (-1.0, 1.0),
-        u3: (-1.0, 1.0),
-
-        x: (-1.0, 1.0 ),
-        ux: (-1.0, 1.0),
-        y: (-1.0, 1.0),
-        uy: (-1.0, 1.0),
-        z: (-1.0, 1.0),
-        uz: (-1.0, 1.0),
-    }
-
-    prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        time_symbol=t,
-        )
-
-    initial_guess = np.zeros(prob.num_free)
-    start_idx = np.random.randint(0, num_nodes - 1)
-    for i in range(9):
-        initial_guess[start_idx + i*num_nodes] = 10.0
+    # C: respect_bounds=True: initial guess must be within bounds, else a
+    # ValueError is raised.
     with raises(ValueError):
         _, _ = prob.solve(initial_guess)
 
-    # B: respect_bounds=False
+    # B: respect_bounds=False. Bounds are ignored.
     _, _ = prob.solve(initial_guess, respect_bounds=False)
