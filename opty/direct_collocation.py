@@ -291,7 +291,7 @@ class Problem(cyipopt.Problem):
                         or np.any(feld > self.bounds[symb][1])):
                         violating_variables.append(symb)
 
-            startidx = len(symbole)
+            startidx = len(symbole) * self.collocator.num_collocation_nodes
             for symb in self.collocator.unknown_parameters:
                 if symb in self.bounds.keys():
                     idx = self.collocator.unknown_parameters.index(symb)

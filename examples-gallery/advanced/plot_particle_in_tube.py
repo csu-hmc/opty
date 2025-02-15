@@ -277,15 +277,16 @@ print('len(instance_constraints) =', len(instance_constraints))
 # Add some physical limits to the force, other bounds as needed to realize
 # the inequalities.
 grenze = 100.0
+epsilon = 1.e-5
 bounds = {
-    Fx: (-grenze, grenze),
-    Fy: (-grenze, grenze),
-    Fz: (-grenze, grenze),
-    dist: (0.0, radius),
-    cut_param: (0.0, np.inf),
-    z: (0.0, max_z),
-    cutdt: (0.0, 5.0),
-    gate_h: (1.0, 10.0),
+    Fx: (-grenze-epsilon, grenze+epsilon),
+    Fy: (-grenze-epsilon, grenze+epsilon),
+    Fz: (-grenze-epsilon, grenze+epsilon),
+    dist: (0.0-epsilon, radius+epsilon),
+    cut_param: (0.0-epsilon, np.inf),
+    z: (0.0-epsilon, max_z+epsilon),
+    cutdt: (0.0-epsilon, 5.0+epsilon),
+    gate_h: (1.0-epsilon, 10.0+epsilon),
 }
 
 # %%

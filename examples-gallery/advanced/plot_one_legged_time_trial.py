@@ -721,11 +721,13 @@ initial_guess[1*num_nodes:2*num_nodes] = q2_guess
 initial_guess[4*num_nodes:5*num_nodes] = u1_guess
 initial_guess[5*num_nodes:6*num_nodes] = u2_guess
 initial_guess[-1] = 0.02
+for i in range(2*num_nodes, 3*num_nodes):
+    initial_guess[i] = -0.6
 
 fig, axes = plt.subplots(16, 1, sharex=True,
                          figsize=(6.4, 0.8*16),
                          layout='compressed')
-problem.plot_trajectories(initial_guess, axes=axes)
+_ = problem.plot_trajectories(initial_guess, axes=axes)
 
 # %%
 # Solve the Optimal Control Problem
@@ -740,18 +742,18 @@ print('Optimal value h = {:1.3f} s:'.format(h_val))
 # %%
 # Plot the Solution
 # -----------------
-problem.plot_objective_value()
+_ = problem.plot_objective_value()
 
 # %%
 fig, axes = plt.subplots(3, 1, figsize=(12.8, 10),
                          layout='constrained')
-problem.plot_constraint_violations(solution, axes=axes)
+_ = problem.plot_constraint_violations(solution, axes=axes)
 
 # %%
 fig, axes = plt.subplots(16, 1, sharex=True,
                          figsize=(6.4, 0.8*16),
                          layout='compressed')
-problem.plot_trajectories(solution, axes=axes)
+_ = problem.plot_trajectories(solution, axes=axes)
 
 # %%
 # Plot Musculo-tendon Behavior

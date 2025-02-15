@@ -299,17 +299,18 @@ instance_constraints = tuple(xi.subs({t: t0}) - xi_val for xi, xi_val
 
 grenze = 25.0
 delta = np.pi/4.
+epsilon = 1.e-5
 bounds1 = {
         Fb: (-grenze, grenze),
         Tf: (-grenze, grenze),
         # restrict the steering angle to avoid locking
-        qf: (-np.pi/2. + delta, np.pi/2. - delta),
+        qf: (-np.pi/2. + delta - epsilon, np.pi/2. - delta + epsilon),
         # these bounds on x, y help convergence a lot!
         x: (-10, 10),
         y: (0.0, 25),
 }
 
-bounds2 = {py[i]: (0, 100) for i in range(number)}
+bounds2 = {py[i]: (0-epsilon, 100+epsilon) for i in range(number)}
 bounds = {**bounds1, **bounds2}
 
 prob = Problem(

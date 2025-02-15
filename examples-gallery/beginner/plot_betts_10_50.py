@@ -126,6 +126,8 @@ prob = Problem(
 prob.add_option('max_iter', 1000)
 
 initial_guess = np.random.rand(18*num_nodes) * 0.1
+for i in range(6*num_nodes, 12*num_nodes):
+    initial_guess[i] = max(0.3, initial_guess[i])
 
 for _ in range(1):
     solution, info = prob.solve(initial_guess)
