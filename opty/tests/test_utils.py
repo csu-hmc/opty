@@ -349,7 +349,7 @@ def test_substitute_matrix():
         sub = np.array([[21, 22], [23, 24]])
         new_A = utils.substitute_matrix(A, [1, 2], [0, 2], sub)
         expected = np.array([[0, 0, 0, 0],
-                            [21, 0, 22, 0],
-                            [23, 0, 24, 0]], dtype=float)
+                             [21, 0, 22, 0],
+                             [23, 0, 24, 0]], dtype=float)
 
         np.testing.assert_allclose(new_A.todense(), expected)
