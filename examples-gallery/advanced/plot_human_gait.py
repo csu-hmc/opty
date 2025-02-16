@@ -50,7 +50,8 @@ import sympy as sm
 # %%
 # Pick an average ambulation speed and the number of discretization nodes for
 # the half period and define the time step as a variable :math:`h`.
-speed = 1.3  # m/s
+
+speed = 3.0  # m/s
 num_nodes = 40
 h = sm.symbols('h', real=True, positive=True)
 duration = (num_nodes - 1)*h
