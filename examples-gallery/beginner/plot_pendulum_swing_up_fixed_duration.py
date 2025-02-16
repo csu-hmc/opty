@@ -80,8 +80,6 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
 # %%
 # Use a random positive initial guess.
 initial_guess = np.random.randn(prob.num_free)
-for i in range(2*num_nodes, 3*num_nodes):
-    initial_guess[i] = (-1)**i
 
 # %%
 # Find the optimal solution.

@@ -2062,7 +2062,7 @@ def test_bounds_conflict():
     # C: respect_bounds=True: initial guess must be within bounds, else a
     # ValueError is raised.
     with raises(ValueError):
-        _, _ = prob.solve(initial_guess)
+        _, _ = prob.solve(initial_guess, respect_bounds=True)
 
-    # B: respect_bounds=False. Bounds are ignored.
-    _, _ = prob.solve(initial_guess, respect_bounds=False)
+    # D: respect_bounds=False by default. Bounds are ignored.
+    _, _ = prob.solve(initial_guess)

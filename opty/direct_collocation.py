@@ -204,7 +204,7 @@ class Problem(cyipopt.Problem):
 
         self.obj_value = []
 
-    def solve(self, free, lagrange=[], zl=[], zu=[], respect_bounds=True):
+    def solve(self, free, lagrange=[], zl=[], zu=[], respect_bounds=False):
         """Returns the optimal solution and an info dictionary.
 
         Solves the posed optimization problem starting at point x.
@@ -226,7 +226,7 @@ class Problem(cyipopt.Problem):
             Initial values for the multipliers for upper variable bounds (only
             if warm start option is chosen).
 
-        respect_bounds : bool, optional (default=True)
+        respect_bounds : bool, optional (default=False)
             If True, the initial guess is checked to ensure that it is within
             the bounds, and a ValueError is raised if it is not. If False, the
             initial guess is not checked.

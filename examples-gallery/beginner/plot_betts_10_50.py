@@ -126,16 +126,14 @@ prob = Problem(
 prob.add_option('max_iter', 1000)
 
 initial_guess = np.random.rand(18*num_nodes) * 0.1
-for i in range(6*num_nodes, 12*num_nodes):
-    initial_guess[i] = max(0.3, initial_guess[i])
 
 for _ in range(1):
     solution, info = prob.solve(initial_guess)
     initial_guess = solution
     print(info['status_msg'])
-    print(f'Objective value achieved: {info['obj_val']:.4f}, as per the book '
-          f'it is {3.10812211}, so the error is: '
-          f'{(info['obj_val'] - 3.10812211)/3.10812211*100:.3f} % ')
+    print(f" Objective value achieved: {info['obj_val']:.4f}, as per the book "+\
+          f"it is {3.10812211}, so the error is: " +\
+          f"{(info['obj_val'] - 3.10812211)/3.10812211*100:.3f} % ")
     print('\n')
 
 # %%

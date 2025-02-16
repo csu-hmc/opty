@@ -178,7 +178,7 @@ prob.add_option('nlp_scaling_method', 'gradient-based')
 x_guess = 3.0/duration*2.0*time
 x_guess[num_nodes//2:] = 6.0 - 3.0/duration*2.0*time[num_nodes//2:]
 y_guess = 2.0/duration*time
-initial_guess = np.ones(prob.num_free) * 0.75
+initial_guess = np.ones(prob.num_free)
 initial_guess[:num_nodes] = x_guess
 initial_guess[num_nodes:2*num_nodes] = y_guess
 
