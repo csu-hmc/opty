@@ -30,6 +30,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
           environment-file: opty-dev-env.yml
+          conda-remove-defaults: "true"
       - name: Install openmp and pydy
         if: runner.os == 'Linux'
         run: |
@@ -53,7 +54,7 @@ jobs:
           pytest --cov=opty opty/
       - name: Install Opty and test import
         run: |
-          python -m pip install .
+          python -m pip install --no-deps --no-build-isolation .
           conda list
           python -c "import opty"
       - name: Run an example
