@@ -334,12 +334,13 @@ def test_ufuncify_matrix():
 
 
 def test_substitute_matrix():
+
     A = np.arange(1, 13, dtype=float).reshape(3, 4)
     sub = np.array([[21, 22], [23, 24]])
     new_A = utils.substitute_matrix(A, [1, 2], [0, 2], sub)
     expected = np.array([[1, 2, 3, 4],
-                        [21, 6, 22, 8],
-                        [23, 10, 24, 12]], dtype=float)
+                         [21, 6, 22, 8],
+                         [23, 10, 24, 12]], dtype=float)
 
     np.testing.assert_allclose(new_A, expected)
 
