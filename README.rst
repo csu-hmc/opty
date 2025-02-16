@@ -116,8 +116,8 @@ To run all of the examples the following additional dependencies may be needed:
 - gait2d
 - pandas >= 1.3.5
 - pydy >= 0.6.0
-- pytables
-- pyyaml
+- pytables >= 3.7.0
+- pyyaml >= 5.4.1
 - symmeplot
 - yeadon >= 1.4.0
 

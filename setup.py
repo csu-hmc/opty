@@ -32,19 +32,19 @@ setup(
             'matplotlib>=3.5.1',
             'pandas>=1.3.5',
             'pydy>=0.6.0',
-            'pyyaml',  # gait2d dep
+            'pyyaml>=5.4.1',  # gait2d dep
             'scipy>=1.8.0',
             'symmeplot',
-            'tables',
+            'tables>=3.7.0',
             'yeadon>=1.4.0',
         ],
         'doc': [
             # 'gait2d',  # when available on PyPi
-            'joblib',
-            'matplotlib>=3.2.0',
-            'numpydoc',
+            'joblib >=0.17.0',
+            'matplotlib>=3.5.1',
+            'numpydoc >=1.2',
             'pydy>=0.6.0',
-            'pyyaml',  # gait2d dep
+            'pyyaml>=5.4.1',  # gait2d dep
             'scipy>=1.8.0',
             'sphinx>=4.3.2',
             'sphinx-gallery',
