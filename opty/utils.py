@@ -36,6 +36,15 @@ __all__ = [
 ]
 
 
+def _coo_matrix(jac_vals, row_idxs, col_idxs):
+    """Quick and dirty replacement for scipy.sparse.coo_matrix."""
+    arr = np.zeros((np.max(row_idxs + 1), np.max(col_idxs + 1)),
+                   dtype=jac_vals.dtype)
+    for v, r, c in zip(jac_vals, row_idxs, col_idxs):
+        arr[r, c] = v
+    return arr
+
+
 class MathJaxRepr():
     """Returns an object wrapping a SymPy expression that will render output in
     MathJax LaTeX syntax compatible with rendering in HTML in Sphinx
