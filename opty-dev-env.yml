@@ -3,30 +3,30 @@ channels:
   - conda-forge
 dependencies:
   # build
-  - setuptools
+  - setuptools >=59.6.0
   # run (includes optional run deps)
   - cyipopt >=1.1.0
-  - cython >=0.29.19
-  - matplotlib >=3.2.0
-  - numpy >=1.19.0
+  - cython >=0.29.28
+  - matplotlib >=3.5.1
+  - numpy >=1.21.5
   - python
-  - scipy >=1.5.0
-  - sympy >=1.13  # version required for the docs
+  - scipy >=1.8.0
+  - sympy >=1.13  # version required for the docs (1.9.1 otherwise)
   # dev
-  - coverage
-  - ipython
+  - coverage >=6.2
+  - ipython >=7.31.1
   - pytest
   - pytest-cov
   # docs/examples
   - joblib
   - numpydoc
   - pip <24  # pin required for the gait2d pip install below
-  - pydy >=0.5.0  # gait2d
+  - pydy >=0.6.0  # gait2d
   - pyyaml  # gait2d
-  - sphinx
+  - sphinx >=4.3.2
   - sphinx-gallery
   - sphinx-reredirects
   - symmeplot
-  - yeadon
+  - yeadon >=1.4.0
   - pip:
     - -e git+https://github.com/csu-hmc/gait2d#egg=gait2d
