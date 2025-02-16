@@ -8,14 +8,9 @@ import numpy as np
 import sympy as sm
 from sympy.physics import mechanics as me
 import cyipopt
-try:
-    plt = sm.external.import_module('matplotlib.pyplot',
-                                    __import__kwargs={'fromlist': ['']},
-                                    catch=(RuntimeError,))
-except TypeError:  # SymPy >=1.6
-    plt = sm.external.import_module('matplotlib.pyplot',
-                                    import_kwargs={'fromlist': ['']},
-                                    catch=(RuntimeError,))
+plt = sm.external.import_module('matplotlib.pyplot',
+                                __import__kwargs={'fromlist': ['']},
+                                catch=(RuntimeError,))
 
 from .utils import (ufuncify_matrix, parse_free, _optional_plt_dep,
                     _forward_jacobian, sort_sympy)
