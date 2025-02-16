@@ -22,7 +22,7 @@ import sympy.physics.mechanics as me
 from sympy.utilities.iterables import numbered_symbols
 from sympy.printing.c import C99CodePrinter
 plt = sm.external.import_module('matplotlib.pyplot',
-                                __import__kwargs={'fromlist': ['']},
+                                import_kwargs={'fromlist': ['']},
                                 catch=(RuntimeError,))
 
 __all__ = [

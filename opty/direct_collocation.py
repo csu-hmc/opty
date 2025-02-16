@@ -9,7 +9,7 @@ import sympy as sm
 from sympy.physics import mechanics as me
 import cyipopt
 plt = sm.external.import_module('matplotlib.pyplot',
-                                __import__kwargs={'fromlist': ['']},
+                                import_kwargs={'fromlist': ['']},
                                 catch=(RuntimeError,))
 
 from .utils import (ufuncify_matrix, parse_free, _optional_plt_dep,
