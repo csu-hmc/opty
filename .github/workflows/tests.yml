@@ -27,35 +27,36 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
           channels: conda-forge
-          environment-file: opty-dev-env.yml
           conda-remove-defaults: "true"
+          environment-file: opty-dev-env.yml
+          mamba-version: "*"
+          python-version: ${{ matrix.python-version }}
       - name: Install openmp and pydy
         if: runner.os == 'Linux'
         run: |
-          conda list
-          conda install libgomp pydy
+          mamba list
+          mamba install libgomp pydy
       - name: Install openmp and pydy
         if: runner.os == 'macOS'
         run: |
-          conda list
-          conda install llvm-openmp pydy
+          mamba list
+          mamba install llvm-openmp pydy
       # llvm-openmp fails to install because it is incompatible with ipopt, but
       # openmp "installs", nonetheless the openmp example fails to compile.
       - name: Install openmp and pydy
         if: runner.os == 'Windows'
         run: |
-          conda list
-          conda install openmp pydy
+          mamba list
+          mamba install openmp pydy
       - name: Test with pytest
         run: |
-          conda list
+          mamba list
           pytest --cov=opty opty/
       - name: Install Opty and test import
         run: |
           python -m pip install --no-deps --no-build-isolation .
-          conda list
+          mamba list
           python -c "import opty"
       - name: Run an example
         run: |
