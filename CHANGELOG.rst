@@ -1,5 +1,10 @@
-Version 1.4.0.dev0
+Version 1.5.0.dev0
 ==================
+
+- Bump dependency minimum versions to match those in Ubuntu 22.04 (Jammy).
+
+Version 1.4.0
+=============
 
 - Dropped support for Python 3.8.
 - Added support for Python 3.13.

@@ -21,14 +21,9 @@ import sympy as sm
 import sympy.physics.mechanics as me
 from sympy.utilities.iterables import numbered_symbols
 from sympy.printing.c import C99CodePrinter
-try:
-    plt = sm.external.import_module('matplotlib.pyplot',
-                                    __import__kwargs={'fromlist': ['']},
-                                    catch=(RuntimeError,))
-except TypeError:  # SymPy >=1.6
-    plt = sm.external.import_module('matplotlib.pyplot',
-                                    import_kwargs={'fromlist': ['']},
-                                    catch=(RuntimeError,))
+plt = sm.external.import_module('matplotlib.pyplot',
+                                import_kwargs={'fromlist': ['']},
+                                catch=(RuntimeError,))
 
 __all__ = [
     'parse_free',

@@ -23,37 +23,52 @@ jobs:
     steps:
       - name: Checkout Opty
         uses: actions/checkout@v4
+      # NOTE : I use mamba only on Windows because conda started to fail to
+      # solve Windows builds and was timing out in CI. See
+      # https://github.com/csu-hmc/opty/pull/363 for more info.
       - name: Setup Conda environment
+        if: runner.os == 'Windows'
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
           channels: conda-forge
+          conda-remove-defaults: "true"
           environment-file: opty-dev-env.yml
-      - name: Install openmp and pydy
+          mamba-version: "*"
+          python-version: ${{ matrix.python-version }}
+      - name: Setup Conda environment
+        if: runner.os != 'Windows'
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          channels: conda-forge
+          conda-remove-defaults: "true"
+          environment-file: opty-dev-env.yml
+          python-version: ${{ matrix.python-version }}
+      - name: Install openmp
         if: runner.os == 'Linux'
         run: |
           conda list
-          conda install libgomp pydy
-      - name: Install openmp and pydy
+          conda install libgomp
+      - name: Install openmp
         if: runner.os == 'macOS'
         run: |
           conda list
-          conda install llvm-openmp pydy
+          conda install llvm-openmp
       # llvm-openmp fails to install because it is incompatible with ipopt, but
       # openmp "installs", nonetheless the openmp example fails to compile.
-      - name: Install openmp and pydy
+      - name: Install openmp
         if: runner.os == 'Windows'
         run: |
-          conda list
-          conda install openmp pydy
+          mamba list
+          mamba install openmp
       - name: Test with pytest
         run: |
           conda list
           pytest --cov=opty opty/
       - name: Install Opty and test import
         run: |
-          python -m pip install .
+          python -m pip install --no-deps --no-build-isolation .
           conda list
           python -c "import opty"
       - name: Run an example
