@@ -213,32 +213,32 @@ prob = Problem(
 )
 
 # %%
+# Find the optimal solution and save it if it converges.
+#
 # This loads a precomputed solution to save computation time. Delete the file
 # to try one of the suggested initial guesses.
 fname = f'human_gait_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
-    initial_guess = np.loadtxt(fname)
+    solution = np.loadtxt(fname)
 else:
-    # choose one, comment others
-    initial_guess = prob.lower_bound + (prob.upper_bound -
+    # choose one initial guess, comment others
+    initial_guess = prob.lower_bound + (
+        prob.upper_bound -
         prob.lower_bound)*np.random.random_sample(prob.num_free)
     initial_guess = 0.01*np.ones(prob.num_free)
     initial_guess = np.zeros(prob.num_free)
-
-# %%
-# Find the optimal solution and save it if it converges.
-solution, info = prob.solve(initial_guess)
-
-xs, rs, _, h_val = prob.parse_free(solution)
-times = np.linspace(0.0, (num_nodes - 1)*h_val, num=num_nodes)
-if info['status'] in (0, 1):
-    np.savetxt(f'human_gait_{num_nodes}_nodes_solution.csv', solution,
-               fmt='%.2f')
-
+    solution, info = prob.solve(initial_guess)
+    if info['status'] in (0, 1):
+        np.savetxt(f'human_gait_{num_nodes}_nodes_solution.csv', solution,
+                   fmt='%.2f')
 
 # %%
 # Use symmeplot to make an animation of the motion.
-def animate(fname='animation.gif'):
+xs, rs, _, h_val = prob.parse_free(solution)
+times = np.linspace(0.0, (num_nodes - 1)*h_val, num=num_nodes)
+
+
+def animate():
 
     ground, origin, segments = symbolics[8], symbolics[9], symbolics[10]
     trunk, rthigh, rshank, rfoot, lthigh, lshank, lfoot = segments
@@ -305,12 +305,11 @@ def animate(fname='animation.gif'):
 
     ani = scene.animate(lambda i: gait_cycle[:, i], frames=len(times),
                         interval=h_val*1000)
-    ani.save(fname, fps=int(1/h_val))
 
     return ani
 
 
-animation = animate('human-gait-earth.gif')
+animation = animate()
 
 # %%
 # Now see what the solution looks like in the Moon's gravitational field.
@@ -326,7 +325,7 @@ solution, info = prob.solve(solution)
 # Animate the second solution.
 xs, rs, _, h_val = prob.parse_free(solution)
 
-animation = animate('human-gait-moon.gif')
+animation = animate()
 
 plt.show()
 
