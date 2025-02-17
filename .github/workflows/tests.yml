@@ -24,6 +24,7 @@ jobs:
       - name: Checkout Opty
         uses: actions/checkout@v4
       - name: Setup Conda environment
+        if: runner.os == 'Windows'
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
@@ -31,6 +32,15 @@ jobs:
           conda-remove-defaults: "true"
           environment-file: opty-dev-env.yml
           mamba-version: "*"
+          python-version: ${{ matrix.python-version }}
+      - name: Setup Conda environment
+        if: runner.os != 'Windows'
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          channels: conda-forge
+          conda-remove-defaults: "true"
+          environment-file: opty-dev-env.yml
           python-version: ${{ matrix.python-version }}
       - name: Install openmp
         if: runner.os == 'Linux'
