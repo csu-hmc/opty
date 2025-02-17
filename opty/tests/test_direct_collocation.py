@@ -6,11 +6,12 @@ import numpy as np
 import sympy as sym
 import sympy.physics.mechanics as mech
 from sympy.physics.mechanics.models import n_link_pendulum_on_cart
-from scipy import sparse
 from pytest import raises
 
+
 from ..direct_collocation import Problem, ConstraintCollocator
-from ..utils import create_objective_function, sort_sympy, parse_free
+from ..utils import (create_objective_function, sort_sympy, parse_free,
+                     _coo_matrix)
 
 
 def test_pendulum():
@@ -320,7 +321,7 @@ class TestConstraintCollocator():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         # jacobian of eom_vector wrt vi, xi, xp, vp, k
         #    [     vi,  xi,   vp,   xp,  k]
@@ -341,7 +342,7 @@ class TestConstraintCollocator():
              [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]],
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
     def test_gen_multi_arg_con_jac_func_midpoint(self):
 
@@ -363,7 +364,7 @@ class TestConstraintCollocator():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         x = self.state_values[0]
         m, c, k = self.constant_values
@@ -391,7 +392,7 @@ class TestConstraintCollocator():
 
         expected_jacobian = np.hstack((part1, part2))
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
     def test_generate_constraint_function(self):
 
@@ -426,7 +427,7 @@ class TestConstraintCollocator():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         m, c, k = self.constant_values
         h = self.interval_value
@@ -442,7 +443,7 @@ class TestConstraintCollocator():
             [     0,       0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]],
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
 
 class TestConstraintCollocatorUnknownTrajectories():
@@ -623,7 +624,7 @@ class TestConstraintCollocatorUnknownTrajectories():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         # jacobian of eom_vector wrt vi, xi, xp, vp, k
         #    [     vi,  xi,   vp,   xp,  k]
@@ -645,7 +646,7 @@ class TestConstraintCollocatorUnknownTrajectories():
              [     0,      0,      0,  k[3],      0,         0,      -m /h, c + m / h,    0,    0,    0, x[3], v[3]]], # 3
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
     def test_gen_multi_arg_con_jac_func_midpoint(self):
 
@@ -667,7 +668,7 @@ class TestConstraintCollocatorUnknownTrajectories():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         x, v = self.state_values
         m, c = self.constant_values
@@ -706,7 +707,7 @@ class TestConstraintCollocatorUnknownTrajectories():
 
         expected_jacobian = np.hstack((part1, part2, part3))
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
     def test_generate_constraint_function(self):
 
@@ -741,7 +742,7 @@ class TestConstraintCollocatorUnknownTrajectories():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         x, v = self.state_values
         m, c = self.constant_values
@@ -758,7 +759,7 @@ class TestConstraintCollocatorUnknownTrajectories():
              [     0,      0,      0,  k[3],      0,         0,      -m /h, c + m / h,    0,    0,    0, x[3], v[3]]], # 3
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
 
 def test_merge_fixed_free_parameters():
@@ -1045,7 +1046,7 @@ class TestConstraintCollocatorInstanceConstraints():
         row_idxs = row_idxs[:-4]
         col_idxs = col_idxs[:-4]
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         #                   thetai, omegai, thetap, omegap, Ti
         # theta : [            1/h,     -1,   -1/h,      0,  0],
@@ -1065,7 +1066,7 @@ class TestConstraintCollocatorInstanceConstraints():
              [     0,                            0,                            0, d * g * m * np.cos(theta[3]),      0,      0, -I / h,  I / h,    0,  0,  0, -1]], # 3
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
     def test_generate_constraint_function(self):
 
@@ -1112,7 +1113,7 @@ class TestConstraintCollocatorInstanceConstraints():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         theta = self.state_values[0]
         I, m, g, d = self.constant_values
@@ -1132,7 +1133,7 @@ class TestConstraintCollocatorInstanceConstraints():
              [     0,                            0,                            0,                            0,      0,      0,      0,    5.0,    0,  0,  0,  0]],
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
 
 class TestConstraintCollocatorVariableDuration():
@@ -1375,7 +1376,7 @@ class TestConstraintCollocatorVariableDuration():
         row_idxs = row_idxs[:-4]
         col_idxs = col_idxs[:-4]
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         theta = self.state_values[0]
         omega = self.state_values[1]
@@ -1392,8 +1393,7 @@ class TestConstraintCollocatorVariableDuration():
              [     0,                      0,                      0, d*g*m*np.cos(theta[3]),         0,         0, -m*d**2/h, m*d**2/h,  0,  0,  0, -1, -d**2*m*(omega[3] - omega[2])/h**2]], # 3
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(),
-                                   expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
     def test_generate_constraint_function(self):
 
@@ -1441,7 +1441,7 @@ class TestConstraintCollocatorVariableDuration():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         th = self.state_values[0]
         om = self.state_values[1]
@@ -1462,8 +1462,7 @@ class TestConstraintCollocatorVariableDuration():
              [   0,                   0,                   0,                   0,         0,         0,         0,      1.0,  0,  0,  0,  0,                            0]],
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(),
-                                   expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
 
 def test_known_and_unknown_order():
