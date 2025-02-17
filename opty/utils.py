@@ -21,19 +21,23 @@ import sympy as sm
 import sympy.physics.mechanics as me
 from sympy.utilities.iterables import numbered_symbols
 from sympy.printing.c import C99CodePrinter
-try:
-    plt = sm.external.import_module('matplotlib.pyplot',
-                                    __import__kwargs={'fromlist': ['']},
-                                    catch=(RuntimeError,))
-except TypeError:  # SymPy >=1.6
-    plt = sm.external.import_module('matplotlib.pyplot',
-                                    import_kwargs={'fromlist': ['']},
-                                    catch=(RuntimeError,))
+plt = sm.external.import_module('matplotlib.pyplot',
+                                import_kwargs={'fromlist': ['']},
+                                catch=(RuntimeError,))
 
 __all__ = [
     'parse_free',
     'create_objective_function',
 ]
+
+
+def _coo_matrix(jac_vals, row_idxs, col_idxs):
+    """Quick and dirty replacement for scipy.sparse.coo_matrix."""
+    arr = np.zeros((np.max(row_idxs + 1), np.max(col_idxs + 1)),
+                   dtype=jac_vals.dtype)
+    for v, r, c in zip(jac_vals, row_idxs, col_idxs):
+        arr[r, c] = v
+    return arr
 
 
 class MathJaxRepr():

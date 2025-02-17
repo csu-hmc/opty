@@ -4,9 +4,27 @@ import pytest
 import numpy as np
 from numpy import testing
 import sympy as sym
-from scipy import sparse
+try:
+    from scipy import sparse
+except ImportError:
+    has_scipy = False
+else:
+    has_scipy=True
 
 from .. import utils
+
+
+def test_coo_matrix():
+    row = np.array([0, 3, 1, 0])
+    col = np.array([0, 3, 1, 2])
+    data = np.array([4, 5, 7, 9])
+
+    arr = utils._coo_matrix(data, row, col)
+    exp_arr = np.array([[4, 0, 9, 0],
+                        [0, 7, 0, 0],
+                        [0, 0, 0, 0],
+                        [0, 0, 0, 5]])
+    testing.assert_allclose(arr, exp_arr)
 
 
 def test_state_derivatives():
@@ -326,11 +344,12 @@ def test_substitute_matrix():
 
     np.testing.assert_allclose(new_A, expected)
 
-    A = sparse.lil_matrix(np.zeros((3, 4)))
-    sub = np.array([[21, 22], [23, 24]])
-    new_A = utils.substitute_matrix(A, [1, 2], [0, 2], sub)
-    expected = np.array([[0, 0, 0, 0],
-                         [21, 0, 22, 0],
-                         [23, 0, 24, 0]], dtype=float)
+    if has_scipy:
+        A = sparse.lil_matrix(np.zeros((3, 4)))
+        sub = np.array([[21, 22], [23, 24]])
+        new_A = utils.substitute_matrix(A, [1, 2], [0, 2], sub)
+        expected = np.array([[0, 0, 0, 0],
+                             [21, 0, 22, 0],
+                             [23, 0, 24, 0]], dtype=float)
 
-    np.testing.assert_allclose(new_A.todense(), expected)
+        np.testing.assert_allclose(new_A.todense(), expected)
