@@ -32,31 +32,31 @@ jobs:
           environment-file: opty-dev-env.yml
           mamba-version: "*"
           python-version: ${{ matrix.python-version }}
-      - name: Install openmp and pydy
+      - name: Install openmp
         if: runner.os == 'Linux'
         run: |
-          mamba list
-          mamba install libgomp pydy
-      - name: Install openmp and pydy
+          conda list
+          conda install libgomp
+      - name: Install openmp
         if: runner.os == 'macOS'
         run: |
-          mamba list
-          mamba install llvm-openmp pydy
+          conda list
+          conda install llvm-openmp
       # llvm-openmp fails to install because it is incompatible with ipopt, but
       # openmp "installs", nonetheless the openmp example fails to compile.
-      - name: Install openmp and pydy
+      - name: Install openmp
         if: runner.os == 'Windows'
         run: |
           mamba list
-          mamba install openmp pydy
+          mamba install openmp
       - name: Test with pytest
         run: |
-          mamba list
+          conda list
           pytest --cov=opty opty/
       - name: Install Opty and test import
         run: |
           python -m pip install --no-deps --no-build-isolation .
-          mamba list
+          conda list
           python -c "import opty"
       - name: Run an example
         run: |
