@@ -23,6 +23,9 @@ jobs:
     steps:
       - name: Checkout Opty
         uses: actions/checkout@v4
+      # NOTE : I use mamba only on Windows because conda started to fail to
+      # solve Windows builds and was timing out in CI. See
+      # https://github.com/csu-hmc/opty/pull/363 for more info.
       - name: Setup Conda environment
         if: runner.os == 'Windows'
         uses: conda-incubator/setup-miniconda@v3
