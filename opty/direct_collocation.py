@@ -694,7 +694,7 @@ class Problem(cyipopt.Problem):
             The initial guess for the free variables in the optimization problem.
 
         Strategy:
-        --------
+        ---------
         - Instance constraints which contain instances of other state variables
           are ignored.
         - Between successsive instances of a state variable, the values are
