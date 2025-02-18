@@ -1928,7 +1928,7 @@ def test_linear_initial_guess():
     state_symbols = (x, y, ux, uy)
     par_map = {b1: 1.0,
                b2: 2.0,
-               }
+    }
     num_nodes = 61
 
     # A: CONSTANT TIME INTERVAL
@@ -2034,7 +2034,7 @@ def test_linear_initial_guess():
     expected_guess[6*num_nodes+1] = 11.0/2.0
 
 
-    initial_guess = prob.create_initial_guess()
+    initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
     # A2: np.inf, -np.inf in bounds
@@ -2057,7 +2057,7 @@ def test_linear_initial_guess():
     expected_guess[6*num_nodes] = 10.0
     expected_guess[6*num_nodes+1] = -10.0
 
-    initial_guess = prob.create_initial_guess()
+    initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
     # A3: no bounds
@@ -2078,7 +2078,7 @@ def test_linear_initial_guess():
         time_symbol=t,
     )
 
-    initial_guess = prob.create_initial_guess()
+    initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
     # A4: state instances in instance_constraints
@@ -2115,7 +2115,7 @@ def test_linear_initial_guess():
         time_symbol=t,
     )
 
-    initial_guess = prob.create_initial_guess()
+    initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
     # B: VARIABLE TIME INTERVAL
@@ -2226,7 +2226,7 @@ def test_linear_initial_guess():
     # h - guess
     expected_guess[-1] = 1.5
 
-    initial_guess = prob.create_initial_guess()
+    initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
     # B2: np.inf, -np.inf in bounds
@@ -2249,7 +2249,7 @@ def test_linear_initial_guess():
     expected_guess[6*num_nodes] = 10.0
     expected_guess[6*num_nodes+1] = -10.0
 
-    initial_guess = prob.create_initial_guess()
+    initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
     # B3: no bounds
@@ -2270,7 +2270,7 @@ def test_linear_initial_guess():
         instance_constraints=instance_constraints,
         time_symbol=t,
         )
-    initial_guess = prob.create_initial_guess()
+    initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
     # B4: state instances in instance_constraints
@@ -2307,5 +2307,5 @@ def test_linear_initial_guess():
         time_symbol=t,
     )
 
-    initial_guess = prob.create_initial_guess()
+    initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)

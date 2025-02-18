@@ -685,16 +685,17 @@ class Problem(cyipopt.Problem):
 
         return parse_free(free, n, q, N, variable_duration)
 
-    def create_initial_guess(self):
-        """Creates an initial guess for the free variables in the optimization.
+    def create_linear_initial_guess(self):
+        """Creates an initial guess that is the linear interpolation between
+        exact instance constraints. Please see the notes for more information.
 
-        Returns:
-        --------
+        Returns
+        -------
         initial_guess : (n*N + q*N + r + s)-ndarray
             The initial guess for the free variables in the optimization problem.
 
-        Strategy:
-        ---------
+        Notes
+        -----
         - Instance constraints which contain instances of other state variables
           are ignored.
         - Between successsive instances of a state variable, the values are
@@ -707,7 +708,7 @@ class Problem(cyipopt.Problem):
           the value is set to the other finite limit of bound.
         - All else is set to zero.
 
-    """
+        """
         if self.collocator.instance_constraints is None:
             instance_matrix = sm.Matrix([])
         else:
