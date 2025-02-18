@@ -244,7 +244,6 @@ class Problem(cyipopt.Problem):
                 gives the status of the algorithm as a message
 
         """
-
         return super().solve(free, lagrange=lagrange, zl=zl, zu=zu)
 
     def _generate_bound_arrays(self):
@@ -685,6 +684,202 @@ class Problem(cyipopt.Problem):
         variable_duration = self.collocator._variable_duration
 
         return parse_free(free, n, q, N, variable_duration)
+
+    def create_initial_guess(self):
+        """Creates an initial guess for the free variables in the optimization.
+
+        Returns:
+        --------
+        initial_guess : (n*N + q*N + r + s)-ndarray
+            The initial guess for the free variables in the optimization problem.
+
+        Strategy:
+        --------
+        - Instance constraints which contain instances of other state variables
+          are ignored.
+        - Between successsive instances of a state variable, the values are
+          interpolated linearly.
+        - If bounds exist for unknown input trajectories or unknown parameters,
+          the values are set to the midpoint of the interval of the bounds.
+        - If bounds exist for the variable time interval, the value is set to
+          the midpoint of its bounds.
+        - If one of the range limit of a bound is ``-np.inf`` or ``np.inf``,
+          the value is set to the other finite limit of bound.
+        - All else is set to zero.
+
+    """
+        if self.collocator.instance_constraints is None:
+            instance_matrix = sm.Matrix([])
+        else:
+            instance_matrix = sm.Matrix(self.collocator.instance_constraints)
+        par_map = self.collocator.known_parameter_map
+        instance_matrix = instance_matrix.subs({key: par_map[key] for key
+                            in par_map.keys()})
+
+        initial_guess = np.zeros(self.num_free)
+        num_nodes = self.collocator.num_collocation_nodes
+
+        # delete instance constraints which contain instances of other state
+        # variables
+        row_delete = []
+        M_new = instance_matrix.copy()
+        for i, exp1 in enumerate(M_new):
+            for a in sm.preorder_traversal(exp1):
+                zaehler = 0
+                for b in sm.preorder_traversal(a):
+                    if isinstance(b, sm.Function):
+                        zaehler += 1
+                        if zaehler > 1:
+                            row_delete.append(i)
+        if len(row_delete) > 0:
+            for row in sorted(row_delete, reverse=True):
+                M_new.row_del(row)
+        instance_matrix = M_new
+
+        if self.collocator.instance_constraints is not None:
+            if not isinstance(self.collocator.node_time_interval, sm.Symbol):
+        # fixed time interval
+                liste = []
+                liste1 = []
+                for exp1 in instance_matrix:
+                    for a in sm.preorder_traversal(exp1):
+                        liste.append(a)
+
+                for entry in liste:
+                    if isinstance(entry, sm.Function):
+                        idx = liste.index(entry)
+                        liste2 = [0, 0, 0, 0]
+                        liste2[0] = entry
+                        liste2[1] = liste[idx + 1]
+                        liste2[2] = liste[idx -1]
+                        liste2[3] = entry.name
+                        liste1.append(liste2)
+
+                name_rank = {name.name: i for i, name in enumerate(
+                        self.collocator.state_symbols)}
+                liste3 = sorted(liste1, key=lambda x: (name_rank[x[3]], x[1]))
+
+                duration = self.collocator.node_time_interval * (num_nodes-1)
+                for state in self.collocator.state_symbols:
+                    state_idx = self.collocator.state_symbols.index(state)
+                    times = []
+                    values = []
+                    for i in liste3:
+                        if state.name == i[3]:
+                            times.append(i[1])
+                            values.append(-i[2])
+                    if len(times) == 0:
+                        pass
+                    elif len(times) == 1:
+                        initial_guess[state_idx*num_nodes:(state_idx+1) \
+                            *num_nodes] = values[0]
+                    else:
+                        for i in range(len(times)-1):
+                            start = round(times[i]/duration*num_nodes)
+                            ende = round(times[i+1]/duration*num_nodes)
+                            werte = np.linspace(values[i], values[i+1],
+                                ende-start)
+                            initial_guess[state_idx*num_nodes+start:
+                                state_idx*num_nodes+ende] = werte
+
+        # Variable time interval
+            else:
+                liste = []
+                liste1 = []
+                instance_matrix = instance_matrix.subs({self.collocator.
+                                    node_time_interval: 1.0})
+                for exp1 in instance_matrix:
+                    for a in sm.preorder_traversal(exp1):
+                        liste.append(a)
+
+                for entry in liste:
+                    if isinstance(entry, sm.Function):
+                        idx = liste.index(entry)
+                        liste2 = [0, 0, 0, 0]
+                        liste2[0] = entry
+                        liste2[1] = liste[idx + 1]
+                        liste2[2] = liste[idx -1]
+                        liste2[3] = entry.name
+                        liste1.append(liste2)
+
+                name_rank = {name.name: i for i, name in enumerate(
+                        self.collocator.state_symbols)}
+                liste3 = sorted(liste1, key=lambda x: (name_rank[x[3]], x[1]))
+
+                duration = (num_nodes-1)
+                for state in self.collocator.state_symbols:
+                    state_idx = self.collocator.state_symbols.index(state)
+                    times = []
+                    values = []
+                    for i in liste3:
+                        if state.name == i[3]:
+                            times.append(i[1])
+                            values.append(-i[2])
+                    if len(times) == 0:
+                        pass
+                    elif len(times) == 1:
+                        initial_guess[state_idx*num_nodes:(state_idx+1) \
+                            *num_nodes] = values[0]
+                    else:
+                        for i in range(len(times)-1):
+                            start = int(times[i])
+                            ende = int(times[i+1])
+                            werte = np.linspace(values[i], values[i+1],
+                                ende-start)
+                            initial_guess[state_idx*num_nodes+start:
+                                state_idx*num_nodes+ende] = werte
+
+        # set the values of unknown input trajectories.
+        if self.bounds is not None and \
+            len(self.collocator.unknown_input_trajectories) > 0:
+            start_idx = len(self.collocator.state_symbols) * num_nodes
+            for symb in self.collocator.unknown_input_trajectories:
+                idx = self.collocator.unknown_input_trajectories.index(symb)
+                if symb in self.bounds.keys():
+                    if self.bounds[symb][0] == -np.inf:
+                        wert = self.bounds[symb][1]
+                    elif self.bounds[symb][1] == np.inf:
+                        wert = self.bounds[symb][0]
+                    else:
+                        wert = 0.5*(self.bounds[symb][0] + self.bounds[symb][1])
+                    initial_guess[start_idx + idx*num_nodes:start_idx+(idx+1)
+                            *num_nodes] = wert
+
+        # set the values of unknown parameters.
+        if self.bounds is not None and \
+            len(self.collocator.unknown_parameters) > 0:
+            start_idx = (len(self.collocator.state_symbols) +
+                     len(self.collocator.unknown_input_trajectories))* num_nodes
+            for symb in self.collocator.unknown_parameters:
+                idx = self.collocator.unknown_parameters.index(symb)
+                if symb in self.bounds.keys():
+                    if self.bounds[symb][0] == -np.inf:
+                        wert = self.bounds[symb][1]
+                    elif self.bounds[symb][1] == np.inf:
+                        wert = self.bounds[symb][0]
+                    else:
+                        wert = 0.5*(self.bounds[symb][0] + self.bounds[symb][1])
+                    initial_guess[start_idx + idx]  = wert
+
+        # set the value of the variable time interval.
+        if self.bounds is not None and \
+            isinstance(self.collocator.node_time_interval, sm.Symbol):
+                if self.collocator.node_time_interval in self.bounds.keys():
+                    if self.bounds[self.collocator.node_time_interval][0] \
+                        == -np.inf:
+                        wert = self.bounds[self.collocator.node_time_interval][1]
+                    elif self.bounds[self.collocator.node_time_interval][1] \
+                        == np.inf:
+                        wert = self.bounds[self.collocator.node_time_interval][0]
+                    else:
+                        wert = 0.5*(self.bounds[self.collocator.
+                            node_time_interval][0] +
+                            self.bounds[self.collocator.
+                            node_time_interval][1])
+                    initial_guess[-1] = wert
+
+        return initial_guess
+
 
 class ConstraintCollocator(object):
     """This class is responsible for generating the constraint function and the
