@@ -1928,7 +1928,7 @@ def test_linear_initial_guess(plot=False):
     state_symbols = (x, y, ux, uy)
     par_map = {b1: 1.0,
                b2: 2.0,
-    }
+               }
     num_nodes = 61
 
     # A: CONSTANT TIME INTERVAL
@@ -1946,7 +1946,7 @@ def test_linear_initial_guess(plot=False):
         return grad
 
     instance_constraints = (
-        x.func(t0) - 3.0,
+        x.func(t0),
         y.func(t0) - 2.0,
         ux.func(t0) - 5.0,
 
@@ -1956,10 +1956,10 @@ def test_linear_initial_guess(plot=False):
         uy.func(t1) - 4.5,
 
         x.func(t2) + 2.0,
-        y.func(t2) - 3.0,
+        y.func(t2),
 
-        x.func(tf) + 1.0,
-        ux.func(tf) + 5.0,
+        x.func(tf),
+        ux.func(tf),
     )
 
     bounds= {
@@ -1994,7 +1994,7 @@ def test_linear_initial_guess(plot=False):
     # x - guess
     start = round(t0/duration*num_nodes)
     ende = round(t1/duration*num_nodes)
-    werte = np.linspace(3.0, 1.5*par_map[b1], ende-start)
+    werte = np.linspace(0.0, 1.5*par_map[b1], ende-start)
     expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
     start = round(t1/duration*num_nodes)
     ende = round(t2/duration*num_nodes)
@@ -2002,7 +2002,7 @@ def test_linear_initial_guess(plot=False):
     expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
     start = round(t2/duration*num_nodes)
     ende = round(tf/duration*num_nodes)
-    werte = np.linspace(-2.0, -1.0, ende-start)
+    werte = np.linspace(-2.0, 0.0, ende-start)
     expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
      # y - guess
     start = round(t0/duration*num_nodes)
@@ -2011,7 +2011,7 @@ def test_linear_initial_guess(plot=False):
     expected_guess[1*num_nodes+start:1*num_nodes+ende] = werte
     start = round(t1/duration*num_nodes)
     ende = round(t2/duration*num_nodes)
-    werte = np.linspace(4.0, 3.0, ende-start)
+    werte = np.linspace(4.0, 0.0, ende-start)
     expected_guess[1*num_nodes+start:1*num_nodes+ende] = werte
     # ux - guess
     start = round(t0/duration*num_nodes)
@@ -2020,7 +2020,7 @@ def test_linear_initial_guess(plot=False):
     expected_guess[2*num_nodes+start:2*num_nodes+ende] = werte
     start = round(t1/duration*num_nodes)
     ende = round(tf/duration*num_nodes)
-    werte = np.linspace(1.0-par_map[b2], -5.0, ende-start)
+    werte = np.linspace(1.0-par_map[b2], 0.0, ende-start)
     expected_guess[2*num_nodes+start:2*num_nodes+ende] = werte
     # uy - guess
     expected_guess[3*num_nodes:4*num_nodes] = 4.5
@@ -2033,12 +2033,8 @@ def test_linear_initial_guess(plot=False):
     # a2 - guess
     expected_guess[6*num_nodes+1] = 11.0/2.0
 
-
     initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
-
-    if plot:
-        prob.plot_trajectories(initial_guess)
 
     # A2: np.inf, -np.inf in bounds
     bounds[a1] = (-np.inf, 10.0)
@@ -2084,9 +2080,6 @@ def test_linear_initial_guess(plot=False):
     initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
-    if plot:
-        prob.plot_trajectories(initial_guess)
-
     # A4: state instances in instance_constraints
     instance_constraints = (
         x.func(t0) - 3.0 + ux.func(tf),
@@ -2099,10 +2092,10 @@ def test_linear_initial_guess(plot=False):
         uy.func(t1) - 4.5,
 
         x.func(t2) + 2.0,
-        y.func(t2) - 3.0,
+        y.func(t2),
 
-        x.func(tf) + 1.0,
-        ux.func(tf) + 5.0,
+        x.func(tf),
+        ux.func(tf),
     )
 
     start = round(t0/duration*num_nodes)
@@ -2124,9 +2117,7 @@ def test_linear_initial_guess(plot=False):
     initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
-    if plot:
-        prob.plot_trajectories(initial_guess)
-
+    # ========================================================================
     # B: VARIABLE TIME INTERVAL
     # B1: normal
     h = sym.symbols('h')
@@ -2143,8 +2134,8 @@ def test_linear_initial_guess(plot=False):
         return grad
 
     instance_constraints = (
-        x.func(t00) - 3.0,
-        y.func(t00) - 2.0,
+        x.func(t00),
+        y.func(t00),
         ux.func(t00) - 5.0,
 
         x.func(t10) - 1.5*b1,
@@ -2152,7 +2143,7 @@ def test_linear_initial_guess(plot=False):
         ux.func(t10) - 1.0+b2,
         uy.func(t10) - 4.5,
 
-        x.func(t20) + 2.0,
+        x.func(t20),
         y.func(t20) - 3.0,
 
         x.func(tf0) + 1.0,
@@ -2194,20 +2185,20 @@ def test_linear_initial_guess(plot=False):
     # x - guess
     start = t0
     ende = t1
-    werte = np.linspace(3.0, 1.5*par_map[b1], ende-start)
+    werte = np.linspace(0.0, 1.5*par_map[b1], ende-start)
     expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
     start = t1
     ende = t2
-    werte = np.linspace(1.5*par_map[b1], -2.0, ende-start)
+    werte = np.linspace(1.5*par_map[b1], 0.0, ende-start)
     expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
     start = t2
     ende = tf
-    werte = np.linspace(-2.0, -1.0, ende-start)
+    werte = np.linspace(0.0, -1.0, ende-start)
     expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
      # y - guess
     start = t0
     ende = t1
-    werte = np.linspace(2.0, 4.0, ende-start)
+    werte = np.linspace(0.0, 4.0, ende-start)
     expected_guess[1*num_nodes+start:1*num_nodes+ende] = werte
     start = t1
     ende = t2
@@ -2238,9 +2229,6 @@ def test_linear_initial_guess(plot=False):
     initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
-    if plot:
-        prob.plot_trajectories(initial_guess)
-
     # B2: np.inf, -np.inf in bounds
     bounds[a1] = (-np.inf, 10.0)
     bounds[a2] = (-10.0, np.inf)
@@ -2264,15 +2252,12 @@ def test_linear_initial_guess(plot=False):
     initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
-    if plot:
-        prob.plot_trajectories(initial_guess)
-
     # B3: no bounds
     expected_guess[4*num_nodes: 5*num_nodes] = 0.0
     expected_guess[5*num_nodes: 6*num_nodes] = 0.0
     expected_guess[6*num_nodes] = 0.0
     expected_guess[6*num_nodes+1] = 0.0
-    expected_guess[-1] = 0.0
+    expected_guess[-1] = 1.0 / (num_nodes-1)
 
     prob = Problem(
         obj,
@@ -2288,13 +2273,10 @@ def test_linear_initial_guess(plot=False):
     initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
-    if plot:
-        prob.plot_trajectories(initial_guess)
-
     # B4: state instances in instance_constraints
     instance_constraints = (
         x.func(t00) - 3.0 + ux.func(tf0),
-        y.func(t00) - 2.0,
+        y.func(t00),
         ux.func(t00) - 5.0,
 
         x.func(t10) - 1.5*b1,
@@ -2302,11 +2284,11 @@ def test_linear_initial_guess(plot=False):
         ux.func(t10) - 1.0+b2,
         uy.func(t10) - 4.5,
 
-        x.func(t20) + 2.0,
+        x.func(t20),
         y.func(t20) - 3.0,
 
-        x.func(tf0) + 1.0,
-        ux.func(tf0) + 5.0,
+        x.func(tf0)+ 1.0,
+        ux.func(tf0)+ 5.0,
     )
 
     start = t0

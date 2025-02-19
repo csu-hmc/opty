@@ -685,13 +685,18 @@ class Problem(cyipopt.Problem):
 
         return parse_free(free, n, q, N, variable_duration)
 
-    def create_linear_initial_guess(self):
+    def create_linear_initial_guess(self, plot=False):
         """Creates an initial guess that is the linear interpolation between
         exact instance constraints. Please see the notes for more information.
 
+        Parameters
+        ----------
+        plot : bool, optional (default=False)
+            If True, the initial guess will be plotted.
+
         Returns
         -------
-        initial_guess : (n*N + q*N + r + s)-ndarray
+        initial_guess : ndarray shape(n*N + q*N + r + s)
             The initial guess for the free variables in the optimization problem.
 
         Notes
@@ -709,6 +714,7 @@ class Problem(cyipopt.Problem):
         - All else is set to zero.
 
         """
+        hilfs = sm.symbols('hilfs')
         if self.collocator.instance_constraints is None:
             instance_matrix = sm.Matrix([])
         else:
@@ -716,6 +722,10 @@ class Problem(cyipopt.Problem):
         par_map = self.collocator.known_parameter_map
         instance_matrix = instance_matrix.subs({key: par_map[key] for key
                             in par_map.keys()})
+        # setting the variable time interval to 1.0 makes getting the node
+        # numbers of the instance times easy.
+        instance_matrix = instance_matrix.subs({self.collocator.
+                            node_time_interval: 1.0})
 
         initial_guess = np.zeros(self.num_free)
         num_nodes = self.collocator.num_collocation_nodes
@@ -736,6 +746,16 @@ class Problem(cyipopt.Problem):
             for row in sorted(row_delete, reverse=True):
                 M_new.row_del(row)
         instance_matrix = M_new
+
+        # If the instance constraint is of the from ``x(t) - 0``, or ``x(t)``
+        # a dummy ``hilfs`` is added so all constraints have the same form.
+        # This dummy will be set to zero later.
+        for i, expr in enumerate(instance_matrix):
+            zaehler = 0
+            for a in sm.preorder_traversal(expr):
+                zaehler += 1
+            if zaehler == 2:
+                instance_matrix[i, 0] = instance_matrix[i, 0] + hilfs
 
         if self.collocator.instance_constraints is not None:
             if not isinstance(self.collocator.node_time_interval, sm.Symbol):
@@ -759,7 +779,6 @@ class Problem(cyipopt.Problem):
                 name_rank = {name.name: i for i, name in enumerate(
                         self.collocator.state_symbols)}
                 liste3 = sorted(liste1, key=lambda x: (name_rank[x[3]], x[1]))
-
                 duration = self.collocator.node_time_interval * (num_nodes-1)
                 for state in self.collocator.state_symbols:
                     state_idx = self.collocator.state_symbols.index(state)
@@ -768,7 +787,10 @@ class Problem(cyipopt.Problem):
                     for i in liste3:
                         if state.name == i[3]:
                             times.append(i[1])
-                            values.append(-i[2])
+                            if i[-2] != hilfs:
+                                values.append(-i[2])
+                            else:
+                                values.append(0)
                     if len(times) == 0:
                         pass
                     elif len(times) == 1:
@@ -787,12 +809,9 @@ class Problem(cyipopt.Problem):
             else:
                 liste = []
                 liste1 = []
-                instance_matrix = instance_matrix.subs({self.collocator.
-                                    node_time_interval: 1.0})
                 for exp1 in instance_matrix:
                     for a in sm.preorder_traversal(exp1):
                         liste.append(a)
-
                 for entry in liste:
                     if isinstance(entry, sm.Function):
                         idx = liste.index(entry)
@@ -815,7 +834,10 @@ class Problem(cyipopt.Problem):
                     for i in liste3:
                         if state.name == i[3]:
                             times.append(i[1])
-                            values.append(-i[2])
+                            if i[-2] != hilfs:
+                                values.append(-i[2])
+                            else:
+                                values.append(0)
                     if len(times) == 0:
                         pass
                     elif len(times) == 1:
@@ -863,21 +885,34 @@ class Problem(cyipopt.Problem):
                     initial_guess[start_idx + idx]  = wert
 
         # set the value of the variable time interval.
-        if self.bounds is not None and \
-            isinstance(self.collocator.node_time_interval, sm.Symbol):
+        if isinstance(self.collocator.node_time_interval, sm.Symbol):
+            if self.bounds is not None:
                 if self.collocator.node_time_interval in self.bounds.keys():
                     if self.bounds[self.collocator.node_time_interval][0] \
                         == -np.inf:
-                        wert = self.bounds[self.collocator.node_time_interval][1]
+                        wert = self.bounds[self.collocator.
+                                               node_time_interval][1]
                     elif self.bounds[self.collocator.node_time_interval][1] \
                         == np.inf:
-                        wert = self.bounds[self.collocator.node_time_interval][0]
+                        wert = self.bounds[self.collocator.
+                                               node_time_interval][0]
                     else:
                         wert = 0.5*(self.bounds[self.collocator.
-                            node_time_interval][0] +
-                            self.bounds[self.collocator.
-                            node_time_interval][1])
+                                node_time_interval][0] +
+                                self.bounds[self.collocator.
+                                node_time_interval][1])
                     initial_guess[-1] = wert
+
+            if self.bounds is None:
+                initial_guess[-1] = 1.0 / (num_nodes-1)
+
+            elif self.collocator.node_time_interval not in self.bounds.keys():
+                initial_guess[-1] = 1.0 / (num_nodes-1)
+            else:
+                pass
+
+        if plot:
+            self.plot_trajectories(initial_guess)
 
         return initial_guess
 

@@ -78,9 +78,9 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
                time_symbol=t)
 
 # %%
-# Use a random positive initial guess.
-initial_guess = np.random.randn(prob.num_free)
-
+# Use a linear guess.
+# %%
+initial_guess = prob.create_linear_initial_guess(plot=True)
 # %%
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)

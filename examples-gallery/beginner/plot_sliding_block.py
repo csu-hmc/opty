@@ -1,4 +1,3 @@
-# %%
 """
 Block Sliding Over a Hill
 =========================
@@ -174,6 +173,7 @@ for selection in (0, 1):
         bounds=bounds,
     )
 
+    initial_guess = prob.create_linear_initial_guess()
     solution, info = prob.solve(initial_guess)
     solution_list.append(solution)
     info_list.append(info)
@@ -273,15 +273,15 @@ print('Message from optimizer:', info_list[selection]['status_msg'])
 print(f'Optimal h value is: {solution_list[selection][-1]:.3f}')
 
 # %%
-prob_list[selection].plot_objective_value()
+_ = prob_list[selection].plot_objective_value()
 
 # %%
 # Plot errors in the solution.
-prob_list[selection].plot_constraint_violations(solution_list[selection])
+_ = prob_list[selection].plot_constraint_violations(solution_list[selection])
 
 # %%
 # Plot the trajectories of the block.
-prob_list[selection].plot_trajectories(solution_list[selection])
+_ = prob_list[selection].plot_trajectories(solution_list[selection])
 
 # %%
 # Animate the solution.
@@ -294,15 +294,15 @@ selection = 1
 print('Message from optimizer:', info_list[selection]['status_msg'])
 
 # %%
-prob_list[selection].plot_objective_value()
+_ = prob_list[selection].plot_objective_value()
 
 # %%
 # Plot errors in the solution.
-prob_list[selection].plot_constraint_violations(solution_list[selection])
+_ =prob_list[selection].plot_constraint_violations(solution_list[selection])
 
 # %%
 # Plot the trajectories of the block.
-prob_list[selection].plot_trajectories(solution_list[selection])
+_ =prob_list[selection].plot_trajectories(solution_list[selection])
 
 # %%
 # Animate the solution.
