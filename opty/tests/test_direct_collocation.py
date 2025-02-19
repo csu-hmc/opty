@@ -1908,7 +1908,7 @@ def test_attributes_read_only():
         with raises(AttributeError):
             setattr(test, XX, 5)
 
-def test_linear_initial_guess():
+def test_linear_initial_guess(plot=False):
     """Test to check if the initial guess is created correctly."""
 
     x, y, ux, uy = mech.dynamicsymbols('x y ux uy')
@@ -2037,6 +2037,9 @@ def test_linear_initial_guess():
     initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
+    if plot:
+        prob.plot_trajectories(initial_guess)
+
     # A2: np.inf, -np.inf in bounds
     bounds[a1] = (-np.inf, 10.0)
     bounds[a2] = (-10.0, np.inf)
@@ -2081,6 +2084,9 @@ def test_linear_initial_guess():
     initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
+    if plot:
+        prob.plot_trajectories(initial_guess)
+
     # A4: state instances in instance_constraints
     instance_constraints = (
         x.func(t0) - 3.0 + ux.func(tf),
@@ -2117,6 +2123,9 @@ def test_linear_initial_guess():
 
     initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
+
+    if plot:
+        prob.plot_trajectories(initial_guess)
 
     # B: VARIABLE TIME INTERVAL
     # B1: normal
@@ -2229,6 +2238,9 @@ def test_linear_initial_guess():
     initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
+    if plot:
+        prob.plot_trajectories(initial_guess)
+
     # B2: np.inf, -np.inf in bounds
     bounds[a1] = (-np.inf, 10.0)
     bounds[a2] = (-10.0, np.inf)
@@ -2252,6 +2264,9 @@ def test_linear_initial_guess():
     initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
 
+    if plot:
+        prob.plot_trajectories(initial_guess)
+
     # B3: no bounds
     expected_guess[4*num_nodes: 5*num_nodes] = 0.0
     expected_guess[5*num_nodes: 6*num_nodes] = 0.0
@@ -2272,6 +2287,9 @@ def test_linear_initial_guess():
         )
     initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
+
+    if plot:
+        prob.plot_trajectories(initial_guess)
 
     # B4: state instances in instance_constraints
     instance_constraints = (
@@ -2309,3 +2327,6 @@ def test_linear_initial_guess():
 
     initial_guess = prob.create_linear_initial_guess()
     np.testing.assert_allclose(initial_guess, expected_guess)
+
+    if plot:
+        prob.plot_trajectories(initial_guess)
