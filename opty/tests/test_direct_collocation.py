@@ -1911,6 +1911,7 @@ def test_attributes_read_only():
 def test_bounds_conflict():
     """Test to ensure that the method of Problem, bounds_conflict_initial_guess
     raises a ValueError when the initial guesses violates the bounds.
+    Test that reversed bounds are detected and a ValueError is raised.
     Then the test that the kwarg respect_bounds works as expected in solve.
     """
 
@@ -1935,7 +1936,7 @@ def test_bounds_conflict():
                b2: 2.0,
                b3: 3.0
                }
-    num_nodes = 26
+    num_nodes = 3
 
     # A: constant time interval
     t0, tf = 0.0, 1.0
@@ -1971,9 +1972,9 @@ def test_bounds_conflict():
         x: (-1.0, 1.0 ),
         ux: (-1.0, 1.0),
         y: (-1.0, 1.0),
-        uy: (-1.0, 1.0),
+        uy: (-np.inf, 0),
         z: (-1.0, 1.0),
-        uz: (-1.0, 1.0),
+        uz: (1.0, 1.0),
     }
 
     prob = Problem(
@@ -1991,10 +1992,32 @@ def test_bounds_conflict():
 
     initial_guess = np.zeros(prob.num_free)
     start_idx = np.random.randint(0, num_nodes - 1)
+    # check for values outside the bounds
     for i in range(9):
         initial_guess[start_idx + i*num_nodes] = 10.0
     with raises(ValueError):
         prob.bounds_conflict_initial_guess(initial_guess)
+
+    # check for wrong bounds
+    bounds[a1] = (1.0, -1.0)
+    bounds[x] = (np.inf, 1.0)
+    bounds[uy] = (1.0, -np.inf)
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        time_symbol=t,
+        )
+    initial_guess = np.zeros(prob.num_free)
+    with raises(ValueError):
+        prob.bounds_conflict_initial_guess(initial_guess)
+
 
     # B: variable time interval
     h = sym.symbols('h')
@@ -2024,16 +2047,16 @@ def test_bounds_conflict():
         a2: (-1.0, 1.0),
         a3: (-1.0, 1.0),
 
-        u1: (-1.0, 1.0),
+        u1: (-np.inf, 1.0),
         u2: (-1.0, 1.0),
-        u3: (-1.0, 1.0),
+        u3: (1.0, 1.0),
 
-        x: (-1.0, 1.0),
+        x: (-np.inf, 1.0),
         ux: (-1.0, 1.0),
         y: (-1.0, 1.0),
         uy: (-1.0, 1.0),
         z: (-1.0, 1.0),
-        uz: (-1.0, 1.0),
+        uz: (-1.0, np.inf),
         h: (0.0, 0.4 )
     }
 
@@ -2052,16 +2075,41 @@ def test_bounds_conflict():
 
     initial_guess = np.zeros(prob.num_free)
     start_idx = np.random.randint(0, num_nodes - 1)
+    # check for values outside the bounds
     for i in range(9):
         initial_guess[start_idx + i*num_nodes] = -10.0
     initial_guess[-1] = 0.3
     with raises(ValueError):
         prob.bounds_conflict_initial_guess(initial_guess)
 
+    # check for wrong bounds
+    bounds[a1] = (1.0, -1.0)
+    bounds[x] = (np.inf, 1.0)
+    bounds[uy] = (1.0, -np.inf)
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        time_symbol=t,
+        )
+
+    initial_guess = np.zeros(prob.num_free)
+    with raises(ValueError):
+        prob.bounds_conflict_initial_guess(initial_guess)
+
+
+
     # C: respect_bounds=True: initial guess must be within bounds, else a
     # ValueError is raised.
     with raises(ValueError):
         _, _ = prob.solve(initial_guess, respect_bounds=True)
 
-    # D: respect_bounds=False by default. Bounds are ignored.
+    # B: respect_bounds=False. Bounds are ignored.
     _, _ = prob.solve(initial_guess)

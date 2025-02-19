@@ -257,15 +257,46 @@ class Problem(cyipopt.Problem):
         """
         Ascertains that the initial guesses for all variables are within the
         limits prescribed by their respective bounds. Raises a ValueError if
-        for any variable the initial guess is outside its bounds.
+        for any variable the initial guess is outside its bounds, or if the
+        lower bound is greater than the upper bound.
 
         Parameters
         ----------
         free : array-like, shape(n*N + q*N + r + s, )
             Initial guess given to solve.
 
+        Raises
+        ------
+        ValueError
+            If the lower bound for variable is greater than its upper bound,
+            ``opty`` may not break, but the solution will likely not be correct.
+            Hence a ValueError is raised in such as case.
+
+            If the initial guess for any variable is outside its bounds,
+            a ValueError is raised.
+
         """
         if self.bounds is not None:
+            errors = []
+            for key in self.bounds.keys():
+                if self.bounds[key][0] > self.bounds[key][1]:
+                    errors.append(key)
+            if len(errors) > 0:
+                msg = (f'The lower bound(s) for {errors} is (are) greater than'
+                           ' the upper bound(s).')
+                raise ValueError(msg)
+
+                if key in self.collocator.state_symbols:
+                    idx = self.collocator.state_symbols.index(key)
+                    feld = free[idx*self.collocator.num_collocation_nodes:
+                            (idx+1)*self.collocator.num_collocation_nodes]
+                    if (np.any(feld < self.bounds[key][0])
+                        or np.any(feld > self.bounds[key][1])):
+                        msg = f'The initial guess for {key} is in conflict '+\
+                        f'with its bounds.'
+                        raise ValueError(msg)
+
+
             violating_variables = []
 
             if self.collocator._variable_duration == True:
@@ -295,8 +326,8 @@ class Problem(cyipopt.Problem):
                         violating_variables.append(symb)
 
             if len(violating_variables) > 0:
-                msg = f'The initial guesses for {violating_variables} are in '+\
-                f'conflict with their bounds.'
+                msg = (f'The initial guesses for {violating_variables} are in '
+                f'conflict with their bounds.')
                 raise ValueError(msg)
         else:
             pass
