@@ -269,7 +269,7 @@ def test_ufuncify_matrix():
 
     a_vals = np.random.random(n)
     b_vals = np.random.random(n)
-    c_vals = np.random.random(n)
+    c_vals = np.abs(np.random.random(n))
     c_val = np.random.random(1)[0]
 
     def eval_matrix_loop_numpy(a_vals, b_vals, c_vals):
@@ -289,10 +289,13 @@ def test_ufuncify_matrix():
         return result
 
     f = utils.ufuncify_matrix((a, b, c), sym_mat)
+    f_lam = utils.lambdify_matrix((a, b, c), sym_mat)
 
     result = np.empty((n, 4))
 
     testing.assert_allclose(f(result, a_vals, b_vals, c_vals),
+                            eval_matrix_loop_numpy(a_vals, b_vals, c_vals))
+    testing.assert_allclose(f_lam(a_vals, b_vals, c_vals),
                             eval_matrix_loop_numpy(a_vals, b_vals, c_vals))
 
     f = utils.ufuncify_matrix((a, b, c), sym_mat, const=(c,))

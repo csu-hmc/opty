@@ -566,6 +566,36 @@ int main(void) {
     return exit
 
 
+def lambdify_matrix(args, expr):
+    """Returns a function that evaluates a matrix of expressions in a tight
+    loop using NumPy.
+
+    Parameters
+    ----------
+    args : iterable of sympy.Symbol
+        A list of all symbols in expr in the desired order for the output
+        function.
+    expr : sympy.Matrix
+        A matrix of expressions.
+
+    Returns
+    -------
+    function
+        shape(n, m, p) = f(arg1, arg2, ...) where shape arg is (n,) and shape
+        expr is (m, p).
+
+    """
+    eval_single_mat = sm.lambdify(args, expr, modules='numpy')
+
+    def transpose(*num_args):
+        n = len(num_args[0])
+        array_num_args = [a*np.ones(n) if isinstance(a, float) else a
+                          for a in num_args]
+        return np.moveaxis(eval_single_mat(*array_num_args), -1, 0)
+
+    return transpose
+
+
 def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
                     show_compile_output=False):
     """Returns a function that evaluates a matrix of expressions in a tight
