@@ -1654,14 +1654,12 @@ class ConstraintCollocator(object):
 
             num_constraints = state_values.shape[1] - 1
 
-            if self._backend == 'cython':
-                # TODO : Move this to an attribute of the class so that it is
-                # only initialized once and just reuse it on each evaluation of
-                # this function.
-                result = np.empty((num_constraints, state_values.shape[0]))
-                return f(result, *args).T.flatten()
-            elif self._backend == 'numpy':
-                return f(*args).T.flatten()
+            # TODO : Move this to an attribute of the class so that it is
+            # only initialized once and just reuse it on each evaluation of
+            # this function.
+            result = np.empty((num_constraints, state_values.shape[0]))
+
+            return f(result, *args).T.flatten()
 
         self._multi_arg_con_func = constraints
 
@@ -2035,10 +2033,7 @@ class ConstraintCollocator(object):
 
             # backward euler: shape(N - 1, n, 2*n + q + r)
             # midpoint: shape(N - 1, n, 2*n + 2*q + r)
-            if self._backend == 'cython':
-                non_zero_derivatives = eval_partials(result, *args)
-            elif self._backend == 'numpy':
-                non_zero_derivatives = eval_partials(*args)
+            non_zero_derivatives = eval_partials(result, *args)
 
             return non_zero_derivatives.ravel()
 

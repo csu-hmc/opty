@@ -585,13 +585,18 @@ def lambdify_matrix(args, expr):
         expr is (m, p).
 
     """
-    eval_single_mat = sm.lambdify(args, expr, modules='numpy')
+    eval_single_mat = sm.lambdify(args, expr, modules='numpy', cse=True)
 
-    def transpose(*num_args):
-        n = len(num_args[0])
-        array_num_args = [a*np.ones(n) if isinstance(a, float) else a
-                          for a in num_args]
-        return np.moveaxis(eval_single_mat(*array_num_args), -1, 0)
+    # TODO : this is terribly computationally costly but there is not a clean
+    # way to do this using appropriate broadcasting via lambdify. See:
+    # https://github.com/sympy/sympy/issues/27632
+    def transpose(result, *num_args):
+        n = result.shape[0]
+        for i in range(n):
+            array_num_args = [a if isinstance(a, float) else a[i]
+                              for a in num_args]
+            result[i] = eval_single_mat(*array_num_args).flatten().squeeze()
+        return result.reshape(n, expr.shape[0], expr.shape[1])
 
     return transpose
 

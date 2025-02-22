@@ -295,7 +295,7 @@ def test_ufuncify_matrix():
 
     testing.assert_allclose(f(result, a_vals, b_vals, c_vals),
                             eval_matrix_loop_numpy(a_vals, b_vals, c_vals))
-    testing.assert_allclose(f_lam(a_vals, b_vals, c_vals),
+    testing.assert_allclose(f_lam(result, a_vals, b_vals, c_vals),
                             eval_matrix_loop_numpy(a_vals, b_vals, c_vals))
 
     f = utils.ufuncify_matrix((a, b, c), sym_mat, const=(c,))
