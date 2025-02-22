@@ -2,8 +2,21 @@
 Hypersensitive Control
 ======================
 
-This is example 10.7 from [Betts2010]_ and demonstrates working with a single
-differential equation.
+Objectives
+----------
+
+- Show how ``opty`` works with a single differential equation.
+- Shows how one can improve the accuracy by looking at the solution and changing
+  parameters accordingly. (Here the solution is constant except near the
+  beginning and near the end, so reducing the running time increases the
+  accuracy, without having to resort to more nodes.)
+
+
+Introduction
+------------
+
+This is example 10.7 from [Betts2010]_. As explained there, it was selected to
+be a very sensitive control problem.
 
 **States**
 
