@@ -6,7 +6,7 @@ Block Sliding Over a Hill
 Objective
 ---------
 
-- a simplex example to show how to use ``opty``s capability of variabel node
+- a simplex example to show how to use ``opty's`` capability of variabel node
   time interval vs. fixed time interval.
 
 
@@ -28,8 +28,8 @@ Notes
 -----
 
 The program was originally written to show both values of ``selection``
-In order to reduce running time only ``selection = 0`` is executed, the parts
-for ``selection = 1`` are still in the code, but commented out.
+In order to reduce running time only ``selection = 0`` is executed, it is
+explained how to run both versions.
 
 
 **Constants**
@@ -124,7 +124,11 @@ fixed_duration = 6.0  # seconds
 
 # %%
 # Set up the optimization problems and solve them.
+# if you want to run both optimizations, replace the two lines below with this
+# line:
+#
 # for selection in [0, 1]:
+#
 selection = 0
 if selection == 0:
     state_symbols = (speicher[0], speicher[1])
@@ -309,24 +313,25 @@ _ = prob_list[selection].plot_trajectories(solution_list[selection])
 fig, ax = plt.subplots(figsize=(8, 8))
 anim, _ = drucken(selection, fig, ax)
 
-# Now the results of **minimized energy** are shown.
-#selection = 1
-#print('Message from optimizer:', info_list[selection]['status_msg'])
-
-#_ = prob_list[selection].plot_objective_value()
-
-# Plot errors in the solution.
-#_ = prob_list[selection].plot_constraint_violations(solution_list[selection])
-
-# Plot the trajectories of the block.
-#_ = prob_list[selection].plot_trajectories(solution_list[selection])
-
-# Animate the solution.
-#fig, ax = plt.subplots(figsize=(8, 8))
-#anim, _ = drucken(selection, fig, ax)
+# %%
+# If you want to run the solution with a fixed time interval, you should add the
+# following code to the code here:
+#
+# selection = 1
+#
+# print('Message from optimizer:', info_list[selection]['status_msg'])
+#
+# _ = prob_list[selection].plot_objective_value()
+#
+# _ = prob_list[selection].plot_constraint_violations(solution_list[selection])
+#
+# _ = prob_list[selection].plot_trajectories(solution_list[selection])
+#
+# fig, ax = plt.subplots(figsize=(8, 8))
+#
+# anim, _ = drucken(selection, fig, ax)
 
 # %%
-# A frame from the animation.
 fig, ax = plt.subplots(figsize=(8, 8))
 _, update = drucken(0, fig, ax, video=False)
 # sphinx_gallery_thumbnail_number = 9
