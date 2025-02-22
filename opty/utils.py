@@ -566,7 +566,7 @@ int main(void) {
     return exit
 
 
-def lambdify_matrix(args, expr, cse=True):
+def lambdify_matrix(args, expr):
     """Returns a function that evaluates a matrix of expressions using NumPy
     and broadcasts over an 3D array.
 
@@ -577,9 +577,6 @@ def lambdify_matrix(args, expr, cse=True):
         function.
     expr : Matrix, shape(m, p)
         A matrix of expressions.
-    cse : boolean, optional
-        If true, common subexpression elimination will be used in
-        ``lambdify()``.
 
     Returns
     -------
@@ -591,7 +588,7 @@ def lambdify_matrix(args, expr, cse=True):
             - ``argn`` : ndarray shape(n,) or float
 
     """
-    eval_single_mat = sm.lambdify(args, expr, modules='numpy', cse=cse)
+    eval_single_mat = sm.lambdify(args, expr, modules='numpy', cse=True)
 
     # TODO : this is terribly computationally costly but there is not a clean
     # way to do this using appropriate broadcasting via lambdify. See:
