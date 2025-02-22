@@ -2,6 +2,16 @@
 Variable Duration Pendulum Swing Up
 ===================================
 
+Objectives
+----------
+
+- Demonstrate how to make the simulation duration variable.
+- Show how to use the NumPy backend which solves the problem without needing
+  just-in-time C compilation.
+
+Introduction
+------------
+
 Given a simple pendulum that is driven by a torque about its joint axis, swing
 the pendulum from hanging down to standing up in a minimal amount of time using
 minimal input energy with a bounded torque magnitude.
@@ -66,12 +76,16 @@ instance_constraints = (theta(0*h),
                         omega((num_nodes - 1)*h))
 
 # %%
-# Create an optimization problem.
+# Create an optimization problem. If the backend is set to ``numpy``, no C
+# compiler is needed and the problem can be solved using pure Python code.
+# There is a large performance loss but for simple problems performance may not
+# be a concern.
 prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, h,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
                time_symbol=t,
-               bounds={T(t): (-2.0, 2.0), h: (0.0, 0.5)})
+               bounds={T(t): (-2.0, 2.0), h: (0.0, 0.5)},
+               backend='numpy')
 
 # %%
 # Use a zero as an initial guess.
