@@ -88,8 +88,8 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, h,
                backend='numpy')
 
 # %%
-# Use a zero as an initial guess.
-initial_guess = np.zeros(prob.num_free)
+# Use approximately zero as an initial guess to avoid divide-by-zero.
+initial_guess = 1e-10*np.ones(prob.num_free)
 
 # %%
 # Find the optimal solution.
