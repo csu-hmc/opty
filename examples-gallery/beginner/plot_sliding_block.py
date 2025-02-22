@@ -3,6 +3,16 @@
 Block Sliding Over a Hill
 =========================
 
+Objective
+---------
+
+- a simplex example to show how to use ``opty``s capability of variabel node
+  time interval vs. fixed time interval.
+
+
+Introduction
+------------
+
 A block, modeled as a particle is sliding on a road to cross a hill. The block
 is subject to gravity and speed dependent viscous friction. Gravity points in
 the negative Y direction. A force tangential to the road is applied to the
@@ -12,6 +22,15 @@ Two objective functions to be minimized will be considered:
 
 - ``selection = 0``: time to reach the end point is minimized
 - ``selection = 1``: integral sum of the applied force is minimized
+
+
+Notes
+-----
+
+The program was originally written to show both values of ``selection``
+In order to reduce running time only ``selection = 0`` is executed, the parts
+for ``selection = 1`` are still in the code, but commented out.
+
 
 **Constants**
 
@@ -105,7 +124,9 @@ fixed_duration = 6.0  # seconds
 
 # %%
 # Set up the optimization problems and solve them.
-for selection in (0, 1):
+# for selection in [0, 1]:
+selection = 0
+if selection == 0:
     state_symbols = (speicher[0], speicher[1])
     num_states = len(state_symbols)
     constant_symbols = (m, g, friction, a, b)
@@ -273,41 +294,36 @@ print('Message from optimizer:', info_list[selection]['status_msg'])
 print(f'Optimal h value is: {solution_list[selection][-1]:.3f}')
 
 # %%
-prob_list[selection].plot_objective_value()
+_ = prob_list[selection].plot_objective_value()
 
 # %%
 # Plot errors in the solution.
-prob_list[selection].plot_constraint_violations(solution_list[selection])
+_ = prob_list[selection].plot_constraint_violations(solution_list[selection])
 
 # %%
 # Plot the trajectories of the block.
-prob_list[selection].plot_trajectories(solution_list[selection])
+_ = prob_list[selection].plot_trajectories(solution_list[selection])
 
 # %%
 # Animate the solution.
 fig, ax = plt.subplots(figsize=(8, 8))
 anim, _ = drucken(selection, fig, ax)
 
-# %%
 # Now the results of **minimized energy** are shown.
-selection = 1
-print('Message from optimizer:', info_list[selection]['status_msg'])
+#selection = 1
+#print('Message from optimizer:', info_list[selection]['status_msg'])
 
-# %%
-prob_list[selection].plot_objective_value()
+#_ = prob_list[selection].plot_objective_value()
 
-# %%
 # Plot errors in the solution.
-prob_list[selection].plot_constraint_violations(solution_list[selection])
+#_ = prob_list[selection].plot_constraint_violations(solution_list[selection])
 
-# %%
 # Plot the trajectories of the block.
-prob_list[selection].plot_trajectories(solution_list[selection])
+#_ = prob_list[selection].plot_trajectories(solution_list[selection])
 
-# %%
 # Animate the solution.
-fig, ax = plt.subplots(figsize=(8, 8))
-anim, _ = drucken(selection, fig, ax)
+#fig, ax = plt.subplots(figsize=(8, 8))
+#anim, _ = drucken(selection, fig, ax)
 
 # %%
 # A frame from the animation.
