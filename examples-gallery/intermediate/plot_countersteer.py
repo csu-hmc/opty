@@ -18,11 +18,12 @@ eom = sm.Matrix([
     (I1 + m*h**2)*thetadot.diff(t) +
     (I3 - I2 - m*h**2)*(v*sm.tan(delta)/b)**2*sm.sin(theta)*sm.cos(theta) -
     m*g*h*sm.sin(theta) +
-    m*h*sm.cos(theta)*(a*v/b/sm.cos(delta)**2*delta.diff(t) +
+    m*h*sm.cos(theta)*(a*v/b/sm.cos(delta)**2*deltadot +
                        v**2/v*sm.tan(delta)),
     x.diff(t) - v*sm.cos(psi),
     y.diff(t) - v*sm.sin(psi),
     psi.diff(t) - v/b*sm.tan(delta),
+    delta.diff(t) - deltadot,
 ])
 
 MathJaxRepr(eom)
@@ -47,8 +48,7 @@ par_map = {
     v: 5.0,  # m/s
 }
 
-state_symbols = (theta, thetadot, x, y, psi)
-specified_symbols = (delta, )
+state_symbols = (theta, thetadot, x, y, psi, delta)
 
 
 # %%
@@ -73,13 +73,12 @@ instance_constraints = (
     x.func(0*h),
     y.func(0*h),
     psi.func(0*h),
-    # can't put an instance constraint on an input
-    #delta.func(0*h),
+    delta.func(0*h),
     theta.func(0*h),
     thetadot.func(0*h),
     #deltadot.func(0*h),
     theta.func(duration),
-    #delta.func(duration),
+    delta.func(duration),
     psi.func(duration) - np.deg2rad(90.0),
     thetadot.func(duration),
     #deltadot.func(duration),
@@ -88,8 +87,12 @@ instance_constraints = (
 # %%
 # Add some physical limits to some variables.
 bounds = {
+    psi: (np.deg2rad(-180.0), np.deg2rad(180.0)),
+    theta: (np.deg2rad(-45.0), np.deg2rad(45.0)),
     delta: (np.deg2rad(-45.0), np.deg2rad(45.0)),
-    #deltadot: (np.deg2rad(-200.0), np.deg2rad(200.0)),
+    deltadot: (np.deg2rad(-200.0), np.deg2rad(200.0)),
+    thetadot: (np.deg2rad(-200.0), np.deg2rad(200.0)),
+    dt: (0.001, 0.5),
 }
 
 # %%
@@ -124,3 +127,5 @@ _ = prob.plot_constraint_violations(solution)
 # %%
 # Plot the objective function as a function of optimizer iteration.
 _ = prob.plot_objective_value()
+
+plt.show()
