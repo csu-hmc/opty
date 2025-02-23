@@ -1,6 +1,7 @@
 from opty import Problem
 from opty.utils import MathJaxRepr
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
@@ -96,7 +97,7 @@ bounds = {
 prob = Problem(objective, gradient, eom, state_symbols, num_nodes, dt,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints, bounds=bounds,
-               time_symbol=t)
+               time_symbol=t, backend='numpy')
 
 # %%
 # Give some rough estimates for the x and y trajectories.
@@ -117,5 +118,88 @@ _ = prob.plot_constraint_violations(solution)
 # %%
 # Plot the objective function as a function of optimizer iteration.
 _ = prob.plot_objective_value()
+
+# %%
+xs, us, ps, dt_val = prob.parse_free(solution)
+
+"""
+rear contact
+com on ground
+mass center
+com on ground
+front contact
+front steer
+rear steer
+"""
+
+def points(xi):
+    theta = xi[0]
+    x = xi[2]
+    y = xi[3]
+    psi = xi[4]
+    delta = xi[5]
+
+    rear_contact = np.array([x, y, 0.0])
+    com_on_ground = rear_contact + np.array([par_map[a]*np.cos(psi),
+                                             par_map[a]*np.sin(psi),
+                                             0.0])
+    com = com_on_ground + np.array([par_map[h]*np.sin(theta)*np.sin(psi),
+                                    par_map[h]*np.sin(theta)*np.cos(psi),
+                                    par_map[h]*np.cos(theta)])
+    front_contact = rear_contact + np.array([par_map[b]*np.cos(psi),
+                                             par_map[b]*np.sin(psi),
+                                             0.0])
+    front_steer = front_contact + np.array([0.1*np.cos(delta + psi),
+                                            0.1*np.sin(delta + psi),
+                                            0.0])
+    rear_steer = front_contact + np.array([-0.1*np.cos(delta + psi),
+                                           - 0.1*np.sin(delta + psi),
+                                            0.0])
+    coordinates = np.vstack((rear_contact, com_on_ground, com, com_on_ground,
+                             front_contact, front_steer, rear_steer))
+    return coordinates # Nx3
+
+
+def frame(i):
+
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+
+    x, y, z = points(xs[:, i]).T
+
+    bike_lines, = ax.plot(x, y, z,
+                           color='black',
+                           marker='o', markerfacecolor='blue', markersize=4)
+    #P1_path, = ax.plot(coords[:i, 0, 1], coords[:i, 1, 1], coords[:i, 2, 1])
+    #P2_path, = ax.plot(coords[:i, 0, 3], coords[:i, 1, 3], coords[:i, 2, 3])
+    P1_path = None
+    P2_path = None
+
+    #title_template = 'Time = {:1.2f} s'
+    #title_text = ax.set_title(title_template.format(time[i]))
+    title_text = None
+    ax.set_xlim((0.0, 4.0))
+    ax.set_ylim((-1.0, 3.0))
+    ax.set_zlim((0.0, 4.0))
+    ax.set_xlabel(r'$x$ [m]')
+    ax.set_ylabel(r'$y$ [m]')
+    ax.set_zlabel(r'$z$ [m]')
+
+    return fig, title_text, bike_lines, P1_path, P2_path
+
+
+fig, title_text, bike_lines, P1_path, P2_path = frame(0)
+
+
+def animate(i):
+    #title_text.set_text('Time = {:1.2f} s'.format(time[i]))
+    x, y, z = points(xs[:, i]).T
+    bike_lines.set_data_3d(x, y, z)
+    #P1_path.set_data_3d(
+    #P2_path.set_data_3d(
+
+
+ani = animation.FuncAnimation(fig, animate, range(num_nodes),
+                              interval=int(dt_val*1000))
 
 plt.show()
