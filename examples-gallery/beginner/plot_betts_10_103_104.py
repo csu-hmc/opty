@@ -118,10 +118,10 @@ if info['obj_val'] < 12.8738850:
     msg = 'opty with DAE gets a better result'
 else:
     msg = 'opty with DAE gets a worse result'
-print(f'Minimal objective value achieved: {info['obj_val']:.4f},  ' +
+print(f'Minimal objective value achieved: {info["obj_val"]:.4f},  ' +
       f'as per the book it is {12.8738850}, {msg} ')
 
-obj_DAE = info['obj_val']
+obj_DAE = info["obj_val"]
 
 # %%
 # Plot the optimal state and input trajectories.
@@ -172,10 +172,10 @@ if info['obj_val'] < 12.8738850:
     msg = 'opty with ODE gets a better result'
 else:
     msg = 'opty with ODE gets a worse result'
-print(f'Minimal objective value achieved: {info['obj_val']:.4f},  ' +
+print(f'Minimal objective value achieved: {info["obj_val"]:.4f},  ' +
       f'as per the book it is {12.8738850}, {msg} ')
 
-obj_ODE = info['obj_val']
+obj_ODE = info["obj_val"]
 
 # %%
 # Plot the optimal state and input trajectories.
