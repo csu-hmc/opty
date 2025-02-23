@@ -67,8 +67,6 @@ def gradient(free):
 
 # %%
 # Specify the symbolic instance constraints, i.e. initial and end conditions.
-# The car should be stationary at start and stop but laterally displaced 2
-# meters (car width).
 instance_constraints = (
     x.func(0*h),
     y.func(0*h),
@@ -76,12 +74,10 @@ instance_constraints = (
     delta.func(0*h),
     theta.func(0*h),
     thetadot.func(0*h),
-    #deltadot.func(0*h),
     theta.func(duration),
     delta.func(duration),
     psi.func(duration) - np.deg2rad(90.0),
     thetadot.func(duration),
-    #deltadot.func(duration),
 )
 
 # %%
@@ -104,12 +100,6 @@ prob = Problem(objective, gradient, eom, state_symbols, num_nodes, dt,
 
 # %%
 # Give some rough estimates for the x and y trajectories.
-#x_guess = 3.0/duration*2.0*time
-#x_guess[num_nodes//2:] = 6.0 - 3.0/duration*2.0*time[num_nodes//2:]
-#y_guess = 2.0/duration*time
-#initial_guess = np.ones(prob.num_free)
-#initial_guess[:num_nodes] = x_guess
-#initial_guess[num_nodes:2*num_nodes] = y_guess
 initial_guess = 1e-10*np.ones(prob.num_free)
 
 # %%
