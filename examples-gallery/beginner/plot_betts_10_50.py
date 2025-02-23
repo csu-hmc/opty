@@ -147,9 +147,9 @@ for _ in range(1):
     solution, info = prob.solve(initial_guess)
     initial_guess = solution
     print(info['status_msg'])
-    print(f'Objective value achieved: {info['obj_val']:.4f}, as per the book '
+    print(f'Objective value achieved: {info["obj_val"]:.4f}, as per the book '
           f'it is {3.10812211}, so the error is: '
-          f'{(info['obj_val'] - 3.10812211)/3.10812211*100:.3f} % ')
+          f'{(info["obj_val"] - 3.10812211)/3.10812211*100:.3f} % ')
     print('\n')
 
 # %%
