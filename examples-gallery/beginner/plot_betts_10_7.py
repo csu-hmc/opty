@@ -1,3 +1,4 @@
+# %%
 """
 Hypersensitive Control
 ======================
@@ -88,9 +89,9 @@ tf = 10000
 num_nodes = 501
 solution, info, prob = solve_optimization(num_nodes, tf)
 print(info['status_msg'])
-print(f'Objective value achieved: {info['obj_val']:.4f}, as per the book '
-      f'it is {6.7241}, so the error is: '
-      f'{(info['obj_val'] - 6.7241)/6.7241*100:.3f} % ')
+print(f"Objective value achieved: {info['obj_val']:.4f}, as per the book "
+      f"it is {6.7241}, so the error is: "
+      f"{(info['obj_val'] - 6.7241)/6.7241*100:.3f} % ")
 
 # %%
 # Plot the optimal state and input trajectories.
@@ -114,9 +115,9 @@ tf = 8.0
 num_nodes = 10001
 solution, info, prob = solve_optimization(num_nodes, tf)
 print(info['status_msg'])
-print(f'Objective value achieved: {info['obj_val']:.4f}, as per the book '
-      f'it is {6.7241}, so the error is: '
-      f'{(info['obj_val'] - 6.7241)/6.7241*100:.3f} % ')
+print(f"Objective value achieved: {info['obj_val']:.4f}, as per the book "
+      f"it is {6.7241}, so the error is: "
+      f"{(info['obj_val'] - 6.7241)/6.7241*100:.3f} % ")
 
 # %%
 # Plot the optimal state and input trajectories.
