@@ -38,11 +38,13 @@ Import all necessary modules, functions, and classes:
 """
 import os
 import pprint
+from pkg_resources import parse_version
 from opty import Problem
 from opty.utils import f_minus_ma
 from pygait2d import derive, simulate
 from pygait2d.segment import time_symbol, contact_force
 from symmeplot.matplotlib import Scene3D
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sm
@@ -266,9 +268,14 @@ def animate():
     ], color="k")
 
     # creates a moving ground (many points to deal with matplotlib limitation)
-    scene.add_line([origin.locatenew('gl', s*ground.x)
-                    for s in np.linspace(-2.0, 2.0)],
-                   linestyle='--', color='tab:green', axlim_clip=True)
+    if parse_version(matplotlib.__version__) >= parse_version('3.10'):
+        scene.add_line([origin.locatenew('gl', s*ground.x) for s in
+                        np.linspace(-2.0, 2.0)], linestyle='--',
+                       color='tab:green', axlim_clip=True)
+    else:
+        scene.add_line([origin.locatenew('gl', s*ground.x) for s in
+                        np.linspace(-2.0, 2.0)], linestyle='--',
+                       color='tab:green')
 
     # adds CoM and unit vectors for each body segment
     for seg in segments:
