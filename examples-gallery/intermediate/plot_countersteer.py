@@ -51,41 +51,42 @@ m, I1, I2, I3 = sm.symbols('m, I1, I2, I3', real=True)
 
 # %%
 # The essential dynamics are described by a single degree of freedom model with
-# roll angle :math:`\theta` and its angular rate :math:`\dot{\theta}` being the
-# essential state variables. The location of the rear contact in the ground
-# plane :math:`x,y` and heading :math:`\psi` will also be tracked. The input is
-# the steering angle :math:`\delta`.
-theta, thetadot = me.dynamicsymbols('theta, thetadot', real=True)
+# roll angle :math:`\theta` and its angular rate :math:`\omega=\dot{\theta}`
+# being the essential state variables. The location of the rear contact in the
+# ground plane :math:`x,y` and heading :math:`\psi` will also be tracked. The
+# input is the steering angle :math:`\delta`.
+theta, omega = me.dynamicsymbols('theta, omega', real=True)
 x, y, psi = me.dynamicsymbols('x, y, psi', real=True)
-delta, deltadot = me.dynamicsymbols('delta, deltadot', real=True)
+delta, beta = me.dynamicsymbols('delta, beta', real=True)
 t = me.dynamicsymbols._t
 
 # %%
 # The first two differential equations are the essential single degree of
 # freedom dynamics followed by the differential equations to track :math:`x,y`
-# and :math:`\psi`. Both :math:`\delta` and :math:`\dot{\delta}` are present as
-# inputs to the dynamics. In the optimal control problem, both of these input
-# trajectories are sought with the constraint that :math:`d\delta/dt` holds. To
-# manage this with opty, add a differential equation that ensures steering
-# angle and steering rate variables are related by time differentiation and
-# make :math:`\delta` a pseudo state variable with the highest derivative
-# :math:`\dot{\delta}` being the single unknown input trajectory.
+# and :math:`\psi`. Both :math:`\delta` and :math:`\beta=\dot{\delta}` are
+# present as inputs to the dynamics. In the optimal control problem, both of
+# these input trajectories are sought with the constraint that
+# :math:`\beta=\dot{\delta}` holds. To manage this with opty, add a
+# differential equation that ensures steering angle and steering rate variables
+# are related by time differentiation and make :math:`\delta` a pseudo state
+# variable with the highest derivative :math:`\beta` being the single unknown
+# input trajectory.
 eom = sm.Matrix([
-    theta.diff(t) - thetadot,
-    (I1 + m*h**2)*thetadot.diff(t) +
+    theta.diff(t) - omega,
+    (I1 + m*h**2)*omega.diff(t) +
     (I3 - I2 - m*h**2)*(v*sm.tan(delta)/b)**2*sm.sin(theta)*sm.cos(theta) -
     m*g*h*sm.sin(theta) +
-    m*h*sm.cos(theta)*(a*v/b/sm.cos(delta)**2*deltadot +
+    m*h*sm.cos(theta)*(a*v/b/sm.cos(delta)**2*beta +
                        v**2/v*sm.tan(delta)),
     x.diff(t) - v*sm.cos(psi),
     y.diff(t) - v*sm.sin(psi),
     psi.diff(t) - v/b*sm.tan(delta),
-    delta.diff(t) - deltadot,
+    delta.diff(t) - beta,
 ])
 MathJaxRepr(eom)
 
 # %%
-state_symbols = (theta, thetadot, x, y, psi, delta)
+state_symbols = (theta, omega, x, y, psi, delta)
 MathJaxRepr(state_symbols)
 
 # %%
@@ -118,14 +119,14 @@ end = (num_nodes - 1)*dt
 instance_constraints = (
     # upright, no motion at t = start
     theta.func(0*dt),
-    thetadot.func(0*dt),
+    omega.func(0*dt),
     x.func(0*dt),
     y.func(0*dt),
     psi.func(0*dt),
     delta.func(0*dt),
     # upright, no motion, 90 deg heading at t = end
     theta.func(end),
-    thetadot.func(end),
+    omega.func(end),
     psi.func(end) - np.deg2rad(90.0),
     delta.func(end),
 )
@@ -155,8 +156,8 @@ bounds = {
     psi: (np.deg2rad(-360.0), np.deg2rad(360.0)),
     theta: (np.deg2rad(-90.0), np.deg2rad(90.0)),
     delta: (np.deg2rad(-90.0), np.deg2rad(90.0)),
-    deltadot: (np.deg2rad(-200.0), np.deg2rad(200.0)),
-    thetadot: (np.deg2rad(-100.0), np.deg2rad(100.0)),
+    beta: (np.deg2rad(-200.0), np.deg2rad(200.0)),
+    omega: (np.deg2rad(-100.0), np.deg2rad(100.0)),
     dt: (0.001, 0.5),
 }
 
@@ -213,7 +214,7 @@ def bicycle_points(x):
 
     for i, xi in enumerate(x.T):
 
-        theta, thetadot, x, y, psi, delta = xi
+        theta, omega, x, y, psi, delta = xi
 
         rear_contact = np.array([x, y, 0.0])
         com_on_ground = rear_contact + np.array([par_map[a]*np.cos(psi),
