@@ -209,14 +209,14 @@ def bicycle_points(x):
 
         rear_contact = np.array([x, y, 0.0])
         com_on_ground = rear_contact + np.array([par_map[a]*np.cos(psi),
-                                                par_map[a]*np.sin(psi),
-                                                0.0])
+                                                 par_map[a]*np.sin(psi),
+                                                 0.0])
         com = com_on_ground + np.array([par_map[h]*np.sin(theta)*np.sin(psi),
                                         par_map[h]*np.sin(theta)*np.cos(psi),
-                                        par_map[h]*np.cos(theta)])
+                                        -par_map[h]*np.cos(theta)])
         front_contact = rear_contact + np.array([par_map[b]*np.cos(psi),
-                                                par_map[b]*np.sin(psi),
-                                                0.0])
+                                                 par_map[b]*np.sin(psi),
+                                                 0.0])
         front_steer = front_contact + np.array([0.2*np.cos(delta + psi),
                                                 0.2*np.sin(delta + psi),
                                                 0.0])
@@ -249,9 +249,10 @@ def frame(i):
                           coordinates[:i, 4, 1],
                           coordinates[:i, 4, 2], color='C2')
 
+    ax.zaxis.set_inverted(True)
     ax.set_xlim((0.0, 4.0))
     ax.set_ylim((-1.0, 3.0))
-    ax.set_zlim((0.0, 4.0))
+    ax.set_zlim((0.0, -4.0))
     ax.set_xlabel(r'$x$ [m]')
     ax.set_ylabel(r'$y$ [m]')
     ax.set_zlabel(r'$z$ [m]')
