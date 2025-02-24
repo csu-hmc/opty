@@ -143,13 +143,16 @@ def gradient(free):
 
 
 # %%
-# Add some physical limits to the states and inputs.
+# Add some physical limits to the states and inputs. Given that the steering is
+# massless in this model, the solution will be governed by how fast the model
+# can move. The limits on steer angular rate and roll angular rate will dictate
+# the solution.
 bounds = {
     psi: (np.deg2rad(-360.0), np.deg2rad(360.0)),
     theta: (np.deg2rad(-90.0), np.deg2rad(90.0)),
     delta: (np.deg2rad(-90.0), np.deg2rad(90.0)),
     deltadot: (np.deg2rad(-200.0), np.deg2rad(200.0)),
-    thetadot: (np.deg2rad(-200.0), np.deg2rad(200.0)),
+    thetadot: (np.deg2rad(-100.0), np.deg2rad(100.0)),
     dt: (0.001, 0.5),
 }
 
@@ -205,7 +208,6 @@ def bicycle_points(x):
         theta, thetadot, x, y, psi, delta = xi
 
         rear_contact = np.array([x, y, 0.0])
-        rear_contact = np.array([0.0, 0.0, 0.0])
         com_on_ground = rear_contact + np.array([par_map[a]*np.cos(psi),
                                                 par_map[a]*np.sin(psi),
                                                 0.0])
