@@ -249,10 +249,11 @@ def frame(i):
                           coordinates[:i, 4, 1],
                           coordinates[:i, 4, 2], color='C2')
 
-    #ax.zaxis.set_inverted(True)
+    ax.yaxis.set_inverted(True)
+    ax.zaxis.set_inverted(True)
     ax.set_xlim((0.0, 4.0))
-    ax.set_ylim((-1.0, 3.0))
-    ax.set_zlim((-4.0, 0.0))
+    ax.set_ylim((3.0, -1.0))
+    ax.set_zlim((0.0, -4.0))
     ax.set_xlabel(r'$x$ [m]')
     ax.set_ylabel(r'$y$ [m]')
     ax.set_zlabel(r'$z$ [m]')
