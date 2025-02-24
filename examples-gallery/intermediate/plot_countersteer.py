@@ -211,7 +211,7 @@ def bicycle_points(x):
         com_on_ground = rear_contact + np.array([par_map[a]*np.cos(psi),
                                                  par_map[a]*np.sin(psi),
                                                  0.0])
-        com = com_on_ground + np.array([par_map[h]*np.sin(theta)*np.sin(psi),
+        com = com_on_ground + np.array([-par_map[h]*np.sin(theta)*np.sin(psi),
                                         par_map[h]*np.sin(theta)*np.cos(psi),
                                         -par_map[h]*np.cos(theta)])
         front_contact = rear_contact + np.array([par_map[b]*np.cos(psi),
