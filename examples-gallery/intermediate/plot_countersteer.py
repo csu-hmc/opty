@@ -263,6 +263,7 @@ def frame(i):
 fig, bike_lines, rear_path, front_path = frame(0)
 
 
+# sphinx_gallery_thumbnail_number = 4
 def animate(i):
     x, y, z = coordinates[i].T
     bike_lines.set_data_3d(x, y, z)
