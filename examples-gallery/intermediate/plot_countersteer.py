@@ -12,12 +12,13 @@ Introduction
 ------------
 
 The simplest model of a bicycle that exhibits countersteering_ can be created
-by adding a inverterd pendulum atop the "bicycle model" of the car.
+by adding a inverted pendulum atop the "bicycle model" of the car.
 [Bourlet1899]_ and others created early examples of this model, but we use the
 formulation from [Karnopp2004]_ here.
 
 The goal of this optimal control problem is to find the steering control input
-to make a 90 degree left hand turn in minimal time while traveling at 18 km/h.
+to make a 90 degree right-hand turn in minimal time with limits on steer and
+roll angular rate while traveling at 18 km/h.
 
 .. _countersteering: https://en.wikipedia.org/wiki/Countersteering
 
@@ -37,9 +38,9 @@ import sympy.physics.mechanics as me
 # The model is constructed using several constant parameters:
 #
 # - :math:`h`: distance mass center is from the ground contact line
-# - :math:`a`: longituduinal distance of the mass center from the rear contact
+# - :math:`a`: longitudinal distance of the mass center from the rear contact
 # - :math:`b`: wheelbase length
-# - :math:`v`: constant lontiguidnal speed at the rear contact
+# - :math:`v`: constant longitudinal speed at the rear contact
 # - :math:`g`: acceleration due to gravity
 # - :math:`m`: mass of bicycle and rider
 # - :math:`I_1`: roll principle moment of inertia
@@ -50,26 +51,25 @@ m, I1, I2, I3 = sm.symbols('m, I1, I2, I3', real=True)
 
 # %%
 # The essential dynamics are described by a single degree of freedom model with
-# roll angle :math:`\theta` and its angular rate being the essential state
-# variables. The location of the rear contact in the ground plane :math:`x,y`
-# and heading :math:`\psi` will also be tracked. The input is the steering
-# angle :math:`\delta`.
+# roll angle :math:`\theta` and its angular rate :math:`\dot{\theta}` being the
+# essential state variables. The location of the rear contact in the ground
+# plane :math:`x,y` and heading :math:`\psi` will also be tracked. The input is
+# the steering angle :math:`\delta`.
 theta, thetadot = me.dynamicsymbols('theta, thetadot', real=True)
 x, y, psi = me.dynamicsymbols('x, y, psi', real=True)
 delta, deltadot = me.dynamicsymbols('delta, deltadot', real=True)
 t = me.dynamicsymbols._t
-dt = sm.symbols('Delta_t', real=True)
 
 # %%
-# The first two differential equations are the essential dynamics, followed by
-# the differential equatiosn to track :math:`x,y,\psi`. Noticing that both
-# :math:`\delta` and :math:`\dot{\delta}` are present as inputs to the model.
-# In the optimal control problem, both trajectories are saught with the
-# constraint that :math:`d\delta/dt` holds. To do this, add a differential
-# equation that ensures steering angle and steering rate variables are related
-# by differentiation and make :math:`\delta` a puesdo state variable with th
-# highest derivative :math:`\dot{\delta}` being the single unknown input
-# trajectory.
+# The first two differential equations are the essential single degree of
+# freedom dynamics followed by the differential equations to track :math:`x,y`
+# and :math:`\psi`. Both :math:`\delta` and :math:`\dot{\delta}` are present as
+# inputs to the dynamics. In the optimal control problem, both of these input
+# trajectories are sought with the constraint that :math:`d\delta/dt` holds. To
+# manage this with opty, add a differential equation that ensures steering
+# angle and steering rate variables are related by time differentiation and
+# make :math:`\delta` a pseudo state variable with the highest derivative
+# :math:`\dot{\delta}` being the single unknown input trajectory.
 eom = sm.Matrix([
     theta.diff(t) - thetadot,
     (I1 + m*h**2)*thetadot.diff(t) +
@@ -103,23 +103,27 @@ par_map = {
 }
 
 # %%
+# Define the optimal control problem
+# ----------------------------------
+#
 # Instance constraints can be set on any of the state variables. The goal is to
 # transition from cruising at a steady state in balance equilibrium to steady
-# state in balance equlibrium with a 90 degree change in heading, i.e. make a
-# left turn.
+# state in balance equilibrium with a 90 degree change in heading, i.e. make a
+# right turn.
 num_nodes = 201
+dt = sm.symbols('Delta_t', real=True)
 start = 0*dt
 end = (num_nodes - 1)*dt
 
 instance_constraints = (
-    # upright, no motion at t = 0
+    # upright, no motion at t = start
     theta.func(0*dt),
     thetadot.func(0*dt),
     x.func(0*dt),
     y.func(0*dt),
     psi.func(0*dt),
     delta.func(0*dt),
-    # upright, no motion, 90 deg heading at t = final
+    # upright, no motion, 90 deg heading at t = end
     theta.func(end),
     thetadot.func(end),
     psi.func(end) - np.deg2rad(90.0),
@@ -146,7 +150,7 @@ def gradient(free):
 # Add some physical limits to the states and inputs. Given that the steering is
 # massless in this model, the solution will be governed by how fast the model
 # can move. The limits on steer angular rate and roll angular rate will dictate
-# the solution.
+# the form of solution.
 bounds = {
     psi: (np.deg2rad(-360.0), np.deg2rad(360.0)),
     theta: (np.deg2rad(-90.0), np.deg2rad(90.0)),
@@ -164,6 +168,8 @@ prob = Problem(objective, gradient, eom, state_symbols, num_nodes, dt,
                time_symbol=t, backend='numpy')
 
 # %%
+# Solve the optimal control problem
+# ---------------------------------
 # Make a simple initial guess.
 initial_guess = 0.01*np.ones(prob.num_free)
 
@@ -184,6 +190,8 @@ _ = prob.plot_constraint_violations(solution)
 _ = prob.plot_objective_value()
 
 # %%
+# Animate the motion
+# ------------------
 xs, us, ps, dt_val = prob.parse_free(solution)
 
 
