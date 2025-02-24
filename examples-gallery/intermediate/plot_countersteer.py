@@ -1,11 +1,25 @@
 """
-Bicycle Counter Steering
-========================
+Bicycle Countersteering
+=======================
 
 Objectives
 ----------
 
-- Demonstrate using kinematic inputs as the unknown trajectories.
+- Demonstrate using kinematic inputs (and their time derivatives) as the
+  unknown input trajectories.
+
+Introduction
+------------
+
+The simplest model of a bicycle that exhibits countersteering_ can be created
+by adding a inverterd pendulum atop the "bicycle model" of the car.
+[Bourlet1899]_ and others created early examples of this model, but we use the
+formulation from [Karnopp2004]_ here.
+
+The goal of this optimal control problem is to find the steering control input
+to make a 90 degree left hand turn in minimal time while traveling at 18 km/h.
+
+.. _countersteering: https://en.wikipedia.org/wiki/Countersteering
 
 """
 from opty import Problem
@@ -17,15 +31,45 @@ import sympy as sm
 import sympy.physics.mechanics as me
 
 # %%
-# Specify the equations of motion.
-m, h, a, b, v, g, I1, I2, I3 = sm.symbols('m, h a, b, v, g, I1, I2, I3',
-                                          real=True)
-dt = sm.symbols('dt', real=True)
+# Specify the equations of motion
+# -------------------------------
+#
+# The model is constructed using several constant parameters:
+#
+# - :math:`h`: distance mass center is from the ground contact line
+# - :math:`a`: longituduinal distance of the mass center from the rear contact
+# - :math:`b`: wheelbase length
+# - :math:`v`: constant lontiguidnal speed at the rear contact
+# - :math:`g`: acceleration due to gravity
+# - :math:`m`: mass of bicycle and rider
+# - :math:`I_1`: roll principle moment of inertia
+# - :math:`I_2`: pitch principle moment of inertia
+# - :math:`I_3`: yaw principle moment of inertia
+h, a, b, v, g = sm.symbols('h a, b, v, g', real=True)
+m, I1, I2, I3 = sm.symbols('m, I1, I2, I3', real=True)
 
-delta, deltadot, theta, thetadot, x, y, psi = me.dynamicsymbols(
-    'delta, deltadot, theta, thetadot, x, y, psi')
+# %%
+# The essential dynamics are described by a single degree of freedom model with
+# roll angle :math:`\theta` and its angular rate being the essential state
+# variables. The location of the rear contact in the ground plane :math:`x,y`
+# and heading :math:`\psi` will also be tracked. The input is the steering
+# angle :math:`\delta`.
+theta, thetadot = me.dynamicsymbols('theta, thetadot', real=True)
+x, y, psi = me.dynamicsymbols('x, y, psi', real=True)
+delta, deltadot = me.dynamicsymbols('delta, deltadot', real=True)
 t = me.dynamicsymbols._t
+dt = sm.symbols('Delta_t', real=True)
 
+# %%
+# The first two differential equations are the essential dynamics, followed by
+# the differential equatiosn to track :math:`x,y,\psi`. Noticing that both
+# :math:`\delta` and :math:`\dot{\delta}` are present as inputs to the model.
+# In the optimal control problem, both trajectories are saught with the
+# constraint that :math:`d\delta/dt` holds. To do this, add a differential
+# equation that ensures steering angle and steering rate variables are related
+# by differentiation and make :math:`\delta` a puesdo state variable with th
+# highest derivative :math:`\dot{\delta}` being the single unknown input
+# trajectory.
 eom = sm.Matrix([
     theta.diff(t) - thetadot,
     (I1 + m*h**2)*thetadot.diff(t) +
@@ -38,13 +82,11 @@ eom = sm.Matrix([
     psi.diff(t) - v/b*sm.tan(delta),
     delta.diff(t) - deltadot,
 ])
-
 MathJaxRepr(eom)
 
 # %%
-# Set up the time discretization.
-num_nodes = 201
-duration = (num_nodes - 1)*dt
+state_symbols = (theta, thetadot, x, y, psi, delta)
+MathJaxRepr(state_symbols)
 
 # %%
 # Provide some reasonably realistic values for the constants.
@@ -60,12 +102,34 @@ par_map = {
     v: 5.0,  # m/s
 }
 
-state_symbols = (theta, thetadot, x, y, psi, delta)
+# %%
+# Instance constraints can be set on any of the state variables. The goal is to
+# transition from cruising at a steady state in balance equilibrium to steady
+# state in balance equlibrium with a 90 degree change in heading, i.e. make a
+# left turn.
+num_nodes = 201
+start = 0*dt
+end = (num_nodes - 1)*dt
+
+instance_constraints = (
+    # upright, no motion at t = 0
+    theta.func(0*dt),
+    thetadot.func(0*dt),
+    x.func(0*dt),
+    y.func(0*dt),
+    psi.func(0*dt),
+    delta.func(0*dt),
+    # upright, no motion, 90 deg heading at t = final
+    theta.func(end),
+    thetadot.func(end),
+    psi.func(end) - np.deg2rad(90.0),
+    delta.func(end),
+)
 
 
 # %%
-# Specify the objective function and form the gradient.
-# Minimize the time required to go from the start state to the final state.
+# Specify the objective function and its gradient. Minimize the time required
+# to go from the start state to the end state.
 def objective(free):
     """Return h (always the last element in the free variables)."""
     return free[-1]
@@ -79,26 +143,11 @@ def gradient(free):
 
 
 # %%
-# Specify the symbolic instance constraints, i.e. initial and end conditions.
-instance_constraints = (
-    x.func(0*h),
-    y.func(0*h),
-    psi.func(0*h),
-    delta.func(0*h),
-    theta.func(0*h),
-    thetadot.func(0*h),
-    theta.func(duration),
-    delta.func(duration),
-    psi.func(duration) - np.deg2rad(90.0),
-    thetadot.func(duration),
-)
-
-# %%
-# Add some physical limits to some variables.
+# Add some physical limits to the states and inputs.
 bounds = {
-    psi: (np.deg2rad(-180.0), np.deg2rad(180.0)),
-    theta: (np.deg2rad(-45.0), np.deg2rad(45.0)),
-    delta: (np.deg2rad(-45.0), np.deg2rad(45.0)),
+    psi: (np.deg2rad(-360.0), np.deg2rad(360.0)),
+    theta: (np.deg2rad(-90.0), np.deg2rad(90.0)),
+    delta: (np.deg2rad(-90.0), np.deg2rad(90.0)),
     deltadot: (np.deg2rad(-200.0), np.deg2rad(200.0)),
     thetadot: (np.deg2rad(-200.0), np.deg2rad(200.0)),
     dt: (0.001, 0.5),
@@ -112,8 +161,8 @@ prob = Problem(objective, gradient, eom, state_symbols, num_nodes, dt,
                time_symbol=t, backend='numpy')
 
 # %%
-# Give some rough estimates for the x and y trajectories.
-initial_guess = 1e-10*np.ones(prob.num_free)
+# Make a simple initial guess.
+initial_guess = 0.01*np.ones(prob.num_free)
 
 # %%
 # Find the optimal solution.
@@ -135,15 +184,18 @@ _ = prob.plot_objective_value()
 xs, us, ps, dt_val = prob.parse_free(solution)
 
 
-def points(x):
-    """
+def bicycle_points(x):
+    """Return x, y, z coordinates of points that draw the bicycle model.
+
     Parameters
     ==========
     x : array_like, shape(n, N)
+        n state trajectories over N time steps.
 
     Returns
     =======
     coordinates : ndarray, shape(N, 7, 3)
+        Coordinates of the seven points over time.
 
     """
     coordinates = np.empty((x.shape[1], 7, 3))
@@ -153,6 +205,7 @@ def points(x):
         theta, thetadot, x, y, psi, delta = xi
 
         rear_contact = np.array([x, y, 0.0])
+        rear_contact = np.array([0.0, 0.0, 0.0])
         com_on_ground = rear_contact + np.array([par_map[a]*np.cos(psi),
                                                 par_map[a]*np.sin(psi),
                                                 0.0])
@@ -174,9 +227,10 @@ def points(x):
     return coordinates
 
 
-coordinates = points(xs)
+coordinates = bicycle_points(xs)
 
 
+# %%
 def frame(i):
 
     fig = plt.figure()
@@ -184,15 +238,14 @@ def frame(i):
 
     x, y, z = coordinates[i].T
 
-    bike_lines, = ax.plot(x, y, z,
-                          color='black',
-                          marker='o', markerfacecolor='blue', markersize=4)
+    bike_lines, = ax.plot(x, y, z, color='black', marker='o',
+                          markerfacecolor='C0', markersize=4)
     rear_path, = ax.plot(coordinates[:i, 0, 0],
                          coordinates[:i, 0, 1],
-                         coordinates[:i, 0, 2])
+                         coordinates[:i, 0, 2], color='C1')
     front_path, = ax.plot(coordinates[:i, 4, 0],
                           coordinates[:i, 4, 1],
-                          coordinates[:i, 4, 2])
+                          coordinates[:i, 4, 2], color='C2')
 
     ax.set_xlim((0.0, 4.0))
     ax.set_ylim((-1.0, 3.0))
@@ -218,7 +271,7 @@ def animate(i):
                            coordinates[:i, 4, 2])
 
 
-ani = animation.FuncAnimation(fig, animate, range(num_nodes),
+ani = animation.FuncAnimation(fig, animate, num_nodes,
                               interval=int(dt_val*1000))
 
 plt.show()
