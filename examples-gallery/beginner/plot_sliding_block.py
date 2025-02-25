@@ -320,9 +320,9 @@ anim, _ = drucken(selection, fig, ax)
 # following code to the code here::
 #   selection = 1
 #   print('Message from optimizer:', info_list[selection]['status_msg'])
-#   _ = prob_list[selection].plot_objective_value()
-#   _ = prob_list[selection].plot_constraint_violations(solution_list[selection])
-#   _ = prob_list[selection].plot_trajectories(solution_list[selection])
+#   prob_list[selection].plot_objective_value()
+#   prob_list[selection].plot_constraint_violations(solution_list[selection])
+#   prob_list[selection].plot_trajectories(solution_list[selection])
 #   fig, ax = plt.subplots(figsize=(8, 8))
 #   anim, _ = drucken(selection, fig, ax)
 
