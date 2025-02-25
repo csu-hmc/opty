@@ -62,7 +62,6 @@ from matplotlib.animation import FuncAnimation
 def strasse(x, a, b):
     return a*x**2*sm.exp((b - x))
 
-
 # %%
 # Set up Kane's equations of motion.
 N = me.ReferenceFrame('N')
@@ -85,8 +84,8 @@ P0.set_vel(N, ux*N.x + strasse(x, a, b).diff(x)*ux*N.y)
 bodies = [me.Particle('P0', P0, m)]
 
 # %%
-# The control force and the friction are acting in the direction of the tangent
-# at the road at the point where the particle is.
+# The control force and the friction are acting in the direction of the
+# tangent at the road at the point where the particle is.
 alpha = sm.atan(strasse(x, a, b).diff(x))
 forces = [(P0, -m*g*N.y + F*(sm.cos(alpha)*N.x + sm.sin(alpha)*N.y) -
            friction*ux*(sm.cos(alpha)*N.x + sm.sin(alpha)*N.y))]
