@@ -95,9 +95,7 @@ kd = sm.Matrix([ux - x.diff(t)])
 
 q_ind = [x]
 u_ind = [ux]
-
-# %%
-# Use Kane's method for creating the equations of motion.
+# Use Kane's method.
 kane = me.KanesMethod(N, q_ind=q_ind, u_ind=u_ind, kd_eqs=kd)
 fr, frstar = kane.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
