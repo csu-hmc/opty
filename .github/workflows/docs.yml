@@ -18,7 +18,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ['3.12']
+        # NOTE : build with the oldest supported Python here and latest
+        # supported on RTDs, to try to avoid examples not being tested for all
+        # Python versions we support.
+        python-version: ['3.9']
     defaults:
       run:
         shell: bash -el {0}
