@@ -6,7 +6,7 @@ Block Sliding Over a Hill
 Objective
 ---------
 
-- a simplex example to show how to use ``opty's`` capability of variabel node
+- a simple example to show how to use ``opty's`` capability of variable node
   time interval vs. fixed time interval.
 
 
@@ -96,16 +96,16 @@ kd = sm.Matrix([ux - x.diff(t)])
 q_ind = [x]
 u_ind = [ux]
 
+# %%
+# Use Kane's method for creating the equations of motion.
 kane = me.KanesMethod(N, q_ind=q_ind, u_ind=u_ind, kd_eqs=kd)
 fr, frstar = kane.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
 sm.trigsimp(eom)
 sm.pprint(eom)
-
-speicher = (x, ux, F)
-
 # %%
 # Store the results of the two optimizations for later plotting
+speicher = (x, ux, F)
 solution_list = []
 prob_list = []
 info_list = []
@@ -123,12 +123,13 @@ num_nodes = 150
 fixed_duration = 6.0  # seconds
 
 # %%
-# Set up the optimization problems and solve them.
+# Set up to run only one optimization.
 # if you want to run both optimizations, replace the two lines below with this
-# line:
-#
-# for selection in [0, 1]:
-#
+# line::
+#   for selection in [0, 1]:
+
+# %%
+# Set up the optimization problem and solve it.
 selection = 0
 if selection == 0:
     state_symbols = (speicher[0], speicher[1])
@@ -197,6 +198,7 @@ if selection == 0:
         known_parameter_map=par_map,
         instance_constraints=instance_constraints,
         bounds=bounds,
+        backend='numpy',
     )
 
     solution, info = prob.solve(initial_guess)
@@ -315,23 +317,17 @@ anim, _ = drucken(selection, fig, ax)
 
 # %%
 # If you want to run the solution with a fixed time interval, you should add the
-# following code to the code here:
-#
-# selection = 1
-#
-# print('Message from optimizer:', info_list[selection]['status_msg'])
-#
-# _ = prob_list[selection].plot_objective_value()
-#
-# _ = prob_list[selection].plot_constraint_violations(solution_list[selection])
-#
-# _ = prob_list[selection].plot_trajectories(solution_list[selection])
-#
-# fig, ax = plt.subplots(figsize=(8, 8))
-#
-# anim, _ = drucken(selection, fig, ax)
+# following code to the code here::
+#   selection = 1
+#   print('Message from optimizer:', info_list[selection]['status_msg'])
+#   _ = prob_list[selection].plot_objective_value()
+#   _ = prob_list[selection].plot_constraint_violations(solution_list[selection])
+#   _ = prob_list[selection].plot_trajectories(solution_list[selection])
+#   fig, ax = plt.subplots(figsize=(8, 8))
+#   anim, _ = drucken(selection, fig, ax)
 
 # %%
+# Create the plot for the thumb nail.
 fig, ax = plt.subplots(figsize=(8, 8))
 _, update = drucken(0, fig, ax, video=False)
 # sphinx_gallery_thumbnail_number = 9
