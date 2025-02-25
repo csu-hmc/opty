@@ -2,9 +2,12 @@
 References
 ==========
 
+.. [Bourlet1899] Bourlet, C. (1899). Etude theorique sur la bicyclette.
+   Bulletin de La Societe Mathematique de France, 27, 47–67.
 .. [Betts2003] Betts, John T. and Huffman, William P. "Large Scale Parameter
    Estimation Using Sparse Nonlinear Programming Methods". SIAM J. Optim., Vol
    14, No. 1, pp. 223-244, 2003.
+.. [Karnopp2004] Karnopp, D. (2004). Vehicle stability. Marcel Dekker, Inc.
 .. [Park2004] Park, S., Horak, F. B., & Kuo, A. D. (2004). Postural feedback
    responses scale with biomechanical constraints in human standing.
    Experimental Brain Research, 154(4), 417–427.
