@@ -1,13 +1,32 @@
-# %%
-"""
+r"""
 Crane Moving a Load
 ===================
+
+Objectives
+----------
+
+- Show the use of ``opty's variable node time interval`` feature to solve a
+  relatively simple problem.
+- Show how to use additional 'pseudo' state variables to enforce
+  instance constraints on :math:`\dfrac{d^2}{dt^2}(\textrm{state variable})`
+
+Introduction
+------------
 
 A load is moved by a crane. The load is connected to the crane by a massless
 rod and a pin joint. The goal is to move the load from the initial position to
 the final position in the shortest possible time. The load must not over-swing
 the final position. The load is moved by a force applied to its suspension
 point. The jib of the crane is extended in the horizontal X direction.
+
+In order to ensure that the load is at rest at its final location, its velocity
+**and** its acceleration must be zero at the final time.
+
+
+Notes
+-----
+
+The solution ``opty`` finds may not what one would expect intuitively.
 
 **Constants**
 
@@ -22,18 +41,20 @@ point. The jib of the crane is extended in the horizontal X direction.
 - ``q``: angle of the rod [rad]
 - ``uxc``: velocity of the mover in x-direction [m/s]
 - ``u``: angular velocity of the rod [rad/s]
+- ``h1, h2``: pseudo states to enforce instance constraints
 
 **Specifieds**
 
 - ``F``: force applied to the mover [N]
 
 """
+import os
 import sympy.physics.mechanics as me
 import numpy as np
 import sympy as sm
 from scipy.interpolate import CubicSpline
 from opty.direct_collocation import Problem
-from opty.utils import parse_free
+from opty.utils import parse_free, MathJaxRepr
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import patches
@@ -47,8 +68,8 @@ N, A = sm.symbols('N A', cls=me.ReferenceFrame)
 t = me.dynamicsymbols._t
 O, P1, P2 = sm.symbols('O P1 P2', cls=me.Point)
 O.set_vel(N, 0)
-xc, xl, yl, q, uxc, uxl, uyl, u, F = \
-    me.dynamicsymbols('xc, xl, yl, q, uxc, uxl, uyl, uq, F')
+xc, xl, yl, q, uxc, uxl, uyl, u, F, h1, h2 = \
+    me.dynamicsymbols('xc, xl, yl, q, uxc, uxl, uyl, uq, F, h1, h2')
 l, m1, m2, g = sm.symbols('l, m1, m2, g')
 
 A.orient_axis(N, q, N.z)
@@ -95,13 +116,14 @@ KM = me.KanesMethod(
 fr, frstar = KM.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
 eom = eom.col_join(config_constr)
-sm.pprint(eom)
+eom = eom.col_join(sm.Matrix([h1 - u.diff(t),  h2 - uxc.diff(t)]))
+MathJaxRepr(eom)
 
 # %%
 # Set up the Optimization Problem and Solve it.
 #----------------------------------------------
 #
-state_symbols = tuple((*q_ind, *q_dep, *u_ind, *u_dep))
+state_symbols = tuple((*q_ind, *q_dep, *u_ind, *u_dep, h1, h2))
 constant_symbols = (l, m1, m2, g)
 specified_symbols = (F,)
 h = sm.symbols('h')
@@ -127,12 +149,10 @@ def obj(free):
     """Minimize h, the time interval between nodes."""
     return free[-1]
 
-
 def obj_grad(free):
     grad = np.zeros_like(free)
     grad[-1] = 1.0
     return grad
-
 
 # %%
 # Starting and final location of the load.
@@ -180,13 +200,12 @@ instance_constraints = (
     uxl.subs({t: tf}) - final_state_constraints[uxl],
     uyl.subs({t: tf}) - final_state_constraints[uyl],
     u.subs({t: tf}) - final_state_constraints[u],
+    h1.subs({t: tf}) - 0.0,
+    h2.subs({t: tf}) - 0.0,
 )
 
 # %%
-# Forcing h > 0.0 sometimes avoids negative 'solutions'. Here it also
-# seem to help with the convergence of the optimization: Different bounds,
-# e.g.: h :math:`\in (10^{-4}, 1.0)` gives unreasonable results.
-
+# Forcing h > 0.0 sometimes avoids negative 'solutions'.
 bounds = {
     F: (-20., 20.),
     xl: (starting_location, ending_location),
@@ -205,38 +224,40 @@ prob = Problem(
     interval_value,
     known_parameter_map=par_map,
     instance_constraints=instance_constraints,
+    time_symbol=t,
     bounds=bounds,
+    backend='numpy',
 )
 
 # %%
-# This initial guess was used to get a solution which forms the actual initial
-# guess:
-#
+# Reasonable initial guess.
+
 i1 = [(ending_location - starting_location)/num_nodes*i for i in range(num_nodes)]
 i2 = [0.0 for _ in range(num_nodes)]
 i3 = i1
 i4 = [-par_map[l] for _ in range(num_nodes)]
 i5 = [0.0 for _ in range(5*num_nodes)]
-i6 = [0.01]
-initial_guess = np.array(i1 + i2 + i3 + i4 + i5 + i6)
+i6 = list(np.zeros(2*num_nodes))
+i7 = [0.01]
+initial_guess = np.array(i1 + i2 + i3 + i4 + i5 + i6 + i7)
 
 # %%
-# The initial guess is the solution of some previous run, saved in the file
-# 'crane_moving_a_load_solution.npy', to speed up convergence.
-# To get this solution, the initial guess above was used, which is now
-# overwritten.
+# Use the solution of a previous run if available, else the initial guess given
+# above is used.
+fname = f'crane_moving_a_load_{num_nodes}_nodes_solution.csv'
+if os.path.exists(fname):
+    solution = np.loadtxt(fname)
+else:
+    # Use the the initial_guess given above and plot it.
+    _ = prob.plot_trajectories(initial_guess)
 
-initial_guess = np.load('crane_moving_a_load_solution.npy')
-_ = prob.plot_trajectories(initial_guess)
+    # Find the optimal solution.
 
-# %%
-# Find the optimal solution.
-
-solution, info = prob.solve(initial_guess)
-print('Message from optimizer:', info['status_msg'])
-_ = prob.plot_objective_value()
-print('Iterations needed', len(prob.obj_value))
-print(f"Objective value {solution[-1]: .3e}")
+    solution, info = prob.solve(initial_guess)
+    print('Message from optimizer:', info['status_msg'])
+    _ = prob.plot_objective_value()
+    print('Iterations needed', len(prob.obj_value))
+    print(f"Objective value {solution[-1]: .3e}")
 
 # %%
 # Plot the accuracy of the solution.
@@ -244,9 +265,7 @@ _ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the state trajectories.
-fig, ax = plt.subplots(9, 1, figsize=(6.00, 1.0*9), sharex=True,
-    layout='constrained')
-_ = prob.plot_trajectories(solution, ax)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Animate the Simulation.
