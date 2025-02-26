@@ -1,18 +1,33 @@
-"""
+r"""
 Upright a Double Pendulum
 =========================
 
-Objective
----------
+Objectives
+----------
 
 - Show the use of opty's variable time interval feature to solve a relatively
   simple problem.
+- Show the use of additional state variables to enforce terminal constraints on
+  :math:`\dfrac{d^2}{dt^2}(\textrm{state variables})`.
+
+Introduction
+------------
 
 A double pendulum is rotationally attached to a cart which can move along the
 horizontal X axis. The goal is to get the double pendulum to an upright
 position in the shortest time possible, given an upper limit on the absolute
 value of the force that can be applied to the cart. Gravity points in the
 negative Y direction.
+To ensure that it is at rest, not only the speeds, but also its accelerations
+are constrained to be zero at the beginning and end of the motion.
+
+
+Notes
+-----
+
+The upright double pendulum seems to be a very standard example in physics.
+One can find a lot about it in the internet.
+
 
 **Constants**
 
@@ -26,16 +41,17 @@ negative Y direction.
 
 **States**
 
-- q1:     position of the cart along the X axis [m]
-- q2:     angle of the first pendulum with respect to the vertical [rad]
-- q3:     angle of the second pendulum with respect to the first [rad]
-- u1:     speed of the cart along the X axis [m/s]
-- u2:     angular speed of the first pendulum [rad/s]
-- u3:     angular speed of the second pendulum [rad/s]
+- q1:           position of the cart along the X axis [m]
+- q2:           angle of the first pendulum with respect to the vertical [rad]
+- q3:           angle of the second pendulum with respect to the first [rad]
+- u1:           speed of the cart along the X axis [m/s]
+- u2:           angular speed of the first pendulum [rad/s]
+- u3:           angular speed of the second pendulum [rad/s]
+- h1, h2, h3:   auxiliary states
 
 **Specifieds**
 
-- f:      force applied to the cart [N]
+- F:      force applied to the cart [N]
 
 """
 import os
@@ -43,7 +59,7 @@ import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 from opty import Problem
-from opty.utils import parse_free, MathJaxRepr
+from opty.utils import parse_free
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import patches
@@ -55,6 +71,7 @@ t = me.dynamicsymbols._t
 O, P1, P2, P3 = sm.symbols('O P1 P2 P3', cls=me.Point)
 O.set_vel(N, 0)
 q1, q2, q3, u1, u2, u3, F = me.dynamicsymbols('q1 q2 q3 u1 u2 u3 F')
+h1, h2, h3 = me.dynamicsymbols('h1 h2 h3')
 lx, m1, m2, m3, g, iZZ1, iZZ2 = sm.symbols('lx, m1, m2, m3 g, iZZ1, iZZ2')
 
 A1.orient_axis(N, q2, N.z)
@@ -92,13 +109,17 @@ KM = me.KanesMethod(
 )
 fr, frstar = KM.kanes_equations(bodies, loads=loads)
 eom = kd.col_join(fr + frstar)
-sm.pprint(sm.trigsimp(eom))
 
+# %%
+# add the auxiliary eoms for h1, h2, h3
+eom = eom.col_join(sm.Matrix([h1 - u1.diff(t), h2 - u2.diff(t),
+                h3 - u3.diff(t)]))
+sm.pprint(sm.trigsimp(eom))
 # %%
 # Define various objects to be use in the optimization problem.
 h = sm.symbols('h')
 
-state_symbols = tuple((*q_ind, *u_ind))
+state_symbols = tuple((*q_ind, *u_ind, h1, h2, h3))
 constant_symbols = (lx, m1, m2, m3, g, iZZ1, iZZ2)
 specified_symbols = (F,)
 
@@ -124,7 +145,6 @@ def obj(free):
     """Minimize h, the time interval between nodes."""
     return free[-1]
 
-
 def obj_grad(free):
     grad = np.zeros_like(free)
     grad[-1] = 1.0
@@ -148,6 +168,9 @@ final_state_constraints = {
     u1: 0.0,
     u2: 0.0,
     u3: 0.0,
+    h1: 0.0,
+    h2: 0.0,
+    h3: 0.0,
 }
 
 instance_constraints = (tuple(xi.subs({t: 0}) - xi_val for xi, xi_val in
@@ -157,7 +180,7 @@ instance_constraints = (tuple(xi.subs({t: 0}) - xi_val for xi, xi_val in
 
 # %%
 # Bounding h > 0 helps avoid 'solutions' with h < 0.
-bounds = {F: (-150.0, 150.0),
+bounds = {F: (-50.0, 50.0),
           q1: (-5.0, 5.0),
           h: (0.0, 1.0)
 }
@@ -174,7 +197,8 @@ prob = Problem(
     known_parameter_map=par_map,
     instance_constraints=instance_constraints,
     time_symbol=t,
-    bounds=bounds
+    bounds=bounds,
+    backend='numpy'
 )
 
 # Initial guess.
@@ -189,25 +213,18 @@ initial_guess[6*num_nodes:7*num_nodes] = 50.0*np.ones(num_nodes)
 initial_guess[-1] = 0.01
 
 # %%
-# Plot the initial guess.
-_ = prob.plot_trajectories(initial_guess)
-
-# Find the optimal solution.
-# As initial guess the solution of a previous run, stored in
-# 'two_link_pendulum_on_a_cart_solution.npy' is used.
-initial_guess = np.load('two_link_pendulum_on_a_cart_solution.npy')
-solution, info = prob.solve(initial_guess)
-print('Message from optimizer:', info['status_msg'])
-print('Iterations needed', len(prob.obj_value))
-print(f"Objective value {solution[-1]: .3e}")
-
-# %%
-#This is where the solution is saved to give better initial conditions
-# ```np.save('two_link_pendulum_on_a_cart_solution.npy', solution)```
-
-# %%
-# Plot the evolution of the objective function.
-_ = prob.plot_objective_value()
+# Use stored solution if available, else use initial_guess as given above.
+fname = f'double_pendulum_on_a_cart_{num_nodes}_nodes_solution.csv'
+if os.path.exists(fname):
+    solution = np.loadtxt(fname)
+else:
+    # Find the optimal solution as no stored solution available.
+    for _ in range(3):
+        solution, info = prob.solve(initial_guess)
+        initial_guess = solution
+        print('Message from optimizer:', info['status_msg'])
+        print('Iterations needed', len(prob.obj_value))
+        print(f"Objective value {solution[-1]: .3e}")
 
 # %%
 # Plot the accuracy of the solution.
