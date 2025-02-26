@@ -5,7 +5,7 @@ Crane Moving a Load
 Objectives
 ----------
 
-- Show the use of ``opty's variable node time interval`` feature to solve a
+- Show the use of opty's variable node time interval feature to solve a
   relatively simple problem.
 - Show how to use additional 'pseudo' state variables to enforce
   instance constraints on :math:`\dfrac{d^2}{dt^2}(\textrm{state variable})`
@@ -245,7 +245,8 @@ initial_guess = np.array(i1 + i2 + i3 + i4 + i5 + i6 + i7)
 # Use the solution of a previous run if available, else the initial guess given
 # above is used.
 fname = f'crane_moving_a_load_{num_nodes}_nodes_solution.csv'
-if os.path.exists(fname):
+aaa = 10
+if aaa == 20: #os.path.exists(fname):
     solution = np.loadtxt(fname)
 else:
     # Use the the initial_guess given above and plot it.
