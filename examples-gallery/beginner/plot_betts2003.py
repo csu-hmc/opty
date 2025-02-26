@@ -2,11 +2,7 @@
 Parameter Identification: Betts & Huffman 2003
 ==============================================
 
-This is the problem presented in section 7 of:
-
-Betts, John T. and Huffman, William P. "Large Scale Parameter Estimation
-Using Sparse Nonlinear Programming Methods". SIAM J. Optim., Vol 14, No. 1,
-pp. 223-244, 2003.
+This is the problem presented in section 7 of [Betts2003]_.
 
 """
 
@@ -133,9 +129,9 @@ axes_y2[2].set_title('Solution Constraint Violations')
 axes_y2[2].plot(prob.con(solution)[num_nodes - 1:])
 
 # %%
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 plt.show()

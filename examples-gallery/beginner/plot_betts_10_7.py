@@ -2,8 +2,21 @@
 Hypersensitive Control
 ======================
 
-This is example 10.7 from [Betts2010]_ and demonstrates working with a single
-differential equation.
+Objectives
+----------
+
+- Show how ``opty`` works with a single differential equation.
+- Shows how one can improve the accuracy by looking at the solution and changing
+  parameters accordingly. (Here the solution is constant except near the
+  beginning and near the end, so reducing the running time increases the
+  accuracy, without having to resort to more nodes.)
+
+
+Introduction
+------------
+
+This is example 10.7 from [Betts2010]_. As explained there, it was selected to
+be a very sensitive control problem.
 
 **States**
 
@@ -75,21 +88,21 @@ tf = 10000
 num_nodes = 501
 solution, info, prob = solve_optimization(num_nodes, tf)
 print(info['status_msg'])
-print(f'Objective value achieved: {info['obj_val']:.4f}, as per the book '
+print(f'Objective value achieved: {info["obj_val"]:.4f}, as per the book '
       f'it is {6.7241}, so the error is: '
-      f'{(info['obj_val'] - 6.7241)/6.7241*100:.3f} % ')
+      f'{(info["obj_val"] - 6.7241)/6.7241*100:.3f} % ')
 
 # %%
 # Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # With the value of tf = 10000 above, opty converged to a locally optimal
@@ -101,20 +114,20 @@ tf = 8.0
 num_nodes = 10001
 solution, info, prob = solve_optimization(num_nodes, tf)
 print(info['status_msg'])
-print(f'Objective value achieved: {info['obj_val']:.4f}, as per the book '
+print(f'Objective value achieved: {info["obj_val"]:.4f}, as per the book '
       f'it is {6.7241}, so the error is: '
-      f'{(info['obj_val'] - 6.7241)/6.7241*100:.3f} % ')
+      f'{(info["obj_val"] - 6.7241)/6.7241*100:.3f} % ')
 
 # %%
 # Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # sphinx_gallery_thumbnail_number = 4

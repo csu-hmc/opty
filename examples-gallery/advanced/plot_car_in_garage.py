@@ -1,13 +1,30 @@
+# %%
 """
 Park a Car in a Garage
 ======================
-A **conventional car** is modeled: The rear axle is driven,
+
+Objectives
+----------
+
+- Shows how additional state variables may be used to realize inequalities,
+  which at present ``opty`` does not support.
+- Shows how a differentiable minimum function in connection with a state
+  variable may be used to 'know' the minimum at all times.
+
+
+Introduction
+------------
+
+A conventional car is modeled: The rear axle is driven,
 the front axle does the steering.
 No speed possible perpendicular to the wheels.
-
 The car must enter the garage without colliding with the walls.
+``opty`` is 'free' to to 'decide' whether the car backs into the garage or
+goes in forward.
 
-The **idea** is as follows:
+
+Detailed Description on how the Objectives are Achieved
+-------------------------------------------------------
 
 - the garage is modeled as a differentiable trough.
 - ``number`` of points evenly spread on the body of the car are considered.
@@ -42,7 +59,9 @@ The **idea** is as follows:
 
 """
 
+
 # %%
+import os
 import sympy.physics.mechanics as me
 import numpy as np
 import sympy as sm
@@ -326,29 +345,32 @@ prob = Problem(
 )
 
 # %%
-# The result of a previous run is used as initial guess, to speed up
-# the optimization process.
-initial_guess = np.ones(prob.num_free)
-initial_guess = np.load('car_in_garage_solution.npy')
+fname = f'car_in_garage_{num_nodes}_nodes_solution.csv'
+if os.path.exists(fname):
+        solution = np.loadtxt(fname)
+else:
+        # The result of a previous run is used as initial guess, to speed up
+        # the optimization process.
+        initial_guess = np.ones(prob.num_free)
 
-prob.add_option('max_iter', 1000)
-for i in range(1):
-# Find the optimal solution.
-    solution, info = prob.solve(initial_guess)
-    initial_guess = solution
-    print(f'{i+1} - th iteration')
-    print('message from optimizer:', info['status_msg'])
-    print('Iterations needed',len(prob.obj_value))
-    print(f"objective value {info['obj_val']:.3e} \n")
-prob.plot_objective_value()
+        prob.add_option('max_iter', 1000)
+        for i in range(3):
+        # Find the optimal solution.
+                solution, info = prob.solve(initial_guess)
+                initial_guess = solution
+                print(f'{i+1} - th iteration')
+                print('message from optimizer:', info['status_msg'])
+                print('Iterations needed',len(prob.obj_value))
+                print(f"objective value {info['obj_val']:.3e} \n")
+                _ = prob.plot_objective_value()
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %% [markdown]
 # Plot generalized coordinates / speeds and forces / torques
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Animate the Car
@@ -446,8 +468,9 @@ def init():
 # Function to update the plot for each animation frame
 fig, ax, line1, line2, line3, line4 = init()
 
+
 def update(t):
-    message = (f'running time {t:.2f} sec \n The back axle is red, the ' +
+    message = (f'running time {t:.2f} sec \n The back axle is red, the '
                f'front axle is magenta \n The driving/breaking force is green')
     ax.set_title(message, fontsize=12)
 
@@ -459,20 +482,18 @@ def update(t):
     line3.set_data([coords[0, 5], coords[0, 6]], [coords[1, 5], coords[1, 6]])
 
     line4.set_offsets([coords[0, 0], coords[1, 0]])
-    line4.set_UVC(coords[0, 7] - coords[0, 0] , coords[1, 7] - coords[1, 0])
+    line4.set_UVC(coords[0, 7] - coords[0, 0], coords[1, 7] - coords[1, 0])
 
     return line1, line2, line3, line4,
+
 
 frames = np.linspace(t0, tf, int(fps * (tf - t0)))
 animation = FuncAnimation(fig, update, frames=frames, interval=1000 / fps)
 
 # %%
 # A frame from the animation.
-# sphinx_gallery_thumbnail_number = 6
+# sphinx_gallery_thumbnail_number = 5
 fig, ax, line1, line2, line3, line4 = init()
 update(4.15)
 
 plt.show()
-
-
-

@@ -1,6 +1,16 @@
+# %%
 r"""
 Car around Pylons
 =================
+
+Objective
+---------
+- Show a way to circumvent the current inability of *opty* to handle  instance
+  constraints at times that are not specified in advance but selected optimally
+  by *opty* itself.
+
+Introduction
+------------
 
 A car with rear wheel drive and front steering must move close to two points
 and return to its starting point. It can only move forward. The car is modeled
@@ -12,7 +22,8 @@ There is no speed allowed perpendicular to the wheels, realized by two velocity
 constraints. (The trajectories show, that the car is at the limit often, as one
 would expect if, as it is the case here, duration has to be minimized)
 
-The **main point** in this simulation is this:
+Method to Achieve the Objective
+-------------------------------
 
 Make the car to come 'close' to two points, but without specifying the time
 when it should be there. *opty* should find the best time for the car to be
@@ -29,16 +40,17 @@ there. Presently intermediate points must be specified as
   the sharper.
 - In order to know at the end of the run whether the car came close to the
   points during its course, integrate the hump function over time. These are
-  the variables :math:`punkt_1, punkt_2` with :math:`punkt_1 = \int_{t0}^{tf}
-  hump(...) \\, dt > 0` if the car came close to the point, = 0 otherwise. Same
-  for :math:`punkt_2`.
-- The exact values of :math:`punkt_1, punkt_2` are not known and should simple
-  be positive 'enough', include two additional state variables :math:`dist_1,
-  dist_2` and specified variables :math:`h_1, h_2`.
-- By setting :math:`dist_1 = punkt_1 \cdot h_1` and :math:`dist_2 = punkt_2
-  \cdot h_2` and bounding :math:`h_1, h_2 \in (1, value)`, and setting
-  :math:`dist_1(t_f) = 1`, one can ensure that :math:`punkt_1 >
-  \dfrac{1}{value}` and :math:`punkt_2 > \dfrac{1}{value}`.
+  the variables :math:`\textrm{punkt}_1, \textrm{punkt}_2` with
+  :math:`\textrm{punkt}_1 = \int_{t0}^{tf} \textrm{hump}(...) \, dt > 0` if the car
+  came close to the point, = 0 otherwise. Same for :math:`\textrm{punkt}_2`.
+- The exact values of :math:`\textrm{punkt}_1, \textrm{punkt}_2` are not known
+  and should simple be positive 'enough', include two additional state variables
+  :math:`\textrm{dist}_1, \textrm{dist}_2` and specified variables :math:`h_1, h_2`.
+- By setting :math:`\textrm{dist}_1 = \textrm{punkt}_1 \cdot h_1` and
+  :math:`\textrm{dist}_2 = \textrm{punkt}_2 \cdot h_2` and bounding
+  :math:`h_1, h_2 \in (1, \textrm{value})`, and setting :math:`\textrm{dist}_1(t_f) = 1`,
+  one can ensure that :math:`\textrm{punkt}_1 > \dfrac{1}{\textrm{value}}`
+  and :math:`\textrm{punkt}_2 > \dfrac{1}{\textrm{value}}`.
 
 **States**
 
@@ -50,12 +62,13 @@ there. Presently intermediate points must be specified as
 - :math:`u_f` : angular velocity of the front axis relative to the body
 - :math:`acc_f` : acceleration of the front of the car
 - :math:`acc_b` : acceleration of the back of the car
-- :math:`forward` : variable to ensure the car can only move forward
-- :math:`punkt_1, punkt_2` : variables to ensure the car comes close to the
-  points
-- :math:`punkt_{dt_1}, punkt_{dt_2}` : time derivatives of the above
-- :math:`dist_1, dist_2` : variables to ensure the car comes close to the
-  points
+- :math:`\textrm{forward}` : variable to ensure the car can only move forward
+- :math:`\textrm{punkt}_1, \textrm{punkt}_2` : variables to ensure the car
+  comes close to the points
+- :math:`\textrm{punkt}_{\textrm{dt}_1}, \textrm{punkt}_{\textrm{dt}_2}` : time
+  derivatives of the above
+- :math:`\textrm{dist}_1, \textrm{dist}_2` : variables to ensure the car comes
+  close to the points
 
 **Specifieds**
 
@@ -72,7 +85,7 @@ there. Presently intermediate points must be specified as
 - :math:`iZZ_0` : moment of inertia of the body of the car
 - :math:`iZZ_b` : moment of inertia of the rear axis
 - :math:`iZZ_f` : moment of inertia of the front axis
-- :math:`reibung` : friction coefficient between the car and the street
+- :math:`\textrm{reibung}` : friction coefficient between the car and the street
 - :math:`x_{b_1}` : x coordinate of pylon 1
 - :math:`y_{b_1}`: y coordinate of pylon 1
 - :math:`x_{b_2}` : x coordinate of pylon 2
@@ -83,6 +96,7 @@ there. Presently intermediate points must be specified as
 - :math:`h` : time step
 
 """
+import os
 import sympy.physics.mechanics as me
 import numpy as np
 import sympy as sm
@@ -322,29 +336,33 @@ prob = Problem(
 
 # %%
 # For the initial guess the result of some previous run is used to expedite
-# execution.
-initial_guess = np.load('car_around_pylons_solution.npy')
-prob.add_option('max_iter', 1000)
-for i in range(1):
-    # Find the optimal solution.
-    solution, info = prob.solve(initial_guess)
-    initial_guess = solution
-    print(f'{i+1} - th iteration')
-    print('message from optimizer:', info['status_msg'])
-    print('Iterations needed', len(prob.obj_value))
-    print(f"objective value {info['obj_val']:.3e} \n")
-prob.plot_objective_value()
-#np.save('car_around_pylons_solution', solution)
+# execution, if available
+fname = f'car_around_pylons_{num_nodes}_nodes_solution.csv'
+if os.path.exists(fname):
+    solution = np.loadtxt(fname)
+else:
+    prob.add_option('max_iter', 3000)
+    initial_guess= np.random.randn(prob.num_free)
+    for i in range(5 ):
+        solution, info = prob.solve(initial_guess)
+        print('message from optimizer:', info['status_msg'])
+        print('Iterations needed', len(prob.obj_value))
+        print(f"objective value {info['obj_val']:.3e} \n")
+
+        initial_guess = solution
+        print(f'{i+1} - th iteration')
+np.savetxt(f'car_around_pylons_{num_nodes}_nodes_solution.csv', solution,
+            fmt='%.2f')
 
 # %%
 # Plot the constraint violations.
 
 # %%
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot generalized coordinates / speeds and forces / torques
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Animate the Car
@@ -447,8 +465,8 @@ animation = FuncAnimation(fig, update, frames=frames, interval=1000/fps)
 
 # %%
 fig, ax, line1, line2, line3, line4, line5 = init()
-update(6.26)
+update(7.26)
 
 plt.show()
 
-# sphinx_gallery_thumbnail_number = 5
+# sphinx_gallery_thumbnail_number = 4

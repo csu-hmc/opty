@@ -2,7 +2,23 @@ r"""
 Delay Equation (Göllmann, Kern, and Maurer)
 ===========================================
 
+Objectives
+----------
+
+- A simple example to show how to handle inequality constraints, which ``opty``
+  presently does not support by introducing additional state variables.
+- Shows how instance constraints on one state variable may explicitly depend on
+  an instance of another state variable at a different time.
+
+
+Introduction
+------------
+
 This is example 10.50 from [Betts2010]_.
+
+
+Description how the Objectives are Achieved
+-------------------------------------------
 
 There are inequalities: :math:`x_i(t) + u_i(t) \geq 0.3`. To handle them,
 additional state variables :math:`q_i(t)` and additional equations of motion
@@ -131,22 +147,22 @@ for _ in range(1):
     solution, info = prob.solve(initial_guess)
     initial_guess = solution
     print(info['status_msg'])
-    print(f'Objective value achieved: {info['obj_val']:.4f}, as per the book '
+    print(f'Objective value achieved: {info["obj_val"]:.4f}, as per the book '
           f'it is {3.10812211}, so the error is: '
-          f'{(info['obj_val'] - 3.10812211)/3.10812211*100:.3f} % ')
+          f'{(info["obj_val"] - 3.10812211)/3.10812211*100:.3f} % ')
     print('\n')
 
 # %%
 # Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the objective function.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # Are the inequality constraints satisfied?

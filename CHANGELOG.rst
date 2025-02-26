@@ -1,5 +1,10 @@
-Version 1.4.0.dev0
+Version 1.5.0.dev0
 ==================
+
+- Bump dependency minimum versions to match those in Ubuntu 22.04 (Jammy).
+
+Version 1.4.0
+=============
 
 - Dropped support for Python 3.8.
 - Added support for Python 3.13.
@@ -18,21 +23,33 @@ Version 1.4.0.dev0
 - Support for single first order differential equation instead of limiting to
   two first order (i.e. only second order systems).
 - Enabled math constants on Windows to support ``sympy.pi``, for example.
-- Made SciPy and optional dependency (was required).
+- Made SciPy an optional dependency (was required).
 - Fixed bug from backwards incompatible change in Python 3.13 for docstring
   indentation.
+- Fixed bug where ``Problem.plot_`` methods did not return anything.
+- Fixed bug in trajectory plots so that the input trajectories are labeled with
+  known, unknown, or both types of inputs.
+- Made all ``ConstraintCollocator`` attributes properties with no setter
+  methods, i.e. everything must be passed into the constructor to properly
+  construct the object.
+- Separated examples into beginner, intermediate, and advanced groups.
+- Added ``MathJaxRepr`` for printing SymPy expressions in the example gallery.
+- Use MathJax v2 in the documentation so that long expressions will line wrap.
 - Examples added:
 
   - Ball rolling on spinning disc
-  - Car parking into a garage
   - Car moving around pylons
+  - Car parking into a garage
   - Crane moving a load
-  - Mississippi steamboat
-  - Non-contiguous parameter identification
-  - Single EoM & hypersensitive control
-  - ODE vs DAE comparison
   - Delay equation (inequality constraints example)
   - Human gait
+  - Mississippi steamboat
+  - Non-contiguous parameter identification
+  - ODE vs DAE comparison
+  - Particle moving through a helical tube
+  - Single EoM & hypersensitive control
+  - Sit-to-stand
+  - Standing balance control identification
 
 Version 1.3.0
 =============

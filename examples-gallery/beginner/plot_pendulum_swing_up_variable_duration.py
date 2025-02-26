@@ -2,6 +2,16 @@
 Variable Duration Pendulum Swing Up
 ===================================
 
+Objectives
+----------
+
+- Demonstrate how to make the simulation duration variable.
+- Show how to use the NumPy backend which solves the problem without needing
+  just-in-time C compilation.
+
+Introduction
+------------
+
 Given a simple pendulum that is driven by a torque about its joint axis, swing
 the pendulum from hanging down to standing up in a minimal amount of time using
 minimal input energy with a bounded torque magnitude.
@@ -66,16 +76,20 @@ instance_constraints = (theta(0*h),
                         omega((num_nodes - 1)*h))
 
 # %%
-# Create an optimization problem.
+# Create an optimization problem. If the backend is set to ``numpy``, no C
+# compiler is needed and the problem can be solved using pure Python code.
+# There is a large performance loss but for simple problems performance may not
+# be a concern.
 prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, h,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
                time_symbol=t,
-               bounds={T(t): (-2.0, 2.0), h: (0.0, 0.5)})
+               bounds={T(t): (-2.0, 2.0), h: (0.0, 0.5)},
+               backend='numpy')
 
 # %%
-# Use a zero as an initial guess.
-initial_guess = np.zeros(prob.num_free)
+# Use approximately zero as an initial guess to avoid divide-by-zero.
+initial_guess = 1e-10*np.ones(prob.num_free)
 
 # %%
 # Find the optimal solution.
@@ -85,15 +99,15 @@ print(info['obj_val'])
 
 # %%
 # Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # Animate the pendulum swing up.

@@ -214,7 +214,7 @@ initial_guess[-4*num_nodes:] = 10.0  # constant thrust
 fig, axes = plt.subplots(18, 1, sharex=True,
                          figsize=(6.4, 0.8*18),
                          layout='compressed')
-prob.plot_trajectories(initial_guess, axes=axes)
+_ = prob.plot_trajectories(initial_guess, axes=axes)
 
 # %%
 # Find an optimal solution.
@@ -227,17 +227,17 @@ print(info['obj_val'])
 fig, axes = plt.subplots(18, 1, sharex=True,
                          figsize=(6.4, 0.8*18),
                          layout='compressed')
-prob.plot_trajectories(solution, axes=axes)
+_ = prob.plot_trajectories(solution, axes=axes)
 
 # %%
 # Plot the constraint violations.
 fig, axes = plt.subplots(5, 1, figsize=(12.8, 10),
                          layout='constrained')
-prob.plot_constraint_violations(solution, axes=axes)
+_ = prob.plot_constraint_violations(solution, axes=axes)
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # Animate the motion of the drone.

@@ -366,7 +366,7 @@ initial_guess = np.hstack((i1, i1a, i1b, i2, i3, i4, 0.01))
 
 fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 0.75*14), sharex=True,
                          layout='constrained')
-prob.plot_trajectories(initial_guess, axes=ax1)
+_ = prob.plot_trajectories(initial_guess, axes=ax1)
 
 # %%
 # This way the maximum number of interations may be changed.  Default is 3000.
@@ -381,17 +381,17 @@ print(f'Optimal h = {solution[-1]:.3e} sec')
 
 # %%
 # Plot the objective value.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # Plot the accuracy of the results.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the results.
 fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 1.25*14), sharex=True,
                          layout='constrained')
-prob.plot_trajectories(solution, axes=ax1)
+_ = prob.plot_trajectories(solution, axes=ax1)
 
 # %%
 # Calculate and Plot the Reaction Forces
@@ -601,6 +601,6 @@ x_phi = r_disc * np.cos(phi)
 y_phi = r_disc * np.sin(phi)
 ax.plot(x_phi, y_phi, color='black', lw=2)
 ax.plot(old_x, old_y, color='magenta', lw=0.5)
-# sphinx_gallery_thumbnail_number = 7
+# sphinx_gallery_thumbnail_number = 6
 update(2)
 plt.show()
