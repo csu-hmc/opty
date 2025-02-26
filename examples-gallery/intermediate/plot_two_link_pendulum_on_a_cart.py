@@ -241,7 +241,6 @@ state_sol, _, _, h_var = parse_free(solution, len(state_symbols),
         len(specified_symbols),num_nodes, variable_duration=True)
 state_sol1 = state_sol.T[::4, :]
 num_nodes = state_sol1.shape[0]
-print('num nodes', num_nodes)
 solution = list(state_sol1.T.flatten()) + [h_var]
 
 P1_x = np.empty(num_nodes)
@@ -306,11 +305,8 @@ def animate_pendulum(time, P1_x, P1_y, P2_x, P2_y):
     ax.add_patch(recht)
     return fig, ax, line1, line2, recht
 
-
 duration = (num_nodes - 1) * solution[-1] *4
 times = np.linspace(0.0, duration, num_nodes)
-fig, ax, line1, line2, recht = animate_pendulum(times, P1_x, P1_y, P2_x, P2_y)
-
 
 def animate(i):
     message = (f'running time {times[i]: .2f} sec')
@@ -326,15 +322,16 @@ def animate(i):
     line2.set_data(wert_x, wert_y)
     return line1, line2,
 
-
-anim = animation.FuncAnimation(fig, animate, frames=num_nodes,
-                               interval=solution[-1]*1000.0 * 4)
-
 # %%
 # A frame from the animation.
 fig, ax, line1, line2, recht = animate_pendulum(times, P1_x, P1_y, P2_x, P2_y)
 
-# sphinx_gallery_thumbnail_number = 6
-animate(50)
+# sphinx_gallery_thumbnail_number = 3
+_ = animate(50)
+
+# %%
+fig, ax, line1, line2, recht = animate_pendulum(times, P1_x, P1_y, P2_x, P2_y)
+anim = animation.FuncAnimation(fig, animate, frames=num_nodes,
+                               interval=solution[-1]*1000.0 * 4)
 
 plt.show()
