@@ -2,6 +2,12 @@
 Upright a Double Pendulum
 =========================
 
+Objective
+---------
+
+- Show the use of opty's variable time interval feature to solve a relatively
+  simple problem.
+
 A double pendulum is rotationally attached to a cart which can move along the
 horizontal X axis. The goal is to get the double pendulum to an upright
 position in the shortest time possible, given an upper limit on the absolute
@@ -32,11 +38,12 @@ negative Y direction.
 - f:      force applied to the cart [N]
 
 """
+import os
 import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 from opty import Problem
-from opty.utils import parse_free
+from opty.utils import parse_free, MathJaxRepr
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import patches
