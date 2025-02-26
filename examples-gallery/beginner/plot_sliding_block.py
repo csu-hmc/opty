@@ -1,4 +1,3 @@
-# %%
 """
 Block Sliding Over a Hill
 =========================
@@ -98,8 +97,9 @@ u_ind = [ux]
 kane = me.KanesMethod(N, q_ind=q_ind, u_ind=u_ind, kd_eqs=kd)
 fr, frstar = kane.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
-sm.trigsimp(eom)
+eom = sm.trigsimp(eom)
 sm.pprint(eom)
+
 # %%
 # Store the results of the two optimizations for later plotting
 speicher = (x, ux, F)
@@ -308,6 +308,13 @@ _ = prob_list[selection].plot_constraint_violations(solution_list[selection])
 _ = prob_list[selection].plot_trajectories(solution_list[selection])
 
 # %%
+# Create the plot for the thumb nail.
+fig, ax = plt.subplots(figsize=(8, 8))
+_, update = drucken(0, fig, ax, video=False)
+# sphinx_gallery_thumbnail_number = 4
+_ = update(100)
+
+# %%
 # Animate the solution.
 fig, ax = plt.subplots(figsize=(8, 8))
 anim, _ = drucken(selection, fig, ax)
@@ -323,11 +330,5 @@ anim, _ = drucken(selection, fig, ax)
 #   fig, ax = plt.subplots(figsize=(8, 8))
 #   anim, _ = drucken(selection, fig, ax)
 
-# %%
-# Create the plot for the thumb nail.
-fig, ax = plt.subplots(figsize=(8, 8))
-_, update = drucken(0, fig, ax, video=False)
-# sphinx_gallery_thumbnail_number = 9
-update(100)
 
 plt.show()
