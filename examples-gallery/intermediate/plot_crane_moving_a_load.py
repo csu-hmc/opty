@@ -54,7 +54,7 @@ import numpy as np
 import sympy as sm
 from scipy.interpolate import CubicSpline
 from opty.direct_collocation import Problem
-from opty.utils import parse_free, MathJaxRepr
+from opty.utils import parse_free
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import patches
@@ -117,7 +117,7 @@ fr, frstar = KM.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
 eom = eom.col_join(config_constr)
 eom = eom.col_join(sm.Matrix([h1 - u.diff(t),  h2 - uxc.diff(t)]))
-MathJaxRepr(eom)
+sm.pprint(eom)
 
 # %%
 # Set up the Optimization Problem and Solve it.
@@ -245,8 +245,7 @@ initial_guess = np.array(i1 + i2 + i3 + i4 + i5 + i6 + i7)
 # Use the solution of a previous run if available, else the initial guess given
 # above is used.
 fname = f'crane_moving_a_load_{num_nodes}_nodes_solution.csv'
-aaa = 10
-if aaa == 20: #os.path.exists(fname):
+if os.path.exists(fname):
     solution = np.loadtxt(fname)
 else:
     # Use the the initial_guess given above and plot it.
