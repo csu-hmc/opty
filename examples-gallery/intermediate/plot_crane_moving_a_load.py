@@ -1,3 +1,4 @@
+# %%
 r"""
 Crane Moving a Load
 ===================
@@ -54,7 +55,7 @@ import numpy as np
 import sympy as sm
 from scipy.interpolate import CubicSpline
 from opty.direct_collocation import Problem
-from opty.utils import parse_free
+from opty.utils import parse_free, MathJaxRepr
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import patches
@@ -117,7 +118,7 @@ fr, frstar = KM.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
 eom = eom.col_join(config_constr)
 eom = eom.col_join(sm.Matrix([h1 - u.diff(t),  h2 - uxc.diff(t)]))
-sm.pprint(eom)
+MathJaxRepr(eom)
 
 # %%
 # Set up the Optimization Problem and Solve it.
@@ -327,10 +328,6 @@ def init_plot():
 
     return fig, ax, line1, recht, load, pfeil
 
-
-fig, ax, line1, recht, load, pfeil = init_plot()
-
-
 def update(t):
     message = f'running time {t:0.2f} sec \n The red arrow shows the force.'
     ax.set_title(message, fontsize=12)
@@ -344,14 +341,16 @@ def update(t):
     pfeil.set_UVC(input_sol(t), 0.25)
     return line1, recht, load, pfeil
 
-anim = animation.FuncAnimation(fig, update,
-                               frames=np.arange(t0, tf, 1/fps),
-                               interval=1/fps*1000)
-
 # %%
 # A frame from the animation.
 fig, ax, line1, recht, load, pfeil = init_plot()
-# sphinx_gallery_thumbnail_number = 6
-update(2.0)
+# sphinx_gallery_thumbnail_number = 3
+_ = update(2.0)
+
+# %%
+fig, ax, line1, recht, load, pfeil = init_plot()
+anim = animation.FuncAnimation(fig, update,
+                               frames=np.arange(t0, tf, 1/fps),
+                               interval=1/fps*1000)
 
 plt.show()
