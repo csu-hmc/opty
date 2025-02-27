@@ -289,7 +289,6 @@ def drucken(selection, fig, ax, video=True):
 
     return animation, update
 
-
 # %%
 # Below the results of **minimized duration** are shown.
 selection = 0
@@ -310,7 +309,8 @@ _ = prob_list[selection].plot_trajectories(solution_list[selection])
 # %%
 # Create the plot for the thumb nail.
 fig, ax = plt.subplots(figsize=(8, 8))
-_, update = drucken(0, fig, ax, video=False)
+_ , update = drucken(0, fig, ax, video=False)
+
 # sphinx_gallery_thumbnail_number = 4
 
 _ = update(100)
