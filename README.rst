@@ -1,6 +1,3 @@
-Introduction
-============
-
 .. list-table::
 
    * - PyPi
@@ -25,12 +22,15 @@ Introduction
    * - Continous Integration
      - .. image:: https://github.com/csu-hmc/opty/actions/workflows/tests.yml/badge.svg
 
+Introduction
+============
+
 ``opty`` utilizes symbolic descriptions of differential algebraic equations
 expressed with SymPy_ to form the constraints needed to solve optimal control
 and parameter identification problems using the direct collocation method and
 non-linear programming (NLP). In general, if one can express the continuous
 first order differential algebraic equations of the system as symbolic
-expressions ``opty`` will automatically generate a function to efficiently
+expressions, ``opty`` will automatically generate a function to efficiently
 evaluate the dynamical constraints and a function that evaluates the sparse
 Jacobian of the constraints, which have been optimized for speed and memory
 consumption. The translation of the dynamical system description to the NLP
@@ -68,6 +68,30 @@ Features
 - Efficient numerical execution of large equations of motion.
 - Automatic parallel execution using openmp if installed.
 - Built with support of sympy.physics.mechanics and PyDy in mind.
+- Low performance pure Python mode that obviates the need for just-in-time C
+  compilation.
+
+Example Solutions
+-----------------
+
+Animations from some of the `examples
+<https://opty.readthedocs.io/stable/examples/index.html>`_.
+
+.. list-table::
+   :align: center
+
+   * - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_one_legged_time_trial_thumb.gif
+          :width: 200px
+     - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_ball_rolling_on_spinning_disc_thumb.gif
+          :width: 200px
+     - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_sit_to_stand_thumb.gif
+          :width: 200px
+   * - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_particle_in_tube_thumb.gif
+          :width: 200px
+     - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_human_gait_thumb.gif
+          :width: 200px
+     - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_park2004_thumb.gif
+          :width: 200px
 
 Installation
 ============
@@ -75,24 +99,29 @@ Installation
 The required dependencies are as follows:
 
 - cyipopt >= 1.1.0 [with ipopt >= 3.11 (Linux & OSX), >= 3.13 (Windows)]
-- cython >= 0.29.19 [with a C compiler]
-- numpy >= 1.19.0
+- cython >= 0.29.28 [with a `C compiler`_]
+- numpy >= 1.21.5
 - python 3.9-3.13
-- scipy >= 1.5.0
-- setuptools
-- sympy >= 1.6.0
+- setuptools >= 59.6.0
+- sympy >= 1.9.1
+
+.. _C compiler: https://cython.readthedocs.io/en/stable/src/quickstart/install.html
 
 The optional dependencies are as follows:
 
-- matplotlib >= 3.2.0
+- matplotlib >= 3.5.1
 - openmp
+- scipy >= 1.8.0
 
 To run all of the examples the following additional dependencies may be needed:
 
-- pandas
-- pydy >= 0.5.0
-- pytables
-- yeadon
+- gait2d
+- pandas >= 1.3.5
+- pydy >= 0.6.0
+- pytables >= 3.7.0
+- pyyaml >= 5.4.1
+- symmeplot
+- yeadon >= 1.4.0
 
 The easiest way to install opty is to first install Anaconda_ (or Miniconda_ or
 Miniforge_) and use the conda package manager to install opty and any desired
@@ -102,7 +131,7 @@ optional dependencies from the Conda Forge channel, e.g. opty::
 
 and the optional dependencies::
 
-   $ conda install --channel conda-forge matplotlib openmp pandas pydy pytables yeadon
+   $ conda install --channel conda-forge matplotlib openmp scipy
 
 .. _Anaconda: https://www.continuum.io/downloads
 .. _Miniconda: https://conda.io/miniconda.html
@@ -117,11 +146,17 @@ See the `cyipopt documentation`_ for information on installing that package.
 
 .. _cyipopt documentation: https://cyipopt.readthedocs.io
 
+There are also several dependency groups::
+
+   $ pip install opty[optional]  # use extra functionality in opty
+   $ pip install opty[examples]  # run all example scripts
+   $ pip install opty[doc]  # build the documentation
+
 Custom Ipopt
 ------------
 
 If you want a custom installation of any of the dependencies, e.g. Ipopt, you
-must first install Ipopt along with it's headers.  For example, on Debian based
+must first install Ipopt along with it's headers. For example, on Debian based
 systems you can use the package manager::
 
    $ sudo apt-get install coinor-libipopt1v5 coinor-libipopt-dev
@@ -137,31 +172,31 @@ set the ``LD_LIBRARY_PATH`` so that you can link to Ipopt when installing
 
 Once Ipopt is installed and accessible, install conda then create an environment::
 
-   $ conda create -n opty-custom -c conda-forge cython numpy pip scipy setuptools sympy
+   $ conda create -n opty-custom -c conda-forge cython numpy pip setuptools sympy
    $ source activate opty-custom
    (opty-custom)$ pip install cyipopt  # this will compile cyipopt against the available ipopt
    (opty-custom)$ pip install opty
 
 If you want to develop opty, create a conda environment with all of the
-dependencies installed::
+development dependencies installed::
 
-   $ conda config --add channels conda-forge
-   $ conda create -n opty-dev python sympy numpy scipy cython ipopt cyipopt matplotlib pytables pydy pandas pytest setuptools sphinx sphinx-gallery numpydoc
-   $ source activate opty-dev
+   $ cd /path/to/opty/
+   $ conda env create -f opty-dev-env.yml
+   $ conda activate opty-dev
 
-Next download the opty source files and install with::
+Next install the development version of opty with::
 
-   (opty-dev)$ cd /path/to/opty
-   (opty-dev)$ python setup.py develop
+   (opty-dev)$ python -m pip install --no-deps --no-build-isolation --editable .
 
 Usage
 =====
 
-There are several examples available in the ``examples`` and
-``examples-gallery`` directories. The optimal torque to swing up a pendulum
-with minimal energy can be run with::
+There are several examples available in the ``examples`` directory and the
+``examples-gallery/beginner``, ``examples-gallery/intermediate`` and
+``examples-gallery/advanced`` directories. The optimal torque to swing up a
+pendulum with minimal energy can be run with::
 
-   $ python examples-gallery/plot_pendulum_swing_up_fixed_duration.py
+   $ python examples-gallery/beginner/plot_pendulum_swing_up_fixed_duration.py
 
 Failed Compilation
 ------------------
@@ -195,8 +230,18 @@ and open the result with your web browser, for example::
 
    $ firefox _build/html/index.html
 
+Alternatively, in the windows explorer open ``opyt/docs/_build/html/index.html``.
+
+Acknowledgements
+================
+
+opty was created to generalize and make more accessible the optimal control
+methods Prof. Ton van den Bogert and his collaborators developed and use for
+investigating control of musculoskeletal models. His pioneering work and help
+made the development of opty possible.
+
 Funding
-=======
+-------
 
 The work was partially funded by the State of Ohio Third Frontier Commission
 through the Wright Center for Sensor Systems Engineering (WCSSE), by the USA

@@ -6,11 +6,12 @@ import numpy as np
 import sympy as sym
 import sympy.physics.mechanics as mech
 from sympy.physics.mechanics.models import n_link_pendulum_on_cart
-from scipy import sparse
 from pytest import raises
 
+
 from ..direct_collocation import Problem, ConstraintCollocator
-from ..utils import create_objective_function, sort_sympy, parse_free
+from ..utils import (create_objective_function, sort_sympy, parse_free,
+                     _coo_matrix)
 
 
 def test_pendulum():
@@ -140,6 +141,16 @@ class TestConstraintCollocator():
                                  known_parameter_map=par_map,
                                  known_trajectory_map=traj_map,
                                  time_symbol=t)
+
+        self.numpy_collocator = \
+            ConstraintCollocator(equations_of_motion=self.eom,
+                                 state_symbols=self.state_symbols,
+                                 num_collocation_nodes=4,
+                                 node_time_interval=self.interval_value,
+                                 known_parameter_map=par_map,
+                                 known_trajectory_map=traj_map,
+                                 time_symbol=t,
+                                 backend='numpy')
 
     def test_init(self):
 
@@ -304,6 +315,7 @@ class TestConstraintCollocator():
     def test_gen_multi_arg_con_jac_func_backward_euler(self):
 
         self.collocator._gen_multi_arg_con_jac_func()
+        self.numpy_collocator._gen_multi_arg_con_jac_func()
 
         # Make sure the parameters are in the correct order.
         constant_values = \
@@ -317,10 +329,13 @@ class TestConstraintCollocator():
                                                            self.specified_values,
                                                            constant_values,
                                                            self.interval_value)
+        numpy_jac_vals = self.numpy_collocator._multi_arg_con_jac_func(
+            self.state_values, self.specified_values, constant_values,
+            self.interval_value)
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         # jacobian of eom_vector wrt vi, xi, xp, vp, k
         #    [     vi,  xi,   vp,   xp,  k]
@@ -341,7 +356,9 @@ class TestConstraintCollocator():
              [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]],
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
+        np.testing.assert_allclose(_coo_matrix(numpy_jac_vals, row_idxs,
+                                               col_idxs), expected_jacobian)
 
     def test_gen_multi_arg_con_jac_func_midpoint(self):
 
@@ -363,7 +380,7 @@ class TestConstraintCollocator():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         x = self.state_values[0]
         m, c, k = self.constant_values
@@ -391,7 +408,7 @@ class TestConstraintCollocator():
 
         expected_jacobian = np.hstack((part1, part2))
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
     def test_generate_constraint_function(self):
 
@@ -426,7 +443,7 @@ class TestConstraintCollocator():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         m, c, k = self.constant_values
         h = self.interval_value
@@ -442,7 +459,7 @@ class TestConstraintCollocator():
             [     0,       0,      0,     k,      0,         0,      -m /h, c + m / h, x[3]]],
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
 
 class TestConstraintCollocatorUnknownTrajectories():
@@ -623,7 +640,7 @@ class TestConstraintCollocatorUnknownTrajectories():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         # jacobian of eom_vector wrt vi, xi, xp, vp, k
         #    [     vi,  xi,   vp,   xp,  k]
@@ -645,7 +662,7 @@ class TestConstraintCollocatorUnknownTrajectories():
              [     0,      0,      0,  k[3],      0,         0,      -m /h, c + m / h,    0,    0,    0, x[3], v[3]]], # 3
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
     def test_gen_multi_arg_con_jac_func_midpoint(self):
 
@@ -667,7 +684,7 @@ class TestConstraintCollocatorUnknownTrajectories():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         x, v = self.state_values
         m, c = self.constant_values
@@ -706,7 +723,7 @@ class TestConstraintCollocatorUnknownTrajectories():
 
         expected_jacobian = np.hstack((part1, part2, part3))
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
     def test_generate_constraint_function(self):
 
@@ -741,7 +758,7 @@ class TestConstraintCollocatorUnknownTrajectories():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         x, v = self.state_values
         m, c = self.constant_values
@@ -758,7 +775,7 @@ class TestConstraintCollocatorUnknownTrajectories():
              [     0,      0,      0,  k[3],      0,         0,      -m /h, c + m / h,    0,    0,    0, x[3], v[3]]], # 3
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
 
 def test_merge_fixed_free_parameters():
@@ -1045,7 +1062,7 @@ class TestConstraintCollocatorInstanceConstraints():
         row_idxs = row_idxs[:-4]
         col_idxs = col_idxs[:-4]
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         #                   thetai, omegai, thetap, omegap, Ti
         # theta : [            1/h,     -1,   -1/h,      0,  0],
@@ -1065,7 +1082,7 @@ class TestConstraintCollocatorInstanceConstraints():
              [     0,                            0,                            0, d * g * m * np.cos(theta[3]),      0,      0, -I / h,  I / h,    0,  0,  0, -1]], # 3
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
     def test_generate_constraint_function(self):
 
@@ -1112,7 +1129,7 @@ class TestConstraintCollocatorInstanceConstraints():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         theta = self.state_values[0]
         I, m, g, d = self.constant_values
@@ -1132,7 +1149,7 @@ class TestConstraintCollocatorInstanceConstraints():
              [     0,                            0,                            0,                            0,      0,      0,      0,    5.0,    0,  0,  0,  0]],
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
 
 class TestConstraintCollocatorVariableDuration():
@@ -1375,7 +1392,7 @@ class TestConstraintCollocatorVariableDuration():
         row_idxs = row_idxs[:-4]
         col_idxs = col_idxs[:-4]
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         theta = self.state_values[0]
         omega = self.state_values[1]
@@ -1392,8 +1409,7 @@ class TestConstraintCollocatorVariableDuration():
              [     0,                      0,                      0, d*g*m*np.cos(theta[3]),         0,         0, -m*d**2/h, m*d**2/h,  0,  0,  0, -1, -d**2*m*(omega[3] - omega[2])/h**2]], # 3
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(),
-                                   expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
     def test_generate_constraint_function(self):
 
@@ -1441,7 +1457,7 @@ class TestConstraintCollocatorVariableDuration():
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        jacobian_matrix = _coo_matrix(jac_vals, row_idxs, col_idxs)
 
         th = self.state_values[0]
         om = self.state_values[1]
@@ -1462,8 +1478,7 @@ class TestConstraintCollocatorVariableDuration():
              [   0,                   0,                   0,                   0,         0,         0,         0,      1.0,  0,  0,  0,  0,                            0]],
             dtype=float)
 
-        np.testing.assert_allclose(jacobian_matrix.todense(),
-                                   expected_jacobian)
+        np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
 
 
 def test_known_and_unknown_order():
@@ -1747,10 +1762,11 @@ def test_one_eom_only():
     length = (2*1 + 1 + 0 + 0) * (1*(num_nodes-1)) + 2
     assert prob.jacobian(initial_guess).shape == (length,)
 
-def test_time_vector():
-    """Test to see if time_vector returns the correct values"""
+def test_duplicate_state_symbols():
+    """Test for duplicate state symbols and for number of state_symbols is
+    equal to the number of of eoms"""
 
-    x, ux = mech.dynamicsymbols('x ux')
+    x, ux, z = mech.dynamicsymbols('x, ux, z')
     t = mech.dynamicsymbols._t
     m = sym.symbols('m')
     F = mech.dynamicsymbols('F')
@@ -1762,10 +1778,8 @@ def test_time_vector():
 
     par_map = {m: 1.0}
 
-    state_symbols = (x, ux)
     num_nodes = 76
 
-    # fixed time interval
     t0, tf = 0.0, 1.0
     interval_value = tf/(num_nodes - 1)
 
@@ -1787,61 +1801,125 @@ def test_time_vector():
         ux.func(tf),
     )
 
-    prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-    )
+     # Test for duplicate state symbols
+    state_symbols = (x, ux, x)
+    with raises(ValueError):
+        prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+        )
 
-    initial_guess = np.ones(prob.num_free) * 0.1
-    solution, _ = prob.solve(initial_guess)
-    comparison = np.arange(t0, t0 + num_nodes*interval_value, interval_value)
-    np.testing.assert_almost_equal(prob.time_vector(), comparison)
-    np.testing.assert_almost_equal(prob.collocator.time_vector(),
-                    comparison)
+    # Test that No of state_symbols is equal to the No of eoms
+    state_symbols = (x, ux, z)
+    with raises(ValueError):
+        prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+        )
 
-    # variable time interval
+def test_attributes_read_only():
+    """
+    Test to ensure the ConstraintCollocator attributes are read-only.
+    """
+
+    # random optimization problem
+    x1, x2, x3 = mech.dynamicsymbols('x1 x2 x3')
+    ux1, ux2, ux3 = mech.dynamicsymbols('ux1 ux2 ux3')
+    u1, u2, u3 = mech.dynamicsymbols('u1 u2 u3')
+    a1, a2, a3, a4, a5, a6 = sym.symbols('a1 a2 a3 a4 a5 a6')
     h = sym.symbols('h')
+
+    t = mech.dynamicsymbols._t
+    eom = sym.Matrix([
+        -x1.diff(t) + ux1 + a3,
+        -x2.diff(t) + ux2 + a5,
+        -x3.diff(t) + ux3,
+        -ux1.diff(t) + a6*x1 + a5*u1,
+        -ux2.diff(t) + a4*x2 + a3*u2,
+        -ux3.diff(t) + a2*x3 + a1*u3,
+    ])
+
+    # Set up the Optimization Problem
+
+    state_symbols = [x1, x2, x3, ux1, ux2, ux3]
+
+    num_nodes = 11
+    h = sym.symbols('h')
+
+    # Specify the known symbols.
+    par_map = {}
+    par_map[a2] = 1.0
+    par_map[a4] = 2.0
+    par_map[a6] = 3.0
+
+    duration = (num_nodes - 1)*h
+    t0, tf = 0.0, duration
     interval_value = h
-    t0, tf = 0.0, (num_nodes - 1)*h
 
-    def obj(free):
-        return free[-1]
+    # Set up the instance constraints, the bounds and Problem.
 
-    def obj_grad(free):
-        grad = np.zeros_like(free)
-        grad[-1] = 1.0
-        return grad
-
-    instance_constraints = (
-        x.func(t0),
-        ux.func(t0),
-        x.func(tf) - 10.0,
-        ux.func(tf),
-    )
-    bounds = {h: (0.0, 10.0), F: (-15.0, 15.0)}
-
-    prob = Problem(
-        obj,
-        obj_grad,
+    test = ConstraintCollocator(
         eom,
         state_symbols,
         num_nodes,
         interval_value,
         known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
+        time_symbol=t,
     )
 
-    initial_guess = np.array(list(solution) + [0.3])
-    solution, _ = prob.solve(initial_guess)
-    comparison = np.arange(t0, t0 + num_nodes*solution[-1], solution[-1])
-    np.testing.assert_almost_equal(prob.time_vector(solution=solution),
-                    comparison)
-    np.testing.assert_almost_equal(prob.collocator.time_vector(solution=solution)
-                    , comparison)
+    # Test if all these attributes are read-only
+    for XX in [
+        'current_discrete_state_symbols',
+        'current_discrete_specified_symbols',
+        'current_known_discrete_specified_symbols',
+        'current_unknown_discrete_specified_symbols',
+        'discrete_eom',
+        'eom',
+        'input_trajectories',
+        'instance_constraints',
+        'known_input_trajectories',
+        'known_parameters',
+        'known_parameter_map',
+        'known_trajectory_map',
+        'next_known_discrete_specified_symbols',
+        'next_discrete_state_symbols',
+        'next_unknown_discrete_specified_symbols',
+        'node_time_interval',
+        'num_collocation_nodes',
+        'num_constraints',
+        'num_free',
+        'num_input_trajectories',
+        'num_instance_constraints',
+        'num_known_input_trajectories',
+        'num_known_parameters',
+        'num_parameters',
+        'num_states',
+        'num_unknown_input_trajectories',
+        'num_unknown_parameters',
+        'parameters',
+        'parallel',
+        'previous_discrete_state_symbols',
+        'show_compile_output',
+        'state_derivative_symbols',
+        'state_symbols',
+        'time_interval_symbol',
+        'time_symbol',
+        'tmp_dir',
+        'unknown_input_trajectories',
+        'unknown_parameters',
+        ]:
+
+        with raises(AttributeError):
+            setattr(test, XX, 5)

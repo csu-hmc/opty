@@ -17,24 +17,40 @@ setup(
     long_description=open('README.rst').read(),
     install_requires=[
         'cyipopt>=1.1.0',
-        'cython>=0.29.19',
-        'numpy>=1.19.0',
-        'scipy>=1.5.0',
-        'setuptools',  # provides distutils for Python >=3.13
-        'sympy>=1.6.0',
+        'cython>=0.29.28',
+        'numpy>=1.21.5',
+        'setuptools>=59.6.0',  # provides distutils for Python >=3.13
+        'sympy>=1.9.1',
     ],
     extras_require={
+        'optional': [
+            'scipy>=1.8.0',
+            'matplotlib>=3.5.1',
+        ],
         'examples': [
-            'matplotlib>=3.2.0',
-            'pandas',
-            'pydy>=0.5.0',
-            'tables',
-            'yeadon',
+            # 'gait2d',  # when available on PyPi
+            'matplotlib>=3.5.1',
+            'pandas>=1.3.5',
+            'pydy>=0.6.0',
+            'pyyaml>=5.4.1',  # gait2d dep
+            'scipy>=1.8.0',
+            'symmeplot',
+            'tables>=3.7.0',
+            'yeadon>=1.4.0',
         ],
         'doc': [
-            'numpydoc',
-            'sphinx',
+            # 'gait2d',  # when available on PyPi
+            'joblib >=0.17.0',
+            'matplotlib>=3.5.1',
+            'numpydoc >=1.2',
+            'pydy>=0.6.0',
+            'pyyaml>=5.4.1',  # gait2d dep
+            'scipy>=1.8.0',
+            'sphinx>=4.3.2',
             'sphinx-gallery',
+            'sphinx-reredirects',
+            'symmeplot',
+            'yeadon>=1.4.0',
         ],
     },
     tests_require=['pytest'],

@@ -1,6 +1,17 @@
-"""
+r"""
 Compare DAE vs. ODE Formulation
 ===============================
+
+Objectice
+---------
+
+- To compare the results of the DAE and ODE formulations of the same problem.
+  In one case one equation of motion is an algebraic equation (case 10.103), in
+  the other case :math:`\dfrac{d}{dt}(\textrm{algebraic equation})` is used.
+
+
+Introductiom
+------------
 
 This is example 10.103 from [Betts2010]_'s test problems. It has four
 differential equations and one algebraic equation. This example compares two
@@ -9,6 +20,7 @@ the derivative of the algebraic equtation, i.e. converts the DAEs to ODEs.
 
 As expected, the DAE formulation gives a better result than the ODE
 formulation. The ODE formulation seems to run a bit faster.
+
 
 **States**
 
@@ -57,6 +69,7 @@ obj, obj_grad = create_objective_function(
     tuple(),
     num_nodes,
     node_time_interval=interval_value,
+    time_symbol=t,
 )
 
 # %%
@@ -117,22 +130,22 @@ if info['obj_val'] < 12.8738850:
     msg = 'opty with DAE gets a better result'
 else:
     msg = 'opty with DAE gets a worse result'
-print(f'Minimal objective value achieved: {info['obj_val']:.4f},  ' +
+print(f'Minimal objective value achieved: {info["obj_val"]:.4f},  ' +
       f'as per the book it is {12.8738850}, {msg} ')
 
-obj_DAE = info['obj_val']
+obj_DAE = info["obj_val"]
 
 # %%
 # Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # ODE Formulation
@@ -171,22 +184,22 @@ if info['obj_val'] < 12.8738850:
     msg = 'opty with ODE gets a better result'
 else:
     msg = 'opty with ODE gets a worse result'
-print(f'Minimal objective value achieved: {info['obj_val']:.4f},  ' +
+print(f'Minimal objective value achieved: {info["obj_val"]:.4f},  ' +
       f'as per the book it is {12.8738850}, {msg} ')
 
-obj_ODE = info['obj_val']
+obj_ODE = info["obj_val"]
 
 # %%
 # Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # Compare the results

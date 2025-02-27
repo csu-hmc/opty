@@ -4,9 +4,27 @@ import pytest
 import numpy as np
 from numpy import testing
 import sympy as sym
-from scipy import sparse
+try:
+    from scipy import sparse
+except ImportError:
+    has_scipy = False
+else:
+    has_scipy=True
 
 from .. import utils
+
+
+def test_coo_matrix():
+    row = np.array([0, 3, 1, 0])
+    col = np.array([0, 3, 1, 2])
+    data = np.array([4, 5, 7, 9])
+
+    arr = utils._coo_matrix(data, row, col)
+    exp_arr = np.array([[4, 0, 9, 0],
+                        [0, 7, 0, 0],
+                        [0, 0, 0, 0],
+                        [0, 0, 0, 5]])
+    testing.assert_allclose(arr, exp_arr)
 
 
 def test_state_derivatives():
@@ -236,7 +254,7 @@ def test_ufuncify_matrix():
 
     a, b, c, d, I, i = sym.symbols('a, b, if, d_{badsym}, I, i')
 
-    expr_00 = a**2 * sym.cos(b)**c
+    expr_00 = a**2 * sym.cos(sym.pi*b)**c
     expr_01 = sym.tan(b) / sym.sin(a + b) + c**4
     expr_10 = a**2 + b**2 - sym.sqrt(c)
     expr_11 = ((a + b + c) * (a + b)) / a * sym.sin(b)
@@ -251,7 +269,7 @@ def test_ufuncify_matrix():
 
     a_vals = np.random.random(n)
     b_vals = np.random.random(n)
-    c_vals = np.random.random(n)
+    c_vals = np.abs(np.random.random(n))
     c_val = np.random.random(1)[0]
 
     def eval_matrix_loop_numpy(a_vals, b_vals, c_vals):
@@ -262,7 +280,7 @@ def test_ufuncify_matrix():
 
         result = np.empty((n, 2, 2))
 
-        result[:, 0, 0] = a_vals**2 * np.cos(b_vals)**c_vals
+        result[:, 0, 0] = a_vals**2 * np.cos(np.pi*b_vals)**c_vals
         result[:, 0, 1] = np.tan(b_vals) / np.sin(a_vals + b_vals) + c_vals**4
         result[:, 1, 0] = a_vals**2 + b_vals**2 - np.sqrt(c_vals)
         result[:, 1, 1] = (((a_vals + b_vals + c_vals) * (a_vals + b_vals)) /
@@ -271,10 +289,13 @@ def test_ufuncify_matrix():
         return result
 
     f = utils.ufuncify_matrix((a, b, c), sym_mat)
+    f_lam = utils.lambdify_matrix((a, b, c), sym_mat)
 
     result = np.empty((n, 4))
 
     testing.assert_allclose(f(result, a_vals, b_vals, c_vals),
+                            eval_matrix_loop_numpy(a_vals, b_vals, c_vals))
+    testing.assert_allclose(f_lam(result, a_vals, b_vals, c_vals),
                             eval_matrix_loop_numpy(a_vals, b_vals, c_vals))
 
     f = utils.ufuncify_matrix((a, b, c), sym_mat, const=(c,))
@@ -326,11 +347,12 @@ def test_substitute_matrix():
 
     np.testing.assert_allclose(new_A, expected)
 
-    A = sparse.lil_matrix(np.zeros((3, 4)))
-    sub = np.array([[21, 22], [23, 24]])
-    new_A = utils.substitute_matrix(A, [1, 2], [0, 2], sub)
-    expected = np.array([[0, 0, 0, 0],
-                         [21, 0, 22, 0],
-                         [23, 0, 24, 0]], dtype=float)
+    if has_scipy:
+        A = sparse.lil_matrix(np.zeros((3, 4)))
+        sub = np.array([[21, 22], [23, 24]])
+        new_A = utils.substitute_matrix(A, [1, 2], [0, 2], sub)
+        expected = np.array([[0, 0, 0, 0],
+                             [21, 0, 22, 0],
+                             [23, 0, 24, 0]], dtype=float)
 
-    np.testing.assert_allclose(new_A.todense(), expected)
+        np.testing.assert_allclose(new_A.todense(), expected)

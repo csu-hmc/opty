@@ -129,7 +129,8 @@ obj, obj_grad = create_objective_function(obj_func,
                                           specified_symbols,
                                           tuple(),
                                           num_nodes,
-                                          interval_value)
+                                          interval_value,
+                                          time_symbol=t)
 
 # %%
 # Specify the symbolic instance constraints, i.e. initial and end conditions.
@@ -168,7 +169,7 @@ prob = Problem(obj, obj_grad, eom, state_symbols,
                num_nodes, interval_value,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
-               bounds=bounds)
+               bounds=bounds, time_symbol=t)
 
 prob.add_option('nlp_scaling_method', 'gradient-based')
 
@@ -181,7 +182,7 @@ initial_guess = np.ones(prob.num_free)
 initial_guess[:num_nodes] = x_guess
 initial_guess[num_nodes:2*num_nodes] = y_guess
 
-prob.plot_trajectories(initial_guess)
+_ = prob.plot_trajectories(initial_guess)
 
 # %%
 # Find the optimal solution.
@@ -191,15 +192,15 @@ print(info['obj_val'])
 
 # %%
 # Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # Show the optimal path of the mass center.

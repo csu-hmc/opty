@@ -1,11 +1,38 @@
+# %%
 """
 Park a Car in a Garage
 ======================
-I try to model a **conventional car**: The rear axle is driven,
+
+Objectives
+----------
+
+- Shows how additional state variables may be used to realize inequalities,
+  which at present ``opty`` does not support.
+- Shows how a differentiable minimum function in connection with a state
+  variable may be used to 'know' the minimum at all times.
+
+
+Introduction
+------------
+
+A conventional car is modeled: The rear axle is driven,
 the front axle does the steering.
 No speed possible perpendicular to the wheels.
+The car must enter the garage without colliding with the walls.
+``opty`` is 'free' to to 'decide' whether the car backs into the garage or
+goes in forward.
 
-The car should enter the garage without colliding with the walls.
+
+Detailed Description on how the Objectives are Achieved
+-------------------------------------------------------
+
+- the garage is modeled as a differentiable trough.
+- ``number`` of points evenly spread on the body of the car are considered.
+- the y-coordinates of these points must be above the trough at all times.
+- as it is not clear *a priori* whether the car will drive straight into the
+        garage or back in, the variable ``pmin`` is introduced, which is the
+        lower end of the car. To ackomplish this, a differentialble version
+        of the minimum function is used.
 
 **states**
 
@@ -14,7 +41,8 @@ The car should enter the garage without colliding with the walls.
 - :math:`q_0, q_f`: orientation of the car and the steering angle of the front axle
 - :math:`u_0, u_f`: angular velocities of the car and the front axle
 - :math:`p_{min}`: the lowest point of the car
-- :math:`p_{y_1}....p_{y_{number}}`: the y-coordinate of the points on the body of the car
+- :math:`p_{y_1}....p_{y_{\\textrm{number}}}`: the y-coordinates of the points on
+        the body of the car
 
 **controls**
 
@@ -31,7 +59,9 @@ The car should enter the garage without colliding with the walls.
 
 """
 
+
 # %%
+import os
 import sympy.physics.mechanics as me
 import numpy as np
 import sympy as sm
@@ -116,16 +146,8 @@ eom = kd.col_join(fr + frstar)
 eom = eom.col_join(speed_constr)
 
 # %%
-# Restrictions so the car does not crash into the walls.
-#
-# I define a (differentiable) 'trough' the shape of the garage and the walls.
-# No part of (the body of) the car may be 'below' the trough.
-#
-# As *a priori* one does not know whether the car will drive straight into the
-# garage, or back in, I take care of this with the variable *pmin*, which is the
-# lower end of the car.
-
-# number of points considered on the body of the car.
+# Define the various differentiable approximations, add the eoms, which
+# constrain the car.
 number = 4
 
 x1, x2, y12 = sm.symbols('x1 x2 y12')
@@ -231,7 +253,7 @@ ax[5].set_title('differentiable in_0_1')
 prevent_print = 1.
 
 # %%
-# Set the Optimization Problem and Solve it
+# Set the Optimization Problem and Solve It
 #------------------------------------------
 
 state_symbols     = [x, y, q0, qf, ux, uy, u0, uf, pmin] + py
@@ -269,6 +291,7 @@ obj, obj_grad = create_objective_function(
     tuple(),
     num_nodes,
     interval_value,
+    time_symbol=t,
 )
 
 initial_state_constraints = {
@@ -318,37 +341,40 @@ prob = Problem(
         known_parameter_map=par_map,
         instance_constraints=instance_constraints,
         bounds=bounds,
+        time_symbol=t,
 )
 
 # %%
-# I use the result of a previous run as initial guess, to speed up
-# the optimization process.
-initial_guess = np.ones(prob.num_free)
-initial_guess = np.load('car_in_garage_solution.npy')
+fname = f'car_in_garage_{num_nodes}_nodes_solution.csv'
+if os.path.exists(fname):
+        solution = np.loadtxt(fname)
+else:
+        # The result of a previous run is used as initial guess, to speed up
+        # the optimization process.
+        initial_guess = np.ones(prob.num_free)
 
-prob.add_option('max_iter', 1000)
-for i in range(1):
-# Find the optimal solution.
-    solution, info = prob.solve(initial_guess)
-    initial_guess = solution
-    print(f'{i+1} - th iteration')
-    print('message from optimizer:', info['status_msg'])
-    print('Iterations needed',len(prob.obj_value))
-    print(f"objective value {info['obj_val']:.3e} \n")
-prob.plot_objective_value()
-#np.save('car_in_garage_solution', solution)
+        prob.add_option('max_iter', 1000)
+        for i in range(3):
+        # Find the optimal solution.
+                solution, info = prob.solve(initial_guess)
+                initial_guess = solution
+                print(f'{i+1} - th iteration')
+                print('message from optimizer:', info['status_msg'])
+                print('Iterations needed',len(prob.obj_value))
+                print(f"objective value {info['obj_val']:.3e} \n")
+                _ = prob.plot_objective_value()
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %% [markdown]
 # Plot generalized coordinates / speeds and forces / torques
-prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Animate the Car
-#-----------------
+#----------------
 # The green arrow symbolizes the force which opty calculated to drive the car.
 # It is perpendicular to the rear axle.
 fps = 20
@@ -442,8 +468,9 @@ def init():
 # Function to update the plot for each animation frame
 fig, ax, line1, line2, line3, line4 = init()
 
+
 def update(t):
-    message = (f'running time {t:.2f} sec \n The back axle is red, the ' +
+    message = (f'running time {t:.2f} sec \n The back axle is red, the '
                f'front axle is magenta \n The driving/breaking force is green')
     ax.set_title(message, fontsize=12)
 
@@ -455,20 +482,18 @@ def update(t):
     line3.set_data([coords[0, 5], coords[0, 6]], [coords[1, 5], coords[1, 6]])
 
     line4.set_offsets([coords[0, 0], coords[1, 0]])
-    line4.set_UVC(coords[0, 7] - coords[0, 0] , coords[1, 7] - coords[1, 0])
+    line4.set_UVC(coords[0, 7] - coords[0, 0], coords[1, 7] - coords[1, 0])
 
     return line1, line2, line3, line4,
+
 
 frames = np.linspace(t0, tf, int(fps * (tf - t0)))
 animation = FuncAnimation(fig, update, frames=frames, interval=1000 / fps)
 
 # %%
 # A frame from the animation.
-# sphinx_gallery_thumbnail_number = 6
+# sphinx_gallery_thumbnail_number = 5
 fig, ax, line1, line2, line3, line4 = init()
 update(4.15)
 
 plt.show()
-
-
-
