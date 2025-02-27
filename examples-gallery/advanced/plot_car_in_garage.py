@@ -1,13 +1,30 @@
+# %%
 """
 Park a Car in a Garage
 ======================
-A **conventional car** is modeled: The rear axle is driven,
+
+Objectives
+----------
+
+- Shows how additional state variables may be used to realize inequalities,
+  which at present ``opty`` does not support.
+- Shows how a differentiable minimum function in connection with a state
+  variable may be used to 'know' the minimum at all times.
+
+
+Introduction
+------------
+
+A conventional car is modeled: The rear axle is driven,
 the front axle does the steering.
 No speed possible perpendicular to the wheels.
-
 The car must enter the garage without colliding with the walls.
+``opty`` is 'free' to to 'decide' whether the car backs into the garage or
+goes in forward.
 
-The **idea** is as follows:
+
+Detailed Description on how the Objectives are Achieved
+-------------------------------------------------------
 
 - the garage is modeled as a differentiable trough.
 - ``number`` of points evenly spread on the body of the car are considered.
@@ -42,7 +59,9 @@ The **idea** is as follows:
 
 """
 
+
 # %%
+import os
 import sympy.physics.mechanics as me
 import numpy as np
 import sympy as sm
@@ -327,21 +346,24 @@ prob = Problem(
 )
 
 # %%
-# The result of a previous run is used as initial guess, to speed up
-# the optimization process.
-initial_guess = np.ones(prob.num_free)
-initial_guess = np.load('car_in_garage_solution.npy')
+fname = f'car_in_garage_{num_nodes}_nodes_solution.csv'
+if os.path.exists(fname):
+        solution = np.loadtxt(fname)
+else:
+        # The result of a previous run is used as initial guess, to speed up
+        # the optimization process.
+        initial_guess = np.ones(prob.num_free)
 
-prob.add_option('max_iter', 1000)
-for i in range(1):
-# Find the optimal solution.
-    solution, info = prob.solve(initial_guess)
-    initial_guess = solution
-    print(f'{i+1} - th iteration')
-    print('message from optimizer:', info['status_msg'])
-    print('Iterations needed',len(prob.obj_value))
-    print(f"objective value {info['obj_val']:.3e} \n")
-_ = prob.plot_objective_value()
+        prob.add_option('max_iter', 1000)
+        for i in range(3):
+        # Find the optimal solution.
+                solution, info = prob.solve(initial_guess)
+                initial_guess = solution
+                print(f'{i+1} - th iteration')
+                print('message from optimizer:', info['status_msg'])
+                print('Iterations needed',len(prob.obj_value))
+                print(f"objective value {info['obj_val']:.3e} \n")
+                _ = prob.plot_objective_value()
 
 # %%
 # Plot the constraint violations.

@@ -1,10 +1,10 @@
+# %%
 r"""
 Car around Pylons
 =================
 
 Objective
 ---------
-
 - Show a way to circumvent the current inability of *opty* to handle  instance
   constraints at times that are not specified in advance but selected optimally
   by *opty* itself.
@@ -96,6 +96,7 @@ there. Presently intermediate points must be specified as
 - :math:`h` : time step
 
 """
+import os
 import sympy.physics.mechanics as me
 import numpy as np
 import sympy as sm
@@ -335,31 +336,33 @@ prob = Problem(
 
 # %%
 # For the initial guess the result of some previous run is used to expedite
-# execution.
-initial_guess = np.load('car_around_pylons_solution.npy')
-prob.add_option('max_iter', 1000)
-for i in range(1):
-    # Find the optimal solution.
-    solution, info = prob.solve(initial_guess)
-    initial_guess = solution
-    print(f'{i+1} - th iteration')
-    print('message from optimizer:', info['status_msg'])
-    print('Iterations needed', len(prob.obj_value))
-    print(f"objective value {info['obj_val']:.3e} \n")
-_ = prob.plot_objective_value()
-prevent_print = 0
+# execution, if available
+fname = f'car_around_pylons_{num_nodes}_nodes_solution.csv'
+if os.path.exists(fname):
+    solution = np.loadtxt(fname)
+else:
+    prob.add_option('max_iter', 3000)
+    initial_guess= np.random.randn(prob.num_free)
+    for i in range(5 ):
+        solution, info = prob.solve(initial_guess)
+        print('message from optimizer:', info['status_msg'])
+        print('Iterations needed', len(prob.obj_value))
+        print(f"objective value {info['obj_val']:.3e} \n")
+
+        initial_guess = solution
+        print(f'{i+1} - th iteration')
+np.savetxt(f'car_around_pylons_{num_nodes}_nodes_solution.csv', solution,
+            fmt='%.2f')
 
 # %%
 # Plot the constraint violations.
 
 # %%
 _ = prob.plot_constraint_violations(solution)
-prevent_print = 0
 
 # %%
 # Plot generalized coordinates / speeds and forces / torques
 _ = prob.plot_trajectories(solution)
-prevent_print = 0
 
 # %%
 # Animate the Car
@@ -462,7 +465,7 @@ animation = FuncAnimation(fig, update, frames=frames, interval=1000/fps)
 
 # %%
 fig, ax, line1, line2, line3, line4, line5 = init()
-update(6.26)
+update(7.26)
 
 plt.show()
 

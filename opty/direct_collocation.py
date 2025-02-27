@@ -12,8 +12,8 @@ plt = sm.external.import_module('matplotlib.pyplot',
                                 import_kwargs={'fromlist': ['']},
                                 catch=(RuntimeError,))
 
-from .utils import (ufuncify_matrix, parse_free, _optional_plt_dep,
-                    _forward_jacobian, sort_sympy)
+from .utils import (ufuncify_matrix, lambdify_matrix, parse_free,
+                    _optional_plt_dep, _forward_jacobian, sort_sympy)
 
 __all__ = ['Problem', 'ConstraintCollocator']
 
@@ -140,7 +140,7 @@ class Problem(cyipopt.Problem):
                  known_parameter_map={}, known_trajectory_map={},
                  instance_constraints=None, time_symbol=None, tmp_dir=None,
                  integration_method='backward euler', parallel=False,
-                 bounds=None, show_compile_output=False):
+                 bounds=None, show_compile_output=False, backend='cython'):
         """
 
         Parameters
@@ -169,7 +169,7 @@ class Problem(cyipopt.Problem):
             equations_of_motion, state_symbols, num_collocation_nodes,
             node_time_interval, known_parameter_map, known_trajectory_map,
             instance_constraints, time_symbol, tmp_dir, integration_method,
-            parallel, show_compile_output=show_compile_output)
+            parallel, show_compile_output=show_compile_output, backend=backend)
 
         self.bounds = bounds
         self.obj = obj
@@ -777,7 +777,6 @@ class ConstraintCollocator(object):
     for a non-linear programming problem where the essential constraints are
     defined from the equations of motion of the system.
 
-
     Notes
     =====
 
@@ -803,7 +802,7 @@ class ConstraintCollocator(object):
                  known_parameter_map={}, known_trajectory_map={},
                  instance_constraints=None, time_symbol=None, tmp_dir=None,
                  integration_method='backward euler', parallel=False,
-                 show_compile_output=False):
+                 show_compile_output=False, backend='cython'):
         """Instantiates a ConstraintCollocator object.
 
         Parameters
@@ -863,10 +862,14 @@ class ConstraintCollocator(object):
             If true and openmp is installed, constraints and the Jacobian of
             the constraints will be executed across multiple threads. This is
             only useful for performance when the equations of motion have an
-            extremely large number of operations.
+            extremely large number of operations. Only available with the
+            ``'cython'`` backend.
         show_compile_output : boolean, optional
             If True, STDOUT and STDERR of the Cython compilation call will be
-            shown.
+            shown. Only available with the ``'cython'`` backend.
+        backend : string, optional
+            Backend used to generate the numerical functions, either
+            ``'cython'`` (default) or ``'numpy'``.
 
         """
         self._eom = equations_of_motion
@@ -908,15 +911,16 @@ class ConstraintCollocator(object):
         self._tmp_dir = tmp_dir
         self._parallel = parallel
         self._show_compile_output = show_compile_output
+        self._backend = backend
 
         self._sort_parameters()
         self._check_known_trajectories()
         self._sort_trajectories()
         self._num_free = ((self.num_states +
-                          self.num_unknown_input_trajectories) *
-                         self.num_collocation_nodes +
-                         self.num_unknown_parameters +
-                         int(self._variable_duration))
+                           self.num_unknown_input_trajectories) *
+                          self.num_collocation_nodes +
+                          self.num_unknown_parameters +
+                          int(self._variable_duration))
 
         self.integration_method = integration_method
 
@@ -1667,11 +1671,14 @@ class ConstraintCollocator(object):
             adjacent_start = 1
             adjacent_stop = None
 
-        logging.info('Compiling the constraint function.')
-        f = ufuncify_matrix(args, self.discrete_eom,
-                            const=constant_syms + (h_sym,),
-                            tmp_dir=self.tmp_dir, parallel=self.parallel,
-                            show_compile_output=self.show_compile_output)
+        if self._backend == 'cython':
+            logging.info('Compiling the constraint function.')
+            f = ufuncify_matrix(args, self.discrete_eom,
+                                const=constant_syms + (h_sym,),
+                                tmp_dir=self.tmp_dir, parallel=self.parallel,
+                                show_compile_output=self.show_compile_output)
+        elif self._backend == 'numpy':
+            f = lambdify_matrix(args, self.discrete_eom)
 
         def constraints(state_values, specified_values, constant_values,
                         interval_value):
@@ -2018,17 +2025,23 @@ class ConstraintCollocator(object):
         logging.info('Differentiating the constraint function.')
         discrete_eom_matrix = sm.ImmutableDenseMatrix(self.discrete_eom)
         wrt_matrix = sm.ImmutableDenseMatrix([list(wrt)])
-        symbolic_partials = _forward_jacobian(discrete_eom_matrix,
-                                              wrt_matrix.T)
+        if self._backend == 'cython':
+            symbolic_partials = _forward_jacobian(discrete_eom_matrix,
+                                                  wrt_matrix.T)
+        elif self._backend == 'numpy':
+            symbolic_partials = discrete_eom_matrix.jacobian(wrt_matrix.T)
 
         # This generates a numerical function that evaluates the matrix of
         # partial derivatives. This function returns the non-zero elements
         # needed to build the sparse constraint Jacobian.
-        logging.info('Compiling the Jacobian function.')
-        eval_partials = ufuncify_matrix(args, symbolic_partials,
-                                        const=constant_syms + (h_sym,),
-                                        tmp_dir=self.tmp_dir,
-                                        parallel=self.parallel)
+        if self._backend == 'cython':
+            logging.info('Compiling the Jacobian function.')
+            eval_partials = ufuncify_matrix(args, symbolic_partials,
+                                            const=constant_syms + (h_sym,),
+                                            tmp_dir=self.tmp_dir,
+                                            parallel=self.parallel)
+        elif self._backend == 'numpy':
+            eval_partials = lambdify_matrix(args, symbolic_partials)
 
         if isinstance(symbolic_partials, tuple) and len(symbolic_partials) == 2:
             num_rows = symbolic_partials[1][0].shape[0]

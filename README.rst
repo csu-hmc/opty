@@ -30,7 +30,7 @@ expressed with SymPy_ to form the constraints needed to solve optimal control
 and parameter identification problems using the direct collocation method and
 non-linear programming (NLP). In general, if one can express the continuous
 first order differential algebraic equations of the system as symbolic
-expressions ``opty`` will automatically generate a function to efficiently
+expressions, ``opty`` will automatically generate a function to efficiently
 evaluate the dynamical constraints and a function that evaluates the sparse
 Jacobian of the constraints, which have been optimized for speed and memory
 consumption. The translation of the dynamical system description to the NLP
@@ -68,6 +68,8 @@ Features
 - Efficient numerical execution of large equations of motion.
 - Automatic parallel execution using openmp if installed.
 - Built with support of sympy.physics.mechanics and PyDy in mind.
+- Low performance pure Python mode that obviates the need for just-in-time C
+  compilation.
 
 Example Solutions
 -----------------

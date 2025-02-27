@@ -38,11 +38,13 @@ Import all necessary modules, functions, and classes:
 """
 import os
 import pprint
+from pkg_resources import parse_version
 from opty import Problem
 from opty.utils import f_minus_ma
 from pygait2d import derive, simulate
 from pygait2d.segment import time_symbol, contact_force
 from symmeplot.matplotlib import Scene3D
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sm
@@ -50,7 +52,8 @@ import sympy as sm
 # %%
 # Pick an average ambulation speed and the number of discretization nodes for
 # the half period and define the time step as a variable :math:`h`.
-speed = 1.3  # m/s
+
+speed = 3.0  # m/s
 num_nodes = 40
 h = sm.symbols('h', real=True, positive=True)
 duration = (num_nodes - 1)*h
@@ -213,32 +216,32 @@ prob = Problem(
 )
 
 # %%
+# Find the optimal solution and save it if it converges.
+#
 # This loads a precomputed solution to save computation time. Delete the file
 # to try one of the suggested initial guesses.
 fname = f'human_gait_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
-    initial_guess = np.loadtxt(fname)
+    solution = np.loadtxt(fname)
 else:
-    # choose one, comment others
-    initial_guess = prob.lower_bound + (prob.upper_bound -
+    # choose one initial guess, comment others
+    initial_guess = prob.lower_bound + (
+        prob.upper_bound -
         prob.lower_bound)*np.random.random_sample(prob.num_free)
     initial_guess = 0.01*np.ones(prob.num_free)
     initial_guess = np.zeros(prob.num_free)
-
-# %%
-# Find the optimal solution and save it if it converges.
-solution, info = prob.solve(initial_guess)
-
-xs, rs, _, h_val = prob.parse_free(solution)
-times = np.linspace(0.0, (num_nodes - 1)*h_val, num=num_nodes)
-if info['status'] in (0, 1):
-    np.savetxt(f'human_gait_{num_nodes}_nodes_solution.csv', solution,
-               fmt='%.2f')
-
+    solution, info = prob.solve(initial_guess)
+    if info['status'] in (0, 1):
+        np.savetxt(f'human_gait_{num_nodes}_nodes_solution.csv', solution,
+                   fmt='%.2f')
 
 # %%
 # Use symmeplot to make an animation of the motion.
-def animate(fname='animation.gif'):
+xs, rs, _, h_val = prob.parse_free(solution)
+times = np.linspace(0.0, (num_nodes - 1)*h_val, num=num_nodes)
+
+
+def animate():
 
     ground, origin, segments = symbolics[8], symbolics[9], symbolics[10]
     trunk, rthigh, rshank, rfoot, lthigh, lshank, lfoot = segments
@@ -266,9 +269,14 @@ def animate(fname='animation.gif'):
     ], color="k")
 
     # creates a moving ground (many points to deal with matplotlib limitation)
-    scene.add_line([origin.locatenew('gl', s*ground.x)
-                    for s in np.linspace(-2.0, 2.0)],
-                   linestyle='--', color='tab:green', axlim_clip=True)
+    if parse_version(matplotlib.__version__) >= parse_version('3.10'):
+        scene.add_line([origin.locatenew('gl', s*ground.x) for s in
+                        np.linspace(-2.0, 2.0)], linestyle='--',
+                       color='tab:green', axlim_clip=True)
+    else:
+        scene.add_line([origin.locatenew('gl', s*ground.x) for s in
+                        np.linspace(-2.0, 2.0)], linestyle='--',
+                       color='tab:green')
 
     # adds CoM and unit vectors for each body segment
     for seg in segments:
@@ -305,12 +313,11 @@ def animate(fname='animation.gif'):
 
     ani = scene.animate(lambda i: gait_cycle[:, i], frames=len(times),
                         interval=h_val*1000)
-    ani.save(fname, fps=int(1/h_val))
 
     return ani
 
 
-animation = animate('human-gait-earth.gif')
+animation = animate()
 
 # %%
 # Now see what the solution looks like in the Moon's gravitational field.
@@ -326,7 +333,7 @@ solution, info = prob.solve(solution)
 # Animate the second solution.
 xs, rs, _, h_val = prob.parse_free(solution)
 
-animation = animate('human-gait-moon.gif')
+animation = animate()
 
 plt.show()
 
