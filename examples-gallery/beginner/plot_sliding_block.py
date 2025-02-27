@@ -5,7 +5,7 @@ Block Sliding Over a Hill
 Objective
 ---------
 
-- a simple example to show how to use ``opty's`` capability of variable node
+- a simple example to show how to use opty's capability of variable node
   time interval vs. fixed time interval.
 
 
@@ -312,12 +312,15 @@ _ = prob_list[selection].plot_trajectories(solution_list[selection])
 fig, ax = plt.subplots(figsize=(8, 8))
 _, update = drucken(0, fig, ax, video=False)
 # sphinx_gallery_thumbnail_number = 4
+
 _ = update(100)
 
 # %%
 # Animate the solution.
 fig, ax = plt.subplots(figsize=(8, 8))
 anim, _ = drucken(selection, fig, ax)
+
+plt.show()
 
 # %%
 # If you want to run the solution with a fixed time interval, you should add the
@@ -329,6 +332,4 @@ anim, _ = drucken(selection, fig, ax)
 #   _ = prob_list[selection].plot_trajectories(solution_list[selection])
 #   fig, ax = plt.subplots(figsize=(8, 8))
 #   anim, _ = drucken(selection, fig, ax)
-
-
-plt.show()
+#   plt.show()
