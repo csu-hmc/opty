@@ -1,4 +1,4 @@
- r"""
+r"""
 Ball Rolling on Spinning Disc
 =============================
 
