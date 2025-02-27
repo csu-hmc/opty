@@ -2,14 +2,37 @@ r"""
 Human Gait
 ==========
 
+Objectives
+----------
+
+This example highlights three points of interest compared to the others:
+
+- Instance constraints are used to make the start state the same as the end
+  state except for forward translation to solve for a cyclic trajectory, for
+  example :math:`q_b(t_0) = q_e(t_f)`.
+- The average speed is constrained in this variable time step solution by
+  introducing an additional differential equation that, when integrated, gives
+  the duration at :math:`\Delta_t(t)`, which can be used to calculate distance
+  traveled with :math:`q_{ax}(t_f) = v_\textrm{avg} (t_f - t_0)` and used as a
+  constraint.
+- The parallel option is enabled because the equations of motion are relatively
+  large. This speeds up the evaluation of the constraints and its Jacobian
+  about 1.3X.
+
+Introduction
+------------
+
 This example replicates a similar solution as shown in [Ackermann2010]_ using
 joint torques as inputs instead of muscle activations [1]_.
 
-pygait2d and symmeplot and their dependencies must be installed first to run
-this example. Note that pygait2d has not been released to PyPi or Conda Forge::
+.. note::
 
-    conda install cython pip pydy pyyaml setuptools symmeplot sympy
-    python -m pip install --no-deps --no-build-isolation git+https://github.com/csu-hmc/gait2d
+    pygait2d and symmeplot and their dependencies must be installed first to
+    run this example. Note that pygait2d has not been released to PyPi or Conda
+    Forge::
+
+        conda install cython pip pydy pyyaml setuptools symmeplot sympy
+        python -m pip install --no-deps --no-build-isolation git+https://github.com/csu-hmc/gait2d
 
 gait2d provides a joint torque driven 2D bipedal human dynamical model with
 seven body segments (trunk, thighs, shanks, feet) and foot-ground contact
@@ -18,21 +41,6 @@ forces based on the description in [Ackermann2010]_.
 The optimal control goal is to find the joint torques (hip, knee, ankle) that
 generate a minimal mean-torque periodic motion to ambulate at a specified
 average speed over half a period.
-
-This example highlights two points of interest that the other examples may not
-have:
-
-- Instance constraints are used to make the start state the same as the end
-  state, for example :math:`q_b(t_0) = q_e(t_f)`, except for forward
-  translation.
-- The average speed is constrained in this variable time step solution by
-  introducing an additional differential equation that, when integrated, gives
-  the duration at :math:`\Delta_t(t)`, which can be used to calculate distance
-  traveled with :math:`q_{ax}(t_f) = v_\textrm{avg} (t_f - t_0)` and used as a
-  constraint.
-- The parallel option is enabled because the equations of motion are on the
-  large side. This speeds up the evaluation of the constraints and its Jacobian
-  about 1.3X.
 
 Import all necessary modules, functions, and classes:
 """
