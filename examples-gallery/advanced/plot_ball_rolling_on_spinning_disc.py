@@ -1,7 +1,18 @@
- # %%
-r"""
+ r"""
 Ball Rolling on Spinning Disc
 =============================
+
+Objectives
+----------
+
+- Shows an objective function that is a weighted sum of energy and speed.
+- Shows how to go about if one wants to calculate the reaction forces in
+  addition to finding the optimal solution, without setting up the equations of
+  motion twice.
+
+
+Introduction
+------------
 
 A uniform, solid ball with radius :math:`r` and mass :math:`m_b` is rolling on
 a horizontal spinning disc without slipping. The disc starts at rest and speeds
@@ -65,6 +76,7 @@ This example was inspired by the demonstration by Steve Mould:
 
 
 """
+import os
 from matplotlib import patches
 from matplotlib.animation import FuncAnimation
 from opty.direct_collocation import Problem
@@ -121,7 +133,7 @@ O.set_vel(N, 0)
 # - :math:`\dfrac{d}{dt}(x) = r \dfrac{d}{dt}(q_2)`
 # - :math:`\dfrac{d}{dt}(y) = -r \dfrac{d}{dt}(q_1)`
 #
-# The time :math:`t  appears explicitly in the EOMs.  So, declare a function
+# The time :math:`t`  appears explicitly in the EOMs.  So, declare a function
 # :math:`T(t)`, and then pass the time as known trajectory. The EOMs also
 # contain :math:`\dfrac{d}{dt}(T(t))` and :math:`\dfrac{d^2}{dt^2}(T(t))` As
 # :math:`T(t) = const \cdot t` the derivatives accordingly are set accordingly.
@@ -212,6 +224,8 @@ eom = kd.col_join(frfrstar_reduced)
 eom = me.msubs((eom.col_join(hol_constr)), {sm.Derivative(T(t), t): Tdot,
                                             sm.Derivative(T(t), (t, 2)):
                                             Tdotdot},)
+print(f'The equations of motion for the optinization contain ' +
+                f'{sm.count_ops(eom):,} operations, and shape {eom.shape}')
 
 # %%
 # Set Up the Optimization Problem and Solve It
@@ -250,7 +264,7 @@ par_map[Tdot] = interval_value_fix
 par_map[Tdotdot] = 0.0
 
 # %%
-# A weighted sum of energy and speed is to be minimized.``weight`` is the
+# A weighted sum of energy and speed is to be minimized. ``weight`` is the
 # relative weight of the speed, weight > 0.
 weight = 2.5e5
 
@@ -267,7 +281,6 @@ def obj(free):
     return (free[-1] * (np.sum(Tz1**2) + np.sum(Tz2**2) + np.sum(Tz3**2)) +
             free[-1] * weight)
 
-
 def obj_grad(free):
     grad = np.zeros_like(free)
     grad[laenge*num_nodes: (laenge + 1)*num_nodes] = (
@@ -279,14 +292,12 @@ def obj_grad(free):
     grad[-1] = weight
     return grad
 
-
 # %%
 # The initial state must satisfy the holonomic constraints.
 x_start = 7.0
 q2_start = x_start/par_map[r]
 y_start = 7.0
 q1_start = -y_start/par_map[r]
-
 
 initial_state_constraints = {
     q1: q1_start,
@@ -352,36 +363,34 @@ prob = Problem(
 )
 
 # %%
-# The initial guess should meet the configuration constrains. It will be
-# plotted below.
-i1b = np.zeros(num_nodes)
-i2 = np.linspace(initial_state_constraints[x], final_state_constraints[x],
+# Set up an initial guess and solve the problem, unless a solution file is
+# already present.
+fname = f'ball_rolling_on_spinning_disc_{num_nodes}_nodes_solution.csv'
+if os.path.isfile(fname):
+    # solution available
+    solution = np.loadtxt(fname)
+else:
+    # Set up a reasonable initial guess and solve the problem
+    i1b = np.zeros(num_nodes)
+    i2 = np.linspace(initial_state_constraints[x], final_state_constraints[x],
                  num_nodes)
-i1a = i2/par_map[r]
-i3 = np.linspace(initial_state_constraints[y], final_state_constraints[y],
+    i1a = i2/par_map[r]
+    i3 = np.linspace(initial_state_constraints[y], final_state_constraints[y],
                  num_nodes)
-i1 = -i3/par_map[r]
-i4 = np.zeros(8*num_nodes)
-initial_guess = np.hstack((i1, i1a, i1b, i2, i3, i4, 0.01))
+    i1 = -i3/par_map[r]
+    i4 = np.zeros(8*num_nodes)
+    initial_guess = np.hstack((i1, i1a, i1b, i2, i3, i4, 0.01))
 
-fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 0.75*14), sharex=True,
-                         layout='constrained')
-_ = prob.plot_trajectories(initial_guess, axes=ax1)
+    # This way the maximum number of interations may be changed.  Default is 3000.
+    prob.add_option('max_iter', 1000)
 
-# %%
-# This way the maximum number of interations may be changed.  Default is 3000.
-prob.add_option('max_iter', 1000)
-
-# %%
-# Find the optimal solution.
-solution, info = prob.solve(initial_guess)
-print('message from optimizer:', info['status_msg'])
-print('Iterations needed', len(prob.obj_value))
-print(f'Optimal h = {solution[-1]:.3e} sec')
-
-# %%
-# Plot the objective value.
-_ = prob.plot_objective_value()
+    # Find the optimal solution.
+    for _ in range(3):
+        solution, info = prob.solve(initial_guess)
+        initial_guess = solution
+        print('message from optimizer:', info['status_msg'])
+        print('Iterations needed', len(prob.obj_value))
+        print(f'Optimal h = {solution[-1]:.3e} sec')
 
 # %%
 # Plot the accuracy of the results.
@@ -389,9 +398,7 @@ _ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the results.
-fig1, ax1 = plt.subplots(14, 1, figsize=(7.25, 1.25*14), sharex=True,
-                         layout='constrained')
-_ = prob.plot_trajectories(solution, axes=ax1)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Calculate and Plot the Reaction Forces
@@ -465,12 +472,11 @@ ax.set_title('Reaction Forces on center of the ball')
 ax.set_xlabel('time [sec]')
 ax.set_ylabel('force [N]')
 ax.grid(True)
-ax.legend();
+_ = ax.legend()
 
 # %%
 # Animate the system.
 fps = 30
-
 
 def add_point_to_data(line, x, y):
     old_x, old_y = line.get_data()
@@ -601,6 +607,6 @@ x_phi = r_disc * np.cos(phi)
 y_phi = r_disc * np.sin(phi)
 ax.plot(x_phi, y_phi, color='black', lw=2)
 ax.plot(old_x, old_y, color='magenta', lw=0.5)
-# sphinx_gallery_thumbnail_number = 6
+# sphinx_gallery_thumbnail_number = 5
 update(2)
 plt.show()
