@@ -686,14 +686,14 @@ class Problem(cyipopt.Problem):
 
         return parse_free(free, n, q, N, variable_duration)
 
-    def time_vector(self, solution=None, t0=0.0):
+    def time_vector(self, solution=None, start_time=0.0):
         """Returns the time instances of the problem as an numpy ndarray.
 
         Parameters
         ----------
         solution : (n*N + q*N + r + s)-ndarray, optional
             The solution to to problem. Needed if the interval is variable.
-        t0 : float, optional
+        start_time : float, optional
             The initial time of the problem. Default is 0.0.
 
         Returns
@@ -701,6 +701,7 @@ class Problem(cyipopt.Problem):
         A numpy num_collocation_nodes-array of time instances.
 
         """
+        t0 = start_time
         if self.collocator._variable_duration:
             if solution is None:
                 msg = 'Solution vector must be provided for variable duration.'
