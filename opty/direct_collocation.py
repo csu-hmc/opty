@@ -299,7 +299,7 @@ class Problem(cyipopt.Problem):
 
             violating_variables = []
 
-            if self.collocator._variable_duration == True:
+            if self.collocator._variable_duration:
                 local_ts = self.collocator.time_interval_symbol
                 if local_ts in self.bounds.keys():
                     if (free[-1] < self.bounds[local_ts][0]
