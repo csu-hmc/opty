@@ -2,6 +2,17 @@
 Mississippi Steamboat
 =====================
 
+Objectives
+----------
+
+- Show the usage of opty's variable node time interval feature.
+- Show an objective function which is a weighted average of the time and of the
+  energy needed.
+
+
+Introduction
+------------
+
 A boat is modeled as a rectangular plate with length :math:`a_S` and
 width :math:`b_S`.
 It has a mass :math:`m_S` and is modeled as a rigid body.
@@ -12,7 +23,11 @@ By running the wheels at different speeds, the boat can be steered.
 The water speed is assumed to be zero. Gravity, in the negative Z direction, is
 unimportant here, therefore disregarded.
 
-Of *interest* here may be the equations of motion.
+
+Notes
+-----
+
+The equations of motion might be of interest.
 
 **Constants**
 
@@ -44,6 +59,7 @@ Of *interest* here may be the equations of motion.
 - :math:`t_{RW}`: torque applied to the right wheel [Nm]
 
 """
+import os
 import numpy as np
 import sympy as sm
 from opty.utils import parse_free
@@ -215,6 +231,7 @@ KM = me.KanesMethod(N,
 
 fr, frstar = KM.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
+print(f'The equations of motion containt {sm.count_ops(eom)} operations.')
 
 # %%
 # Set up the Optimization Problem and Solve It
@@ -329,11 +346,11 @@ prob = Problem(
     known_parameter_map=par_map,
     instance_constraints=instance_constraints,
     bounds=bounds,
+    backend='numpy',
 )
 
 # %%
-# Pick a reasonable initial guess.
-
+# Pick a reasonable initial guess and solve the problem, if needed.
 i1 = list(np.zeros(num_nodes))
 i2 = list(np.linspace(initial_state_constraints[x], final_state_constraints[x],
     num_nodes))
@@ -342,10 +359,18 @@ i3 = list(np.linspace(initial_state_constraints[y], final_state_constraints[y],
 i4 = list(np.zeros(9*num_nodes))
 initial_guess = np.array(i1 + i2 + i3 + i4 + [0.01])
 
-solution, info = prob.solve(initial_guess)
-print('Message from optimizer:', info['status_msg'])
-print(f'Optimal h value is: {solution[-1]:.3f} sec')
-_ = prob.plot_objective_value()
+# Use given solution, if available else use the initial guess given above.
+fname = f'mississippi_steamboat_{num_nodes}_nodes_solution.csv'
+
+if os.path.exists(fname):
+    # use the given solution
+    solution = np.loadtxt(fname)
+else:
+    # calculate a solution
+    for _ in range(3):
+        solution, info = prob.solve(initial_guess)
+        print('Message from optimizer:', info['status_msg'])
+        print(f'Optimal h value is: {solution[-1]:.3f} sec')
 
 # %%
 # Plot errors in the solution.
@@ -358,7 +383,7 @@ _ = prob.plot_trajectories(solution)
 # %%
 # Animate the Solution
 # --------------------
-fps = 30
+fps = 13
 
 def add_point_to_data(line, x, y):
     # to trace the path of the point.
@@ -432,7 +457,7 @@ def init_plot():
     return fig, ax, line1, line2, line3, pfeil1, pfeil2, boat
 
 # Function to update the plot for each animation frame
-fig, ax, line1, line2, line3, pfeil1, pfeil2, boat = init_plot()
+
 def update(t):
     message = (f'running time {t:.2f} sec \n The red arrow is the torque ' +
         f'applied to the left water wheel \n' +
@@ -454,13 +479,17 @@ def update(t):
     pfeil2.set_offsets([coords[0, -3], coords[1, -3]])
     pfeil2.set_UVC(coords[0, -1], coords[1, -1])
 
-animation = FuncAnimation(fig, update, frames=np.arange(t0,
-    num_nodes*solution[-1], 1 / fps), interval=1000/fps)
-
 # %%
 # A frame from the animation.
 fig, ax, line1, line2, line3, pfeil1, pfeil2, boat = init_plot()
-# sphinx_gallery_thumbnail_number = 5
+# sphinx_gallery_thumbnail_number = 3
 
-update(3)
+_ = update(3)
+
+# %%
+# Create the animation.
+fig, ax, line1, line2, line3, pfeil1, pfeil2, boat = init_plot()
+animation = FuncAnimation(fig, update, frames=np.arange(t0,
+    num_nodes*solution[-1], 1 / fps), interval=1000/fps)
+
 plt.show()
