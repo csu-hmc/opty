@@ -685,14 +685,15 @@ class Problem(cyipopt.Problem):
 
         return parse_free(free, n, q, N, variable_duration)
 
-    def create_linear_initial_guess(self, plot=False):
+    def create_linear_initial_guess(self, end_time=1.0):
         """Creates an initial guess that is the linear interpolation between
         exact instance constraints. Please see the notes for more information.
 
         Parameters
         ----------
-        plot : bool, optional (default=False)
-            If True, the initial guess will be plotted.
+        end_time : float, optional (default=1.0)
+            In case of a variable time interval, this is the assumed duration
+            of the simulation.
 
         Returns
         -------
@@ -904,15 +905,12 @@ class Problem(cyipopt.Problem):
                     initial_guess[-1] = wert
 
             if self.bounds is None:
-                initial_guess[-1] = 1.0 / (num_nodes-1)
+                initial_guess[-1] = end_time / (num_nodes-1)
 
             elif self.collocator.node_time_interval not in self.bounds.keys():
-                initial_guess[-1] = 1.0 / (num_nodes-1)
+                initial_guess[-1] = end_time / (num_nodes-1)
             else:
                 pass
-
-        if plot:
-            self.plot_trajectories(initial_guess)
 
         return initial_guess
 
