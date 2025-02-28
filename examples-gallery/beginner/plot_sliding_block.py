@@ -162,6 +162,9 @@ if selection == 0:
             grad[-1] = 1.0
             return grad
 
+    else:
+        raise ValueError('Invalid selection')
+
     t0, tf = 0.0, duration
 
     initial_guess = np.ones((num_states +
