@@ -169,19 +169,16 @@ if selection == 0:
     if selection == 0:
         initial_guess = np.hstack((initial_guess, 0.02))
 
-    initial_state_constraints = {x: 0.0, ux: 0.0}
-    final_state_constraints = {x: 10.0, ux: 0.0}
-
     instance_constraints = (
-        tuple(xi.subs({t: t0}) - xi_val for xi, xi_val in
-            initial_state_constraints.items()) +
-        tuple(xi.subs({t: tf}) - xi_val for xi, xi_val in
-            final_state_constraints.items())
-    )
+        x.subs({t: t0}) - 0.0,
+        ux.subs({t: t0}) - 0.0,
+        x.subs({t: tf}) - 10.0,
+        ux.subs({t: tf}) - 0.0)
 
     bounds = {F: (-15., 15.),
-              x: (initial_state_constraints[x], final_state_constraints[x]),
+              x: (0.0, 10.0),
               ux: (0., 100)}
+
     if selection == 0:
         bounds[h] = (1.e-5, 1.)
 
@@ -254,10 +251,8 @@ def drucken(selection, fig, ax, video=True):
         strasse_x = np.linspace(xmin, xmax, 100)
         ax.plot(strasse_x, strasse_lam(strasse_x, par_map[a], par_map[b]),
                 color='black', linestyle='-', linewidth=1)
-        ax.axvline(initial_state_constraints[x], color='r', linestyle='--',
-                   linewidth=1)
-        ax.axvline(final_state_constraints[x], color='green', linestyle='--',
-                   linewidth=1)
+        ax.axvline(0.0, color='r', linestyle='--', linewidth=1)
+        ax.axvline(10.0, color='green', linestyle='--', linewidth=1)
 
         # Initialize the block and the arrow
         line1, = ax.plot([], [], color='blue', marker='o', markersize=12)
@@ -282,8 +277,8 @@ def drucken(selection, fig, ax, video=True):
         return line1, pfeil
 
     if video:
-        animation = FuncAnimation(fig, update, frames=range(len(P0_x)),
-                                  interval=1000*interval_value)
+        animation = FuncAnimation(fig, update, frames=range(0, len(P0_x), 2),
+                                  interval=1000*interval_value*2)
     else:
         animation = None
 
