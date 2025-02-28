@@ -92,7 +92,7 @@ sm.count_ops(eom)
 #
 # .. math::
 #
-#    \Delta_t(t) = \int_{t_0}^{t_f} d\tau
+#    \Delta_t(t) = \int_{t_0}^{t} d\tau
 #
 delt = sm.Function('delt', real=True)(time_symbol)
 eom = eom.col_join(sm.Matrix([delt.diff(time_symbol) - 1]))
