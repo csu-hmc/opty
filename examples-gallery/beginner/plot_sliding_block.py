@@ -134,7 +134,8 @@ if selection == 0:
     constant_symbols = (m, g, friction, a, b)
     specified_symbols = (speicher[2], )
 
-    if selection == 1:  # minimize integral of force magnitude
+    if selection == 1:
+        # minimize integral of force magnitude
         duration = fixed_duration
         interval_value = duration/(num_nodes - 1)
 
@@ -149,7 +150,8 @@ if selection == 0:
             grad[l1: l2] = 2.0*free[l1:l2]*interval_value
             return grad
 
-    elif selection == 0:  # minimize total duration
+    elif selection == 0:
+        # minimize total duration
         h = sm.symbols('h')
         duration = (num_nodes - 1)*h
         interval_value = h
