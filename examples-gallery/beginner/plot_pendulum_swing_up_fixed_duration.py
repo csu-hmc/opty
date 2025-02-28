@@ -2,9 +2,26 @@
 Fixed Duration Pendulum Swing Up
 ================================
 
+Objective
+---------
+
+- Show the use of opty with likely the simplest example possible.
+
+
+Introduction
+------------
+
 Given a compound pendulum that is driven by a torque about its joint axis,
 swing the pendulum from hanging down to standing up in a fixed amount of time
 using minimal input torque with a bounded torque magnitude.
+
+
+Notes
+-----
+
+This example uses a fixed duration. There is an example which is mechanically
+identical to this one, but it uses a variable time interval, to get the
+pendulum up as fast as possible, given the torque limitations.
 
 """
 
@@ -75,7 +92,9 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
                bounds=bounds,
-               time_symbol=t)
+               time_symbol=t,
+               backend='numpy',
+)
 
 # %%
 # Use a linear guess.
@@ -129,8 +148,8 @@ def animate(i):
     return line, time_text
 
 
-ani = animation.FuncAnimation(fig, animate, range(num_nodes),
-                              interval=int(interval_value*1000), blit=True,
+ani = animation.FuncAnimation(fig, animate, range(0, num_nodes, 4),
+                              interval=int(interval_value*1000*4), blit=True,
                               init_func=init)
 
 plt.show()

@@ -142,6 +142,16 @@ class TestConstraintCollocator():
                                  known_trajectory_map=traj_map,
                                  time_symbol=t)
 
+        self.numpy_collocator = \
+            ConstraintCollocator(equations_of_motion=self.eom,
+                                 state_symbols=self.state_symbols,
+                                 num_collocation_nodes=4,
+                                 node_time_interval=self.interval_value,
+                                 known_parameter_map=par_map,
+                                 known_trajectory_map=traj_map,
+                                 time_symbol=t,
+                                 backend='numpy')
+
     def test_init(self):
 
         assert self.collocator.state_symbols == self.state_symbols
@@ -305,6 +315,7 @@ class TestConstraintCollocator():
     def test_gen_multi_arg_con_jac_func_backward_euler(self):
 
         self.collocator._gen_multi_arg_con_jac_func()
+        self.numpy_collocator._gen_multi_arg_con_jac_func()
 
         # Make sure the parameters are in the correct order.
         constant_values = \
@@ -318,6 +329,9 @@ class TestConstraintCollocator():
                                                            self.specified_values,
                                                            constant_values,
                                                            self.interval_value)
+        numpy_jac_vals = self.numpy_collocator._multi_arg_con_jac_func(
+            self.state_values, self.specified_values, constant_values,
+            self.interval_value)
 
         row_idxs, col_idxs = self.collocator.jacobian_indices()
 
@@ -343,6 +357,8 @@ class TestConstraintCollocator():
             dtype=float)
 
         np.testing.assert_allclose(jacobian_matrix, expected_jacobian)
+        np.testing.assert_allclose(_coo_matrix(numpy_jac_vals, row_idxs,
+                                               col_idxs), expected_jacobian)
 
     def test_gen_multi_arg_con_jac_func_midpoint(self):
 

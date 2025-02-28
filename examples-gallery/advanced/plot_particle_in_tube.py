@@ -2,13 +2,26 @@ r"""
 Particle Flight in Tube
 =======================
 
+Objectives
+----------
+
+- Shows how the introduction of an additional state variable may be used to
+  solve a nonlinear equation
+- Shows how additional state variables may be used to enforce inequality
+  constraints, which ``opty`` at present does not support.
+
+Introduction
+------------
+
 A particle of mass :math:`m` is moving from a starting point to an ending
 point, subject to a viscous friction force and to a uniform gravitational
 field. The particle must not leave a tube defined by a curve (centerline) in
 space and a radius. At one point during the motion, it must pass through a
 narrow gate, modelled as a circle.
 
-Interesting maybe this:
+
+Detailed Description on how the Objectives are Achieved
+-------------------------------------------------------
 
 (In what follows all components are with respect to the inertial frame N.) The
 curve is given as :math:`X(r) = (f(r, \textrm{params}), g(r, \textrm{params}),
@@ -34,6 +47,13 @@ The particle must pass through a narrow gate at an intermediate time. The gate
 is modeled as a circle with its center on the curve. As opty presently does not
 allow inequalities in instance constraints, a new state variable ``gate``, and
 a new specified variable, :math:`\textrm{gate}_h` are introduced.
+
+Note
+----
+
+To get a solution one had to start with fewer terminal constraints and then
+use the solution achived to restart the optimization with more terminal
+constraints. The gate was added last.
 
 **Constants**
 
@@ -317,7 +337,6 @@ initial_guess[2*num_nodes:3*num_nodes] = z_guess
 initial_guess[-4*num_nodes:] = 10.0  # constant thrust
 
 initial_guess = np.load('particle_in_tube_solution.npy')
-
 # %%
 # Find an optimal solution.
 for _ in range(1):

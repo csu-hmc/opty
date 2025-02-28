@@ -2,12 +2,28 @@
 Variable Duration Pendulum Swing Up
 ===================================
 
+Objectives
+----------
+
+- Demonstrate how to make the simulation duration variable.
+- Show how to use the NumPy backend which solves the problem without needing
+  just-in-time C compilation.
+
+Introduction
+------------
+
 Given a simple pendulum that is driven by a torque about its joint axis, swing
 the pendulum from hanging down to standing up in a minimal amount of time using
 minimal input energy with a bounded torque magnitude.
 
-"""
+Notes
+-----
 
+There is a mechanically identiclal system in the examples-gallery/beginner
+folder that uses a fixed duration.
+
+"""
+import os
 import numpy as np
 import sympy as sm
 from opty import Problem
@@ -66,22 +82,34 @@ instance_constraints = (theta(0*h),
                         omega((num_nodes - 1)*h))
 
 # %%
-# Create an optimization problem.
+# Create an optimization problem. If the backend is set to ``numpy``, no C
+# compiler is needed and the problem can be solved using pure Python code.
+# There is a large performance loss but for simple problems performance may not
+# be a concern.
 prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, h,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
                time_symbol=t,
-               bounds={T(t): (-2.0, 2.0), h: (0.0, 0.5)})
+               bounds={T(t): (-2.0, 2.0), h: (0.0, 0.5)},
+               backend='numpy')
 
 # %%
-# Use a zero as an initial guess.
-initial_guess = np.zeros(prob.num_free)
-
-# %%
-# Find the optimal solution.
-solution, info = prob.solve(initial_guess)
-print(info['status_msg'])
-print(info['obj_val'])
+# Use existing solution if available else pick a reasonable initial guess
+# and solve the problem.
+fname = f'pendulum_swing_up_variable_duration_{num_nodes}_nodes_solution.csv'
+if os.path.exists(fname):
+    # Solution exists.
+    solution = np.loadtxt(fname)
+else:
+    # Use approximately zero as an initial guess to  avoid divide-by-zero,
+    # and solve the problem.
+    initial_guess = 1e-10*np.ones(prob.num_free)
+    # Find the optimal solution.
+    for _ in range(2):
+        solution, info = prob.solve(initial_guess)
+        initial_guess = solution
+        print(info['status_msg'])
+        print(info['obj_val'])
 
 # %%
 # Plot the optimal state and input trajectories.
@@ -90,10 +118,6 @@ _ = prob.plot_trajectories(solution)
 # %%
 # Plot the constraint violations.
 _ = prob.plot_constraint_violations(solution)
-
-# %%
-# Plot the objective function as a function of optimizer iteration.
-_ = prob.plot_objective_value()
 
 # %%
 # Animate the pendulum swing up.
@@ -126,8 +150,8 @@ def animate(i):
     return line, time_text
 
 
-ani = animation.FuncAnimation(fig, animate, range(num_nodes),
-                              interval=int(interval_value*1000),
+ani = animation.FuncAnimation(fig, animate, range(0, num_nodes, 4),
+                              interval=int(interval_value*1000*4),
                               blit=True, init_func=init)
 
 plt.show()

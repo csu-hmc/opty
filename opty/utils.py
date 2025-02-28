@@ -566,6 +566,44 @@ int main(void) {
     return exit
 
 
+def lambdify_matrix(args, expr):
+    """Returns a function that evaluates a matrix of expressions using NumPy
+    and broadcasts over an 3D array.
+
+    Parameters
+    ----------
+    args : iterable of Symbol or Function(Symbol)
+        A list of all symbols in ``expr`` in the desired order for the output
+        function.
+    expr : Matrix, shape(m, p)
+        A matrix of expressions.
+
+    Returns
+    -------
+    function
+        Function takes the form ``result = f(store, arg1, arg2, ...)`` where:
+
+            - ``store`` : ndarray, shape(n, m*p)
+            - ``result`` : ndarray, shape(n, m, p), reshaped ``store``
+            - ``argn`` : ndarray shape(n,) or float
+
+    """
+    eval_single_mat = sm.lambdify(args, expr, modules='numpy', cse=True)
+
+    # TODO : this is terribly computationally costly but there is not a clean
+    # way to do this using appropriate broadcasting via lambdify. See:
+    # https://github.com/sympy/sympy/issues/27632
+    def loop_function(result, *num_args):
+        n = result.shape[0]
+        for i in range(n):
+            array_num_args = [a if isinstance(a, float) else a[i]
+                              for a in num_args]
+            result[i] = eval_single_mat(*array_num_args).flatten().squeeze()
+        return result.reshape(n, expr.shape[0], expr.shape[1])
+
+    return loop_function
+
+
 def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
                     show_compile_output=False):
     """Returns a function that evaluates a matrix of expressions in a tight
