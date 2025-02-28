@@ -1,7 +1,16 @@
-# %%
 """
 Block Sliding Over a Hill
 =========================
+
+Objective
+---------
+
+- a simple example to show how to use opty's capability of variable node
+  time interval vs. fixed time interval.
+
+
+Introduction
+------------
 
 A block, modeled as a particle is sliding on a road to cross a hill. The block
 is subject to gravity and speed dependent viscous friction. Gravity points in
@@ -12,6 +21,15 @@ Two objective functions to be minimized will be considered:
 
 - ``selection = 0``: time to reach the end point is minimized
 - ``selection = 1``: integral sum of the applied force is minimized
+
+
+Notes
+-----
+
+The program was originally written to show both values of ``selection``
+In order to reduce running time only ``selection = 0`` is executed, it is
+explained how to run both versions.
+
 
 **Constants**
 
@@ -43,7 +61,6 @@ from matplotlib.animation import FuncAnimation
 def strasse(x, a, b):
     return a*x**2*sm.exp((b - x))
 
-
 # %%
 # Set up Kane's equations of motion.
 N = me.ReferenceFrame('N')
@@ -66,8 +83,8 @@ P0.set_vel(N, ux*N.x + strasse(x, a, b).diff(x)*ux*N.y)
 bodies = [me.Particle('P0', P0, m)]
 
 # %%
-# The control force and the friction are acting in the direction of the tangent
-# at the road at the point where the particle is.
+# The control force and the friction are acting in the direction of the
+# tangent at the road at the point where the particle is.
 alpha = sm.atan(strasse(x, a, b).diff(x))
 forces = [(P0, -m*g*N.y + F*(sm.cos(alpha)*N.x + sm.sin(alpha)*N.y) -
            friction*ux*(sm.cos(alpha)*N.x + sm.sin(alpha)*N.y))]
@@ -76,17 +93,16 @@ kd = sm.Matrix([ux - x.diff(t)])
 
 q_ind = [x]
 u_ind = [ux]
-
+# Use Kane's method.
 kane = me.KanesMethod(N, q_ind=q_ind, u_ind=u_ind, kd_eqs=kd)
 fr, frstar = kane.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
-sm.trigsimp(eom)
+eom = sm.trigsimp(eom)
 sm.pprint(eom)
-
-speicher = (x, ux, F)
 
 # %%
 # Store the results of the two optimizations for later plotting
+speicher = (x, ux, F)
 solution_list = []
 prob_list = []
 info_list = []
@@ -104,14 +120,22 @@ num_nodes = 150
 fixed_duration = 6.0  # seconds
 
 # %%
-# Set up the optimization problems and solve them.
-for selection in (0, 1):
+# Set up to run only one optimization.
+# if you want to run both optimizations, replace the two lines below with this
+# line::
+#   for selection in [0, 1]:
+
+# %%
+# Set up the optimization problem and solve it.
+selection = 0
+if selection == 0:
     state_symbols = (speicher[0], speicher[1])
     num_states = len(state_symbols)
     constant_symbols = (m, g, friction, a, b)
     specified_symbols = (speicher[2], )
 
-    if selection == 1:  # minimize integral of force magnitude
+    if selection == 1:
+        # minimize integral of force magnitude
         duration = fixed_duration
         interval_value = duration/(num_nodes - 1)
 
@@ -126,11 +150,12 @@ for selection in (0, 1):
             grad[l1: l2] = 2.0*free[l1:l2]*interval_value
             return grad
 
-    elif selection == 0:  # minimize total duration
+    elif selection == 0:
+        # minimize total duration
         h = sm.symbols('h')
         duration = (num_nodes - 1)*h
         interval_value = h
-
+#
         def obj(free):
             return free[-1]
 
@@ -139,6 +164,9 @@ for selection in (0, 1):
             grad[-1] = 1.0
             return grad
 
+    else:
+        raise ValueError('Invalid selection')
+
     t0, tf = 0.0, duration
 
     initial_guess = np.ones((num_states +
@@ -146,19 +174,16 @@ for selection in (0, 1):
     if selection == 0:
         initial_guess = np.hstack((initial_guess, 0.02))
 
-    initial_state_constraints = {x: 0.0, ux: 0.0}
-    final_state_constraints = {x: 10.0, ux: 0.0}
-
     instance_constraints = (
-        tuple(xi.subs({t: t0}) - xi_val for xi, xi_val in
-              initial_state_constraints.items()) +
-        tuple(xi.subs({t: tf}) - xi_val for xi, xi_val in
-              final_state_constraints.items())
-    )
+        x.subs({t: t0}) - 0.0,
+        ux.subs({t: t0}) - 0.0,
+        x.subs({t: tf}) - 10.0,
+        ux.subs({t: tf}) - 0.0)
 
     bounds = {F: (-15., 15.),
-              x: (initial_state_constraints[x], final_state_constraints[x]),
+              x: (0.0, 10.0),
               ux: (0., 100)}
+
     if selection == 0:
         bounds[h] = (1.e-5, 1.)
 
@@ -172,6 +197,7 @@ for selection in (0, 1):
         known_parameter_map=par_map,
         instance_constraints=instance_constraints,
         bounds=bounds,
+        backend='numpy',
     )
 
     solution, info = prob.solve(initial_guess)
@@ -230,10 +256,8 @@ def drucken(selection, fig, ax, video=True):
         strasse_x = np.linspace(xmin, xmax, 100)
         ax.plot(strasse_x, strasse_lam(strasse_x, par_map[a], par_map[b]),
                 color='black', linestyle='-', linewidth=1)
-        ax.axvline(initial_state_constraints[x], color='r', linestyle='--',
-                   linewidth=1)
-        ax.axvline(final_state_constraints[x], color='green', linestyle='--',
-                   linewidth=1)
+        ax.axvline(0.0, color='r', linestyle='--', linewidth=1)
+        ax.axvline(10.0, color='green', linestyle='--', linewidth=1)
 
         # Initialize the block and the arrow
         line1, = ax.plot([], [], color='blue', marker='o', markersize=12)
@@ -258,13 +282,12 @@ def drucken(selection, fig, ax, video=True):
         return line1, pfeil
 
     if video:
-        animation = FuncAnimation(fig, update, frames=range(len(P0_x)),
-                                  interval=1000*interval_value)
+        animation = FuncAnimation(fig, update, frames=range(0, len(P0_x), 2),
+                                  interval=1000*interval_value*2)
     else:
         animation = None
 
     return animation, update
-
 
 # %%
 # Below the results of **minimized duration** are shown.
@@ -273,47 +296,40 @@ print('Message from optimizer:', info_list[selection]['status_msg'])
 print(f'Optimal h value is: {solution_list[selection][-1]:.3f}')
 
 # %%
-prob_list[selection].plot_objective_value()
+_ = prob_list[selection].plot_objective_value()
 
 # %%
 # Plot errors in the solution.
-prob_list[selection].plot_constraint_violations(solution_list[selection])
+_ = prob_list[selection].plot_constraint_violations(solution_list[selection])
 
 # %%
 # Plot the trajectories of the block.
-prob_list[selection].plot_trajectories(solution_list[selection])
+_ = prob_list[selection].plot_trajectories(solution_list[selection])
+
+# %%
+# Create the plot for the thumb nail.
+fig, ax = plt.subplots(figsize=(8, 8))
+_ , update = drucken(0, fig, ax, video=False)
+
+# sphinx_gallery_thumbnail_number = 4
+
+_ = update(100)
 
 # %%
 # Animate the solution.
 fig, ax = plt.subplots(figsize=(8, 8))
 anim, _ = drucken(selection, fig, ax)
-
-# %%
-# Now the results of **minimized energy** are shown.
-selection = 1
-print('Message from optimizer:', info_list[selection]['status_msg'])
-
-# %%
-prob_list[selection].plot_objective_value()
-
-# %%
-# Plot errors in the solution.
-prob_list[selection].plot_constraint_violations(solution_list[selection])
-
-# %%
-# Plot the trajectories of the block.
-prob_list[selection].plot_trajectories(solution_list[selection])
-
-# %%
-# Animate the solution.
-fig, ax = plt.subplots(figsize=(8, 8))
-anim, _ = drucken(selection, fig, ax)
-
-# %%
-# A frame from the animation.
-fig, ax = plt.subplots(figsize=(8, 8))
-_, update = drucken(0, fig, ax, video=False)
-# sphinx_gallery_thumbnail_number = 9
-update(100)
 
 plt.show()
+
+# %%
+# If you want to run the solution with a fixed time interval, you should add the
+# following code to the code here::
+#   selection = 1
+#   print('Message from optimizer:', info_list[selection]['status_msg'])
+#   _ = prob_list[selection].plot_objective_value()
+#   _ = prob_list[selection].plot_constraint_violations(solution_list[selection])
+#   _ = prob_list[selection].plot_trajectories(solution_list[selection])
+#   fig, ax = plt.subplots(figsize=(8, 8))
+#   anim, _ = drucken(selection, fig, ax)
+#   plt.show()
