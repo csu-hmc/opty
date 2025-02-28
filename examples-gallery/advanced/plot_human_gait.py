@@ -2,6 +2,15 @@ r"""
 Human Gait
 ==========
 
+.. note::
+
+    pygait2d and symmeplot and their dependencies must be installed first to
+    run this example. Note that pygait2d has not been released to PyPi or Conda
+    Forge::
+
+        conda install cython pip pydy pyyaml setuptools symmeplot sympy
+        python -m pip install --no-deps --no-build-isolation git+https://github.com/csu-hmc/gait2d
+
 Objectives
 ----------
 
@@ -25,15 +34,6 @@ Introduction
 This example replicates a similar solution as shown in [Ackermann2010]_ using
 joint torques as inputs instead of muscle activations [1]_.
 
-.. note::
-
-    pygait2d and symmeplot and their dependencies must be installed first to
-    run this example. Note that pygait2d has not been released to PyPi or Conda
-    Forge::
-
-        conda install cython pip pydy pyyaml setuptools symmeplot sympy
-        python -m pip install --no-deps --no-build-isolation git+https://github.com/csu-hmc/gait2d
-
 gait2d provides a joint torque driven 2D bipedal human dynamical model with
 seven body segments (trunk, thighs, shanks, feet) and foot-ground contact
 forces based on the description in [Ackermann2010]_.
@@ -54,6 +54,7 @@ from pygait2d.segment import time_symbol, contact_force
 from symmeplot.matplotlib import Scene3D
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 import numpy as np
 import sympy as sm
 
@@ -91,7 +92,7 @@ sm.count_ops(eom)
 #
 # .. math::
 #
-#    \Delta_t(t) = \int_{t_0}^{t} d\tau
+#    \Delta_t(t) = \int_{t_0}^{t_f} d\tau
 #
 delt = sm.Function('delt', real=True)(time_symbol)
 eom = eom.col_join(sm.Matrix([delt.diff(time_symbol) - 1]))
@@ -253,7 +254,7 @@ def animate():
     ground, origin, segments = symbolics[8], symbolics[9], symbolics[10]
     trunk, rthigh, rshank, rfoot, lthigh, lshank, lfoot = segments
 
-    fig = plt.figure(figsize=(8.0, 4.0))
+    fig = plt.figure(figsize=(10.0, 4.0))
 
     ax3d = fig.add_subplot(1, 2, 1, projection='3d')
     ax2d = fig.add_subplot(1, 2, 2)
@@ -304,7 +305,6 @@ def animate():
                      lfoot.heel, color="tab:blue")
 
     scene.lambdify_system(states + specified + constants)
-    # TODO : this is a half gait cycle, double it to get a full cycle
     gait_cycle = np.vstack((
         xs,  # q, u shape(2n, N)
         np.zeros((3, len(times))),  # Fax, Fay, Ta (hand of god), shape(3, N)
@@ -355,7 +355,6 @@ def animate():
         vline.set_xdata([times[i], times[i]])
         return scene.artists + (vline,)
 
-    from matplotlib.animation import FuncAnimation
     ani = FuncAnimation(
         fig,
         update,
