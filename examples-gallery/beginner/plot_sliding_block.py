@@ -174,9 +174,9 @@ if selection == 0:
 
     instance_constraints = (
         tuple(xi.subs({t: t0}) - xi_val for xi, xi_val in
-              initial_state_constraints.items()) +
+            initial_state_constraints.items()) +
         tuple(xi.subs({t: tf}) - xi_val for xi, xi_val in
-              final_state_constraints.items())
+            final_state_constraints.items())
     )
 
     bounds = {F: (-15., 15.),
