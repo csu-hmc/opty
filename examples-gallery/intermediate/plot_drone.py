@@ -303,7 +303,7 @@ ani = animation.FuncAnimation(fig, animate, range(0, len(time), 2),
 # %%
 # A frame from the animation.
 
-# sphinx_gallery_thumbnail_number = 6
+# sphinx_gallery_thumbnail_number = 5
 frame(num_nodes - num_nodes//4)
 
 plt.show()

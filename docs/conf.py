@@ -19,6 +19,7 @@
 #
 import os
 import sys
+import multiprocessing
 sys.path.insert(0, os.path.abspath('..'))
 import opty
 
@@ -100,7 +101,8 @@ maximum_signature_line_length = 50
 
 # Sphinx >=4 default to MathJax v3, but v3 does not support wrapping lines. So
 # force Sphinx to use v2 and config MathJax to wrap long lines.
-mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+mathjax_path = ("https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js"
+                "?config=TeX-AMS-MML_HTMLorMML")
 mathjax2_config = {
     "HTML-CSS": {
         "linebreaks": {"automatic": True}
@@ -113,7 +115,7 @@ sphinx_gallery_conf = {
     'examples_dirs': os.path.join(REPO_DIR, 'examples-gallery'),
     'gallery_dirs': 'examples',
     'matplotlib_animations': True,
-    'parallel': True,
+    'parallel': multiprocessing.cpu_count(),
     'remove_config_comments': True,
 }
 
@@ -185,7 +187,7 @@ html_theme_options = {
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-#html_static_path = ['_static']
+# html_static_path = ['_static']
 
 
 # -- Options for HTMLHelp output ------------------------------------------
