@@ -182,7 +182,6 @@ problem = Problem(
     integration_method='midpoint',
     bounds=bounds,
 )
-
 # %%
 # Create an Initial Guess
 # -----------------------
@@ -205,10 +204,10 @@ solution, info = problem.solve(initial_guess)
 print(info['status_msg'])
 
 # %%
-problem.plot_objective_value()
+_ = problem.plot_objective_value()
 
 # %%
-problem.plot_constraint_violations(solution)
+_ = problem.plot_constraint_violations(solution)
 
 # %%
 # The identified parameters are:

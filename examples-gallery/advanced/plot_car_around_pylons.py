@@ -311,13 +311,13 @@ bounds = {
     Fb: (-grenze, grenze),
     Tf: (-grenze, grenze),
     # restrict the steering angle
-    qf: (-np.pi/2. + delta, np.pi/2. - delta),
+    qf: (-np.pi/2. + delta - 1.e-5, np.pi/2. - delta + 1.e-5),
     x: (-20, 20),
     y: (-15, 30),
     h: (0.0, 0.5),
     acc_f: (-grenze1, grenze1),
     acc_b: (-grenze1, grenze1),
-    forward: (0.0, np.inf),
+    forward: (-1.e-5, np.inf),
     h1: (1.0, 5.0),
     h2: (1.0, 5.0),
 }
