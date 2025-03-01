@@ -313,7 +313,7 @@ anim, _ = drucken(selection, fig, ax)
 # A frame from the animation.
 fig, ax = plt.subplots(figsize=(8, 8))
 _, update = drucken(0, fig, ax, video=False)
-# sphinx_gallery_thumbnail_number = 9
+# sphinx_gallery_thumbnail_number = 4
 update(100)
 
 plt.show()

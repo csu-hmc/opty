@@ -492,7 +492,7 @@ animation = FuncAnimation(fig, update, frames=frames, interval=1000 / fps)
 
 # %%
 # A frame from the animation.
-# sphinx_gallery_thumbnail_number = 5
+# sphinx_gallery_thumbnail_number = 4
 fig, ax, line1, line2, line3, line4 = init()
 update(4.15)
 

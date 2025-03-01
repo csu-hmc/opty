@@ -135,6 +135,7 @@ time_template = 'time = {:0.1f}s'
 time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
 
 
+# sphinx_gallery_thumbnail_number = 3
 def init():
     line.set_data([], [])
     time_text.set_text('')
