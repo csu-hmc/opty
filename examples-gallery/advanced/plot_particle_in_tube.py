@@ -297,6 +297,7 @@ print('len(instance_constraints) =', len(instance_constraints))
 # Add some physical limits to the force, other bounds as needed to realize
 # the inequalities.
 grenze = 100.0
+
 bounds = {
     Fx: (-grenze, grenze),
     Fy: (-grenze, grenze),

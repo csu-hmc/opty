@@ -199,7 +199,7 @@ class Problem(cyipopt.Problem):
 
         self.obj_value = []
 
-    def solve(self, free, lagrange=[], zl=[], zu=[]):
+    def solve(self, free, lagrange=[], zl=[], zu=[], respect_bounds=False):
         """Returns the optimal solution and an info dictionary.
 
         Solves the posed optimization problem starting at point x.
@@ -220,6 +220,11 @@ class Problem(cyipopt.Problem):
         zu : array-like, shape(n*N + q*N + r + s, ), optional (default=[])
             Initial values for the multipliers for upper variable bounds (only
             if warm start option is chosen).
+
+        respect_bounds : bool, optional (default=False)
+            If True, the initial guess is checked to ensure that it is within
+            the bounds, and a ValueError is raised if it is not. If False, the
+            initial guess is not checked.
 
         Returns
         -------
@@ -244,8 +249,80 @@ class Problem(cyipopt.Problem):
                 gives the status of the algorithm as a message
 
         """
-
+        if respect_bounds:
+            self.check_bounds_conflict(free)
         return super().solve(free, lagrange=lagrange, zl=zl, zu=zu)
+
+    def check_bounds_conflict(self, free):
+        """
+        Ascertains that the initial guesses for all variables are within the
+        limits prescribed by their respective bounds. Raises a ValueError if
+        for any variable the initial guess is outside its bounds, or if the
+        lower bound is greater than the upper bound.
+
+        Parameters
+        ----------
+        free : array_like, shape(n*N + q*N + r + s, )
+            Initial guess given to solve.
+
+        Raises
+        ------
+        ValueError
+            If the lower bound for variable is greater than its upper bound,
+            ``opty`` may not break, but the solution will likely not be correct.
+            Hence a ValueError is raised in such as case.
+
+            If the initial guess for any variable is outside its bounds,
+            a ValueError is raised.
+
+        """
+        if self.bounds is not None:
+            errors = []
+            # check for reversed bounds
+            for key in self.bounds.keys():
+                if self.bounds[key][0] > self.bounds[key][1]:
+                    errors.append(key)
+            if len(errors) > 0:
+                msg = (f'The lower bound(s) for {errors} is (are) greater than'
+                           ' the upper bound(s).')
+                raise ValueError(msg)
+
+            violating_variables = []
+
+            if self.collocator._variable_duration:
+                local_ts = self.collocator.time_interval_symbol
+                if local_ts in self.bounds.keys():
+                    if (free[-1] < self.bounds[local_ts][0]
+                        or free[-1] > self.bounds[local_ts][1]):
+                        violating_variables.append(local_ts)
+
+            symbole = (self.collocator.state_symbols +
+                self.collocator.unknown_input_trajectories)
+            for symb in symbole:
+                if symb in self.bounds.keys():
+                    idx = symbole.index(symb)
+                    feld = free[idx*self.collocator.num_collocation_nodes:
+                            (idx+1)*self.collocator.num_collocation_nodes]
+                    if (np.any(feld < self.bounds[symb][0])
+                        or np.any(feld > self.bounds[symb][1])):
+                        violating_variables.append(symb)
+
+            # check that initial guesses for unknown parameters are within
+            startidx = len(symbole) * self.collocator.num_collocation_nodes
+            for symb in self.collocator.unknown_parameters:
+                if symb in self.bounds.keys():
+                    idx = self.collocator.unknown_parameters.index(symb)
+                    if (free[startidx+idx] < self.bounds[symb][0]
+                        or free[startidx+idx] > self.bounds[symb][1]):
+                        violating_variables.append(symb)
+
+            if len(violating_variables) > 0:
+                msg = (f'The initial guesses for {violating_variables} are in '
+                f'conflict with their bounds.')
+                raise ValueError(msg)
+
+        else:
+            pass
 
     def _generate_bound_arrays(self):
         lb = -self.INF * np.ones(self.num_free)
