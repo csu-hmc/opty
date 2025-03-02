@@ -690,15 +690,16 @@ class Problem(cyipopt.Problem):
         """Returns the time instances of the problem as an numpy ndarray.
 
         Parameters
-        ----------
+        ==========
         solution : (n*N + q*N + r + s)-ndarray, optional
-            The solution to to problem. Needed if the interval is variable.
+            The solution to to problem. Needed if the time interval is variable.
         start_time : float, optional
             The initial time of the problem. Default is 0.0.
 
         Returns
-        -------
-        A numpy num_collocation_nodes-array of time instances.
+        =======
+        time_vector : ndarray, shape(num_collocation_nodes,)
+            The array of time instances.
 
         """
         t0 = start_time
@@ -706,9 +707,15 @@ class Problem(cyipopt.Problem):
             if solution is None:
                 msg = 'Solution vector must be provided for variable duration.'
                 raise ValueError(msg)
+            elif solution[-1] <= 0:
+                msg = 'Time interval must be strictly greater than zero.'
+                raise ValueError(msg)
+            elif t0 >= solution[-1] * self.collocator.num_collocation_nodes:
+                msg = 'Start time must be less than the final time.'
+                raise ValueError(msg)
             else:
-                return np.arange(t0, t0 + self.collocator.num_collocation_nodes*
-                    solution[-1], solution[-1])
+                return np.arange(t0, t0 + self.collocator.num_collocation_nodes
+                        *solution[-1], solution[-1])
 
         else:
             return np.arange(t0, t0 + self.collocator.num_collocation_nodes*
