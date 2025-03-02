@@ -135,6 +135,7 @@ traj_map = {
 #   height.
 # - Only let the hip, knee, and ankle flex and extend to realistic limits.
 # - Put a maximum on the peak torque values.
+
 bounds = {
     h: (0.001, 0.1),
     delt: (0.0, 10.0),
@@ -374,7 +375,7 @@ prob.collocator.known_parameter_map[g] = 1.625  # m/s**2
 pprint.pprint(prob.collocator.known_parameter_map)
 
 # %%
-# Use the Earth solution as an initial guess.
+# Use earth's solution as initial guess.
 solution, info = prob.solve(solution)
 
 # %%

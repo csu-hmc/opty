@@ -166,6 +166,7 @@ initial_guess = np.hstack((x_meas_vec, np.random.random(8)))
 initial_guess = np.hstack((x_meas_vec,
                            (h.gain_scale_factors*h.numerical_gains).flatten()))
 
+
 # %%
 # Find the optimal solution and compare to the values used to generate the
 # data.
