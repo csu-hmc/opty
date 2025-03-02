@@ -2040,13 +2040,13 @@ def test_bounds_conflict():
         -uy.diff(t) + a2 * y + u2 + b2,
         -z.diff(t) + uz,
         -uz.diff(t) + a3 * z + u3 + b3,
-        ])
+    ])
 
     state_symbols = (x, y, z, ux, uy, uz)
     par_map = {b1: 1.0,
                b2: 2.0,
                b3: 3.0
-               }
+    }
     num_nodes = 3
 
     # A: constant time interval
@@ -2093,12 +2093,11 @@ def test_bounds_conflict():
         bounds=bounds,
         time_symbol=t,
         backend='numpy'
-        )
+    )
 
     initial_guess = np.zeros(prob.num_free)
     with raises(ValueError):
         prob.bounds_conflict_initial_guess(initial_guess)
-
 
     # check for values outside the bounds
     bounds[z] = (-1.0, 1.0)
@@ -2109,7 +2108,6 @@ def test_bounds_conflict():
         initial_guess[start_idx + i*num_nodes] = 10.0
     with raises(ValueError):
         prob.bounds_conflict_initial_guess(initial_guess)
-
 
 
     # B: variable time interval
@@ -2200,8 +2198,6 @@ def test_bounds_conflict():
         prob.bounds_conflict_initial_guess(initial_guess)
 
 
-
-
     # C: respect_bounds=True: initial guess must be within bounds, else a
     # ValueError is raised.
     with raises(ValueError):
@@ -2222,7 +2218,7 @@ def test_bounds_conflict():
         instance_constraints=instance_constraints,
         time_symbol=t,
         backend='numpy'
-        )
+    )
 
     # no bounds hence on conflics possible
     initial_guess = np.ones(prob.num_free) * 10.0

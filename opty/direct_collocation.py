@@ -296,8 +296,8 @@ class Problem(cyipopt.Problem):
                         or free[-1] > self.bounds[local_ts][1]):
                         violating_variables.append(local_ts)
 
-            symbole = self.collocator.state_symbols + \
-            self.collocator.unknown_input_trajectories
+            symbole = (self.collocator.state_symbols +
+                self.collocator.unknown_input_trajectories)
             for symb in symbole:
                 if symb in self.bounds.keys():
                     idx = symbole.index(symb)
