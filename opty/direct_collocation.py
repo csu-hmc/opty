@@ -691,7 +691,7 @@ class Problem(cyipopt.Problem):
 
         Parameters
         ==========
-        solution : (n*N + q*N + r + s)-ndarray, optional
+        solution : ndarray, shape(n*N + q*N + r + s,), optional
             The solution to to problem. Needed if the time interval is variable.
         start_time : float, optional
             The initial time of the problem. Default is 0.0.
