@@ -288,9 +288,8 @@ class Problem(cyipopt.Problem):
                 raise ValueError(msg)
 
             violating_variables = []
-            # check that initial guesses for state variables anf for unkonwn
-            # input trajectories are within their bounds
-            if self.collocator._variable_duration == True:
+
+            if self.collocator._variable_duration:
                 local_ts = self.collocator.time_interval_symbol
                 if local_ts in self.bounds.keys():
                     if (free[-1] < self.bounds[local_ts][0]
