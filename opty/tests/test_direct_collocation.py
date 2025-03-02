@@ -1998,6 +1998,7 @@ def test_time_vector():
     # solution must be given
     with raises(ValueError):
         time_vector = prob.time_vector(start_time=t0)
+    with raises(ValueError):
         time_vector = prob.time_vector()
 
     solution = np.random.randn(prob.num_free)
