@@ -326,7 +326,7 @@ def animate(i):
 # A frame from the animation.
 fig, ax, line1, line2, recht = animate_pendulum(times, P1_x, P1_y, P2_x, P2_y)
 
-# sphinx_gallery_thumbnail_number = 3
+# sphinx_gallery_thumbnail_number = 4
 _ = animate(50)
 
 # %%

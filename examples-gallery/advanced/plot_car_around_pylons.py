@@ -469,4 +469,4 @@ update(7.26)
 
 plt.show()
 
-# sphinx_gallery_thumbnail_number = 4
+# sphinx_gallery_thumbnail_number = 3

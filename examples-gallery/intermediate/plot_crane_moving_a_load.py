@@ -344,7 +344,7 @@ def update(t):
 # %%
 # A frame from the animation.
 fig, ax, line1, recht, load, pfeil = init_plot()
-# sphinx_gallery_thumbnail_number = 3
+# sphinx_gallery_thumbnail_number = 4
 _ = update(2.0)
 
 # %%
