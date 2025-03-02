@@ -2220,7 +2220,40 @@ def test_bounds_conflict():
         backend='numpy'
     )
 
-    # no bounds hence on conflics possible
     initial_guess = np.ones(prob.num_free) * 10.0
+    prob.bounds_conflict_initial_guess(initial_guess)
+
+    # F Initial guess within bounds, no ValueError should be raised
+    bounds= {
+        a1: (-np.inf, 1.0),
+        a2: (-1.0, 1.0),
+        a3: (-1.0, np.inf),
+
+        u1: (-np.inf, 1.0),
+        u2: (-1.0, 1.0),
+        u3: (-1.0, np.inf),
+
+        x: (-1.0, 1.0 ),
+        ux: (-1.0, 1.0),
+        y: (-1.0, 1.0),
+        uy: (-np.inf, 1.0),
+        z: (-1.0, 1.0),
+        uz: (-1.0, np.inf),
+    }
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        bounds=bounds,
+        time_symbol=t,
+        backend='numpy'
+    )
+
+    initial_guess = np.zeros(prob.num_free)
     prob.bounds_conflict_initial_guess(initial_guess)
 
