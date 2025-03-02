@@ -329,7 +329,7 @@ bounds1 = {
         y: (0.0, 25),
 }
 
-bounds2 = {py[i]: (0-epsilon, 100+epsilon) for i in range(number)}
+bounds2 = {py[i]: (0 - epsilon, 100 + epsilon) for i in range(number)}
 bounds = {**bounds1, **bounds2}
 
 prob = Problem(
