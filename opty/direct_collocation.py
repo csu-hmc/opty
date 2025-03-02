@@ -286,18 +286,6 @@ class Problem(cyipopt.Problem):
                 msg = (f'The lower bound(s) for {errors} is (are) greater than'
                            ' the upper bound(s).')
                 raise ValueError(msg)
-            """
-            else:
-                if key in self.collocator.state_symbols:
-                    idx = self.collocator.state_symbols.index(key)
-                    feld = free[idx*self.collocator.num_collocation_nodes:
-                        (idx+1)*self.collocator.num_collocation_nodes]
-                    if (np.any(feld < self.bounds[key][0])
-                        or np.any(feld > self.bounds[key][1])):
-                        msg = f'The initial guess for {key} is in conflict '+\
-                            f'with its bounds.'
-                        raise ValueError(msg)
-            """
 
             violating_variables = []
             # check that initial guesses for state variables anf for unkonwn
@@ -333,6 +321,7 @@ class Problem(cyipopt.Problem):
                 msg = (f'The initial guesses for {violating_variables} are in '
                 f'conflict with their bounds.')
                 raise ValueError(msg)
+
         else:
             pass
 
