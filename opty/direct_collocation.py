@@ -262,7 +262,7 @@ class Problem(cyipopt.Problem):
 
         Parameters
         ----------
-        free : array-like, shape(n*N + q*N + r + s, )
+        free : array_like, shape(n*N + q*N + r + s, )
             Initial guess given to solve.
 
         Raises
