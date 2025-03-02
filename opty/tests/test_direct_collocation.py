@@ -2004,6 +2004,7 @@ def test_bounds_conflict():
         instance_constraints=instance_constraints,
         bounds=bounds,
         time_symbol=t,
+        backend='numpy'
         )
 
     initial_guess = np.zeros(prob.num_free)
@@ -2029,6 +2030,7 @@ def test_bounds_conflict():
         instance_constraints=instance_constraints,
         bounds=bounds,
         time_symbol=t,
+        backend='numpy'
         )
     initial_guess = np.zeros(prob.num_free)
     with raises(ValueError):
@@ -2087,6 +2089,7 @@ def test_bounds_conflict():
         instance_constraints=instance_constraints,
         bounds=bounds,
         time_symbol=t,
+        backend='numpy'
         )
 
     initial_guess = np.zeros(prob.num_free)
@@ -2114,6 +2117,7 @@ def test_bounds_conflict():
         instance_constraints=instance_constraints,
         bounds=bounds,
         time_symbol=t,
+        backend='numpy'
         )
 
     initial_guess = np.zeros(prob.num_free)
