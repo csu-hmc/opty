@@ -1924,212 +1924,98 @@ def test_attributes_read_only():
         with raises(AttributeError):
             setattr(test, XX, 5)
 
-def test_bounds_conflict():
-    """Test to ensure that the method of Problem, bounds_conflict_initial_guess
-    raises a ValueError when the initial guesses violates the bounds.
-    Test that reversed bounds are detected and a ValueError is raised.
-    Then the test that the kwarg respect_bounds works as expected in solve.
-    """
+def test_time_vector():
+    """Test to ensure that time_vector retunrs the correct values."""
 
-    x, y, z, ux, uy, uz = mech.dynamicsymbols('x y z ux uy uz')
-    u1, u2, u3 = mech.dynamicsymbols('u1 u2 u3')
-    a1, a2, a3 = sym.symbols('a1 a2 a3')
-    b1, b2, b3 = sym.symbols('b1 b2 b3')
+    x, ux = mech.dynamicsymbols('x ux')
     t = mech.dynamicsymbols._t
 
     # just random eoms, no physical meaning.
     eom = sym.Matrix([
         -x.diff(t) + ux,
-        -ux.diff(t) + a1 * x + u1 + b1,
-        -y.diff(t) + uy,
-        -uy.diff(t) + a2 * y + u2 + b2,
-        -z.diff(t) + uz,
-        -uz.diff(t) + a3 * z + u3 + b3,
+        -ux.diff(t) + 2.0,
         ])
 
-    state_symbols = (x, y, z, ux, uy, uz)
-    par_map = {b1: 1.0,
-               b2: 2.0,
-               b3: 3.0
-               }
-    num_nodes = 3
+    state_symbols = (x, ux)
+    num_nodes = 25
 
     # A: constant time interval
-    t0, tf = 0.0, 1.0
-    interval_value = tf/(num_nodes - 1)
+    t0, tf = np.random.uniform(0.0, 2.0), 10.0
+    interval_value = (tf - t0) / (num_nodes - 1)
 
     def obj(free):
-        Fx = free[2*num_nodes:3*num_nodes]
+        Fx = free[0*num_nodes:2*num_nodes]
         return interval_value*np.sum(Fx**2)
 
     def obj_grad(free):
         grad = np.zeros_like(free)
-        l1 = 2*num_nodes
-        l2 = 3*num_nodes
-        grad[l1: l2] = 2.0*free[l1:l2]*interval_value
+        grad[0:2*num_nodes] = 2.0*free[0:2*num_nodes]*interval_value
         return grad
 
-    instance_constraints = (
-        x.func(t0),
-        ux.func(t0),
-        x.func(tf) - 1.0,
-        ux.func(tf),
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        time_symbol=t,
+        backend='numpy'
     )
+    expected_time_vector = np.arange(t0, t0 + num_nodes*interval_value,
+                        interval_value)
+    time_vector = prob.time_vector(start_time=t0)
+    assert np.allclose(time_vector, expected_time_vector)
 
-    bounds= {
-        a1: (-1.0, 1.0),
-        a2: (-1.0, 1.0),
-        a3: (-1.0, 1.0),
-
-        u1: (-1.0, 1.0),
-        u2: (-1.0, 1.0),
-        u3: (-1.0, 1.0),
-
-        x: (-1.0, 1.0 ),
-        ux: (-1.0, 1.0),
-        y: (-1.0, 1.0),
-        uy: (-np.inf, 0),
-        z: (-1.0, 1.0),
-        uz: (1.0, 1.0),
-    }
-
-    prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        time_symbol=t,
-        backend='numpy'
-        )
-
-    initial_guess = np.zeros(prob.num_free)
-    start_idx = np.random.randint(0, num_nodes - 1)
-    # check for values outside the bounds
-    for i in range(9):
-        initial_guess[start_idx + i*num_nodes] = 10.0
-    with raises(ValueError):
-        prob.bounds_conflict_initial_guess(initial_guess)
-
-    # check for wrong bounds
-    bounds[a1] = (1.0, -1.0)
-    bounds[x] = (np.inf, 1.0)
-    bounds[uy] = (1.0, -np.inf)
-    prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        time_symbol=t,
-        backend='numpy'
-        )
-    initial_guess = np.zeros(prob.num_free)
-    with raises(ValueError):
-        prob.bounds_conflict_initial_guess(initial_guess)
-
+    solution = np.random.randn(prob.num_free)
+    time_vector = prob.time_vector(solution, start_time=t0)
+    assert np.allclose(time_vector, expected_time_vector)
 
     # B: variable time interval
-    h = sym.symbols('h')
+    h =sym.symbols('h')
     interval_value = h
-    t0, tf = 0.0, (num_nodes - 1)*h
 
     def obj(free):
-        Fx = free[6*num_nodes:9*num_nodes]
-        return free[-1]*np.sum(Fx**2)
+        Fx = free[0*num_nodes:2*num_nodes]
+        return solution[-1]*np.sum(Fx**2)
 
     def obj_grad(free):
         grad = np.zeros_like(free)
-        l1 = 6*num_nodes
-        l2 = 9*num_nodes
-        grad[l1: l2] = 2.0*free[l1:l2]*free[-1]
-        grad[-1] = np.sum(free[l1:l2]**2)
+        grad[0:2*num_nodes] = 2.0*free[0:2*num_nodes]*solution[-1]
         return grad
 
-    instance_constraints = (
-        x.func(t0),
-        ux.func(t0),
-        x.func(tf) - 1.0,
-        ux.func(tf),
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        time_symbol=t,
+        backend='numpy'
     )
-    bounds= {
-        a1: (-1.0, 1.0),
-        a2: (-1.0, 1.0),
-        a3: (-1.0, 1.0),
 
-        u1: (-np.inf, 1.0),
-        u2: (-1.0, 1.0),
-        u3: (1.0, 1.0),
-
-        x: (-np.inf, 1.0),
-        ux: (-1.0, 1.0),
-        y: (-1.0, 1.0),
-        uy: (-1.0, 1.0),
-        z: (-1.0, 1.0),
-        uz: (-1.0, np.inf),
-        h: (0.0, 0.4 )
-    }
-
-    prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        time_symbol=t,
-        backend='numpy'
-        )
-
-    initial_guess = np.zeros(prob.num_free)
-    start_idx = np.random.randint(0, num_nodes - 1)
-    # check for values outside the bounds
-    for i in range(9):
-        initial_guess[start_idx + i*num_nodes] = -10.0
-    initial_guess[-1] = 0.3
+    # solution must be given
     with raises(ValueError):
-        prob.bounds_conflict_initial_guess(initial_guess)
-
-    # check for wrong bounds
-    bounds[a1] = (1.0, -1.0)
-    bounds[x] = (np.inf, 1.0)
-    bounds[uy] = (1.0, -np.inf)
-
-    prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        time_symbol=t,
-        backend='numpy'
-        )
-
-    initial_guess = np.zeros(prob.num_free)
+        time_vector = prob.time_vector(start_time=t0)
     with raises(ValueError):
-        prob.bounds_conflict_initial_guess(initial_guess)
+        time_vector = prob.time_vector()
 
+    solution = np.random.randn(prob.num_free)
+    solution[-1] = np.random.uniform(2.5/(num_nodes-1), 10.0/(num_nodes-1))
+    time_vector = prob.time_vector(solution, start_time=t0)
+    expected_time_vector = np.arange(t0, t0 + num_nodes*solution[-1],
+                solution[-1])
+    assert np.allclose(time_vector, expected_time_vector)
 
-
-    # C: respect_bounds=True: initial guess must be within bounds, else a
-    # ValueError is raised.
+    # final time > initial time
+    solution[-1] = 1.e-75
+    expected_time_vector = np.arange(t0, t0 + num_nodes*solution[-1],
+                solution[-1])
     with raises(ValueError):
-        _, _ = prob.solve(initial_guess, respect_bounds=True)
+        time_vector = prob.time_vector(solution, start_time=t0)
 
-    # B: respect_bounds=False. Bounds are ignored.
-    _, _ = prob.solve(initial_guess)
+    # interval_value must be greater than zero
+    solution[-1] = 0.0
+    with raises(ValueError):
+        time_vector = prob.time_vector(solution, start_time=t0)

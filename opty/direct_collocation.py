@@ -278,6 +278,7 @@ class Problem(cyipopt.Problem):
         """
         if self.bounds is not None:
             errors = []
+            # check for reversed bounds
             for key in self.bounds.keys():
                 if self.bounds[key][0] > self.bounds[key][1]:
                     errors.append(key)
@@ -285,20 +286,22 @@ class Problem(cyipopt.Problem):
                 msg = (f'The lower bound(s) for {errors} is (are) greater than'
                            ' the upper bound(s).')
                 raise ValueError(msg)
-
-            if key in self.collocator.state_symbols:
-                idx = self.collocator.state_symbols.index(key)
-                feld = free[idx*self.collocator.num_collocation_nodes:
+            """
+            else:
+                if key in self.collocator.state_symbols:
+                    idx = self.collocator.state_symbols.index(key)
+                    feld = free[idx*self.collocator.num_collocation_nodes:
                         (idx+1)*self.collocator.num_collocation_nodes]
-                if (np.any(feld < self.bounds[key][0])
+                    if (np.any(feld < self.bounds[key][0])
                         or np.any(feld > self.bounds[key][1])):
-                    msg = f'The initial guess for {key} is in conflict '+\
-                        f'with its bounds.'
-                    raise ValueError(msg)
-
+                        msg = f'The initial guess for {key} is in conflict '+\
+                            f'with its bounds.'
+                        raise ValueError(msg)
+            """
 
             violating_variables = []
-
+            # check that initial guesses for state variables anf for unkonwn
+            # input trajectories are within their bounds
             if self.collocator._variable_duration == True:
                 local_ts = self.collocator.time_interval_symbol
                 if local_ts in self.bounds.keys():
@@ -317,6 +320,7 @@ class Problem(cyipopt.Problem):
                         or np.any(feld > self.bounds[symb][1])):
                         violating_variables.append(symb)
 
+            # check that initial guesses for unknown parameters are within
             startidx = len(symbole) * self.collocator.num_collocation_nodes
             for symb in self.collocator.unknown_parameters:
                 if symb in self.bounds.keys():
@@ -770,6 +774,43 @@ class Problem(cyipopt.Problem):
         variable_duration = self.collocator._variable_duration
 
         return parse_free(free, n, q, N, variable_duration)
+
+    def time_vector(self, solution=None, start_time=0.0):
+        """Returns the time instances of the problem as an numpy ndarray.
+
+        Parameters
+        ==========
+        solution : ndarray, shape(n*N + q*N + r + s,), optional
+            The solution to to problem. Needed if the time interval is variable.
+        start_time : float, optional
+            The initial time of the problem. Default is 0.0.
+
+        Returns
+        =======
+        time_vector : ndarray, shape(num_collocation_nodes,)
+            The array of time instances.
+
+        """
+        t0 = start_time
+        if self.collocator._variable_duration:
+            if solution is None:
+                msg = 'Solution vector must be provided for variable duration.'
+                raise ValueError(msg)
+            elif solution[-1] <= 0:
+                msg = 'Time interval must be strictly greater than zero.'
+                raise ValueError(msg)
+            elif t0 >= solution[-1] * self.collocator.num_collocation_nodes:
+                msg = 'Start time must be less than the final time.'
+                raise ValueError(msg)
+            else:
+                return np.arange(t0, t0 + self.collocator.num_collocation_nodes
+                        *solution[-1], solution[-1])
+
+        else:
+            return np.arange(t0, t0 + self.collocator.num_collocation_nodes*
+                self.collocator.node_time_interval,
+                self.collocator.node_time_interval)
+
 
 class ConstraintCollocator(object):
     """This class is responsible for generating the constraint function and the
