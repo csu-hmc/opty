@@ -250,10 +250,10 @@ class Problem(cyipopt.Problem):
 
         """
         if respect_bounds:
-            self.bounds_conflict_initial_guess(free)
+            self.check_bounds_conflict(free)
         return super().solve(free, lagrange=lagrange, zl=zl, zu=zu)
 
-    def bounds_conflict_initial_guess(self, free):
+    def check_bounds_conflict(self, free):
         """
         Ascertains that the initial guesses for all variables are within the
         limits prescribed by their respective bounds. Raises a ValueError if

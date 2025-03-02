@@ -2020,7 +2020,7 @@ def test_time_vector():
     with raises(ValueError):
         time_vector = prob.time_vector(solution, start_time=t0)
 
-def test_bounds_conflict():
+def test_check_bounds_conflict():
     """Test to ensure that the method of Problem, bounds_conflict_initial_guess
     raises a ValueError when the initial guesses violates the bounds.
     Then the test that the kwarg respect_bounds works as expected in solve.
@@ -2097,7 +2097,7 @@ def test_bounds_conflict():
 
     initial_guess = np.zeros(prob.num_free)
     with raises(ValueError):
-        prob.bounds_conflict_initial_guess(initial_guess)
+        prob.check_bounds_conflict(initial_guess)
 
     # check for values outside the bounds
     bounds[z] = (-1.0, 1.0)
@@ -2107,7 +2107,7 @@ def test_bounds_conflict():
     for i in range(9):
         initial_guess[start_idx + i*num_nodes] = 10.0
     with raises(ValueError):
-        prob.bounds_conflict_initial_guess(initial_guess)
+        prob.check_bounds_conflict(initial_guess)
 
 
     # B: variable time interval
@@ -2172,7 +2172,7 @@ def test_bounds_conflict():
         initial_guess[start_idx + i*num_nodes] = -10.0
     initial_guess[-1] = 0.5
     with raises(ValueError):
-        prob.bounds_conflict_initial_guess(initial_guess)
+        prob.check_bounds_conflict(initial_guess)
 
     # check for wrong bounds
     bounds[a1] = (1.0, -1.0)
@@ -2195,7 +2195,7 @@ def test_bounds_conflict():
 
     initial_guess = np.zeros(prob.num_free)
     with raises(ValueError):
-        prob.bounds_conflict_initial_guess(initial_guess)
+        prob.check_bounds_conflict(initial_guess)
 
 
     # C: respect_bounds=True: initial guess must be within bounds, else a
@@ -2221,7 +2221,7 @@ def test_bounds_conflict():
     )
 
     initial_guess = np.ones(prob.num_free) * 10.0
-    prob.bounds_conflict_initial_guess(initial_guess)
+    prob.check_bounds_conflict(initial_guess)
 
     # F Initial guess within bounds, no ValueError should be raised
     bounds= {
@@ -2255,5 +2255,5 @@ def test_bounds_conflict():
     )
 
     initial_guess = np.zeros(prob.num_free)
-    prob.bounds_conflict_initial_guess(initial_guess)
+    prob.check_bounds_conflict(initial_guess)
 
