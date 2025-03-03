@@ -2257,3 +2257,578 @@ def test_check_bounds_conflict():
     initial_guess = np.zeros(prob.num_free)
     prob.check_bounds_conflict(initial_guess)
 
+def test_linear_initial_guess(plot=False):
+    """Test to check if the initial guess is created correctly. If plot=True,
+    the initial guesses are plotted."""
+
+    x, y, ux, uy = mech.dynamicsymbols('x y ux uy')
+    u1, u2 = mech.dynamicsymbols('u1 u2')
+    a1, a2 = sym.symbols('a1 a2')
+    b1, b2 = sym.symbols('b1 b2')
+    t = mech.dynamicsymbols._t
+
+    # just random eoms, no physical meaning.
+    eom = sym.Matrix([
+        -x.diff(t) + a1,
+        -ux.diff(t) + u1 * b1,
+        -y.diff(t) + a1,
+        -uy.diff(t) + a2 * u2 + b2,
+    ])
+
+    state_symbols = (x, y, ux, uy)
+    par_map = {b1: 1.0,
+               b2: 2.0,
+               }
+    num_nodes = 61
+
+    # A: CONSTANT TIME INTERVAL
+    # A0: no bounds, no instance constraints
+    t0, t1, t2, tf = 0.0, 2.0, 4.0, 6.0
+    interval_value = tf/(num_nodes - 1)
+
+    def obj(free):
+        Fx = free[0*num_nodes:3*num_nodes]
+        return interval_value*np.sum(Fx**2)
+
+    def obj_grad(free):
+        grad = np.zeros_like(free)
+        grad[0: 2*num_nodes] = 2.0*free[0:2*num_nodes]*interval_value
+        return grad
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    expected_guess = np.zeros(prob.num_free)
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax =prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories A0: no bounds, no instance'
+                        ' constraints'))
+
+    # A1: no bounds
+
+    instance_constraints = (
+        x.func(t0),
+        y.func(t0) - 2.0,
+        ux.func(t0) - 5.0,
+
+        x.func(t1) - 1.5*b1,
+        y.func(t1) - 4.0,
+        ux.func(t1) - 1.0+b2,
+        uy.func(t1) - 4.5,
+
+        x.func(t2) + 2.0,
+        y.func(t2),
+
+        x.func(tf),
+        ux.func(tf),
+    )
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    # Set the expected initial guess
+    expected_guess = np.zeros(prob.num_free)
+    duration = (num_nodes-1)*interval_value
+    # x - guess
+    start = round(t0/duration*num_nodes)
+    ende = round(t1/duration*num_nodes)
+    werte = np.linspace(0.0, 1.5*par_map[b1], ende-start)
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
+    start = round(t1/duration*num_nodes)
+    ende = round(t2/duration*num_nodes)
+    werte = np.linspace(1.5*par_map[b1], -2.0, ende-start)
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
+    start = round(t2/duration*num_nodes)
+    ende = round(tf/duration*num_nodes)
+    werte = np.linspace(-2.0, 0.0, ende-start)
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
+     # y - guess
+    start = round(t0/duration*num_nodes)
+    ende = round(t1/duration*num_nodes)
+    werte = np.linspace(2.0, 4.0, ende-start)
+    expected_guess[1*num_nodes+start:1*num_nodes+ende] = werte
+    start = round(t1/duration*num_nodes)
+    ende = round(t2/duration*num_nodes)
+    werte = np.linspace(4.0, 0.0, ende-start)
+    expected_guess[1*num_nodes+start:1*num_nodes+ende] = werte
+    # ux - guess
+    start = round(t0/duration*num_nodes)
+    ende = round(t1/duration*num_nodes)
+    werte = np.linspace(5.0, 1.0-par_map[b2], ende-start)
+    expected_guess[2*num_nodes+start:2*num_nodes+ende] = werte
+    start = round(t1/duration*num_nodes)
+    ende = round(tf/duration*num_nodes)
+    werte = np.linspace(1.0-par_map[b2], 0.0, ende-start)
+    expected_guess[2*num_nodes+start:2*num_nodes+ende] = werte
+    # uy - guess
+    expected_guess[3*num_nodes:4*num_nodes] = 4.5
+    # u1 - guess
+    expected_guess[4*num_nodes:5*num_nodes] = 0.0
+    # u2 - guess
+    expected_guess[5*num_nodes:6*num_nodes] = 0.0
+    # a1 - guess
+    expected_guess[6*num_nodes] = 0.0
+    # a2 - guess
+    expected_guess[6*num_nodes+1] = 0.0
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories A1: no bounds'))
+
+    # A2 normal
+
+    bounds= {
+        a1: (-1.0, 10.0),
+        a2: (-1.0, 12.0),
+
+        u1: (-10.0, 1.0),
+        u2: (-1.0, 10.0),
+
+        x: (-5.0, 5.0 ),
+        ux: (-1.0, 1.0),
+        y: (-4.0, 4.0),
+        uy: (-1.0, 1.0),
+    }
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    # Set new expected guesses as bounds are present
+    # u1 - guess
+    expected_guess[4*num_nodes:5*num_nodes] = -9.0/2.0
+    # u2 - guess
+    expected_guess[5*num_nodes:6*num_nodes] = 9.0/2.0
+    # a1 - guess
+    expected_guess[6*num_nodes] = 9/2
+    # a2 - guess
+    expected_guess[6*num_nodes+1] = 11.0/2.0
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories A2 normal'))
+
+    # A3: np.inf, -np.inf in bounds
+    bounds[a1] = (-np.inf, 10.0)
+    bounds[a2] = (-10.0, np.inf)
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    expected_guess[6*num_nodes] = 10.0
+    expected_guess[6*num_nodes+1] = -10.0
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories A3: np.inf, -np.inf in bounds'))
+
+    # A4: no bounds
+    expected_guess[4*num_nodes: 5*num_nodes] = 0.0
+    expected_guess[5*num_nodes: 6*num_nodes] = 0.0
+    expected_guess[6*num_nodes] = 0.0
+    expected_guess[6*num_nodes+1] = 0.0
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories A4: no bounds'))
+
+
+    # A5: state instances in instance_constraints
+    instance_constraints = (
+        x.func(t0) - 3.0 + ux.func(tf),
+        y.func(t0) - 2.0,
+        ux.func(t0) - 5.0,
+
+        x.func(t1) - 1.5*b1,
+        y.func(t1) - 4.0,
+        ux.func(t1) - 1.0+b2,
+        uy.func(t1) - 4.5,
+
+        x.func(t2) + 2.0,
+        y.func(t2),
+
+        x.func(tf),
+        ux.func(tf),
+    )
+
+    start = round(t0/duration*num_nodes)
+    ende = round(t1/duration*num_nodes)
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = 0.0
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories A5: state instances in instance'
+                         ' constraints'))
+
+
+    # ========================================================================
+    # B: VARIABLE TIME INTERVAL
+    # B0: no bounds no instances
+    h = sym.symbols('h')
+    t00, t10, t20 = 0.0, int(num_nodes/3)*h, int(2*num_nodes/3)*h
+    tf0 = (num_nodes - 1)*h
+    interval_value = h
+
+    def obj(free):
+        Fx = free[0*num_nodes:3*num_nodes]
+        return free[-1]*np.sum(Fx**2)
+
+    def obj_grad(free):
+        grad = np.zeros_like(free)
+        grad[0: 2*num_nodes] = 2.0*free[0:2*num_nodes]*free[-1]
+        return grad
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    expected_guess = np.zeros(prob.num_free)
+    expected_guess[-1] = 1.0 / (num_nodes-1)
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories B0: no bounds, no instance',
+                         ' constraints'))
+
+    initial_guess = prob.create_linear_initial_guess(end_time=2.0)
+    expected_guess[-1] = 2.0 / (num_nodes-1)
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories B0: no bounds, no instance'
+                         ' constraints, end_time=2.0'))
+
+    # B1: no bounds
+    instance_constraints = (
+        x.func(t00),
+        y.func(t00),
+        ux.func(t00) - 5.0,
+
+        x.func(t10) - 1.5*b1,
+        y.func(t10) - 4.0,
+        ux.func(t10) - 1.0+b2,
+        uy.func(t10) - 4.5,
+
+        x.func(t20),
+        y.func(t20) - 3.0,
+
+        x.func(tf0) + 1.0,
+        ux.func(tf0) + 5.0,
+    )
+
+    # Set the expected initial guess
+    expected_guess = np.zeros(prob.num_free)
+    t0, t1, t2 = int(0.0), int(num_nodes/3), int(2*num_nodes/3)
+    tf = int(num_nodes - 1)
+
+    # x - guess
+    start = t0
+    ende = t1
+    werte = np.linspace(0.0, 1.5*par_map[b1], ende-start)
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
+    start = t1
+    ende = t2
+    werte = np.linspace(1.5*par_map[b1], 0.0, ende-start)
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
+    start = t2
+    ende = tf
+    werte = np.linspace(0.0, -1.0, ende-start)
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
+     # y - guess
+    start = t0
+    ende = t1
+    werte = np.linspace(0.0, 4.0, ende-start)
+    expected_guess[1*num_nodes+start:1*num_nodes+ende] = werte
+    start = t1
+    ende = t2
+    werte = np.linspace(4.0, 3.0, ende-start)
+    expected_guess[1*num_nodes+start:1*num_nodes+ende] = werte
+    # ux - guess
+    start = t0
+    ende = t1
+    werte = np.linspace(5.0, 1.0-par_map[b2], ende-start)
+    expected_guess[2*num_nodes+start:2*num_nodes+ende] = werte
+    start = t1
+    ende = tf
+    werte = np.linspace(1.0-par_map[b2], -5.0, ende-start)
+    expected_guess[2*num_nodes+start:2*num_nodes+ende] = werte
+    # uy - guess
+    expected_guess[3*num_nodes:4*num_nodes] = 4.5
+    # u1 - guess
+    expected_guess[4*num_nodes:5*num_nodes] = 0
+    # u2 - guess
+    expected_guess[5*num_nodes:6*num_nodes] = 0
+    # a1 - guess
+    expected_guess[6*num_nodes] = 0
+    # a2 - guess
+    expected_guess[6*num_nodes+1] = 0
+    # h - guess
+    expected_guess[-1] = 1.0 / (num_nodes-1)
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title('State Trajectories B1: no bounds')
+
+
+    initial_guess = prob.create_linear_initial_guess(end_time=3.0)
+    expected_guess[-1] = 3.0 / (num_nodes-1)
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title('State Trajectories B1: no bounds, end_time=3.0')
+
+
+
+    # B2 normal
+    bounds= {
+        a1: (-1.0, 10.0),
+        a2: (-1.0, 12.0),
+
+        u1: (-10.0, 1.0),
+        u2: (-1.0, 10.0),
+
+        x: (-5.0, 5.0 ),
+        ux: (-1.0, 1.0),
+        y: (-4.0, 4.0),
+        uy: (-1.0, 1.0),
+        h: (1.0, 2.0),
+    }
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    # Set new expected guesses as bounds are present
+    # u1 - guess
+    expected_guess[4*num_nodes:5*num_nodes] = -9.0/2.0
+    # u2 - guess
+    expected_guess[5*num_nodes:6*num_nodes] = 9.0/2.0
+    # a1 - guess
+    expected_guess[6*num_nodes] = 9/2
+    # a2 - guess
+    expected_guess[6*num_nodes+1] = 11.0/2.0
+    # h - guess
+    expected_guess[-1] = 1.5
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title('State Trajectories B2 normal')
+
+    initial_guess = prob.create_linear_initial_guess(end_time=4.0)
+    # as bound for h is given, end_time has no effect.
+    expected_guess[-1] = 1.5
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories B2 normal, end_time = 4.0',
+                        'ignored as bounds are available'))
+
+
+    # B3: np.inf, -np.inf in bounds
+    bounds[a1] = (-np.inf, 10.0)
+    bounds[a2] = (-10.0, np.inf)
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    expected_guess[6*num_nodes] = 10.0
+    expected_guess[6*num_nodes+1] = -10.0
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories B3: np.inf, -np.inf in bounds'))
+
+    # B4: no bounds
+    expected_guess[4*num_nodes: 5*num_nodes] = 0.0
+    expected_guess[5*num_nodes: 6*num_nodes] = 0.0
+    expected_guess[6*num_nodes] = 0.0
+    expected_guess[6*num_nodes+1] = 0.0
+    expected_guess[-1] = 1.0 / (num_nodes-1)
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        backend='numpy',
+        )
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title('State Trajectories B4: no bounds')
+
+    # B5: state instances in instance_constraints
+    instance_constraints = (
+        x.func(t00) - 3.0 + ux.func(tf0),
+        y.func(t00),
+        ux.func(t00) - 5.0,
+
+        x.func(t10) - 1.5*b1,
+        y.func(t10) - 4.0,
+        ux.func(t10) - 1.0+b2,
+        uy.func(t10) - 4.5,
+
+        x.func(t20),
+        y.func(t20) - 3.0,
+
+        x.func(tf0)+ 1.0,
+        ux.func(tf0)+ 5.0,
+    )
+
+    start = t0
+    ende = t1
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = 0.0
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories B5: state instances in instance'
+                         ' constraints'))
+
