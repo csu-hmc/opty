@@ -823,7 +823,8 @@ class Problem(cyipopt.Problem):
         - If bounds exist for unknown input trajectories or unknown parameters,
           the values are set to the midpoint of the interval of the bounds.
         - If bounds exist for the variable time interval, the value is set to
-          the midpoint of its bounds.
+          the midpoint of its bounds. This will override the value of
+          ``end_time``.
         - If one of the range limit of a bound is ``-np.inf`` or ``np.inf``,
           the value is set to the other finite limit of bound.
         - All else is set to zero.
