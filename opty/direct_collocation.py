@@ -130,6 +130,9 @@ class Problem(cyipopt.Problem):
 
     The attributes may be accessed as follows: ``Problem_instance.collocator.name_of_attribute``
 
+    For number of operation in the eoms :math:`\lesssim` 50,000 ``backend='numpy'``
+    may build ``Problem`` faster.
+
     """
 
     INF = 10e19
