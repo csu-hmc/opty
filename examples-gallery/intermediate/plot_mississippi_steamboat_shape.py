@@ -384,7 +384,7 @@ else:
         print('Message from optimizer:', info['status_msg'])
         print(f'Optimal h value is: {solution[-1]:.3f} sec')
         print('duration:', solution[-1])
-        print(f'Objective value: {info['obj_val']:,.1f}')
+        print(f"Objective value: {info['obj_val']:,.1f}")
 
 print(f'Optimum length of the boat is {solution[-3]:.2f} m')
 print(f'Optimum width of the boat is  {solution[-2]:.2f} m')
