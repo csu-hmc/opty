@@ -1,4 +1,4 @@
-"""
+r"""
 Mississippi Steamboat
 =====================
 
@@ -8,6 +8,8 @@ Objectives
 - Show the usage of opty's variable node time interval feature.
 - Show an objective function which is a weighted average of the time and of the
   energy needed.
+- Show how to use an additional state variable to allow opty to optimize
+  parameters.
 
 
 Introduction
@@ -22,6 +24,10 @@ rigid bodies.
 By running the wheels at different speeds, the boat can be steered.
 The water speed is assumed to be zero. Gravity, in the negative Z direction, is
 unimportant here, therefore disregarded.
+To get the optimum shape of the boat, a state variable ``area`` is
+introduced, and :math:`area = a_S \cdot b_S` is added to the equations of
+motion. ``area`` is fixed by the bounds.
+
 
 
 Notes
@@ -52,6 +58,7 @@ The equations of motion might be of interest.
 - :math:`u_S`: angular speed of the steamboat [rad/s]
 - :math:`u_{LW}`: angular speed of the left wheel [rad/s]
 - :math:`u_{RW}`: angular speed of the right wheel [rad/s]
+- :math:`\textrm{area}`: needed to optimize the shape of the boat [m^2]
 
 **Specifieds**
 
@@ -97,6 +104,7 @@ O, FPLW, FPRW = sm.symbols('O, FPLW, FPRW', cls=me.Point)
 q, x, y, qLW, qRW = me.dynamicsymbols('q, x, y, qLW, qRW')
 u, ux, uy, uLW, uRW = me.dynamicsymbols('u, ux, uy, uLW, uRW')
 tLW, tRW = me.dynamicsymbols('tLW, tRW')
+area = me.dynamicsymbols('area')
 
 mS, mW, rW, aS, bS, cS, cW = sm.symbols('mS, mW, rW, aS, bS, cS, cW', real=True)
 
@@ -231,6 +239,7 @@ KM = me.KanesMethod(N,
 
 fr, frstar = KM.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
+eom = eom.col_join(sm.Matrix([area - aS*bS]))
 print(f'The equations of motion containt {sm.count_ops(eom)} operations.')
 
 # %%
@@ -238,9 +247,9 @@ print(f'The equations of motion containt {sm.count_ops(eom)} operations.')
 # --------------------------------------------
 #
 
-state_symbols = [q, x, y, qLW, qRW, u, ux, uy, uLW, uRW]
+state_symbols = [q, x, y, qLW, qRW, u, ux, uy, uLW, uRW, area]
 specified_symbols = [tLW, tRW]
-constant_symbols = [mS, mW, rW, aS, bS, cS, cW]
+constant_symbols = [mS, mW, rW, cS, cW]
 num_nodes = 251
 h = sm.symbols('h')
 
@@ -251,8 +260,6 @@ par_map = {}
 par_map[mS] = 10.0
 par_map[mW] = 1.0
 par_map[rW] = 1.0
-par_map[aS] = 5.0
-par_map[bS] = 1.0
 par_map[cS] = 0.75
 par_map[cW] = 0.75
 
@@ -332,6 +339,9 @@ limit_torque = 25.
 bounds = {
     tLW: (-limit_torque, limit_torque),
     tRW: (-limit_torque, limit_torque),
+    area: (5.0, 5.0001),
+    aS: (0.0, 20.0),
+    bS: (0.0, 20.0),
     h: (0.0, 1.0),
 }
 
@@ -357,7 +367,8 @@ i2 = list(np.linspace(initial_state_constraints[x], final_state_constraints[x],
 i3 = list(np.linspace(initial_state_constraints[y], final_state_constraints[y],
     num_nodes))
 i4 = list(np.zeros(9*num_nodes))
-initial_guess = np.array(i1 + i2 + i3 + i4 + [0.01])
+i5 = list(np.ones(num_nodes)*5.0)
+initial_guess = np.array(i1 + i2 + i3 + i4 + i5 +[np.sqrt(5), np.sqrt(5), 0.01])
 
 # Use given solution, if available else use the initial guess given above.
 fname = f'mississippi_steamboat_{num_nodes}_nodes_solution.csv'
@@ -371,6 +382,11 @@ else:
         solution, info = prob.solve(initial_guess)
         print('Message from optimizer:', info['status_msg'])
         print(f'Optimal h value is: {solution[-1]:.3f} sec')
+        print(f"Objective value: {info['obj_val']:,.1f}")
+
+print(f'Optimum length of the boat is {solution[-3]:.2f} m')
+print(f'Optimum width of the boat is  {solution[-2]:.2f} m')
+
 
 # %%
 # Plot errors in the solution.
@@ -383,6 +399,9 @@ _ = prob.plot_trajectories(solution)
 # %%
 # Animate the Solution
 # --------------------
+par_map[aS] = solution[-3]
+par_map[bS] = solution[-2]
+
 fps = 13
 
 def add_point_to_data(line, x, y):
@@ -396,10 +415,10 @@ t_arr = np.linspace(t0, num_nodes*solution[-1], num_nodes)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 
-xmin = initial_state_constraints[x] - par_map[aS]/1.75
-xmax = final_state_constraints[x] + par_map[aS]/1.75
-ymin = initial_state_constraints[y] - par_map[aS]/1.75
-ymax = final_state_constraints[y] + par_map[aS]/1.75
+xmin = initial_state_constraints[x] - par_map[aS]
+xmax = final_state_constraints[x] + par_map[aS]
+ymin = initial_state_constraints[y] - par_map[aS]
+ymax = final_state_constraints[y] + par_map[aS]
 
 # additional points to plot the water wheels and the torque
 pLB, pLF, pRB, pRF, tL, tR, S1, S2 = sm.symbols('pLB pLF pRB pRF tL, tR S1 S2',
