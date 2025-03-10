@@ -1,3 +1,4 @@
+# %%
 r"""
 Mississippi Steamboat
 =====================
@@ -8,8 +9,7 @@ Objectives
 - Show the usage of opty's variable node time interval feature.
 - Show an objective function which is a weighted average of the time and of the
   energy needed.
-- Show how to use an additional state variable to allow opty to optimize
-  parameters.
+- Show a simple way to optimize parameters of the boat
 
 
 Introduction
@@ -24,16 +24,18 @@ rigid bodies.
 By running the wheels at different speeds, the boat can be steered.
 The water speed is assumed to be zero. Gravity, in the negative Z direction, is
 unimportant here, therefore disregarded.
-To get the optimum shape of the boat, a state variable ``area`` is
-introduced, and :math:`area = a_S \cdot b_S` is added to the equations of
-motion. ``area`` is fixed by the bounds.
+
 
 
 
 Notes
 -----
 
-The equations of motion might be of interest.
+- The equations of motion might be of interest.
+- Set :math:`\textrm{area} = a_S \cdot b_S`. and set :math:`R = \dfrac{a_S}{b_S}`
+  Then :math:`a_S = \sqrt{\textrm{area} \cdot R}` and
+  :math:`b_S = \sqrt{\dfrac{\textrm{area}}{R}}`. Let R be a free parameter to
+  be optimized.
 
 **Constants**
 
@@ -58,12 +60,16 @@ The equations of motion might be of interest.
 - :math:`u_S`: angular speed of the steamboat [rad/s]
 - :math:`u_{LW}`: angular speed of the left wheel [rad/s]
 - :math:`u_{RW}`: angular speed of the right wheel [rad/s]
-- :math:`\textrm{area}`: needed to optimize the shape of the boat [m^2]
 
 **Specifieds**
 
 - :math:`t_{LW}`: torque applied to the left wheel [Nm]
 - :math:`t_{RW}`: torque applied to the right wheel [Nm]
+
+**Free Parameters**
+
+- :math:`R`: ratio of the length to the width of the steamboat
+- :math:`h`: variable time interval [s]
 
 """
 import os
@@ -104,9 +110,9 @@ O, FPLW, FPRW = sm.symbols('O, FPLW, FPRW', cls=me.Point)
 q, x, y, qLW, qRW = me.dynamicsymbols('q, x, y, qLW, qRW')
 u, ux, uy, uLW, uRW = me.dynamicsymbols('u, ux, uy, uLW, uRW')
 tLW, tRW = me.dynamicsymbols('tLW, tRW')
-area = me.dynamicsymbols('area')
+area, R = sm.symbols('area, R')
 
-mS, mW, rW, aS, bS, cS, cW = sm.symbols('mS, mW, rW, aS, bS, cS, cW', real=True)
+mS, mW, rW, cS, cW = sm.symbols('mS, mW, rW, cS, cW', real=True)
 
 t = me.dynamicsymbols._t
 O.set_vel(N, 0)
@@ -120,9 +126,9 @@ ARW.set_ang_vel(AS, uRW*AS.x)
 
 AoS.set_pos(O, x*N.x + y*N.y)
 AoS.set_vel(N, ux*N.x + uy*N.y)
-AoLW.set_pos(AoS, -1.1*bS*AS.x)
+AoLW.set_pos(AoS, -1.1*sm.sqrt(area/R)*AS.x)
 AoLW.v2pt_theory(AoS, N, AS)
-AoRW.set_pos(AoS, 1.1*bS*AS.x)
+AoRW.set_pos(AoS, 1.1*sm.sqrt(area/R)*AS.x)
 AoRW.v2pt_theory(AoS, N, AS)
 
 FPLW.set_pos(AoLW, -rW*N.z)
@@ -164,8 +170,8 @@ FPRW.set_vel(N, AoRW.vel(N) + uRW*AS.x.cross(-rW*N.z))
 helpx = AoS.vel(N).dot(AS.x)
 helpy = AoS.vel(N).dot(AS.y)
 
-FDx = -cS*aS*(helpx**2)*sm.tanh(20*helpx)*AS.x
-FDy = -cS*bS*(helpy**2)*sm.tanh(20*helpy)*AS.y
+FDx = -cS*sm.sqrt(area*R)*(helpx**2)*sm.tanh(20*helpx)*AS.x
+FDy = -cS*sm.sqrt(area/R)*(helpy**2)*sm.tanh(20*helpy)*AS.y
 forces = [(AoS, FDx + FDy)]
 
 # %%
@@ -188,7 +194,7 @@ forces.append((ARW, tRW*AS.x + (-rW*N.z).cross(FRW)))
 # %%
 # If :math:`u \neq 0`, the boat will rotate and a drag torque will act on it.
 
-Tdrag = -cS*aS * u*AS.z.cross(AS.y)
+Tdrag = -cS*sm.sqrt(area*R) * u*AS.z.cross(AS.y)
 forces.append((AS, Tdrag))
 # %%
 # If :math:`u \neq 0`, the boat will rotate and a drag torque will act on it.
@@ -205,7 +211,7 @@ forces.append((AS, Tdrag))
 # :math:`\frac{1}{32} c_S u^2 a_S^4`.
 # Same again across the front, with :math:`b_S` instead of :math:`a_S`, hence
 # the total torque is :math:`\frac{1}{32} c_S u^2 b_S^4`.
-tB = -cS*u**2*(aS**4 + bS**4)/32 * sm.tanh(20*u) * N.z
+tB = -cS*u**2*(sm.sqrt(area*R)**4 + sm.sqrt(area/R)**4)/32 * sm.tanh(20*u) * N.z
 forces.append((AS, tB))
 
 # %%
@@ -219,7 +225,7 @@ I2 = me.inertia(ARW, iXX, iYY, iZZ)
 left_wheel = me.RigidBody('left_wheel', AoLW, ALW, mW, (I1, AoLW))
 right_wheel = me.RigidBody('right_wheel', AoRW, ARW, mW, (I2, AoRW))
 
-iZZ = 1/12 * mS*(aS**2 + bS**2)
+iZZ = 1/12 * mS*(sm.sqrt(area*R)**2 + sm.sqrt(area/R)**2)
 I3 = me.inertia(AS, 0, 0, iZZ)
 boat = me.RigidBody('boat', AoS, AS, mS, (I3, AoS))
 
@@ -239,7 +245,7 @@ KM = me.KanesMethod(N,
 
 fr, frstar = KM.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
-eom = eom.col_join(sm.Matrix([area - aS*bS]))
+#eom = eom.col_join(sm.Matrix([area - sm.sqrt(area*R)*sm.sqrt(area/R)]))
 print(f'The equations of motion containt {sm.count_ops(eom)} operations.')
 
 # %%
@@ -247,7 +253,7 @@ print(f'The equations of motion containt {sm.count_ops(eom)} operations.')
 # --------------------------------------------
 #
 
-state_symbols = [q, x, y, qLW, qRW, u, ux, uy, uLW, uRW, area]
+state_symbols = [q, x, y, qLW, qRW, u, ux, uy, uLW, uRW]
 specified_symbols = [tLW, tRW]
 constant_symbols = [mS, mW, rW, cS, cW]
 num_nodes = 251
@@ -262,6 +268,7 @@ par_map[mW] = 1.0
 par_map[rW] = 1.0
 par_map[cS] = 0.75
 par_map[cW] = 0.75
+par_map[area] = 5.0
 
 # %%
 # Set up the objective function and its gradient. The objective function
@@ -336,12 +343,12 @@ instance_constraints = (
 )
 
 limit_torque = 25.
+# bounding h > 0 avoids senseless 'solutions' with h < 0.
+# bounding R helps convergence.
 bounds = {
     tLW: (-limit_torque, limit_torque),
     tRW: (-limit_torque, limit_torque),
-    area: (5.0, 5.0001),
-    aS: (0.0, 20.0),
-    bS: (0.0, 20.0),
+    R: (0.0, 10.0),
     h: (0.0, 1.0),
 }
 
@@ -367,8 +374,7 @@ i2 = list(np.linspace(initial_state_constraints[x], final_state_constraints[x],
 i3 = list(np.linspace(initial_state_constraints[y], final_state_constraints[y],
     num_nodes))
 i4 = list(np.zeros(9*num_nodes))
-i5 = list(np.ones(num_nodes)*5.0)
-initial_guess = np.array(i1 + i2 + i3 + i4 + i5 +[np.sqrt(5), np.sqrt(5), 0.01])
+initial_guess = np.array(i1 + i2 + i3 + i4 + [1.0, 0.01])
 
 # Use given solution, if available else use the initial guess given above.
 fname = f'mississippi_steamboat_{num_nodes}_nodes_solution.csv'
@@ -378,14 +384,17 @@ if os.path.exists(fname):
     solution = np.loadtxt(fname)
 else:
     # calculate a solution
-    for _ in range(3):
+    for _ in range(2):
         solution, info = prob.solve(initial_guess)
         print('Message from optimizer:', info['status_msg'])
         print(f'Optimal h value is: {solution[-1]:.3f} sec')
         print(f"Objective value: {info['obj_val']:,.1f}")
 
-print(f'Optimum length of the boat is {solution[-3]:.2f} m')
-print(f'Optimum width of the boat is  {solution[-2]:.2f} m')
+aS = np.sqrt(solution[-2]*par_map[area])
+bS = np.sqrt(par_map[area]/solution[-2])
+print(f'Optimum length of the boat is {aS:.3f} m')
+print(f'Optimum width of the boat is  {bS:.3f} m')
+#np.savetxt(fname, solution, fmt='%.12f')
 
 
 # %%
@@ -399,8 +408,7 @@ _ = prob.plot_trajectories(solution)
 # %%
 # Animate the Solution
 # --------------------
-par_map[aS] = solution[-3]
-par_map[bS] = solution[-2]
+par_map[R] = solution[-2]
 
 fps = 13
 
@@ -415,10 +423,10 @@ t_arr = np.linspace(t0, num_nodes*solution[-1], num_nodes)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 
-xmin = initial_state_constraints[x] - par_map[aS]
-xmax = final_state_constraints[x] + par_map[aS]
-ymin = initial_state_constraints[y] - par_map[aS]
-ymax = final_state_constraints[y] + par_map[aS]
+xmin = initial_state_constraints[x] - aS
+xmax = final_state_constraints[x] + aS
+ymin = initial_state_constraints[y] - aS
+ymax = final_state_constraints[y] + aS
 
 # additional points to plot the water wheels and the torque
 pLB, pLF, pRB, pRF, tL, tR, S1, S2 = sm.symbols('pLB pLF pRB pRF tL, tR S1 S2',
@@ -429,8 +437,8 @@ pRB.set_pos(AoRW, -rW*AS.y)
 pRF.set_pos(AoRW, rW*AS.y)
 tL.set_pos(O, tLW*AS.x)
 tR.set_pos(O, tRW*AS.x)
-S1.set_pos(AoLW, par_map[bS]/15*AS.y)
-S2.set_pos(AoRW, -par_map[bS]/15 *AS.y)
+S1.set_pos(AoLW, bS/15*AS.y)
+S2.set_pos(AoRW, -bS/15 *AS.y)
 
 coordinates = AoS.pos_from(O).to_matrix(N)
 for point in (AoLW, AoRW, pLB, pLF, pRB, pRF, S1, S2, tL, tR):
@@ -466,9 +474,8 @@ def init_plot():
     pfeil1 = ax.quiver([], [], [], [], color='red', scale=100, width=0.004)
     pfeil2 = ax.quiver([], [], [], [], color='blue', scale=100, width=0.004)
     # draw the boat
-    boat = Rectangle((initial_state_constraints[x] - par_map[bS]/2,
-        initial_state_constraints[y] - par_map[aS]/2), par_map[bS],
-        par_map[aS], rotation_point='center',
+    boat = Rectangle((initial_state_constraints[x] - bS/2,
+        initial_state_constraints[y] - aS/2), bS ,aS, rotation_point='center',
         angle=np.rad2deg(initial_state_constraints[q]), fill=True,
         color='green', alpha=0.5)
     ax.add_patch(boat)
@@ -489,7 +496,7 @@ def update(t):
     line2.set_data([coords[0, 3], coords[0, 4]], [coords[1, 3], coords[1, 4]])
     line3.set_data([coords[0, 5], coords[0, 6]], [coords[1, 5], coords[1, 6]])
 
-    boat.set_xy((state_sol(t)[1]-par_map[bS]/2, state_sol(t)[2]-par_map[aS]/2))
+    boat.set_xy((state_sol(t)[1]-bS/2, state_sol(t)[2]-aS/2))
     boat.set_angle(np.rad2deg(state_sol(t)[0]))
 
     pfeil1.set_offsets([coords[0, -4], coords[1, -4]])
