@@ -8,9 +8,8 @@ Objective
 
 - Show how to use fixed time interval and variable time interval on a very
   simple example.
-
-- Show the use of ``backend='numpy'`` in the ``Problem`` class which runs
-  faster for small problems
+- Show the use of ``backend='numpy'`` in the ``Problem`` class which sets up
+  small problems faster.
 
 Introduction
 ------------
