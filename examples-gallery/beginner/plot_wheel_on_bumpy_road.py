@@ -157,7 +157,7 @@ par_map = {}
 par_map[m_car] = 10.0
 par_map[m_wheel] = 1.0
 par_map[g] = 9.81
-par_map[l_0] = 1.5
+par_map[l_0] = 0.75
 par_map[r1] = 0.1
 par_map[r2] = 0.1
 par_map[r3] = 0.1
@@ -198,16 +198,15 @@ bounds = {
     x_car: (0.0, 10.0),
     ux_car: (0.0, np.inf),
     prevent_jump: (-1000.0, 0.0),
-    steady_body: (1.4, 1.7),
+    steady_body: (0.55, 0.65),
     c: (0.0, 750),
-    k: (1000, 15000),
+    k: (0.0, 5000),
     fx: (-500, 500),
 }
 
 # %%
 # Use an existing solution if available, else iterate to find one.
 fname =f'quarter_car_on_bumpy_road_{num_nodes}_nodes_solution.csv'
-aaa = 10
 if os.path.exists(fname):
     # use the existing solution
     par_map[r3] = 0.1 + 0.075*4
@@ -259,7 +258,6 @@ else:
 
 print('Sequence of unknown trajectories',
                prob.collocator.unknown_input_trajectories)
-#np.savetxt(fname, solution, fmt='%.12f')
 # %%
 fig, axes = plt.subplots(9, 1, figsize=(7, 16), layout='tight')
 _ = prob.plot_trajectories(solution, axes=axes)
@@ -297,9 +295,9 @@ state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 
 xmin = -1.0
-xmax = 11.0
-ymin = -6.0
-ymax = 6.0
+xmax = 1.0
+ymin = -0.5
+ymax = 1.5
 
 # Define the points to be plotted.
 coordinates = P_car.pos_from(O).to_matrix(N)
@@ -310,7 +308,7 @@ coords_lam = sm.lambdify(list(state_symbols) + [fx, c, k] + list(pL),
     coordinates, cse=True)
 
 def init_plot():
-    fig, ax = plt.subplots(figsize=(7, 7))
+    fig, ax = plt.subplots(figsize=(6, 6))
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
     ax.set_aspect('equal')
@@ -319,23 +317,23 @@ def init_plot():
 
     # draw the road
     XX = np.linspace(0, 10, 200)
-    ax.plot(XX, rough_surface_lam(XX, r11, r22, r33, r44, r55),
+    street, = ax.plot(XX, rough_surface_lam(XX, r11, r22, r33, r44, r55),
             color='black', lw=0.75)
 
     # draw the wheel and the body and a line connecting them.
-    line1 = ax.scatter([], [], color='red', marker='o', s=20) # wheel
-    line2 = ax.scatter([], [], color='red', marker='o', s=100) # body
+    line1 = ax.scatter([], [], color='red', marker='o', s=100) # wheel
+    line2 = ax.scatter([], [], color='red', marker='o', s=500) # body
     line3, = ax.plot([], [], lw=0.5, color='red') # line connecting them
 
     # draw the arrows
     # driving force
-    pfeil1 = ax.quiver([], [], [], [], color='green', scale=1500, width=0.004)
+    pfeil1 = ax.quiver([], [], [], [], color='green', scale=2000, width=0.008)
     # acceleratrion of the wheel
-    pfeil2 = ax.quiver([], [], [], [], color='blue', scale=500, width=0.004)
+    pfeil2 = ax.quiver([], [], [], [], color='blue', scale=600, width=0.008)
     # acceleration of the body
-    pfeil3 = ax.quiver([], [], [], [], color='magenta', scale=20, width=0.004)
+    pfeil3 = ax.quiver([], [], [], [], color='magenta', scale=20, width=0.008)
 
-    return fig, ax, line1, line2, line3, pfeil1, pfeil2, pfeil3
+    return fig, ax, line1, line2, line3, pfeil1, pfeil2, pfeil3, street
 
 # Function to update the plot for each animation frame
 
@@ -343,31 +341,34 @@ def update(t):
     message = (f'running time {t:.2f} sec' +
         f'\n The blue arrow is the ' +
         f'accelerationon the wheel due to uneven street \n' +
-        f'The magenta arrow is the acceleration of the body, magnified 25' +
+        f'The magenta arrow is the acceleration of the body, magnified 30' +
         f' times \n' +
         f'The green arrow is the driving force / video is in slow motion')
     ax.set_title(message, fontsize=12)
 
     coords = coords_lam(*state_sol(t), input_sol(t), solution[-3],
                         solution[-2], *pL_vals)
-    line1.set_offsets([coords[0, 1], coords[2, 1]])
-    line2.set_offsets([coords[0, 0], coords[2, 0]])
-    line3.set_data([coords[0, 0], coords[0, 1]], [coords[2, 0], coords[2, 1]])
+    line1.set_offsets([0, coords[2, 1]])
+    line2.set_offsets([0, coords[2, 0]])
+    line3.set_data([0, 0], [coords[2, 0], coords[2, 1]])
 
-    pfeil1.set_offsets([coords[0, 0], coords[2, 0]])
+    XX= np.linspace(-coords[0, 0]-1, 11-coords[0, 0], 200)
+    YY = np.linspace(-1, 11, 200)
+    street.set_data(XX, rough_surface_lam(YY, r11, r22, r33, r44, r55))
+
+    pfeil1.set_offsets([coords[0, 0]*0, coords[2, 0]])
     pfeil1.set_UVC(input_sol(t), 0)
 
-    pfeil2.set_offsets([coords[0, 1], coords[2, 1]])
+    pfeil2.set_offsets([-0.025, coords[2, 1]])
     pfeil2.set_UVC(0.0, state_sol(t)[7])
 
-    pfeil3.set_offsets([coords[0, 0]+0.1, coords[2, 0]])
+    pfeil3.set_offsets([+0.05, coords[2, 0]])
     pfeil3.set_UVC(0.0, state_sol(t)[6])
 
 # sphinx_gallery_thumbnail_number = 4
 
 # Create the animation.
-fig, ax, line1, line2, line3, pfeil1, pfeil2, pfeil3 = init_plot()
+fig, ax, line1, line2, line3, pfeil1, pfeil2, pfeil3, street = init_plot()
 animation = FuncAnimation(fig, update, frames=np.arange(t0,
-    num_nodes*solution[-1], 1 / fps), interval=8000/fps)
-
+    num_nodes*solution[-1], 1 / fps), interval=18000/fps)
 plt.show()
