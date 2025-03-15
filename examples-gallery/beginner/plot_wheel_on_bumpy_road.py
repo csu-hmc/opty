@@ -24,6 +24,10 @@ damper.
 Body and wheel are modeled by particles. Movement is in the X/Z plane. Gravity
 points in the negative Z direction.
 
+I took the tire stiffness from here:
+
+https://kktse.github.io/jekyll/update/2021/07/18/re71r-255-40-r17-tire-vertical-stiffness.html
+
 
 **States**
 
@@ -75,6 +79,8 @@ from scipy.interpolate import CubicSpline
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib import patches
+
+import time
 # %%
 # Set up the Equations of Motion
 #-------------------------------
@@ -164,22 +170,23 @@ t0, tf = 0, h*(num_nodes - 1)
 interval = h
 
 par_map = {}
-par_map[m_car] = 10.0
-par_map[m_wheel] = 1.0
+par_map[m_car] = 350.0
+par_map[m_wheel] = 5.0
 par_map[g] = 9.81
-par_map[l_0] = 0.75
+par_map[l_0] = 1.0
 par_map[r1] = 0.1
 par_map[r2] = 0.1
 par_map[r3] = 0.1
 par_map[r4] = 0.1
 par_map[r5] = 0.1
+par_map[k1] = 250000.0
 
 # %%
 #To be minimized:
 # :math:`\int (\dfrac{d}{dt}uz_{car})^2 dt + \text{weight} \cdot t_f`
 # ``weight`` is a scalar that can be used to adjust the importance of the
 # speed.
-weight = 1.e7
+weight = 1.e9
 
 def obj(free):
     UZdot = np.sum([free[i]**2 for i in range(8*num_nodes, 9*num_nodes)])
@@ -200,6 +207,8 @@ instance_constraints = (
     x_car.func(t0) - 0.0,
     ux_car.func(t0) - 0.0,
     accel_street.func(t0) - 0.0,
+    accel_body.func(t0) - 0.0,
+    steady_body.func(t0) - 1.0,
 
     x_car.func(tf) - 10.0,
     ux_car.func(tf) - 0.0,
@@ -211,17 +220,17 @@ bounds = {
     z_wheel: (0.0, 2.0),
     ux_car: (0.0, np.inf),
     prevent_jump: (0.0, 0.1),
-    steady_body: (0.4, 0.8),
+    steady_body: (0.85, 1.0),
     c: (0.0, 750),
-    k: (0.0, 5000),
-    k1: (0.0, np.inf),
-    fx: (-500, 500),
-    l_GW: (0.0, 0.075),
+    k: (15000, 100000),
+    fx: (-50000, 50000),
+    l_GW: (0.0, 1.0),
 }
 
 # %%
 # Use an existing solution if available, else iterate to find one.
 fname =f'quarter_car_on_bumpy_road_{num_nodes}_nodes_solution.csv'
+aaa = 10
 if os.path.exists(fname):
     # use the existing solution
     par_map[r3] = 0.1 + 0.0725*4
@@ -244,12 +253,16 @@ if os.path.exists(fname):
 else:
     # Iterate to find the solution. As the convergence is not easy, one has to
     # start with a smooth road and then increase the roughness gradually.
+    # Before the bounds have to be tightended gardually
     for i in range(5):
-        if i < 5:
-            par_map[r3] = 0.1 + 0.0725*i
-            par_map[r4] = 0.0725*i
+        for j in range(5):
+            bounds[prevent_jump] = (-4.0+j, 4.0-j + 0.1)
+            bounds[steady_body] = (-4.0+j+0.85, 4.0-j+1.0)
+            if i < 5:
+                par_map[r3] = 0.1 + 0.0725*i
+                par_map[r4] = 0.0725*i
 
-        prob = Problem(obj,
+            prob = Problem(obj,
                obj_grad,
                eom,
                state_symbols,
@@ -259,29 +272,29 @@ else:
                instance_constraints=instance_constraints,
                bounds=bounds,
                time_symbol=t,
-        )
+            )
 
-        prob.add_option('max_iter', 3000)
-        if i == 0:
-            initial_guess = np.ones(prob.num_free)*0.5
-        else:
-            initial_guess = solution
-        for _ in range(2):
-            solution, info = prob.solve(initial_guess)
-            initial_guess = solution
-            print(info['status_msg'])
-            print('Objective value', info['obj_val'])
-
+            prob.add_option('max_iter', 3000)
+            if i == 0:
+                initial_guess = np.random.rand(prob.num_free)
+            else:
+                initial_guess = solution
+            for _ in range(3):
+                solution, info = prob.solve(initial_guess)
+                initial_guess = solution
+                print(info['status_msg'])
+                print('Objective value', info['obj_val'])
+#np.savetxt(fname, solution, fmt='%.12f')
 # %%
-# Print optimnal values of the free parameters.
+# Print optimal values of the free parameters.
 print('Sequence of unknown parameters',
                prob.collocator.unknown_parameters)
 print(f'optimal value of dampening constant c =                  ' +
-      f'{solution[-5]:.2f}')
-print(f'optimal value of spring constant k =                     ' +
       f'{solution[-4]:.2f}')
-print(f'optimal value of wheel spring constant k1 =              ' +
-      f'{solution[-3]:.2f}')
+print(f'optimal value of spring constant k =                     ' +
+      f'{solution[-3]:.3f}')
+#print(f'optimal value of wheel spring constant k1 =              ' +
+#      f'{solution[-3]:.2f}')
 print(f'optimal value of nat.  length of the wheel spring l_GW = ' +
       f'{solution[-2]:.2f}')
 
@@ -354,7 +367,7 @@ def init_plot():
 
     # draw the arrows
     # driving force
-    pfeil1 = ax.quiver([], [], [], [], color='green', scale=2000, width=0.008)
+    pfeil1 = ax.quiver([], [], [], [], color='green', scale=20000, width=0.008)
     # acceleratrion of the wheel
     pfeil2 = ax.quiver([], [], [], [], color='blue', scale=600, width=0.008)
     # acceleration of the body
