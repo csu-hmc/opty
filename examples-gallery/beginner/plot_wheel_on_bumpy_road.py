@@ -9,6 +9,10 @@ Objective
   parameters and unknown trajectories of a system.
 - Show how one can iterate from a simpler problem (road less bumpy) to a
   harder problem (road more bumpy).
+- Show how to use an additional state variable to get the acceleration of a
+  body into the objective function.
+- Show how to avoid possible unwanted unknown trajectories ( here
+  :math:`\dfrac{d^2}{dt^2}x_{car}`).
 
 
 Introduction
@@ -17,9 +21,6 @@ Introduction
 A quarter car model must move from a starting point to a final point on a bumpy
 road. The body is connected to the wheel on the road by a linear spring and a
 damper.
-
-https://www.tevema.com/what-is-the-best-suspension-for-luxury-cars/
-
 Body and wheel are modeled by particles. Movement is in the X/Z plane. Gravity
 points in the negative Z direction.
 
@@ -28,16 +29,17 @@ points in the negative Z direction.
 
 - :math:`x_{car}` : x position of the car [m]
 - :math:`z_{car}` : z position of the car [m]
+- :math:`z_{wheel}` : z position of the wheel [m]
 - :math:`ux_{car}` : x velocity of the car [m/s]
 - :math:`uz_{car}` : z velocity of the car [m/s]
-- :math:`prevent_{jump}` : to ensure the wheel always has a negative load,
-  meaning it will not jump [N]
+- :math:`uz_{wheel}` : z velocity of the wheel [m/s]
+- :math:`prevent_{jump}` : to ensure the wheel always touches the road [m]
 - :math:`steady_{body}` : to ensure that the vertical motions of the body are
   not too large [m]
 - :math:`accel_{body}` : holds the acceleration of the body, which is to be
   minimized [m/s^2]
-- :math:`accel_{wheel}` : holds the accelerations of the wheel, only needed for
-  the animation. [m/s^2]
+- :math:`accel_{street}` : holds the accelerations of the street as 'seen' by
+  the wheel. Only needed for the animation. [m/s^2]
 
 
 
@@ -54,6 +56,9 @@ points in the negative Z direction.
 
 - :math:`c` : damping constant [Ns/m]
 - :math:`k` : spring constant [N/m]
+- :math:`k1` : spring constant of the wheel [N/m]
+- :math:`l_{GW}` : equilibrium length of the wheel spring [m]
+
 
 **Unknown Trajectories**
 
@@ -69,6 +74,7 @@ from opty.utils import parse_free
 from scipy.interpolate import CubicSpline
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from matplotlib import patches
 # %%
 # Set up the Equations of Motion
 #-------------------------------
@@ -76,32 +82,33 @@ N = me.ReferenceFrame('N')
 O, P_car, P_wheel = sm.symbols('O, P_car, P_wheel', cls=me.Point)
 O.set_vel(N, 0)
 t = me.dynamicsymbols._t
-x_car, z_car = me.dynamicsymbols('x_car z_car')
-ux_car, uz_car = me.dynamicsymbols('ux_car uz_car')
+x_car, z_car, z_wheel = me.dynamicsymbols('x_car z_car, z_wheel')
+ux_car, uz_car, uz_wheel = me.dynamicsymbols('ux_car uz_car uz_wheel')
 prevent_jump, steady_body = me.dynamicsymbols('prevent_jump, steady_body')
-accel_body, accel_wheel = me.dynamicsymbols('accel_body accel_wheel')
+accel_body, accel_street = me.dynamicsymbols('accel_body accel_street')
 
 fx = me.dynamicsymbols('fx')
 m_car, m_wheel, g = sm.symbols('m_car m_wheel g')
 r1, r2, r3, r4, r5 = sm.symbols('r1 r2 r3 r4 r5')
 
 l_0, k, c = sm.symbols('  l_0, k, c')
+l_GW, k1 = sm.symbols('l_GW, k1')
 # %%
 # Define the rough surface of the street.
-
 def rough_surface(x_car):
     omega = 0.75
-    return sm.S(0.135 ) *  (r1*sm.sin(omega*x_car)**2 + r2*sm.sin(2*omega*x_car)**2
+    return sm.S(0.135 ) * (r1*sm.sin(omega*x_car)**2
+        + r2*sm.sin(2*omega*x_car)**2
         + r3*sm.sin(3*omega*x_car)**2 + r4*sm.sin(7*omega*x_car)**2
         + r5*sm.sin(9*omega*x_car)**2)
 
 # %%
 # Set up the system.
 P_car.set_pos(O, x_car*N.x + z_car*N.z)
-P_wheel.set_pos(O, x_car*N.x  + rough_surface(x_car)*N.z)
+P_wheel.set_pos(O, x_car*N.x + z_wheel*N.z)
 
 P_car.set_vel(N, ux_car*N.x  + uz_car*N.z)
-P_wheel.set_vel(N, ux_car*N.x + rough_surface(x_car).diff(t)*N.z)
+P_wheel.set_vel(N, ux_car*N.x + uz_wheel*N.z)
 
 Car = me.Particle('Car', P_car, m_car)
 Wheel = me.Particle('Wheel', P_wheel, m_wheel)
@@ -109,24 +116,27 @@ bodies = [Car, Wheel]
 
 F_car =[(P_car, -m_car*g*N.z - c*(uz_car - rough_surface(x_car).diff(t))*N.z
          + k*(l_0 - (z_car - rough_surface(x_car)))*N.z
-        + fx * N.x)]
+         + fx * N.x
+)]
 F_wheel = [(P_wheel, -m_wheel*g*N.z + c*(uz_car
             - rough_surface(x_car).diff(t))*N.z
-            - k*(l_0 - (z_car - rough_surface(x_car)))*N.z)]
+            - k*(l_0 - (z_car - rough_surface(x_car)))*N.z
+            + k1 * (l_GW - (z_wheel - rough_surface(x_car))) * N.z
+)]
 
-F_contact = (-m_wheel*g + c*(uz_car - rough_surface(x_car).diff(t))
-            - k*(l_0 - (z_car - rough_surface(x_car))))
 forces  = F_car + F_wheel
 
-kd = sm.Matrix([x_car.diff(t) - ux_car, uz_car - z_car.diff(t)])
+kd = sm.Matrix([x_car.diff(t) - ux_car, uz_car - z_car.diff(t),
+                uz_wheel - z_wheel.diff(t)])
 
 KM = me.KanesMethod(N,
-                    q_ind=[x_car, z_car],
-                    u_ind=[ux_car, uz_car],
+                    q_ind=[x_car, z_car, z_wheel],
+                    u_ind=[ux_car, uz_car, uz_wheel],
                     kd_eqs=kd
 )
 fr, frstar = KM.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
+
 
 # %%
 # Add the constraints.
@@ -135,18 +145,18 @@ eom = kd.col_join(fr + frstar)
 aux_1 = (rough_surface(x_car).diff(t)).subs({x_car.diff(t): ux_car})
 aux_1 = aux_1.diff(t)
 eom = eom.col_join(sm.Matrix([
-                                prevent_jump - F_contact,
-                                steady_body - (z_car - rough_surface(x_car)),
-                                accel_body - (uz_car.diff(t)),
-                                accel_wheel - aux_1
+                    prevent_jump - (z_wheel - rough_surface(x_car)),
+                    steady_body - (z_car - rough_surface(x_car)),
+                    accel_body - (uz_car.diff(t)),
+                    accel_street - aux_1
 ]))
 
 print(f'eoms contains {sm.count_ops(eom)} equations and have shape {eom.shape}')
 # %%
 # Set up the Optimization Problem
 #--------------------------------
-state_symbols = [x_car, z_car, ux_car, uz_car, prevent_jump, steady_body,
-                 accel_body, accel_wheel]
+state_symbols = [x_car, z_car, z_wheel, ux_car, uz_car, uz_wheel, steady_body,
+                 prevent_jump, accel_body, accel_street]
 
 h = sm.symbols('h')
 num_nodes = 301
@@ -165,20 +175,21 @@ par_map[r4] = 0.1
 par_map[r5] = 0.1
 
 # %%
-#To be minimized: :math:`\int (\dfrac{d}{dt}uz_{car})^2 dt + \text{weight} \cdot t_f`
+#To be minimized:
+# :math:`\int (\dfrac{d}{dt}uz_{car})^2 dt + \text{weight} \cdot t_f`
 # ``weight`` is a scalar that can be used to adjust the importance of the
 # speed.
-weight = 1.e5
+weight = 1.e7
 
 def obj(free):
-    UZdot = np.sum([free[i]**2 for i in range(6*num_nodes, 7*num_nodes)])
+    UZdot = np.sum([free[i]**2 for i in range(8*num_nodes, 9*num_nodes)])
     return (UZdot)*free[-1] + weight*free[-1]
 
 def obj_grad(free):
     grad = np.zeros_like(free)
-    grad[6*num_nodes:7*num_nodes] = 2*free[6*num_nodes:7*num_nodes]*free[-1]
+    grad[9*num_nodes:10*num_nodes] = 2*free[8*num_nodes:9*num_nodes]*free[-1]
     grad[-1] = (
-            + np.sum([free[i]**2 for i in range(6*num_nodes, 7*num_nodes)])
+            + np.sum([free[i]**2 for i in range(8*num_nodes, 9*num_nodes)])
             + weight
         )
     return grad
@@ -188,6 +199,7 @@ def obj_grad(free):
 instance_constraints = (
     x_car.func(t0) - 0.0,
     ux_car.func(t0) - 0.0,
+    accel_street.func(t0) - 0.0,
 
     x_car.func(tf) - 10.0,
     ux_car.func(tf) - 0.0,
@@ -196,12 +208,15 @@ instance_constraints = (
 bounds = {
     h: (0.0, 1.0),
     x_car: (0.0, 10.0),
+    z_wheel: (0.0, 2.0),
     ux_car: (0.0, np.inf),
-    prevent_jump: (-1000.0, 0.0),
-    steady_body: (0.55, 0.65),
+    prevent_jump: (0.0, 0.1),
+    steady_body: (0.4, 0.8),
     c: (0.0, 750),
     k: (0.0, 5000),
+    k1: (0.0, np.inf),
     fx: (-500, 500),
+    l_GW: (0.0, 0.075),
 }
 
 # %%
@@ -209,8 +224,8 @@ bounds = {
 fname =f'quarter_car_on_bumpy_road_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
     # use the existing solution
-    par_map[r3] = 0.1 + 0.075*4
-    par_map[r4] = 0.075*4
+    par_map[r3] = 0.1 + 0.0725*4
+    par_map[r4] = 0.0725*4
 
     prob = Problem(obj,
                obj_grad,
@@ -230,8 +245,9 @@ else:
     # Iterate to find the solution. As the convergence is not easy, one has to
     # start with a smooth road and then increase the roughness gradually.
     for i in range(5):
-        par_map[r3] = 0.1 + 0.075*i
-        par_map[r4] = 0.075*i
+        if i < 5:
+            par_map[r3] = 0.1 + 0.0725*i
+            par_map[r4] = 0.0725*i
 
         prob = Problem(obj,
                obj_grad,
@@ -256,16 +272,24 @@ else:
             print(info['status_msg'])
             print('Objective value', info['obj_val'])
 
-print('Sequence of unknown trajectories',
-               prob.collocator.unknown_input_trajectories)
 # %%
-fig, axes = plt.subplots(9, 1, figsize=(7, 16), layout='tight')
+# Print optimnal values of the free parameters.
+print('Sequence of unknown parameters',
+               prob.collocator.unknown_parameters)
+print(f'optimal value of dampening constant c =                  ' +
+      f'{solution[-5]:.2f}')
+print(f'optimal value of spring constant k =                     ' +
+      f'{solution[-4]:.2f}')
+print(f'optimal value of wheel spring constant k1 =              ' +
+      f'{solution[-3]:.2f}')
+print(f'optimal value of nat.  length of the wheel spring l_GW = ' +
+      f'{solution[-2]:.2f}')
+
+# %%
+fig, axes = plt.subplots(11, 1, figsize=(7, 20), layout='tight')
 _ = prob.plot_trajectories(solution, axes=axes)
 # %%
 _ = prob.plot_constraint_violations(solution)
-print(f'value of optimum spring constant: {solution[-2]:.2f}')
-print(f'value of optimum damping constant: {solution[-3]:.2f}')
-
 # %%
 # Plot the road.
 r11, r22, r33, r44, r55 = [par_map[key] for key in [r1, r2, r3, r4, r5]]
@@ -283,21 +307,20 @@ _ = ax.set_title('Road Profile')
 # --------------------
 fps = 100
 
-def add_point_to_data(line, x, y):
-    # to trace the path of the point.
-    old_x, old_y = line.get_data()
-    line.set_data(np.append(old_x, x), np.append(old_y, y))
-
-state_vals, input_vals, _, _ = parse_free(solution, 8, 1, num_nodes,
+state_vals, input_vals, _, _ = parse_free(solution, 10, 1, num_nodes,
                         variable_duration=True)
 t_arr = np.linspace(t0, num_nodes*solution[-1], num_nodes)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 
-xmin = -1.0
-xmax = 1.0
-ymin = -0.5
-ymax = 1.5
+xmin = -0.75
+xmax = 0.75
+ymin = -0.25
+ymax = 1.25
+
+# Average position of body and of wheel
+average_body = np.mean(solution[num_nodes:2*num_nodes])
+average_wheel = np.mean(solution[2*num_nodes:3*num_nodes])
 
 # Define the points to be plotted.
 coordinates = P_car.pos_from(O).to_matrix(N)
@@ -308,7 +331,7 @@ coords_lam = sm.lambdify(list(state_symbols) + [fx, c, k] + list(pL),
     coordinates, cse=True)
 
 def init_plot():
-    fig, ax = plt.subplots(figsize=(6, 6))
+    fig, ax = plt.subplots(figsize=(7, 7))
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
     ax.set_aspect('equal')
@@ -320,10 +343,14 @@ def init_plot():
     street, = ax.plot(XX, rough_surface_lam(XX, r11, r22, r33, r44, r55),
             color='black', lw=0.75)
 
+    ax.axhline(average_body, color='black', lw=0.5, linestyle='--')
+    ax.axhline(average_wheel, color='black', lw=0.5, linestyle='--')
+
     # draw the wheel and the body and a line connecting them.
-    line1 = ax.scatter([], [], color='red', marker='o', s=100) # wheel
-    line2 = ax.scatter([], [], color='red', marker='o', s=500) # body
-    line3, = ax.plot([], [], lw=0.5, color='red') # line connecting them
+    line1 = ax.scatter([], [], color='red', marker='o', s=25) # wheel
+    line2 = ax.scatter([], [], color='red', marker='o', s=900) # body
+    line3, = ax.plot([], [], lw=2.5, color='red') # line connecting them
+    line4 = ax.scatter([], [], color='blue', marker='o', s=50) # contact
 
     # draw the arrows
     # driving force
@@ -333,24 +360,30 @@ def init_plot():
     # acceleration of the body
     pfeil3 = ax.quiver([], [], [], [], color='magenta', scale=20, width=0.008)
 
-    return fig, ax, line1, line2, line3, pfeil1, pfeil2, pfeil3, street
+    circle = patches.Circle((0.1, 0.0), radius=0.1, color='red', ec='black',
+            fill=False)
+    ax.add_patch(circle)
+
+    return (fig, ax, line1, line2, line3, line4, pfeil1, pfeil2, pfeil3,
+            street, circle)
 
 # Function to update the plot for each animation frame
-
 def update(t):
     message = (f'running time {t:.2f} sec' +
         f'\n The blue arrow is the ' +
         f'accelerationon the wheel due to uneven street \n' +
         f'The magenta arrow is the acceleration of the body, magnified 30' +
-        f' times \n' +
+        f' fold \n' +
         f'The green arrow is the driving force / video is in slow motion')
-    ax.set_title(message, fontsize=12)
+    ax.set_title(message, fontsize=10)
 
     coords = coords_lam(*state_sol(t), input_sol(t), solution[-3],
                         solution[-2], *pL_vals)
     line1.set_offsets([0, coords[2, 1]])
     line2.set_offsets([0, coords[2, 0]])
     line3.set_data([0, 0], [coords[2, 0], coords[2, 1]])
+    line4.set_offsets([0, rough_surface_lam(coords[0, 0], r11, r22, r33,
+                    r44, r55)])
 
     XX= np.linspace(-coords[0, 0]-1, 11-coords[0, 0], 200)
     YY = np.linspace(-1, 11, 200)
@@ -360,15 +393,20 @@ def update(t):
     pfeil1.set_UVC(input_sol(t), 0)
 
     pfeil2.set_offsets([-0.025, coords[2, 1]])
-    pfeil2.set_UVC(0.0, state_sol(t)[7])
+    pfeil2.set_UVC(0.0, state_sol(t)[9])
 
     pfeil3.set_offsets([+0.05, coords[2, 0]])
-    pfeil3.set_UVC(0.0, state_sol(t)[6])
+    pfeil3.set_UVC(0.0, state_sol(t)[8])
+
+    circle.set_center((0, coords[2, 1]))
 
 # sphinx_gallery_thumbnail_number = 4
 
 # Create the animation.
-fig, ax, line1, line2, line3, pfeil1, pfeil2, pfeil3, street = init_plot()
+fig, ax, line1, line2, line3, line4, pfeil1, pfeil2, pfeil3, street, circle = (
+    init_plot())
+
 animation = FuncAnimation(fig, update, frames=np.arange(t0,
-    num_nodes*solution[-1], 1 / fps), interval=18000/fps)
+    num_nodes*solution[-1], 1 / fps), interval=12000/fps)
+
 plt.show()
