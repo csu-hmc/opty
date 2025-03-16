@@ -184,8 +184,8 @@ par_map[g] = 9.81
 par_map[l_0] = 1.0
 par_map[r1] = 0.1
 par_map[r2] = 0.1
-par_map[r3] = 0.1
-par_map[r4] = 0.1
+par_map[r3] = 0.39
+par_map[r4] = 0.29
 par_map[r5] = 0.1
 par_map[k1] = 250000.0
 
@@ -249,30 +249,29 @@ bounds = {
 # %%
 # Use an existing solution if available, else iterate to find one.
 fname =f'quarter_car_on_bumpy_road_{num_nodes}_nodes_solution.csv'
-aaa = 10
+
+prob = Problem(obj,
+                obj_grad,
+                eom,
+                state_symbols,
+                num_nodes,
+                interval,
+                known_parameter_map=par_map,
+                instance_constraints=instance_constraints,
+                bounds=bounds,
+                time_symbol=t,
+                backend='numpy',
+            )
+
 if os.path.exists(fname):
     # use the existing solution
-    par_map[r3] = 0.1 + 0.0725*4
-    par_map[r4] = 0.0725*4
-
-    prob = Problem(obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        time_symbol=t,
-        backend='numpy',
-    )
-
-    solution = np.loadtxt(fname)
+         solution = np.loadtxt(fname)
 else:
     # Iterate to find the solution. As the convergence is not easy, one has to
     # start with a smooth road and then increase the roughness gradually.
-    # Before the bounds have to be tightended gardually
+    # Before the bounds have to be tightended gardually.
+    # Here backend = 'cython' is used, as it is faster than 'numpy'. for solve.
+    prob.backend = 'cython'
     for i in range(5):
         for j in range(5):
             bounds[prevent_jump] = (-4.0+j, 4.0-j + 0.1)
@@ -281,20 +280,9 @@ else:
                 par_map[r3] = 0.1 + 0.0725*i
                 par_map[r4] = 0.0725*i
 
-            prob = Problem(obj,
-               obj_grad,
-               eom,
-               state_symbols,
-               num_nodes,
-               interval,
-               known_parameter_map=par_map,
-               instance_constraints=instance_constraints,
-               bounds=bounds,
-               time_symbol=t,
-            )
-
             prob.add_option('max_iter', 3000)
             if i == 0:
+                np.random.seed(123)
                 initial_guess = np.random.rand(prob.num_free)
             else:
                 initial_guess = solution
@@ -321,7 +309,6 @@ fig, axes = plt.subplots(11, 1, figsize=(7, 20), layout='tight')
 _ = prob.plot_trajectories(solution, axes=axes)
 # %%
 _ = prob.plot_constraint_violations(solution)
-# %%
 # %%
 # Animate the Solution
 # --------------------
