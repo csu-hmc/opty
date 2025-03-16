@@ -1,4 +1,3 @@
-# %%
 r"""
 Quarter Car Model on a Bumpy Road
 =================================
@@ -269,8 +268,6 @@ else:
     # Iterate to find the solution. As the convergence is not easy, one has to
     # start with a smooth road and then increase the roughness gradually.
     # Before the bounds have to be tightended gardually.
-    # Here backend = 'cython' is used, as it is faster than 'numpy'. for solve.
-    prob.backend = 'cython'
     for i in range(5):
         for j in range(5):
             bounds[prevent_jump] = (-4.0+j, 4.0-j + 0.1)
