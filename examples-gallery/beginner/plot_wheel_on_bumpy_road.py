@@ -7,8 +7,6 @@ Objective
 
 - Show on a simple example how to simultaneously optimize free
   parameters and unknown trajectories of a system.
-- Show how one can iterate from a simpler problem (road less bumpy) to a
-  harder problem (road more bumpy).
 - Show how to use an additional state variable to get the acceleration of a
   body into the objective function.
 - Show how to avoid possible unwanted unknown trajectories (here
@@ -109,7 +107,7 @@ l_GW, k1 = sm.symbols('l_GW, k1')
 # Define the rough surface of the street.
 def rough_surface(x_car):
     omega = 0.75
-    return sm.S(0.135 ) * (r1*sm.sin(omega*x_car)**2
+    return sm.S(0.135) * (r1*sm.sin(omega*x_car)**2
         + r2*sm.sin(2*omega*x_car)**2
         + r3*sm.sin(3*omega*x_car)**2 + r4*sm.sin(7*omega*x_car)**2
         + r5*sm.sin(9*omega*x_car)**2)
@@ -180,11 +178,11 @@ par_map[m_car] = 350.0
 par_map[m_wheel] = 5.0
 par_map[g] = 9.81
 par_map[l_0] = 1.0
-par_map[r1] = 0.1
+par_map[r1] = 0.56
 par_map[r2] = 0.1
-par_map[r3] = 0.39
-par_map[r4] = 0.29
-par_map[r5] = 0.1
+par_map[r3] = 0.1
+par_map[r4] = 0.025
+par_map[r5] = 0.025
 par_map[k1] = 250000.0
 
 # %%
@@ -204,7 +202,7 @@ _ = ax.set_title('Road Profile')
 # :math:`\int (\dfrac{d}{dt}uz_{car})^2 dt + \text{weight} \cdot t_f`
 # ``weight`` is a scalar that can be used to adjust the importance of the
 # speed.
-weight = 1.e9
+weight = 1.e10
 
 def obj(free):
     uz_dot = np.sum([free[i]**2 for i in range(8*num_nodes, 9*num_nodes)])
@@ -238,14 +236,16 @@ bounds = {
     ux_car: (0.0, np.inf),
     prevent_jump: (0.0, 0.1),
     steady_body: (0.85, 1.0),
-    c: (0.0, 750),
-    k: (15000, 100000),
+    c: (0.0, np.inf),
+    k: (15000, 500000),
     fx: (-50000, 50000),
     l_GW: (0.0, 1.0),
 }
 
 # %%
-# Use an existing solution if available, else iterate to find one.
+# Use an existing solution if available, else pick an initial guess and solve
+# the problem. (if no solution available, it may be advantageous to set
+# backend='cython' in the Problem class below)
 fname =f'quarter_car_on_bumpy_road_{num_nodes}_nodes_solution.csv'
 
 prob = Problem(obj,
@@ -265,36 +265,21 @@ if os.path.exists(fname):
     # use the existing solution
          solution = np.loadtxt(fname)
 else:
-    # Iterate to find the solution. As the convergence is not easy, one has to
-    # start with a smooth road and then increase the roughness gradually.
-    # Before the bounds have to be tightended gardually.
-    for i in range(5):
-        for j in range(5):
-            bounds[prevent_jump] = (-4.0+j, 4.0-j + 0.1)
-            bounds[steady_body] = (-4.0+j+0.85, 4.0-j+1.0)
-            if i < 5:
-                par_map[r3] = 0.1 + 0.0725*i
-                par_map[r4] = 0.0725*i
-
-            prob.add_option('max_iter', 3000)
-            if i == 0:
-                np.random.seed(123)
-                initial_guess = np.random.rand(prob.num_free)
-            else:
-                initial_guess = solution
-            for _ in range(3):
-                solution, info = prob.solve(initial_guess)
-                initial_guess = solution
-                print(info['status_msg'])
-                print('Objective value', info['obj_val'])
+    # Pick a reasonable initial guess and solve the problem.
+    # Sometimes random intial guess work fine.
+    np.random.seed(123)
+    initial_guess = np.random.rand(prob.num_free)
+    solution, info = prob.solve(initial_guess)
+    print(info['status_msg'])
+    print('Objective value', info['obj_val'])
 # %%
 # Print optimal values of the free parameters.
 print('Sequence of unknown parameters',
                prob.collocator.unknown_parameters)
 print(f'optimal value of dampening constant c =                  ' +
-      f'{solution[-4]:.2f}')
+      f'{solution[-4]:.1f}')
 print(f'optimal value of spring constant k =                     ' +
-      f'{solution[-3]:.3f}')
+      f'{solution[-3]:.1f}')
 #print(f'optimal value of wheel spring constant k1 =              ' +
 #      f'{solution[-3]:.2f}')
 print(f'optimal value of nat.  length of the wheel spring l_GW = ' +
@@ -358,11 +343,11 @@ def init_plot():
 
     # draw the arrows
     # driving force
-    pfeil1 = ax.quiver([], [], [], [], color='green', scale=20000, width=0.008)
+    pfeil1 = ax.quiver([], [], [], [], color='green', scale=90000, width=0.006)
     # acceleratrion of the wheel
-    pfeil2 = ax.quiver([], [], [], [], color='blue', scale=600, width=0.008)
+    pfeil2 = ax.quiver([], [], [], [], color='blue', scale=750, width=0.006)
     # acceleration of the body
-    pfeil3 = ax.quiver([], [], [], [], color='magenta', scale=20, width=0.008)
+    pfeil3 = ax.quiver([], [], [], [], color='magenta', scale=30, width=0.006)
 
     circle = patches.Circle((0.1, 0.0), radius=0.1, color='red', ec='black',
             fill=False)
@@ -376,7 +361,7 @@ def update(t):
     message = (f'running time {t:.2f} sec' +
         f'\n The blue arrow is the ' +
         f'accelerationon the wheel due to uneven street \n' +
-        f'The magenta arrow is the acceleration of the body, magnified 30' +
+        f'The magenta arrow is the acceleration of the body, magnified 25' +
         f' fold \n' +
         f'The green arrow is the driving force / video is in slow motion')
     ax.set_title(message, fontsize=10)
