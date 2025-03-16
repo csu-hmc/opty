@@ -2257,3 +2257,68 @@ def test_check_bounds_conflict():
     initial_guess = np.zeros(prob.num_free)
     prob.check_bounds_conflict(initial_guess)
 
+def test_backend():
+    """Test that only backend='numpy', backend='cython and no backend given are
+    accepted. A value error is raised otherwise"""
+
+    x = mech.dynamicsymbols('x')
+    t = mech.dynamicsymbols._t
+    h = sym.symbols('h')
+
+    eom = sym.Matrix([x.diff(t) - 1])
+
+    num_nodes = 10
+    interval = h
+    state_symbols = (x,)
+
+    def obj(free):
+        return free[-1]
+
+    def obj_grad(free):
+        grad = np.zeroslike(free)
+        grad[-1] = 1
+        return grad
+
+    with raises(ValueError):
+        Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval,
+            time_symbol=t,
+            backend='nonsensical',
+        )
+
+    Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval,
+        time_symbol=t,
+        backend='numpy'
+    )
+
+    Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval,
+        time_symbol=t,
+        backend='cython'
+    )
+
+    Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval,
+        time_symbol=t
+    )
