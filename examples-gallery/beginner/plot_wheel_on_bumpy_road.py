@@ -1,3 +1,4 @@
+# %%
 r"""
 Quarter Car Model on a Bumpy Road
 =================================
@@ -11,7 +12,7 @@ Objective
   harder problem (road more bumpy).
 - Show how to use an additional state variable to get the acceleration of a
   body into the objective function.
-- Show how to avoid possible unwanted unknown trajectories ( here
+- Show how to avoid possible unwanted unknown trajectories (here
   :math:`\dfrac{d^2}{dt^2}x_{car}`).
 
 
@@ -19,8 +20,8 @@ Introduction
 ------------
 
 A quarter car model must move from a starting point to a final point on a bumpy
-road. The body is connected to the wheel on the road by a linear spring and a
-damper.
+road. The body (sprung mass) is connected to the wheel (unsprung mass) on the
+road by a linear spring and a damper.
 Body and wheel are modeled by particles. Movement is in the X/Z plane. Gravity
 points in the negative Z direction.
 
@@ -28,29 +29,36 @@ I took the tire stiffness from here:
 
 https://kktse.github.io/jekyll/update/2021/07/18/re71r-255-40-r17-tire-vertical-stiffness.html
 
+The goal is to minimize the acceleration of the body, given the road and the
+optimum driving force, by selecting the optimal values of the spring constant,
+and of the damping constant. The driving force must get the quarter wheel car
+from its starting point to its final point, while minimizing the objective
+function.
+
 
 **States**
 
-- :math:`x_{car}` : x position of the car [m]
-- :math:`z_{car}` : z position of the car [m]
-- :math:`z_{wheel}` : z position of the wheel [m]
-- :math:`ux_{car}` : x velocity of the car [m/s]
-- :math:`uz_{car}` : z velocity of the car [m/s]
-- :math:`uz_{wheel}` : z velocity of the wheel [m/s]
-- :math:`prevent_{jump}` : to ensure the wheel always touches the road [m]
-- :math:`steady_{body}` : to ensure that the vertical motions of the body are
-  not too large [m]
-- :math:`accel_{body}` : holds the acceleration of the body, which is to be
-  minimized [m/s^2]
-- :math:`accel_{street}` : holds the accelerations of the street as 'seen' by
-  the wheel. Only needed for the animation. [m/s^2]
+- :math:`x_{\textrm{car}}` : x position of the car [m]
+- :math:`z_{\textrm{car}}` : z position of the car [m]
+- :math:`z_{\textrm{wheel}}` : z position of the wheel [m]
+- :math:`ux_{\textrm{car}}` : x velocity of the car [m/s]
+- :math:`uz_{\textrm{car}}` : z velocity of the car [m/s]
+- :math:`uz_{\textrm{wheel}}` : z velocity of the wheel [m/s]
+- :math:`\textrm{prevent}_{\textrm{jump}}` : to ensure the wheel always touches
+  the road [m]
+- :math:`\textrm{steady}_{\textrm{body}}` : to ensure that the vertical motions
+  of the body are not too large [m]
+- :math:`\textrm{accel}_{\textrm{body}}` : holds the acceleration of the body,
+  which is to be minimized [m/s^2]
+- :math:`\textrm{accel}_{\textrm{street}}` : holds the accelerations of the
+  street as 'seen' by the wheel. Only needed for the animation. [m/s^2]
 
 
 
 **Fixed Parameters**
 
-- :math:`m_{car}` : sprung mass [kg]
-- :math:`m_{wheel}` : unsprung mass [kg]
+- :math:`m_{\textrm{car}}` : sprung mass [kg]
+- :math:`m_{\textrm{wheel}}` : unsprung mass [kg]
 - :math:`g` : gravity [m/s^2]
 - :math:`l_0` : equilibrium length of the spring [m]
 - :math:`r_1, r_2, r_3, r_4, r_5` : parameters of the street.
@@ -82,7 +90,7 @@ from matplotlib import patches
 
 import time
 # %%
-# Set up the Equations of Motion
+# Set Up the Equations of Motion
 #-------------------------------
 N = me.ReferenceFrame('N')
 O, P_car, P_wheel = sm.symbols('O, P_car, P_wheel', cls=me.Point)
@@ -159,7 +167,7 @@ eom = eom.col_join(sm.Matrix([
 
 print(f'eoms contains {sm.count_ops(eom)} equations and have shape {eom.shape}')
 # %%
-# Set up the Optimization Problem
+# Set Up the Optimization Problem
 #--------------------------------
 state_symbols = [x_car, z_car, z_wheel, ux_car, uz_car, uz_wheel, steady_body,
                  prevent_jump, accel_body, accel_street]
@@ -182,6 +190,18 @@ par_map[r5] = 0.1
 par_map[k1] = 250000.0
 
 # %%
+# Plot the road.
+r11, r22, r33, r44, r55 = [par_map[key] for key in [r1, r2, r3, r4, r5]]
+rough_surface_lam = sm.lambdify((x_car, r1, r2, r3, r4, r5),
+                                rough_surface(x_car), cse=True)
+XX = np.linspace(0, 10, 100)
+r11, r22, r33, r44, r55 = [par_map[key] for key in [r1, r2, r3, r4, r5]]
+fig, ax = plt.subplots(figsize=(7, 2), layout='tight')
+ax.plot(XX, rough_surface_lam(XX, r11, r22, r33, r44, r55))
+ax.set_xlabel('[m]')
+ax.set_ylabel('[m]')
+_ = ax.set_title('Road Profile')
+# %%
 #To be minimized:
 # :math:`\int (\dfrac{d}{dt}uz_{car})^2 dt + \text{weight} \cdot t_f`
 # ``weight`` is a scalar that can be used to adjust the importance of the
@@ -189,8 +209,8 @@ par_map[k1] = 250000.0
 weight = 1.e9
 
 def obj(free):
-    UZdot = np.sum([free[i]**2 for i in range(8*num_nodes, 9*num_nodes)])
-    return (UZdot)*free[-1] + weight*free[-1]
+    uz_dot = np.sum([free[i]**2 for i in range(8*num_nodes, 9*num_nodes)])
+    return (uz_dot)*free[-1] + weight*free[-1]
 
 def obj_grad(free):
     grad = np.zeros_like(free)
@@ -209,7 +229,6 @@ instance_constraints = (
     accel_street.func(t0) - 0.0,
     accel_body.func(t0) - 0.0,
     steady_body.func(t0) - 1.0,
-
     x_car.func(tf) - 10.0,
     ux_car.func(tf) - 0.0,
 )
@@ -237,16 +256,16 @@ if os.path.exists(fname):
     par_map[r4] = 0.0725*4
 
     prob = Problem(obj,
-               obj_grad,
-               eom,
-               state_symbols,
-               num_nodes,
-               interval,
-               known_parameter_map=par_map,
-               instance_constraints=instance_constraints,
-               bounds=bounds,
-               time_symbol=t,
-               backend='numpy',
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        time_symbol=t,
+        backend='numpy',
     )
 
     solution = np.loadtxt(fname)
@@ -284,7 +303,6 @@ else:
                 initial_guess = solution
                 print(info['status_msg'])
                 print('Objective value', info['obj_val'])
-#np.savetxt(fname, solution, fmt='%.12f')
 # %%
 # Print optimal values of the free parameters.
 print('Sequence of unknown parameters',
@@ -304,20 +322,11 @@ _ = prob.plot_trajectories(solution, axes=axes)
 # %%
 _ = prob.plot_constraint_violations(solution)
 # %%
-# Plot the road.
-r11, r22, r33, r44, r55 = [par_map[key] for key in [r1, r2, r3, r4, r5]]
-rough_surface_lam = sm.lambdify((x_car, r1, r2, r3, r4, r5),
-                                rough_surface(x_car), cse=True)
-XX = np.linspace(0, 10, 100)
-r11, r22, r33, r44, r55 = [par_map[key] for key in [r1, r2, r3, r4, r5]]
-fig, ax = plt.subplots(figsize=(6, 2), layout='tight')
-ax.plot(XX, rough_surface_lam(XX, r11, r22, r33, r44, r55))
-ax.set_xlabel('[m]')
-ax.set_ylabel('[m]')
-_ = ax.set_title('Road Profile')
 # %%
 # Animate the Solution
 # --------------------
+# fps (frames per second) is set to a higher than usual value so the fast
+# changing acceleration vectors can been seen more clearly.
 fps = 100
 
 state_vals, input_vals, _, _ = parse_free(solution, 10, 1, num_nodes,
