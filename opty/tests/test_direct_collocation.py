@@ -1588,8 +1588,10 @@ def test_prob_parse_free():
     Test for parse_free method of Problem class.
     ===========================================
 
-    This test whether the parse_free method of the Problem class works as
+    This tests whether the parse_free method of the Problem class works as
     the parse_free in utils.
+    It also tests that only 'numpy' and 'cython' backends are accepted ands
+    raises a ValueError for any other backend.
 
     **States**
 
@@ -1703,6 +1705,18 @@ def test_prob_parse_free():
     np.testing.assert_allclose(constants, constantsu)
     np.testing.assert_allclose(timeu, times)
 
+    # check that only 'numpy' and 'cython' backends are accepted as backend
+    with raises(ValueError):
+        Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            time_symbol=t,
+            backend='nonsensical',
+        )
 
 def test_one_eom_only():
     """
@@ -2256,69 +2270,3 @@ def test_check_bounds_conflict():
 
     initial_guess = np.zeros(prob.num_free)
     prob.check_bounds_conflict(initial_guess)
-
-def test_backend():
-    """Test that only backend='numpy', backend='cython and no backend given are
-    accepted. A value error is raised otherwise"""
-
-    x = mech.dynamicsymbols('x')
-    t = mech.dynamicsymbols._t
-    h = sym.symbols('h')
-
-    eom = sym.Matrix([x.diff(t) - 1])
-
-    num_nodes = 10
-    interval = h
-    state_symbols = (x,)
-
-    def obj(free):
-        return free[-1]
-
-    def obj_grad(free):
-        grad = np.zeroslike(free)
-        grad[-1] = 1
-        return grad
-
-    with raises(ValueError):
-        Problem(
-            obj,
-            obj_grad,
-            eom,
-            state_symbols,
-            num_nodes,
-            interval,
-            time_symbol=t,
-            backend='nonsensical',
-        )
-
-    Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval,
-        time_symbol=t,
-        backend='numpy'
-    )
-
-    Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval,
-        time_symbol=t,
-        backend='cython'
-    )
-
-    Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval,
-        time_symbol=t
-    )
