@@ -22,7 +22,7 @@ road by a linear spring and a damper.
 Body and wheel are modeled by particles. Movement is in the X/Z plane. Gravity
 points in the negative Z direction.
 
-I took the tire stiffness from here:
+The tire stiffness was taken from here:
 
 https://kktse.github.io/jekyll/update/2021/07/18/re71r-255-40-r17-tire-vertical-stiffness.html
 
