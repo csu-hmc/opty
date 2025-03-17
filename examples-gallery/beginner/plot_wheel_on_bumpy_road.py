@@ -126,12 +126,12 @@ bodies = [Car, Wheel]
 
 F_car =[(P_car, -m_car*g*N.z - c*(uz_car - rough_surface(x_car).diff(t))*N.z
          + k*(l_0 - (z_car - rough_surface(x_car)))*N.z
-         + fx * N.x
+         + fx * N.x,
 )]
 F_wheel = [(P_wheel, -m_wheel*g*N.z + c*(uz_car
             - rough_surface(x_car).diff(t))*N.z
             - k*(l_0 - (z_car - rough_surface(x_car)))*N.z
-            + k1 * (l_GW - (z_wheel - rough_surface(x_car))) * N.z
+            + k1 * (l_GW - (z_wheel - rough_surface(x_car))) * N.z,
 )]
 
 forces  = F_car + F_wheel
@@ -139,10 +139,11 @@ forces  = F_car + F_wheel
 kd = sm.Matrix([x_car.diff(t) - ux_car, uz_car - z_car.diff(t),
                 uz_wheel - z_wheel.diff(t)])
 
-KM = me.KanesMethod(N,
-                    q_ind=[x_car, z_car, z_wheel],
-                    u_ind=[ux_car, uz_car, uz_wheel],
-                    kd_eqs=kd,
+KM = me.KanesMethod(
+          N,
+          q_ind=[x_car, z_car, z_wheel],
+          u_ind=[ux_car, uz_car, uz_wheel],
+          kd_eqs=kd,
 )
 fr, frstar = KM.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
@@ -155,10 +156,10 @@ eom = kd.col_join(fr + frstar)
 aux_1 = (rough_surface(x_car).diff(t)).subs({x_car.diff(t): ux_car})
 aux_1 = aux_1.diff(t)
 eom = eom.col_join(sm.Matrix([
-                   prevent_jump - (z_wheel - rough_surface(x_car)),
-                   steady_body - (z_car - rough_surface(x_car)),
-                   accel_body - (uz_car.diff(t)),
-                   accel_street - aux_1,
+          prevent_jump - (z_wheel - rough_surface(x_car)),
+          steady_body - (z_car - rough_surface(x_car)),
+          accel_body - (uz_car.diff(t)),
+          accel_street - aux_1,
 ]))
 
 print(f'eoms contains {sm.count_ops(eom)} equations and have shape {eom.shape}')
@@ -211,10 +212,8 @@ def obj(free):
 def obj_grad(free):
     grad = np.zeros_like(free)
     grad[9*num_nodes:10*num_nodes] = 2*free[8*num_nodes:9*num_nodes]*free[-1]
-    grad[-1] = (
-                + np.sum([free[i]**2 for i in range(8*num_nodes, 9*num_nodes)])
-                + weight,
-    )
+    grad[-1] = (np.sum([free[i]**2 for i in range(8*num_nodes, 9*num_nodes)])
+                + weight)
     return grad
 
 # %%
@@ -249,21 +248,21 @@ bounds = {
 fname =f'quarter_car_on_bumpy_road_{num_nodes}_nodes_solution.csv'
 
 prob = Problem(obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        time_symbol=t,
-        backend='numpy',
+          obj_grad,
+          eom,
+          state_symbols,
+          num_nodes,
+          interval,
+          known_parameter_map=par_map,
+          instance_constraints=instance_constraints,
+          bounds=bounds,
+          time_symbol=t,
+          backend='numpy',
 )
 
 if os.path.exists(fname):
     # use the existing solution
-         solution = np.loadtxt(fname)
+    solution = np.loadtxt(fname)
 else:
     # Pick a reasonable initial guess and solve the problem.
     # Sometimes random intial guess work fine.
@@ -275,14 +274,14 @@ else:
 # %%
 # Print optimal values of the free parameters.
 print('Sequence of unknown parameters',
-               prob.collocator.unknown_parameters)
-print(f'optimal value of dampening constant c =                  ' +
+      prob.collocator.unknown_parameters)
+print(f'optimal value of dampening constant c =                  '
       f'{solution[-4]:.1f}')
-print(f'optimal value of spring constant k =                     ' +
+print(f'optimal value of spring constant k =                     '
       f'{solution[-3]:.1f}')
-#print(f'optimal value of wheel spring constant k1 =              ' +
+#print(f'optimal value of wheel spring constant k1 =              '
 #      f'{solution[-3]:.2f}')
-print(f'optimal value of nat.  length of the wheel spring l_GW = ' +
+print(f'optimal value of nat.  length of the wheel spring l_GW = '
       f'{solution[-2]:.2f}')
 
 # %%
@@ -317,7 +316,7 @@ coordinates = coordinates.row_join(P_wheel.pos_from(O).to_matrix(N))
 
 pL, pL_vals = zip(*par_map.items())
 coords_lam = sm.lambdify(list(state_symbols) + [fx, c, k] + list(pL),
-    coordinates, cse=True)
+                         coordinates, cse=True)
 
 def init_plot():
     fig, ax = plt.subplots(figsize=(7, 7))
@@ -330,7 +329,7 @@ def init_plot():
     # draw the road
     XX = np.linspace(0, 10, 200)
     street, = ax.plot(XX, rough_surface_lam(XX, r11, r22, r33, r44, r55),
-            color='black', lw=0.75)
+                      color='black', lw=0.75)
 
     ax.axhline(average_body, color='black', lw=0.5, linestyle='--')
     ax.axhline(average_wheel, color='black', lw=0.5, linestyle='--')
@@ -345,12 +344,12 @@ def init_plot():
     # driving force
     pfeil1 = ax.quiver([], [], [], [], color='green', scale=90000, width=0.006)
     # acceleratrion of the wheel
-    pfeil2 = ax.quiver([], [], [], [], color='blue', scale=750, width=0.006)
+    pfeil2 = ax.quiver([], [], [], [], color='blue', scale=350, width=0.006)
     # acceleration of the body
-    pfeil3 = ax.quiver([], [], [], [], color='magenta', scale=30, width=0.006)
+    pfeil3 = ax.quiver([], [], [], [], color='black', scale=350, width=0.006)
 
     circle = patches.Circle((0.1, 0.0), radius=0.1, color='red', ec='black',
-            fill=False)
+                            fill=False)
     ax.add_patch(circle)
 
     return (fig, ax, line1, line2, line3, line4, pfeil1, pfeil2, pfeil3,
@@ -358,12 +357,11 @@ def init_plot():
 
 # Function to update the plot for each animation frame
 def update(t):
-    message = (f'running time {t:.2f} sec' +
-        f'\n The blue arrow is the ' +
-        f'accelerationon the wheel due to uneven street \n' +
-        f'The magenta arrow is the acceleration of the body, magnified 25' +
-        f' fold \n' +
-        f'The green arrow is the driving force / video is in slow motion')
+    message = (f'running time {t:.2f} sec'
+               f'\n The blue arrow is the accelerationon the street \n'
+               f'The black arrow is the acceleration of the body \n'
+               f'The green arrow is the driving force \n The video is in slow '
+               f'motion')
     ax.set_title(message, fontsize=10)
 
     coords = coords_lam(*state_sol(t), input_sol(t), solution[-3],
@@ -372,7 +370,7 @@ def update(t):
     line2.set_offsets([0, coords[2, 0]])
     line3.set_data([0, 0], [coords[2, 0], coords[2, 1]])
     line4.set_offsets([0, rough_surface_lam(coords[0, 0], r11, r22, r33,
-                    r44, r55)])
+                      r44, r55)])
 
     XX= np.linspace(-coords[0, 0]-1, 11-coords[0, 0], 200)
     YY = np.linspace(-1, 11, 200)
@@ -381,7 +379,8 @@ def update(t):
     pfeil1.set_offsets([coords[0, 0]*0, coords[2, 0]])
     pfeil1.set_UVC(input_sol(t), 0)
 
-    pfeil2.set_offsets([-0.025, coords[2, 1]])
+    pfeil2.set_offsets([-0.025, rough_surface_lam(coords[0, 0], r11, r22, r33,
+                                          r44,r55)])
     pfeil2.set_UVC(0.0, state_sol(t)[9])
 
     pfeil3.set_offsets([+0.05, coords[2, 0]])
@@ -396,6 +395,6 @@ fig, ax, line1, line2, line3, line4, pfeil1, pfeil2, pfeil3, street, circle = (
     init_plot())
 
 animation = FuncAnimation(fig, update, frames=np.arange(t0,
-    num_nodes*solution[-1], 1 / fps), interval=12000/fps)
+                  num_nodes*solution[-1], 1 / fps), interval=12000/fps)
 
 plt.show()
