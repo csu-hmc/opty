@@ -916,6 +916,9 @@ class ConstraintCollocator(object):
             raise ValueError('The number of states must match the number of '
                              'equations of motion.')
 
+        if backend not in ['cython', 'numpy']:
+            raise ValueError('backend must be either "cython" or "numpy".')
+
         self._state_derivative_symbols = tuple([s.diff(self.time_symbol) for
                                                s in state_symbols])
         self._num_states = len(self.state_symbols)

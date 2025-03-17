@@ -1588,8 +1588,10 @@ def test_prob_parse_free():
     Test for parse_free method of Problem class.
     ===========================================
 
-    This test whether the parse_free method of the Problem class works as
+    This tests whether the parse_free method of the Problem class works as
     the parse_free in utils.
+    It also tests that only 'numpy' and 'cython' backends are accepted ands
+    raises a ValueError for any other backend.
 
     **States**
 
@@ -1703,6 +1705,18 @@ def test_prob_parse_free():
     np.testing.assert_allclose(constants, constantsu)
     np.testing.assert_allclose(timeu, times)
 
+    # check that only 'numpy' and 'cython' backends are accepted as backend
+    with raises(ValueError):
+        Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            time_symbol=t,
+            backend='nonsensical',
+        )
 
 def test_one_eom_only():
     """
@@ -2256,4 +2270,3 @@ def test_check_bounds_conflict():
 
     initial_guess = np.zeros(prob.num_free)
     prob.check_bounds_conflict(initial_guess)
-
