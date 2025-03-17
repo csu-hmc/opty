@@ -142,7 +142,7 @@ kd = sm.Matrix([x_car.diff(t) - ux_car, uz_car - z_car.diff(t),
 KM = me.KanesMethod(N,
                     q_ind=[x_car, z_car, z_wheel],
                     u_ind=[ux_car, uz_car, uz_wheel],
-                    kd_eqs=kd
+                    kd_eqs=kd,
 )
 fr, frstar = KM.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
@@ -155,10 +155,10 @@ eom = kd.col_join(fr + frstar)
 aux_1 = (rough_surface(x_car).diff(t)).subs({x_car.diff(t): ux_car})
 aux_1 = aux_1.diff(t)
 eom = eom.col_join(sm.Matrix([
-                    prevent_jump - (z_wheel - rough_surface(x_car)),
-                    steady_body - (z_car - rough_surface(x_car)),
-                    accel_body - (uz_car.diff(t)),
-                    accel_street - aux_1
+                   prevent_jump - (z_wheel - rough_surface(x_car)),
+                   steady_body - (z_car - rough_surface(x_car)),
+                   accel_body - (uz_car.diff(t)),
+                   accel_street - aux_1,
 ]))
 
 print(f'eoms contains {sm.count_ops(eom)} equations and have shape {eom.shape}')
@@ -189,7 +189,7 @@ par_map[k1] = 250000.0
 # Plot the road.
 r11, r22, r33, r44, r55 = [par_map[key] for key in [r1, r2, r3, r4, r5]]
 rough_surface_lam = sm.lambdify((x_car, r1, r2, r3, r4, r5),
-                                rough_surface(x_car), cse=True)
+                                 rough_surface(x_car), cse=True)
 XX = np.linspace(0, 10, 100)
 r11, r22, r33, r44, r55 = [par_map[key] for key in [r1, r2, r3, r4, r5]]
 fig, ax = plt.subplots(figsize=(7, 2), layout='tight')
@@ -212,9 +212,9 @@ def obj_grad(free):
     grad = np.zeros_like(free)
     grad[9*num_nodes:10*num_nodes] = 2*free[8*num_nodes:9*num_nodes]*free[-1]
     grad[-1] = (
-            + np.sum([free[i]**2 for i in range(8*num_nodes, 9*num_nodes)])
-            + weight
-        )
+                + np.sum([free[i]**2 for i in range(8*num_nodes, 9*num_nodes)])
+                + weight,
+    )
     return grad
 
 # %%
@@ -249,17 +249,17 @@ bounds = {
 fname =f'quarter_car_on_bumpy_road_{num_nodes}_nodes_solution.csv'
 
 prob = Problem(obj,
-                obj_grad,
-                eom,
-                state_symbols,
-                num_nodes,
-                interval,
-                known_parameter_map=par_map,
-                instance_constraints=instance_constraints,
-                bounds=bounds,
-                time_symbol=t,
-                backend='numpy',
-            )
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        time_symbol=t,
+        backend='numpy',
+)
 
 if os.path.exists(fname):
     # use the existing solution
