@@ -5,7 +5,8 @@ Brachistochrone
 Objective
 ---------
 
-- Show how to solve variational problems using opty with variable time interval.
+- Show how to solve variational problems using opty with variable time
+  interval.
 
 Introduction
 ------------
@@ -59,8 +60,6 @@ import matplotlib.pyplot as plt
 from opty import Problem
 from scipy.optimize import root
 from scipy.interpolate import CubicSpline
-from opty.direct_collocation import Problem
-import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 # %%
@@ -82,7 +81,7 @@ P.set_vel(N, ux*N.x + uy*N.y)
 
 body = [me.Particle('body', P, m)]
 forces = [(P, -m*g*N.y)]
-speed_constr =  sm.Matrix([P.vel((N)).dot(A.y)])
+speed_constr = sm.Matrix([P.vel((N)).dot(A.y)])
 
 kd = sm.Matrix([ux - x.diff(t), uy - y.diff(t)])
 kane = me.KanesMethod(
@@ -179,7 +178,6 @@ else:
 
     _ = prob.plot_objective_value()
 
-#np.savetxt(fname, solution, fmt='%.12f')
 # %%
 _ = prob.plot_trajectories(solution)
 # %%
@@ -189,7 +187,7 @@ _ = prob.plot_constraint_violations(solution)
 # --------------------
 fps = 35
 
-#%%
+# %%
 # Calculate the Brachistochrone from (0, 0) to (b1, b2). It is very sensitive
 # to the initial guess.
 def func(X0):
@@ -228,7 +226,7 @@ coordinates = coordinates.row_join(arrow_head.pos_from(O).to_matrix(N))
 
 pL, pL_vals = zip(*par_map.items())
 coords_lam = sm.lambdify(list(state_symbols) + [beta] + list(pL),
-                coordinates, cse=True)
+                         coordinates, cse=True)
 
 def init_plot():
     fig, ax = plt.subplots(figsize=(7, 7))
@@ -262,13 +260,13 @@ def update(t):
     punkt.set_offsets([coords[0, 0], coords[1, 0]])
 
     pfeil.set_offsets([coords[0, 0], coords[1, 0]])
-    pfeil.set_UVC(coords[0, 1] - coords[0, 0] , coords[1, 1] - coords[1, 0])
-
+    pfeil.set_UVC(coords[0, 1] - coords[0, 0], coords[1, 1] - coords[1, 0])
 # %%
 # Create the animation.
 fig, ax, punkt, pfeil = init_plot()
 animation = FuncAnimation(fig, update, frames=np.arange(t0,
-                (num_nodes+1)*solution[-1], 1 / fps), interval=3000/fps)
+                          (num_nodes+1)*solution[-1], 1 / fps),
+                          interval=3000/fps)
 
 # %%
 # A frame from the animation.
