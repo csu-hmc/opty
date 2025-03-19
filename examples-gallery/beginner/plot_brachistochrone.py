@@ -27,6 +27,14 @@ cannot have a speed component normal to the tangent of the curve at this
 point. This fact is used to set up the equations of motion.
 Without loss of generality to starting point is (0, 0).
 
+Notes
+-----
+
+The speed constraint used below is a true nonholonomic constraint. It is not
+a holonomic constraint in disguise. Details may be found here:
+
+https://moorepants.github.io/learn-multibody-dynamics/motion.html#chaplygin-sleigh
+
 
 **States**
 
@@ -81,7 +89,7 @@ P.set_vel(N, ux*N.x + uy*N.y)
 
 body = [me.Particle('body', P, m)]
 forces = [(P, -m*g*N.y)]
-speed_constr = sm.Matrix([P.vel((N)).dot(A.y)])
+speed_constr = sm.Matrix([P.vel(N).dot(A.y)])
 
 kd = sm.Matrix([ux - x.diff(t), uy - y.diff(t)])
 kane = me.KanesMethod(
@@ -140,7 +148,7 @@ def obj_grad(free):
 # %%
 # If a solution exists, backend = 'numpy' is better as it sets up ``Problem``
 # much faster. If no solution is available, use 'cython' as the backend, as it
-# is faster for solving the problem.
+# solves this problem faster.
 fname = f'brachistochrone_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
     backend = 'numpy'
@@ -163,15 +171,15 @@ prob = Problem(
 # %%
 # Solve the problem. Use the given solution if available, else pick a
 # reasonable initial guess and solve the problem.
-
 if os.path.exists(fname):
     # Take the given solution
     solution = np.loadtxt(fname)
 else:
+    initial_guess = np.random.randn(prob.num_free) * 0.1
     # Solve the problem.
     initial_guess = np.random.randn(prob.num_free) * 0.1
     prob.add_option('max_iter', 15000)
-    for _ in range(10):
+    for _ in range(1):
         solution, info = prob.solve(initial_guess)
         initial_guess = solution
         print(info['status_msg'])
