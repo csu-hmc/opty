@@ -84,7 +84,6 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib import patches
 
-import time
 # %%
 # Set Up the Equations of Motion
 #-------------------------------
@@ -105,36 +104,39 @@ l_0, k, c = sm.symbols('  l_0, k, c')
 l_GW, k1 = sm.symbols('l_GW, k1')
 # %%
 # Define the rough surface of the street.
+
+
 def rough_surface(x_car):
     omega = 0.75
     return sm.S(0.135) * (r1*sm.sin(omega*x_car)**2
-        + r2*sm.sin(2*omega*x_car)**2
-        + r3*sm.sin(3*omega*x_car)**2 + r4*sm.sin(7*omega*x_car)**2
-        + r5*sm.sin(9*omega*x_car)**2)
+            + r2*sm.sin(2*omega*x_car)**2
+            + r3*sm.sin(3*omega*x_car)**2 + r4*sm.sin(7*omega*x_car)**2
+            + r5*sm.sin(9*omega*x_car)**2)
+
 
 # %%
 # Set up the system.
 P_car.set_pos(O, x_car*N.x + z_car*N.z)
 P_wheel.set_pos(O, x_car*N.x + z_wheel*N.z)
 
-P_car.set_vel(N, ux_car*N.x  + uz_car*N.z)
+P_car.set_vel(N, ux_car*N.x + uz_car*N.z)
 P_wheel.set_vel(N, ux_car*N.x + uz_wheel*N.z)
 
 Car = me.Particle('Car', P_car, m_car)
 Wheel = me.Particle('Wheel', P_wheel, m_wheel)
 bodies = [Car, Wheel]
 
-F_car =[(P_car, -m_car*g*N.z - c*(uz_car - rough_surface(x_car).diff(t))*N.z
+F_car = [(P_car, -m_car*g*N.z - c*(uz_car - rough_surface(x_car).diff(t))*N.z
          + k*(l_0 - (z_car - rough_surface(x_car)))*N.z
          + fx * N.x,
-)]
+        )]
 F_wheel = [(P_wheel, -m_wheel*g*N.z + c*(uz_car
             - rough_surface(x_car).diff(t))*N.z
             - k*(l_0 - (z_car - rough_surface(x_car)))*N.z
             + k1 * (l_GW - (z_wheel - rough_surface(x_car))) * N.z,
-)]
+          )]
 
-forces  = F_car + F_wheel
+forces = F_car + F_wheel
 
 kd = sm.Matrix([x_car.diff(t) - ux_car, uz_car - z_car.diff(t),
                 uz_wheel - z_wheel.diff(t)])
@@ -162,7 +164,8 @@ eom = eom.col_join(sm.Matrix([
           accel_street - aux_1,
 ]))
 
-print(f'eoms contains {sm.count_ops(eom)} equations and have shape {eom.shape}')
+print((f'eoms contains {sm.count_ops(eom)} equations and have shape'
+      f'{eom.shape}'))
 # %%
 # Set Up the Optimization Problem
 #--------------------------------
@@ -190,7 +193,7 @@ par_map[k1] = 250000.0
 # Plot the road.
 r11, r22, r33, r44, r55 = [par_map[key] for key in [r1, r2, r3, r4, r5]]
 rough_surface_lam = sm.lambdify((x_car, r1, r2, r3, r4, r5),
-                                 rough_surface(x_car), cse=True)
+        rough_surface(x_car), cse=True)
 XX = np.linspace(0, 10, 100)
 r11, r22, r33, r44, r55 = [par_map[key] for key in [r1, r2, r3, r4, r5]]
 fig, ax = plt.subplots(figsize=(7, 2), layout='tight')
@@ -205,9 +208,11 @@ _ = ax.set_title('Road Profile')
 # speed.
 weight = 1.e10
 
+
 def obj(free):
     uz_dot = np.sum([free[i]**2 for i in range(8*num_nodes, 9*num_nodes)])
     return (uz_dot)*free[-1] + weight*free[-1]
+
 
 def obj_grad(free):
     grad = np.zeros_like(free)
@@ -215,6 +220,7 @@ def obj_grad(free):
     grad[-1] = (np.sum([free[i]**2 for i in range(8*num_nodes, 9*num_nodes)])
                 + weight)
     return grad
+
 
 # %%
 # Add the instance constraints and bounds.
@@ -245,20 +251,22 @@ bounds = {
 # Use an existing solution if available, else pick an initial guess and solve
 # the problem. (if no solution available, it may be advantageous to set
 # backend='cython' in the Problem class below)
-fname =f'quarter_car_on_bumpy_road_{num_nodes}_nodes_solution.csv'
+fname = f'quarter_car_on_bumpy_road_{num_nodes}_nodes_solution.csv'
+
 
 prob = Problem(obj,
-          obj_grad,
-          eom,
-          state_symbols,
-          num_nodes,
-          interval,
-          known_parameter_map=par_map,
-          instance_constraints=instance_constraints,
-          bounds=bounds,
-          time_symbol=t,
-          backend='numpy',
-)
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        time_symbol=t,
+        backend='numpy',
+        )
+
 
 if os.path.exists(fname):
     # use the existing solution
@@ -318,6 +326,7 @@ pL, pL_vals = zip(*par_map.items())
 coords_lam = sm.lambdify(list(state_symbols) + [fx, c, k] + list(pL),
                          coordinates, cse=True)
 
+
 def init_plot():
     fig, ax = plt.subplots(figsize=(7, 7))
     ax.set_xlim(xmin, xmax)
@@ -329,16 +338,16 @@ def init_plot():
     # draw the road
     XX = np.linspace(0, 10, 200)
     street, = ax.plot(XX, rough_surface_lam(XX, r11, r22, r33, r44, r55),
-                      color='black', lw=0.75)
+          color='black', lw=0.75)
 
     ax.axhline(average_body, color='black', lw=0.5, linestyle='--')
     ax.axhline(average_wheel, color='black', lw=0.5, linestyle='--')
 
     # draw the wheel and the body and a line connecting them.
-    line1 = ax.scatter([], [], color='red', marker='o', s=25) # wheel
-    line2 = ax.scatter([], [], color='red', marker='o', s=900) # body
-    line3, = ax.plot([], [], lw=2.5, color='red') # line connecting them
-    line4 = ax.scatter([], [], color='blue', marker='o', s=50) # contact
+    line1 = ax.scatter([], [], color='red', marker='o', s=25)  # wheel
+    line2 = ax.scatter([], [], color='red', marker='o', s=900)  # body
+    line3, = ax.plot([], [], lw=2.5, color='red')  # line connecting them
+    line4 = ax.scatter([], [], color='blue', marker='o', s=50)  # contact
 
     # draw the arrows
     # driving force
@@ -355,6 +364,7 @@ def init_plot():
     return (fig, ax, line1, line2, line3, line4, pfeil1, pfeil2, pfeil3,
             street, circle)
 
+
 # Function to update the plot for each animation frame
 def update(t):
     message = (f'running time {t:.2f} sec'
@@ -370,9 +380,9 @@ def update(t):
     line2.set_offsets([0, coords[2, 0]])
     line3.set_data([0, 0], [coords[2, 0], coords[2, 1]])
     line4.set_offsets([0, rough_surface_lam(coords[0, 0], r11, r22, r33,
-                      r44, r55)])
+          r44, r55)])
 
-    XX= np.linspace(-coords[0, 0]-1, 11-coords[0, 0], 200)
+    XX = np.linspace(-coords[0, 0]-1, 11-coords[0, 0], 200)
     YY = np.linspace(-1, 11, 200)
     street.set_data(XX, rough_surface_lam(YY, r11, r22, r33, r44, r55))
 
@@ -380,7 +390,7 @@ def update(t):
     pfeil1.set_UVC(input_sol(t), 0)
 
     pfeil2.set_offsets([-0.025, rough_surface_lam(coords[0, 0], r11, r22, r33,
-                                          r44,r55)])
+          r44, r55)])
     pfeil2.set_UVC(0.0, state_sol(t)[9])
 
     pfeil3.set_offsets([+0.05, coords[2, 0]])
@@ -390,11 +400,13 @@ def update(t):
 
 # sphinx_gallery_thumbnail_number = 4
 
+
 # Create the animation.
 fig, ax, line1, line2, line3, line4, pfeil1, pfeil2, pfeil3, street, circle = (
     init_plot())
 
+
 animation = FuncAnimation(fig, update, frames=np.arange(t0,
-                  num_nodes*solution[-1], 1 / fps), interval=12000/fps)
+        num_nodes*solution[-1], 1 / fps), interval=12000/fps)
 
 plt.show()
