@@ -5,45 +5,45 @@ Brachistochrone
 Objective
 ---------
 
-- Show how to solve variational problems using opty with variable time
+- Show how to solve a variational problem using opty with variable time
   interval.
 
 Introduction
 ------------
 
-A particle is to slide without friction on a curve from A to B in the shortest
-time. B must not be directly under A (else the problem is trivial).
-The solution curve is called the **Brachistochrone**. It is a cycloid. More
-about this classic problem may be found here:
+A particle is to slide without friction under the constant force of gravity on
+a curve from A to B in the shortest time. B must not be directly under A (else
+the problem is trivial). The solution curve is called the Brachistochrone_
+which is a cycloid.
 
-https://en.wikipedia.org/wiki/Brachistochrone_curve
-
+.. _Brachistochrone: https://en.wikipedia.org/wiki/Brachistochrone_curve
 
 Explanation of the Approach Taken
 ---------------------------------
 
-Let the curve be called b(x). If the particle is at (x(t) , b(x(t)) then it
-cannot have a speed component normal to the tangent of the curve at this
-point. This fact is used to set up the equations of motion.
-Without loss of generality to starting point is (0, 0).
+Let the curve be called :math:`b(x)`. If the particle is at :math:`(x(t) ,
+b(x(t))` then it cannot have a speed component normal to the tangent of the
+curve at this point. This fact is used to set up the equations of motion.
+Without loss of generality the starting point is (0, 0).
 
 Notes
 -----
 
-The speed constraint used below is a true nonholonomic constraint. It is not
-a holonomic constraint in disguise. Details may be found here:
+The curve is parameterized by time and a nonholonomic constraint is introduced
+to ensure the motion is always tangent to the curve. The nonholonomic
+constraint is similar to the constraint present in the `Chaplygin Sleigh`_.
 
-https://moorepants.github.io/learn-multibody-dynamics/motion.html#chaplygin-sleigh
-
+.. _Chaplygin Sleigh: https://en.wikipedia.org/wiki/Chaplygin_sleigh
 
 **States**
 
 - :math:`x`: x-coordinate of the particle
-- :math:`y`: y-coordinate of the particle
+- :math:`y`: y-coordinate of the particle, opposite in sign to the
+  gravitational force
 - :math:`u_x`: x-component of the velocity of the particle
 - :math:`u_y`: y-component of the velocity of the particle
 
-**Controls**
+**Inputs**
 
 - :math:`\beta`: angle of the tangent of the curve with the horizontal
 
@@ -73,6 +73,13 @@ from matplotlib.animation import FuncAnimation
 # %%
 # Equations of Motion
 # -------------------
+#
+# The equations of motion represent a particle :math:`P` of mass :math:`m`
+# moving in a uniform gravitational field. The point moves on a surface that
+# applies a normal force to it and the angle of the surface relative to the
+# horizontal is :math:`\beta(t)`. A nonholonomic constraint to ensure the
+# particle's velocity only has a component tangent to the surface is added to
+# the equations of motion making a set of differential algebraic equations.
 N, A = me.ReferenceFrame('N'), me.ReferenceFrame('A')
 O, P = sm.symbols('O P', cls=me.Point)
 O.set_vel(N, 0)
@@ -82,23 +89,29 @@ m, g = sm.symbols('m g')
 x, y, ux, uy = me.dynamicsymbols('x y u_x u_y')
 beta = me.dynamicsymbols('beta')
 
+state_symbols = (x, y, ux, uy)
+
 A.orient_axis(N, beta, N.z)
 
 P.set_pos(O, x*N.x + y*N.y)
 P.set_vel(N, ux*N.x + uy*N.y)
 
-body = [me.Particle('body', P, m)]
-forces = [(P, -m*g*N.y)]
 speed_constr = sm.Matrix([P.vel(N).dot(A.y)])
 
 kd = sm.Matrix([ux - x.diff(t), uy - y.diff(t)])
+
+bodies = [me.Particle('body', P, m)]
+forces = [(P, -m*g*N.y)]
+
 kane = me.KanesMethod(
-            N, q_ind=[x, y],
-            u_ind=[ux],
-            u_dependent=[uy],
-            kd_eqs=kd,
-            velocity_constraints=speed_constr)
-fr, frstar = kane.kanes_equations(body, forces)
+    N,
+    q_ind=[x, y],
+    u_ind=[ux],
+    u_dependent=[uy],
+    kd_eqs=kd,
+    velocity_constraints=speed_constr,
+)
+fr, frstar = kane.kanes_equations(bodies, loads=forces)
 
 eom = kd.col_join(fr + frstar)
 eom = eom.col_join(speed_constr)
@@ -107,20 +120,31 @@ MathJaxRepr(eom)
 # %%
 # Set up the Optimization Problem and Solve It
 # --------------------------------------------
+#
+# The goal is to minimize the time to reach the second point. So make the time
+# interval a variable :math:`h`.
 h = sm.symbols('h')
 num_nodes = 201
-t0, tf = 0.0, h*(num_nodes - 1)
-interval = h
+t0, tf = 0*h, h*(num_nodes - 1)
 
-state_symbols = (x, y, ux, uy)
 
-# B(b1/b2) is the final point, the starting point is (0/0), always
+def obj(free):
+    return free[-1]
+
+
+def obj_grad(free):
+    grad = np.zeros_like(free)
+    grad[-1] = 1.0
+    return grad
+
+
+# %%
+# Set up the constraints and bounds, objective function and its gradient for
+# the problem. (b1, b2) is the final point and (0, 0) is the starting point is
+# (0/0).
 b1 = 10.0
 b2 = -6.0
 
-# %%
-# Set up the constraints and bounds, objective function and its gradient
-# for the problem.
 instance_constraint = (
     x.func(t0),
     y.func(t0),
@@ -137,85 +161,68 @@ bounds = {
 
 par_map = {m: 1.0, g: 9.81}
 
-def obj(free):
-    return free[-1]
-
-def obj_grad(free):
-    grad = np.zeros_like(free)
-    grad[-1] = 1.0
-    return grad
-
-# %%
-# If a solution exists, backend = 'numpy' is better as it sets up ``Problem``
-# much faster. If no solution is available, use 'cython' as the backend, as it
-# solves this problem faster.
-fname = f'brachistochrone_{num_nodes}_nodes_solution.csv'
-if os.path.exists(fname):
-    backend = 'numpy'
-else:
-    backend = 'cython'
 prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval,
-        time_symbol=t,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraint,
-        bounds=bounds,
-        backend=backend,
+    obj,
+    obj_grad,
+    eom,
+    state_symbols,
+    num_nodes,
+    h,
+    time_symbol=t,
+    known_parameter_map=par_map,
+    instance_constraints=instance_constraint,
+    bounds=bounds,
 )
 
 # %%
 # Solve the problem. Use the given solution if available, else pick a
-# reasonable initial guess and solve the problem.
+# reasonable initial guess and solve the problem. This problem takes a large
+# number of iterations to reach the optimal solution.
+fname = f'brachistochrone_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
-    # Take the given solution
     solution = np.loadtxt(fname)
 else:
-    initial_guess = np.random.randn(prob.num_free) * 0.1
-    # Solve the problem.
-    initial_guess = np.random.randn(prob.num_free) * 0.1
+    initial_guess = np.random.randn(prob.num_free)*0.1
     prob.add_option('max_iter', 15000)
-    for _ in range(1):
-        solution, info = prob.solve(initial_guess)
-        initial_guess = solution
-        print(info['status_msg'])
+    solution, info = prob.solve(initial_guess)
+    print(info['status_msg'])
 
     _ = prob.plot_objective_value()
 
 # %%
+# State and input trajectories:
 _ = prob.plot_trajectories(solution)
+
 # %%
+# Constraint violations:
 _ = prob.plot_constraint_violations(solution)
+
 # %%
 # Animate the Solution
 # --------------------
 fps = 35
 
+
 # %%
 # Calculate the Brachistochrone from (0, 0) to (b1, b2). It is very sensitive
 # to the initial guess.
-def func(X0):
-    """gives the Brachistochrome equation for the starting point at (0/0) and
-    the final point at (b1/b2)"""
-    R = X0[0]
-    theta = X0[1]
-    return [R*theta - R*np.sin(theta) - b1, R*(1.0 - np.cos(theta)) - b2]
+def func(x0):
+    """Gives the Brachistochrome equation for the starting point at (0, 0) and
+    the final point at (b1, b2)"""
+    r, theta = x0[0], x0[1]
+    return [r*theta - r*np.sin(theta) - b1, r*(1.0 - np.cos(theta)) - b2]
 
-# These initial guesses do not work for all b1, b2. It is very sensitive to
-# the initial guess..
-X0 = [1.0, 1.0]
-resultat = root(func, X0)
+
+x0 = [1.0, 1.0]
+resultat = root(func, x0)
 
 times = np.linspace(0.0, resultat.x[1], num_nodes)
-XX = resultat.x[0]*times - resultat.x[0]*np.sin(times)
-YY = resultat.x[0] * (1.0 - np.cos(times))
+xx = resultat.x[0]*times - resultat.x[0]*np.sin(times)
+yy = resultat.x[0]*(1.0 - np.cos(times))
+
 # %%
 # Set up the plot.
-state_vals, input_vals, *_ = prob.parse_free(solution)
+state_vals, input_vals, _, h_val = prob.parse_free(solution)
 t_arr = np.linspace(t0, num_nodes*solution[-1], num_nodes)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
@@ -225,16 +232,15 @@ xmax = b1 + 1.0
 ymin = b2 - 1.0
 ymax = 1.0
 
-# additional points for the speed vector
 arrow_head = me.Point('arrow_head')
 arrow_head.set_pos(P, ux*N.x + uy*N.y)
 
 coordinates = P.pos_from(O).to_matrix(N)
 coordinates = coordinates.row_join(arrow_head.pos_from(O).to_matrix(N))
 
-pL, pL_vals = zip(*par_map.items())
-coords_lam = sm.lambdify(list(state_symbols) + [beta] + list(pL),
+coords_lam = sm.lambdify(list(state_symbols) + [beta] + list(par_map.keys()),
                          coordinates, cse=True)
+
 
 def init_plot():
     fig, ax = plt.subplots(figsize=(7, 7))
@@ -244,40 +250,48 @@ def init_plot():
     ax.set_xlabel('x', fontsize=15)
     ax.set_ylabel('y', fontsize=15)
 
-    # Plot the Brachistochrone
-    ax.plot(XX, YY, color='black', lw=0.5)
+    # Plot the Brachistochrone analytical solution.
+    ax.plot(xx, yy, color='black', lw=0.5)
     ax.scatter([0], [0], color='red', s=10)
     ax.scatter([b1], [b2], color='green', s=10)
 
-    # set up the point and the speed arrow.
+    # Set up the point and the speed arrow.
     punkt = ax.scatter([], [], color='red', s=50)
-    # draw the speed vektor
+    # Draw the speed vector.
     pfeil = ax.quiver([], [], [], [], color='green', scale=25, width=0.004)
 
     return fig, ax, punkt, pfeil
 
+
+# %%
 # Function to update the plot for each animation frame
 fig, ax, punkt, pfeil = init_plot()
 
+
 def update(t):
-    message = (f'running time {t:.2f} sec \n The green arrow is the speed \n'
+    message = (f'Running time {t:.2f} sec \n'
+               f'The green arrow is the speed \n'
                f'Slow motion video.')
     ax.set_title(message, fontsize=12)
 
-    coords = coords_lam(*state_sol(t), input_sol(t), *pL_vals)
+    coords = coords_lam(*state_sol(t), input_sol(t), *par_map.values())
     punkt.set_offsets([coords[0, 0], coords[1, 0]])
 
     pfeil.set_offsets([coords[0, 0], coords[1, 0]])
     pfeil.set_UVC(coords[0, 1] - coords[0, 0], coords[1, 1] - coords[1, 0])
+
+
 # %%
 # Create the animation.
 fig, ax, punkt, pfeil = init_plot()
-animation = FuncAnimation(fig, update, frames=np.arange(t0,
-                          (num_nodes+1)*solution[-1], 1 / fps),
-                          interval=3000/fps)
+animation = FuncAnimation(
+    fig,
+    update,
+    frames=np.arange(t0, (num_nodes + 1)*h_val, 1/fps),
+    interval=3000/fps,
+)
 
 # %%
 # A frame from the animation.
 # sphinx_gallery_thumbnail_number = 4
-
 plt.show()
