@@ -3,6 +3,17 @@
 Block Sliding Over a Hill
 =========================
 
+Objective
+---------
+
+- Show how to use fixed time interval and variable time interval on a very
+  simple example.
+- Show the use of ``backend='numpy'`` in the ``Problem`` class which sets up
+  small problems faster.
+
+Introduction
+------------
+
 A block, modeled as a particle is sliding on a road to cross a hill. The block
 is subject to gravity and speed dependent viscous friction. Gravity points in
 the negative Y direction. A force tangential to the road is applied to the
@@ -172,6 +183,7 @@ for selection in (0, 1):
         known_parameter_map=par_map,
         instance_constraints=instance_constraints,
         bounds=bounds,
+        backend='numpy',
     )
 
     solution, info = prob.solve(initial_guess)
@@ -182,6 +194,8 @@ for selection in (0, 1):
 
 # %%
 # Animate the solutions and plot the results.
+
+
 def drucken(selection, fig, ax, video=True):
     solution = solution_list[selection]
 
@@ -273,15 +287,15 @@ print('Message from optimizer:', info_list[selection]['status_msg'])
 print(f'Optimal h value is: {solution_list[selection][-1]:.3f}')
 
 # %%
-prob_list[selection].plot_objective_value()
+_ = prob_list[selection].plot_objective_value()
 
 # %%
 # Plot errors in the solution.
-prob_list[selection].plot_constraint_violations(solution_list[selection])
+_ = prob_list[selection].plot_constraint_violations(solution_list[selection])
 
 # %%
 # Plot the trajectories of the block.
-prob_list[selection].plot_trajectories(solution_list[selection])
+_ = prob_list[selection].plot_trajectories(solution_list[selection])
 
 # %%
 # Animate the solution.
@@ -294,15 +308,15 @@ selection = 1
 print('Message from optimizer:', info_list[selection]['status_msg'])
 
 # %%
-prob_list[selection].plot_objective_value()
+_ = prob_list[selection].plot_objective_value()
 
 # %%
 # Plot errors in the solution.
-prob_list[selection].plot_constraint_violations(solution_list[selection])
+_ = prob_list[selection].plot_constraint_violations(solution_list[selection])
 
 # %%
 # Plot the trajectories of the block.
-prob_list[selection].plot_trajectories(solution_list[selection])
+_ = prob_list[selection].plot_trajectories(solution_list[selection])
 
 # %%
 # Animate the solution.
@@ -313,7 +327,7 @@ anim, _ = drucken(selection, fig, ax)
 # A frame from the animation.
 fig, ax = plt.subplots(figsize=(8, 8))
 _, update = drucken(0, fig, ax, video=False)
-# sphinx_gallery_thumbnail_number = 9
+# sphinx_gallery_thumbnail_number = 4
 update(100)
 
 plt.show()

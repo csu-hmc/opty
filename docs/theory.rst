@@ -183,10 +183,3 @@ especially advantageous if :math:`\mathbf{f}` is very complex. The cost
 function :math:`J` and it's gradient :math:`\frac{\partial J}{\partial
 \mathbf{x}_i}` must be specified by Python functions that return a scalar, or
 vector.
-
-References
-==========
-
-.. [Betts2010] Betts, J. Practical Methods for Optimal Control and Estimation
-   Using Nonlinear Programming. Advances in Design and Control. Society for
-   Industrial and Applied Mathematics, 2010. https://doi.org/10.1137/1.9780898718577.

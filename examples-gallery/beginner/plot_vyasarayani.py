@@ -2,14 +2,9 @@
 Multi-minimum Parameter Identification
 ======================================
 
-This example is taken from the following paper:
-
-   Vyasarayani, Chandrika P., Thomas Uchida, Ashwin Carvalho, and John McPhee.
-   "Parameter Identification in Dynamic Systems Using the Homotopy Optimization
-   Approach". Multibody System Dynamics 26, no. 4 (2011): 411-24.
-
-In Section 3.1 there is a simple example of a single pendulum parameter
-identification that has many local minima.
+This example is taken from [Vyasarayani2011]_. In Section 3.1 there is a simple
+example of a single pendulum parameter identification that has many local
+minima.
 
 For the following differential equations that describe a single pendulum acting
 under the influence of gravity, the goals is to identify the parameter p given
@@ -110,7 +105,7 @@ print(divider)
 
 # %%
 # Plot constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Simulate with the identified parameter.

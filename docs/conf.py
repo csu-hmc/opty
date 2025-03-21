@@ -19,6 +19,7 @@
 #
 import os
 import sys
+import multiprocessing
 sys.path.insert(0, os.path.abspath('..'))
 import opty
 
@@ -30,7 +31,7 @@ REPO_DIR = os.path.realpath(os.path.join(DOCS_DIR, '..'))
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-# needs_sphinx = '1.0'
+# needs_sphinx = '8.1'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -42,6 +43,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
     'sphinx_gallery.gen_gallery',
+    'sphinx_reredirects',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -51,14 +53,14 @@ templates_path = ['_templates']
 # You can specify multiple suffix as a list of string:
 #
 # source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+source_suffix = {'.rst': 'restructuredtext'}
 
 # The master toctree document.
 master_doc = 'index'
 
 # General information about the project.
 project = 'opty'
-copyright = '2014-2024, opty authors'
+copyright = '2014-2025, opty authors'
 author = 'Jason K. Moore'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -86,7 +88,10 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 pygments_style = 'sphinx'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
-todo_include_todos = False
+if ("READTHEDOCS" in os.environ) or ("ONGITHUB" in os.environ):
+    todo_include_todos = False
+else:
+    todo_include_todos = True
 
 # Show the __init__ docstring on classes.
 autoclass_content = 'both'
@@ -94,13 +99,71 @@ autoclass_content = 'both'
 # Display long function signatures better.
 maximum_signature_line_length = 50
 
+# Sphinx >=4 default to MathJax v3, but v3 does not support wrapping lines. So
+# force Sphinx to use v2 and config MathJax to wrap long lines.
+mathjax_path = ("https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js"
+                "?config=TeX-AMS-MML_HTMLorMML")
+mathjax2_config = {
+    "HTML-CSS": {
+        "linebreaks": {"automatic": True}
+    }
+}
+
 # sphinx-gallery settings
 sphinx_gallery_conf = {
+    'copyfile_regex': r'.*\.(svg|npy|csv|yml|txt)',
     'examples_dirs': os.path.join(REPO_DIR, 'examples-gallery'),
     'gallery_dirs': 'examples',
     'matplotlib_animations': True,
-    'copyfile_regex': r'.*\.svg',
+    'parallel': multiprocessing.cpu_count(),
     'remove_config_comments': True,
+}
+
+# NOTE : The subsections are only sorted online due to it preventing caching.
+# See https://github.com/sphinx-doc/sphinx/issues/12300 for more info.
+if ("READTHEDOCS" in os.environ) or ("ONGITHUB" in os.environ):
+    suppress_warnings = ["config.cache"]
+
+    def sort_subsections(path):
+        if 'beginner' in path:
+            return '101'
+        elif 'intermediate' in path:
+            return '102'
+        elif 'advanced' in path:
+            return '103'
+        else:
+            return path
+
+    sphinx_gallery_conf['subsection_order'] = sort_subsections
+
+# sphinx-reredirects
+redirects = {
+    'examples/plot_betts2003':
+    'beginner/plot_betts2003.html',
+
+    'examples/plot_drone':
+    'intermediate/plot_drone.html',
+
+    'examples/plot_one_legged_time_trial':
+    'advanced/plot_one_legged_time_trial.html',
+
+    'examples/plot_parallel_park':
+    'intermediate/plot_parallel_park.html',
+
+    'examples/plot_pendulum_swing_up_fixed_duration':
+    'beginner/plot_pendulum_swing_up_fixed_duration.html',
+
+    'examples/plot_pendulum_swing_up_variable_duration':
+    'beginner/plot_pendulum_swing_up_variable_duration.html',
+
+    'examples/plot_sliding_block':
+    'beginner/plot_sliding_block.html',
+
+    'examples/plot_two_link_pendulum_on_a_cart':
+    'intermediate/plot_two_link_pendulum_on_a_cart.html',
+
+    'examples/plot_vyasarayani':
+    'beginner/plot_vyasarayani.html',
 }
 
 # -- Options for HTML output ----------------------------------------------
@@ -114,12 +177,17 @@ html_theme = 'alabaster'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    'github_repo': 'opty',
+    'github_type': 'star',
+    'github_user': 'csu-hmc',
+    'page_width': '1080px',  # 960 doesn't show 79 linewidth examples
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-#html_static_path = ['_static']
+# html_static_path = ['_static']
 
 
 # -- Options for HTMLHelp output ------------------------------------------
