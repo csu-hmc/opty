@@ -572,7 +572,9 @@ class Problem(cyipopt.Problem):
         vector : ndarray, (n*N + q*N + r + s, )
             The initial guess, solution, or any other vector that is in the
             canonical form.
-
+        axes : ndarray of AxesSubplot, optional.
+            If given, it is the user's responsibility to provide the correct
+            number of axes.
         subplots : boolean, optional.
             If True, the equations of motion will be plotted in a separate
             plot for each equation of motion.
@@ -580,9 +582,6 @@ class Problem(cyipopt.Problem):
             If a user wants to provide the axes, it is recommended to run once
             without providing axes, to see how many are needed.
 
-        axes : ndarray of AxesSubplot, optional.
-            If given, it is the user's responsibility to provide the correct
-            number of axes.
 
         Returns
         =======
@@ -676,7 +675,8 @@ class Problem(cyipopt.Problem):
 
             fig, axes = plt.subplots(num_eom_plots + num_plots, 1,
                             figsize=(6.4, figsize*(num_eom_plots + num_plots)),
-                            constrained_layout=True)
+                            layout='constrained')
+        #                    constrained_layout=True)
 
         else:
             num_eom_plots = len(axes) - num_plots
@@ -692,7 +692,7 @@ class Problem(cyipopt.Problem):
         else:
             for i in range(self.collocator.num_states):
                 axes[i].plot(con_nodes, state_violations[i])
-                axes[i].set_ylabel(f'Eq-{str(i+1)} \n violation', fontsize=9)
+                axes[i].set_ylabel(f'Eq. {str(i+1)} \n violation', fontsize=9)
                 if i < self.collocator.num_states - 1:
                     axes[i].set_xticklabels([])
             axes[num_eom_plots-1].set_xlabel('Node Number')
