@@ -576,12 +576,10 @@ class Problem(cyipopt.Problem):
             If given, it is the user's responsibility to provide the correct
             number of axes.
         subplots : boolean, optional.
-            If True, the equations of motion will be plotted in a separate
-            plot for each equation of motion.
-            Default is False.
-            If a user wants to provide the axes, it is recommended to run once
-            without providing axes, to see how many are needed.
-
+            If True, the equations of motion will be plotted in a separate plot
+            for each equation of motion. The default is False. If a user wants
+            to provide the axes, it is recommended to run once without
+            providing axes, to see how many are needed.
 
         Returns
         =======
@@ -604,7 +602,7 @@ class Problem(cyipopt.Problem):
         bars_per_plot = None
         rotation = -45
 
-        if subplots == False:
+        if subplots:
             figsize = 1.75
         else:
             figsize = 1.25
@@ -668,22 +666,22 @@ class Problem(cyipopt.Problem):
         con_nodes = range(1, self.collocator.num_collocation_nodes)
 
         if axes is None:
-            if subplots == False or self.collocator.num_states == 1:
+            if subplots or self.collocator.num_states == 1:
                 num_eom_plots = 1
             else:
                 num_eom_plots = self.collocator.num_states
 
             fig, axes = plt.subplots(num_eom_plots + num_plots, 1,
-                            figsize=(6.4, figsize*(num_eom_plots + num_plots)),
-                            layout='constrained')
-        #                    constrained_layout=True)
+                                     figsize=(6.4, figsize*(num_eom_plots +
+                                                            num_plots)),
+                                     layout='constrained')
 
         else:
             num_eom_plots = len(axes) - num_plots
 
         axes = np.asarray(axes).ravel()
 
-        if subplots == False or self.collocator.num_states == 1:
+        if subplots or self.collocator.num_states == 1:
             axes[0].plot(con_nodes, state_violations.T)
             axes[0].set_title('Constraint violations')
             axes[0].set_xlabel('Node Number')
@@ -739,12 +737,13 @@ class Problem(cyipopt.Problem):
                 inst_constr = instance_constr_plot[beginn: endd]
 
                 width = [0.06*num_ticks for _ in range(num_ticks)]
-                axes[i+num_eom_plots].bar(range(num_ticks), inst_viol,
-                              tick_label=[sm.latex(s, mode='inline') for s in
-                                          inst_constr], width=width)
+                axes[i+num_eom_plots].bar(
+                    range(num_ticks), inst_viol,
+                    tick_label=[sm.latex(s, mode='inline') for s in
+                                inst_constr], width=width)
                 axes[i+num_eom_plots].set_ylabel('Instance')
-                axes[i+num_eom_plots].set_xticklabels(axes[i+num_eom_plots].get_xticklabels(),
-                                          rotation=rotation)
+                axes[i+num_eom_plots].set_xticklabels(
+                    axes[i+num_eom_plots].get_xticklabels(), rotation=rotation)
 
         return axes
 
