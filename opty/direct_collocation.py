@@ -666,7 +666,7 @@ class Problem(cyipopt.Problem):
         con_nodes = range(1, self.collocator.num_collocation_nodes)
 
         if axes is None:
-            if subplots or self.collocator.num_states == 1:
+            if subplots is False or self.collocator.num_states == 1:
                 num_eom_plots = 1
             else:
                 num_eom_plots = self.collocator.num_states
@@ -681,7 +681,7 @@ class Problem(cyipopt.Problem):
 
         axes = np.asarray(axes).ravel()
 
-        if subplots or self.collocator.num_states == 1:
+        if subplots is False or self.collocator.num_states == 1:
             axes[0].plot(con_nodes, state_violations.T)
             axes[0].set_title('Constraint violations')
             axes[0].set_xlabel('Node Number')
