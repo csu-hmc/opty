@@ -563,7 +563,7 @@ class Problem(cyipopt.Problem):
         return axes
 
     @_optional_plt_dep
-    def plot_constraint_violations(self, vector, axes=None):
+    def plot_constraint_violations(self, vector, axes=None, subplots=False):
         """Returns an axis with the state constraint violations plotted versus
         node number and the instance constraints as a bar graph.
 
@@ -572,6 +572,14 @@ class Problem(cyipopt.Problem):
         vector : ndarray, (n*N + q*N + r + s, )
             The initial guess, solution, or any other vector that is in the
             canonical form.
+        axes : ndarray of AxesSubplot, optional.
+            If given, it is the user's responsibility to provide the correct
+            number of axes.
+        subplots : boolean, optional.
+            If True, the equations of motion will be plotted in a separate plot
+            for each equation of motion. The default is False. If a user wants
+            to provide the axes, it is recommended to run once without
+            providing axes, to see how many are needed.
 
         Returns
         =======
@@ -593,6 +601,14 @@ class Problem(cyipopt.Problem):
 
         bars_per_plot = None
         rotation = -45
+
+        if subplots:
+            figsize = 1.25
+        else:
+            figsize = 1.75
+
+        if not isinstance(figsize, float):
+            raise ValueError('figsize given must be a float.')
 
         # find the number of bars per plot, so the bars per plot are
         # aproximately the same on each plot
@@ -650,16 +666,35 @@ class Problem(cyipopt.Problem):
         con_nodes = range(1, self.collocator.num_collocation_nodes)
 
         if axes is None:
-            fig, axes = plt.subplots(1 + num_plots, 1,
-                                     figsize=(6.4, 1.50*(1 + num_plots)),
-                                     layout='compressed')
+            if subplots is False or self.collocator.num_states == 1:
+                num_eom_plots = 1
+            else:
+                num_eom_plots = self.collocator.num_states
+
+            fig, axes = plt.subplots(num_eom_plots + num_plots, 1,
+                                     figsize=(6.4, figsize*(num_eom_plots +
+                                                            num_plots)),
+                                     layout='constrained')
+
+        else:
+            num_eom_plots = len(axes) - num_plots
 
         axes = np.asarray(axes).ravel()
 
-        axes[0].plot(con_nodes, state_violations.T)
-        axes[0].set_title('Constraint violations')
-        axes[0].set_xlabel('Node Number')
-        axes[0].set_ylabel('EoM violation')
+        if subplots is False or self.collocator.num_states == 1:
+            axes[0].plot(con_nodes, state_violations.T)
+            axes[0].set_title('Constraint violations')
+            axes[0].set_xlabel('Node Number')
+            axes[0].set_ylabel('EoM violation')
+
+        else:
+            for i in range(self.collocator.num_states):
+                axes[i].plot(con_nodes, state_violations[i])
+                axes[i].set_ylabel(f'Eq. {str(i+1)} \n violation', fontsize=9)
+                if i < self.collocator.num_states - 1:
+                    axes[i].set_xticklabels([])
+            axes[num_eom_plots-1].set_xlabel('Node Number')
+            axes[0].set_title('Constraint violations')
 
         if self.collocator.instance_constraints is not None:
             # reduce the instance constrtaints to 2 digits after the decimal
@@ -702,12 +737,13 @@ class Problem(cyipopt.Problem):
                 inst_constr = instance_constr_plot[beginn: endd]
 
                 width = [0.06*num_ticks for _ in range(num_ticks)]
-                axes[i+1].bar(range(num_ticks), inst_viol,
-                              tick_label=[sm.latex(s, mode='inline') for s in
-                                          inst_constr], width=width)
-                axes[i+1].set_ylabel('Instance')
-                axes[i+1].set_xticklabels(axes[i+1].get_xticklabels(),
-                                          rotation=rotation)
+                axes[i+num_eom_plots].bar(
+                    range(num_ticks), inst_viol,
+                    tick_label=[sm.latex(s, mode='inline') for s in
+                                inst_constr], width=width)
+                axes[i+num_eom_plots].set_ylabel('Instance')
+                axes[i+num_eom_plots].set_xticklabels(
+                    axes[i+num_eom_plots].get_xticklabels(), rotation=rotation)
 
         return axes
 

@@ -8,6 +8,7 @@ Objectives
 - Demonstrate how to make the simulation duration variable.
 - Show how to use the NumPy backend which solves the problem without needing
   just-in-time C compilation.
+- Demonstrate plotting the constraint violations as subplots.
 
 Introduction
 ------------
@@ -117,7 +118,7 @@ _ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-_ = prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution, subplots=True)
 
 # %%
 # Animate the pendulum swing up.
