@@ -603,9 +603,9 @@ class Problem(cyipopt.Problem):
         rotation = -45
 
         if subplots:
-            figsize = 1.75
-        else:
             figsize = 1.25
+        else:
+            figsize = 1.75
 
         if not isinstance(figsize, float):
             raise ValueError('figsize given must be a float.')
