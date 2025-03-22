@@ -563,8 +563,7 @@ class Problem(cyipopt.Problem):
         return axes
 
     @_optional_plt_dep
-    def plot_constraint_violations(self, vector, axes=None, subplots=False,
-                figsize=None):
+    def plot_constraint_violations(self, vector, axes=None, subplots=False):
         """Returns an axis with the state constraint violations plotted versus
         node number and the instance constraints as a bar graph.
 
@@ -580,11 +579,6 @@ class Problem(cyipopt.Problem):
             Default is False.
             If a user wants to provide the axes, it is recommended to run once
             without providing axes, to see how many are needed.
-
-        figsize : float, optional.
-            The size of the figures. Default is None.
-            If None, it will be set according to the kwarg subplots.
-            Allows the user to adjust the height of the figures.
 
         axes : ndarray of AxesSubplot, optional.
             If given, it is the user's responsibility to provide the correct
@@ -611,11 +605,10 @@ class Problem(cyipopt.Problem):
         bars_per_plot = None
         rotation = -45
 
-        if figsize is None:
-            if subplots == False:
-                figsize = 1.75
-            else:
-                figsize = 1.25
+        if subplots == False:
+            figsize = 1.75
+        else:
+            figsize = 1.25
 
         if not isinstance(figsize, float):
             raise ValueError('figsize given must be a float.')
