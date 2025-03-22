@@ -563,7 +563,8 @@ class Problem(cyipopt.Problem):
         return axes
 
     @_optional_plt_dep
-    def plot_constraint_violations(self, vector, axes=None, detailed_eoms=False):
+    def plot_constraint_violations(self, vector, axes=None, subplots=False,
+                figsize=None):
         """Returns an axis with the state constraint violations plotted versus
         node number and the instance constraints as a bar graph.
 
@@ -573,11 +574,21 @@ class Problem(cyipopt.Problem):
             The initial guess, solution, or any other vector that is in the
             canonical form.
 
-        detailed_eoms : boolean, optional. If True, the equations of motion
-            will be plotted in a separate plot for each state. Default is False.
+        subplots : boolean, optional.
+            If True, the equations of motion will be plotted in a separate
+            plot for each equation of motion.
+            Default is False.
+            If a user wants to provide the axes, it is recommended to run once
+            without providing axes, to see how many are needed.
 
-        axes : ndarray of AxesSubplot, optional. If given, it is the user's
-            responsibility to provide the correct number of axes.
+        figsize : float, optional.
+            The size of the figures. Default is None.
+            If None, it will be set according to the kwarg subplots.
+            Allows the user to adjust the height of the figures.
+
+        axes : ndarray of AxesSubplot, optional.
+            If given, it is the user's responsibility to provide the correct
+            number of axes.
 
         Returns
         =======
@@ -599,6 +610,15 @@ class Problem(cyipopt.Problem):
 
         bars_per_plot = None
         rotation = -45
+
+        if figsize is None:
+            if subplots == False:
+                figsize = 1.75
+            else:
+                figsize = 1.25
+
+        if not isinstance(figsize, float):
+            raise ValueError('figsize given must be a float.')
 
         # find the number of bars per plot, so the bars per plot are
         # aproximately the same on each plot
@@ -656,12 +676,13 @@ class Problem(cyipopt.Problem):
         con_nodes = range(1, self.collocator.num_collocation_nodes)
 
         if axes is None:
-            if detailed_eoms == False or self.collocator.num_states == 1:
+            if subplots == False or self.collocator.num_states == 1:
                 num_eom_plots = 1
             else:
                 num_eom_plots = self.collocator.num_states
+
             fig, axes = plt.subplots(num_eom_plots + num_plots, 1,
-                            figsize=(6.4, 1.75*(num_eom_plots + num_plots)),
+                            figsize=(6.4, figsize*(num_eom_plots + num_plots)),
                             constrained_layout=True)
 
         else:
@@ -669,7 +690,7 @@ class Problem(cyipopt.Problem):
 
         axes = np.asarray(axes).ravel()
 
-        if detailed_eoms == False or self.collocator.num_states == 1:
+        if subplots == False or self.collocator.num_states == 1:
             axes[0].plot(con_nodes, state_violations.T)
             axes[0].set_title('Constraint violations')
             axes[0].set_xlabel('Node Number')
@@ -677,20 +698,10 @@ class Problem(cyipopt.Problem):
 
         else:
             for i in range(self.collocator.num_states):
-                k = i + 1
-                if k in (11,12,13):
-                    msg = 'th'
-                elif k % 10 == 1:
-                    msg = 'st'
-                elif k % 10 == 2:
-                    msg = 'nd'
-                elif k % 10 == 3:
-                    msg = 'rd'
-                else:
-                    msg = 'th'
-
                 axes[i].plot(con_nodes, state_violations[i])
-                axes[i].set_ylabel(f'{str(k)}-{msg} EOM violation')
+                axes[i].set_ylabel(f'Eq-{str(i+1)} \n violation', fontsize=9)
+                if i < self.collocator.num_states - 1:
+                    axes[i].set_xticklabels([])
             axes[num_eom_plots-1].set_xlabel('Node Number')
             axes[0].set_title('Constraint violations')
 
