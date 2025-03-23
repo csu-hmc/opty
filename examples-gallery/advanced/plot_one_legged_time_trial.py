@@ -731,7 +731,7 @@ _ = problem.plot_trajectories(initial_guess, axes=axes)
 # Solve the Optimal Control Problem
 # ---------------------------------
 solution, info = problem.solve(initial_guess)
-xs, us, ps, h_val= problem.parse_free(solution)
+xs, us, ps, h_val = problem.parse_free(solution)
 print(info['status_msg'])
 print('Optimal value h = {:1.3f} s:'.format(h_val))
 
