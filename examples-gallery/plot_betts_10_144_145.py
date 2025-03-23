@@ -90,9 +90,9 @@ for i in range(1):
     solution, info = prob.solve(initial_guess)
     initial_guess = solution
     print(info['status_msg'])
-    print(f'Objectve is: {info['obj_val']:.8f}, ' +
-          f'as per the book it is {2.95369916}, so the deviation is: ' +
-        f'{(info['obj_val'] -2.95369916) /2.95369916*100 :.5e} %')
+    print(f"Objectve is: {info['obj_val']:.8f}, " +
+          f"as per the book it is {2.95369916}, so the deviation is: " +
+        f"{(info['obj_val'] -2.95369916) /2.95369916*100 :.5e} %")
 solution1 = solution
 # %%
 # Plot the optimal state and input trajectories.
@@ -184,9 +184,9 @@ for i in range(1):
     solution, info = prob.solve(initial_guess)
     initial_guess = solution
     print(info['status_msg'])
-    print(f'Objectve is: {info['obj_val']:.8f}, ' +
-          f'as per the book it is {2.95369916}, so the deviation is: ' +
-        f'{(info['obj_val'] -2.95369916) /2.95369916*100 :.5e} %')
+    print(f"Objectve is: {info['obj_val']:.8f}, " +
+          f"as per the book it is {2.95369916}, so the deviation is: " +
+        f"{(info['obj_val'] -2.95369916) /2.95369916*100 :.5e} %")
 # %%
 # Plot the optimal state and input trajectories.
 prob.plot_trajectories(solution)
