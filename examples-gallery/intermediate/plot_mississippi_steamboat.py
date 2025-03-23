@@ -62,7 +62,6 @@ The equations of motion might be of interest.
 import os
 import numpy as np
 import sympy as sm
-from opty.utils import parse_free
 from scipy.interpolate import CubicSpline
 import sympy.physics.mechanics as me
 from opty.direct_collocation import Problem
@@ -390,8 +389,7 @@ def add_point_to_data(line, x, y):
     old_x, old_y = line.get_data()
     line.set_data(np.append(old_x, x), np.append(old_y, y))
 
-state_vals, input_vals, _ = parse_free(solution, len(state_symbols),
-    len(specified_symbols), num_nodes)
+state_vals, input_vals, _ = prob.parse_free(solution)
 t_arr = np.linspace(t0, num_nodes*solution[-1], num_nodes)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)

@@ -85,7 +85,7 @@ import sympy as sm
 import sympy.physics.mechanics as me
 import numpy as np
 from scipy.interpolate import CubicSpline
-from opty import Problem, parse_free, create_objective_function
+from opty import Problem, create_objective_function
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
@@ -361,8 +361,7 @@ _ = prob.plot_objective_value()
 # %%
 # Animate the Motion of the Particle
 # ----------------------------------
-state_vals, input_vals, _ = parse_free(solution, len(state_symbols),
-                                       len(specified_symbols), num_nodes)
+state_vals, input_vals, _ = prob.parse_free(solution)
 t_arr = np.linspace(t0, duration, num_nodes)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)

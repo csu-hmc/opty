@@ -80,7 +80,6 @@ import os
 from matplotlib import patches
 from matplotlib.animation import FuncAnimation
 from opty.direct_collocation import Problem
-from opty.utils import parse_free
 from scipy.interpolate import CubicSpline
 from scipy.optimize import root
 import matplotlib.pyplot as plt
@@ -413,8 +412,7 @@ MM_lam = sm.lambdify(qL + pL, MM, cse=True)
 force_lam = sm.lambdify(qL + pL, force, cse=True)
 react_forces_lam = sm.lambdify(F_r + qL + pL + rhs, react_forces, cse=True)
 
-state_vals, input_vals, _ = parse_free(solution, len(state_symbols),
-                                       len(specified_symbols), num_nodes)
+state_vals, input_vals, _ = prob.parse_free(solution)
 
 resultat2 = state_vals.T
 schritte2 = resultat2.shape[0]
@@ -483,8 +481,8 @@ def add_point_to_data(line, x, y):
     line.set_data(np.append(old_x, x), np.append(old_y, y))
 
 
-state_vals, input_vals, _ = parse_free(solution, len(state_symbols),
-                                       len(specified_symbols), num_nodes)
+state_vals, input_vals, _ = prob.parse_free(solution)
+
 t_arr = np.linspace(t0, num_nodes*solution[-1], num_nodes)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)

@@ -33,7 +33,7 @@ parking it.
 import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
-from opty import Problem, create_objective_function, parse_free
+from opty import Problem, create_objective_function
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
@@ -204,8 +204,7 @@ _ = prob.plot_objective_value()
 
 # %%
 # Show the optimal path of the mass center.
-xs, us, ps = parse_free(solution, len(state_symbols), len(specified_symbols),
-                        num_nodes)
+xs, us, ps = prob.parse_free(solution)
 fig, ax = plt.subplots()
 ax.plot(xs[0], xs[1])
 ax.set_xlabel(r'$x$ [m]')

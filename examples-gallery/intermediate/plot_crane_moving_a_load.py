@@ -55,7 +55,7 @@ import numpy as np
 import sympy as sm
 from scipy.interpolate import CubicSpline
 from opty.direct_collocation import Problem
-from opty.utils import parse_free, MathJaxRepr
+from opty.utils import MathJaxRepr
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import patches
@@ -275,8 +275,7 @@ h_sol = solution[-1]
 fps = 10
 
 tf = h_sol*(num_nodes - 1)
-state_vals, input_vals, _ = parse_free(solution, len(state_symbols),
-                                       len(specified_symbols), num_nodes)
+state_vals, input_vals, _ = prob.parse_free(solution)
 t_arr = np.linspace(t0, tf, num_nodes)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
