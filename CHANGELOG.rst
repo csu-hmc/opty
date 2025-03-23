@@ -1,13 +1,14 @@
-Version 1.4.0.dev0
+Version 1.5.0.dev0
 ==================
+
+- Bump dependency minimum versions to match those in Ubuntu 22.04 (Jammy).
+
+Version 1.4.0
+=============
 
 - Dropped support for Python 3.8.
 - Added support for Python 3.13.
-- Examples added:
-  - Crane moving a load
-  - Ball rolling on spinning disc
-  - Mississippi steamboat
-  - Noncontiguous parameter identification
+- Added explicit dependency on setuptools.
 - ``ConstraintCollocator`` raises an error if all equations of motion are
   algebraic, i.e. none are differential equations.
 - ``plot_constraint_violations()`` now returns a variable number of subplot
@@ -15,6 +16,40 @@ Version 1.4.0.dev0
   readable with large numbers of instance constraints.
 - Internal common sub expression replacement symbols are now assumed to be
   real.
+- Improvements to docstrings of ``Problem.solve()``.
+- Added ``Problem.parse_free()`` to simplify use of the ``parse_free()``
+  function.
+- Added attribute descriptions to ``ConstraintCollocator`` docstring.
+- Support for single first order differential equation instead of limiting to
+  two first order (i.e. only second order systems).
+- Enabled math constants on Windows to support ``sympy.pi``, for example.
+- Made SciPy an optional dependency (was required).
+- Fixed bug from backwards incompatible change in Python 3.13 for docstring
+  indentation.
+- Fixed bug where ``Problem.plot_`` methods did not return anything.
+- Fixed bug in trajectory plots so that the input trajectories are labeled with
+  known, unknown, or both types of inputs.
+- Made all ``ConstraintCollocator`` attributes properties with no setter
+  methods, i.e. everything must be passed into the constructor to properly
+  construct the object.
+- Separated examples into beginner, intermediate, and advanced groups.
+- Added ``MathJaxRepr`` for printing SymPy expressions in the example gallery.
+- Use MathJax v2 in the documentation so that long expressions will line wrap.
+- Examples added:
+
+  - Ball rolling on spinning disc
+  - Car moving around pylons
+  - Car parking into a garage
+  - Crane moving a load
+  - Delay equation (inequality constraints example)
+  - Human gait
+  - Mississippi steamboat
+  - Non-contiguous parameter identification
+  - ODE vs DAE comparison
+  - Particle moving through a helical tube
+  - Single EoM & hypersensitive control
+  - Sit-to-stand
+  - Standing balance control identification
 
 Version 1.3.0
 =============
@@ -34,11 +69,11 @@ Version 1.3.0
 - Moved the three documentation examples to the Sphinx Gallery page.
 - Added new examples:
 
-   - A variable duration pendulum swing up example.
-   - A car parallel parking example.
-   - A quadcopter drone flight example.
-   - A cycling time trial example that uses SymPy's new muscle models.
-   - A block sliding over a hill example.
+  - A variable duration pendulum swing up example.
+  - A car parallel parking example.
+  - A quadcopter drone flight example.
+  - A cycling time trial example that uses SymPy's new muscle models.
+  - A block sliding over a hill example.
 
 - Updated the generated Cython code to use memory views.
 - ``Problem`` now supports solving problems with no unknown input trajectories.

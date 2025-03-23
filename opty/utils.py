@@ -21,19 +21,37 @@ import sympy as sm
 import sympy.physics.mechanics as me
 from sympy.utilities.iterables import numbered_symbols
 from sympy.printing.c import C99CodePrinter
-try:
-    plt = sm.external.import_module('matplotlib.pyplot',
-                                    __import__kwargs={'fromlist': ['']},
-                                    catch=(RuntimeError,))
-except TypeError:  # SymPy >=1.6
-    plt = sm.external.import_module('matplotlib.pyplot',
-                                    import_kwargs={'fromlist': ['']},
-                                    catch=(RuntimeError,))
+plt = sm.external.import_module('matplotlib.pyplot',
+                                import_kwargs={'fromlist': ['']},
+                                catch=(RuntimeError,))
 
 __all__ = [
     'parse_free',
     'create_objective_function',
 ]
+
+
+def _coo_matrix(jac_vals, row_idxs, col_idxs):
+    """Quick and dirty replacement for scipy.sparse.coo_matrix."""
+    arr = np.zeros((np.max(row_idxs + 1), np.max(col_idxs + 1)),
+                   dtype=jac_vals.dtype)
+    for v, r, c in zip(jac_vals, row_idxs, col_idxs):
+        arr[r, c] = v
+    return arr
+
+
+class MathJaxRepr():
+    """Returns an object wrapping a SymPy expression that will render output in
+    MathJax LaTeX syntax compatible with rendering in HTML in Sphinx
+    Gallery."""
+    def __init__(self, expr):
+        self.expr = expr
+
+    def _repr_html_(self):
+        r"""
+        Creates ``$$\begin{equation}...\end{equation}$$``
+        """
+        return me.vlatex(self.expr, mode='equation', itex=True)
 
 
 class OptyC99CodePrinter(C99CodePrinter):
@@ -215,7 +233,7 @@ def _optional_plt_dep(func):
         if plt is None:
             raise ImportError('Install matplotlib for plotting features.')
         else:
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
     return wrapper
 
 
@@ -439,6 +457,7 @@ def sort_sympy(seq):
 
 
 _c_template = """\
+{win_math_def}
 #include <math.h>
 #include "{file_prefix}_h.h"
 
@@ -532,6 +551,8 @@ int main(void) {
         # .compile() should return ['test.o'] on linux
         if sys.platform == "win32":
             ccompiler.compile([filename], extra_postargs=['/openmp'])
+        elif sys.platform == "darwin":
+            ccompiler.compile([filename], extra_postargs=['-Xclang', '-fopenmp'])
         else:
             ccompiler.compile([filename], extra_postargs=['-fopenmp'])
         exit = True
@@ -545,6 +566,44 @@ int main(void) {
             shutil.rmtree(tmpdir)
 
     return exit
+
+
+def lambdify_matrix(args, expr):
+    """Returns a function that evaluates a matrix of expressions using NumPy
+    and broadcasts over an 3D array.
+
+    Parameters
+    ----------
+    args : iterable of Symbol or Function(Symbol)
+        A list of all symbols in ``expr`` in the desired order for the output
+        function.
+    expr : Matrix, shape(m, p)
+        A matrix of expressions.
+
+    Returns
+    -------
+    function
+        Function takes the form ``result = f(store, arg1, arg2, ...)`` where:
+
+            - ``store`` : ndarray, shape(n, m*p)
+            - ``result`` : ndarray, shape(n, m, p), reshaped ``store``
+            - ``argn`` : ndarray shape(n,) or float
+
+    """
+    eval_single_mat = sm.lambdify(args, expr, modules='numpy', cse=True)
+
+    # TODO : this is terribly computationally costly but there is not a clean
+    # way to do this using appropriate broadcasting via lambdify. See:
+    # https://github.com/sympy/sympy/issues/27632
+    def loop_function(result, *num_args):
+        n = result.shape[0]
+        for i in range(n):
+            array_num_args = [a if isinstance(a, float) else a[i]
+                              for a in num_args]
+            result[i] = eval_single_mat(*array_num_args).flatten().squeeze()
+        return result.reshape(n, expr.shape[0], expr.shape[1])
+
+    return loop_function
 
 
 def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
@@ -633,6 +692,9 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         if sys.platform == "win32":
             d['compile_args'] = r"'\openmp'"
             d['link_args'] = ""
+        elif sys.platform == "darwin":
+            d['compile_args'] = "'-Xclang', '-fopenmp'"
+            d['link_args'] = "'-Xclang', '-fopenmp'"
         else:
             d['compile_args'] = "'-fopenmp'"
             d['link_args'] = "'-fopenmp'"
@@ -692,6 +754,11 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
                                loop_spacer.join(indexed_input_args))
 
     d['memory_views'] = '\n    '.join(memory_views)
+
+    if os.name == 'nt':
+        d['win_math_def'] = '#define _USE_MATH_DEFINES'
+    else:
+        d['win_math_def'] = ''
 
     files = {}
     files[d['file_prefix'] + '_c.c'] = _c_template.format(**d)

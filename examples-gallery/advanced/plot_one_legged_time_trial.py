@@ -198,9 +198,9 @@ gravD = me.Force(Do, -mD*g*N.y)
 # Crank Resistance
 # ~~~~~~~~~~~~~~~~
 #
-# We model the resistance torque at the crank to be that which you would feel
-# when accelerating the bicycle and cyclist along flat ground. The basic
-# equations of motion of a point mass model of a cyclist are:
+# Model the resistance torque at the crank to be that which one would feel when
+# accelerating the bicycle and cyclist along flat ground. The basic equations
+# of motion of a point mass model of a cyclist are:
 #
 # .. math::
 #
@@ -253,9 +253,9 @@ resistance = me.Torque(
 # Muscles
 # ~~~~~~~
 #
-# We lump all the muscles that contribute to joint torques at the knee and
-# ankle into four simplified muscles. The quadriceps wrap over the knee. The
-# other three muscle groups act on linear pathways.
+# Lump all the muscles that contribute to joint torques at the knee and ankle
+# into four simplified muscles. The quadriceps wrap over the knee. The other
+# three muscle groups act on linear pathways.
 
 
 class ExtensorPathway(me.PathwayBase):
@@ -617,7 +617,7 @@ def plot_configuration(q_vals, p_vals, ax=None):
     return ax, fig, bike_lines, leg_lines, mus_lines, knee_circle, title_text
 
 
-# sphinx_gallery_thumbnail_number = 1
+# sphinx_gallery_thumbnail_number = 9
 _ = plot_configuration(q_ext, p_vals)
 
 
@@ -725,7 +725,7 @@ initial_guess[-1] = 0.02
 fig, axes = plt.subplots(16, 1, sharex=True,
                          figsize=(6.4, 0.8*16),
                          layout='compressed')
-problem.plot_trajectories(initial_guess, axes=axes)
+_ = problem.plot_trajectories(initial_guess, axes=axes)
 
 # %%
 # Solve the Optimal Control Problem
@@ -740,18 +740,18 @@ print('Optimal value h = {:1.3f} s:'.format(h_val))
 # %%
 # Plot the Solution
 # -----------------
-problem.plot_objective_value()
+_ = problem.plot_objective_value()
 
 # %%
 fig, axes = plt.subplots(3, 1, figsize=(12.8, 10),
                          layout='constrained')
-problem.plot_constraint_violations(solution, axes=axes)
+_ = problem.plot_constraint_violations(solution, axes=axes)
 
 # %%
 fig, axes = plt.subplots(16, 1, sharex=True,
                          figsize=(6.4, 0.8*16),
                          layout='compressed')
-problem.plot_trajectories(solution, axes=axes)
+_ = problem.plot_trajectories(solution, axes=axes)
 
 # %%
 # Plot Musculo-tendon Behavior
