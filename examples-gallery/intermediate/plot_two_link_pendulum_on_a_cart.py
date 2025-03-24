@@ -59,7 +59,6 @@ import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 from opty import Problem
-from opty.utils import parse_free
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import patches
@@ -237,8 +236,7 @@ _ = prob.plot_trajectories(solution)
 # %%
 # animate the solution.
 
-state_sol, _, _, h_var = parse_free(solution, len(state_symbols),
-        len(specified_symbols),num_nodes, variable_duration=True)
+state_sol, _, _, h_var = prob.parse_free(solution)
 state_sol1 = state_sol.T[::4, :]
 num_nodes = state_sol1.shape[0]
 solution = list(state_sol1.T.flatten()) + [h_var]

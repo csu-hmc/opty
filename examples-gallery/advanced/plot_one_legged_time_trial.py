@@ -15,7 +15,7 @@ muscles have to coordinate.
    This example requires SymPy >= 1.13.
 
 """
-from opty import Problem, parse_free
+from opty import Problem
 from scipy.optimize import fsolve
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
@@ -731,9 +731,7 @@ _ = problem.plot_trajectories(initial_guess, axes=axes)
 # Solve the Optimal Control Problem
 # ---------------------------------
 solution, info = problem.solve(initial_guess)
-xs, us, ps, h_val= parse_free(solution, len(state_vars),
-                              4, num_nodes,
-                              variable_duration=True)
+xs, us, ps, h_val = problem.parse_free(solution)
 print(info['status_msg'])
 print('Optimal value h = {:1.3f} s:'.format(h_val))
 

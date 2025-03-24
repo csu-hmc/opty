@@ -32,7 +32,7 @@ thrust.
 import sympy as sm
 import sympy.physics.mechanics as me
 import numpy as np
-from opty import Problem, create_objective_function, parse_free
+from opty import Problem, create_objective_function
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
@@ -247,8 +247,8 @@ for point in [P1, Ao, P2, Ao, P3, Ao, P4]:
 eval_point_coords = sm.lambdify((state_symbols, specified_symbols,
                                  list(par_map.keys())), coordinates, cse=True)
 
-xs, us, ps = parse_free(solution, len(state_symbols), len(specified_symbols),
-                        num_nodes)
+xs, us, ps = prob.parse_free(solution)
+
 coords = []
 for xi, ui in zip(xs.T, us.T):
     coords.append(eval_point_coords(xi, ui, list(par_map.values())))

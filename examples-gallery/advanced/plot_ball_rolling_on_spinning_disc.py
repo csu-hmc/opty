@@ -10,7 +10,6 @@ Objectives
   addition to finding the optimal solution, without setting up the equations of
   motion twice.
 
-
 Introduction
 ------------
 
@@ -80,7 +79,6 @@ import os
 from matplotlib import patches
 from matplotlib.animation import FuncAnimation
 from opty.direct_collocation import Problem
-from opty.utils import parse_free
 from scipy.interpolate import CubicSpline
 from scipy.optimize import root
 import matplotlib.pyplot as plt
@@ -224,8 +222,8 @@ eom = kd.col_join(frfrstar_reduced)
 eom = me.msubs((eom.col_join(hol_constr)), {sm.Derivative(T(t), t): Tdot,
                                             sm.Derivative(T(t), (t, 2)):
                                             Tdotdot},)
-print(f'The equations of motion for the optinization contain ' +
-                f'{sm.count_ops(eom):,} operations, and shape {eom.shape}')
+print(f'The equations of motion for the optinization contain '
+      f'{sm.count_ops(eom):,} operations, and shape {eom.shape}')
 
 # %%
 # Set Up the Optimization Problem and Solve It
@@ -281,6 +279,7 @@ def obj(free):
     return (free[-1] * (np.sum(Tz1**2) + np.sum(Tz2**2) + np.sum(Tz3**2)) +
             free[-1] * weight)
 
+
 def obj_grad(free):
     grad = np.zeros_like(free)
     grad[laenge*num_nodes: (laenge + 1)*num_nodes] = (
@@ -291,6 +290,7 @@ def obj_grad(free):
         2.0*free[-1]*free[(laenge + 2)*num_nodes: (laenge + 3)*num_nodes])
     grad[-1] = weight
     return grad
+
 
 # %%
 # The initial state must satisfy the holonomic constraints.
@@ -373,15 +373,16 @@ else:
     # Set up a reasonable initial guess and solve the problem
     i1b = np.zeros(num_nodes)
     i2 = np.linspace(initial_state_constraints[x], final_state_constraints[x],
-                 num_nodes)
+                     num_nodes)
     i1a = i2/par_map[r]
     i3 = np.linspace(initial_state_constraints[y], final_state_constraints[y],
-                 num_nodes)
+                     num_nodes)
     i1 = -i3/par_map[r]
     i4 = np.zeros(8*num_nodes)
     initial_guess = np.hstack((i1, i1a, i1b, i2, i3, i4, 0.01))
 
-    # This way the maximum number of interations may be changed.  Default is 3000.
+    # This way the maximum number of interations may be changed. Default is
+    # 3000.
     prob.add_option('max_iter', 1000)
 
     # Find the optimal solution.
@@ -413,8 +414,7 @@ MM_lam = sm.lambdify(qL + pL, MM, cse=True)
 force_lam = sm.lambdify(qL + pL, force, cse=True)
 react_forces_lam = sm.lambdify(F_r + qL + pL + rhs, react_forces, cse=True)
 
-state_vals, input_vals, _ = parse_free(solution, len(state_symbols),
-                                       len(specified_symbols), num_nodes)
+state_vals, input_vals, _, h_val = prob.parse_free(solution)
 
 resultat2 = state_vals.T
 schritte2 = resultat2.shape[0]
@@ -460,7 +460,7 @@ for i in range(schritte2):
 
 # %%
 # Plot the reaction forces.
-times2 = interval_fix * solution[-1] / interval_value_fix
+times2 = interval_fix*h_val/interval_value_fix
 fig, ax = plt.subplots(figsize=(12, 6))
 for i, j in zip((forcex, forcey, forcez),
                 ('reaction force on Ao1 in X direction',
@@ -478,14 +478,15 @@ _ = ax.legend()
 # Animate the system.
 fps = 30
 
+
 def add_point_to_data(line, x, y):
     old_x, old_y = line.get_data()
     line.set_data(np.append(old_x, x), np.append(old_y, y))
 
 
-state_vals, input_vals, _ = parse_free(solution, len(state_symbols),
-                                       len(specified_symbols), num_nodes)
-t_arr = np.linspace(t0, num_nodes*solution[-1], num_nodes)
+state_vals, input_vals, _, h_val = prob.parse_free(solution)
+
+t_arr = np.linspace(t0, num_nodes*h_val, num_nodes)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 
@@ -593,7 +594,7 @@ def update(t):
 
 
 animation = FuncAnimation(fig, update,
-                          frames=np.arange(t0, (num_nodes - 1)*solution[-1],
+                          frames=np.arange(t0, (num_nodes - 1)*h_val,
                                            1/fps),
                           interval=1000/fps, blit=False)
 
