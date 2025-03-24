@@ -389,8 +389,8 @@ def add_point_to_data(line, x, y):
     old_x, old_y = line.get_data()
     line.set_data(np.append(old_x, x), np.append(old_y, y))
 
-state_vals, input_vals, _ = prob.parse_free(solution)
-t_arr = np.linspace(t0, num_nodes*solution[-1], num_nodes)
+state_vals, input_vals, _, h_val = prob.parse_free(solution)
+t_arr = np.linspace(t0, num_nodes*h_val, num_nodes)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 
@@ -488,6 +488,6 @@ _ = update(3)
 # Create the animation.
 fig, ax, line1, line2, line3, pfeil1, pfeil2, boat = init_plot()
 animation = FuncAnimation(fig, update, frames=np.arange(t0,
-    num_nodes*solution[-1], 1 / fps), interval=1000/fps)
+    num_nodes*h_val, 1 / fps), interval=1000/fps)
 
 plt.show()

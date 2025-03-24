@@ -271,11 +271,10 @@ _ = prob.plot_trajectories(solution)
 # %%
 # Animate the Simulation.
 #------------------------
-h_sol = solution[-1]
 fps = 10
 
 tf = h_sol*(num_nodes - 1)
-state_vals, input_vals, _ = prob.parse_free(solution)
+state_vals, input_vals, _, h_sol = prob.parse_free(solution)
 t_arr = np.linspace(t0, tf, num_nodes)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)

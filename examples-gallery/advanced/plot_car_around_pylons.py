@@ -41,16 +41,19 @@ there. Presently intermediate points must be specified as
 - In order to know at the end of the run whether the car came close to the
   points during its course, integrate the hump function over time. These are
   the variables :math:`\textrm{punkt}_1, \textrm{punkt}_2` with
-  :math:`\textrm{punkt}_1 = \int_{t0}^{tf} \textrm{hump}(...) \, dt > 0` if the car
-  came close to the point, = 0 otherwise. Same for :math:`\textrm{punkt}_2`.
+  :math:`\textrm{punkt}_1 = \int_{t0}^{tf} \textrm{hump}(...) \, dt > 0` if the
+  car came close to the point, = 0 otherwise. Same for
+  :math:`\textrm{punkt}_2`.
 - The exact values of :math:`\textrm{punkt}_1, \textrm{punkt}_2` are not known
-  and should simple be positive 'enough', include two additional state variables
-  :math:`\textrm{dist}_1, \textrm{dist}_2` and specified variables :math:`h_1, h_2`.
+  and should simple be positive 'enough', include two additional state
+  variables :math:`\textrm{dist}_1, \textrm{dist}_2` and specified variables
+  :math:`h_1, h_2`.
 - By setting :math:`\textrm{dist}_1 = \textrm{punkt}_1 \cdot h_1` and
   :math:`\textrm{dist}_2 = \textrm{punkt}_2 \cdot h_2` and bounding
-  :math:`h_1, h_2 \in (1, \textrm{value})`, and setting :math:`\textrm{dist}_1(t_f) = 1`,
-  one can ensure that :math:`\textrm{punkt}_1 > \dfrac{1}{\textrm{value}}`
-  and :math:`\textrm{punkt}_2 > \dfrac{1}{\textrm{value}}`.
+  :math:`h_1, h_2 \in (1, \textrm{value})`, and setting
+  :math:`\textrm{dist}_1(t_f) = 1`, one can ensure that :math:`\textrm{punkt}_1
+  > \dfrac{1}{\textrm{value}}` and :math:`\textrm{punkt}_2 >
+  \dfrac{1}{\textrm{value}}`.
 
 **States**
 
@@ -85,7 +88,8 @@ there. Presently intermediate points must be specified as
 - :math:`iZZ_0` : moment of inertia of the body of the car
 - :math:`iZZ_b` : moment of inertia of the rear axis
 - :math:`iZZ_f` : moment of inertia of the front axis
-- :math:`\textrm{reibung}` : friction coefficient between the car and the street
+- :math:`\textrm{reibung}` : friction coefficient between the car and the
+  street
 - :math:`x_{b_1}` : x coordinate of pylon 1
 - :math:`y_{b_1}`: y coordinate of pylon 1
 - :math:`x_{b_2}` : x coordinate of pylon 2
@@ -279,6 +283,7 @@ def obj_grad(free):
     grad[-1] = 1.0
     return grad
 
+
 # %%
 # Set up the constraints, the bounds and the Problem.
 instance_constraints = (
@@ -342,7 +347,7 @@ if os.path.exists(fname):
 else:
     prob.add_option('max_iter', 3000)
     initial_guess= np.random.randn(prob.num_free)
-    for i in range(5 ):
+    for i in range(5):
         solution, info = prob.solve(initial_guess)
         print('message from optimizer:', info['status_msg'])
         print('Iterations needed', len(prob.obj_value))
@@ -351,7 +356,7 @@ else:
         initial_guess = solution
         print(f'{i+1} - th iteration')
 np.savetxt(f'car_around_pylons_{num_nodes}_nodes_solution.csv', solution,
-            fmt='%.2f')
+           fmt='%.2f')
 
 # %%
 # Plot the constraint violations.
@@ -368,9 +373,9 @@ _ = prob.plot_trajectories(solution)
 # ---------------
 fps = 10
 
-tf = solution[-1] * (num_nodes - 1)
+state_vals, input_vals, _, h_val = prob.parse_free(solution)
 
-state_vals, input_vals, _ = prob.parse_free(solution)
+tf = h_val*(num_nodes - 1)
 t_arr = np.linspace(t0, tf, num_nodes)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
