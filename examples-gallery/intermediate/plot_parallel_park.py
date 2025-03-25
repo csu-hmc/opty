@@ -192,7 +192,7 @@ print(info['obj_val'])
 
 # %%
 # Plot the optimal state and input trajectories.
-_ = prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution, show_bounds=True)
 
 # %%
 # Plot the constraint violations.
