@@ -128,17 +128,7 @@ class Problem(cyipopt.Problem):
                       eomn2, ... eomnN,
                       c1, ..., co]
 
-
-    The ``obj``, ``obj_grad``, and ``bounds`` attributes may be changed to new
-    functions and dictionaries, respectively, after instantiation of
-    ``Problem`` but changing ``problem.bounds[state] = (low, high)`` will have
-    no effect.
-
-    Some attributes are only accessible from the
-    :py:class:`ConstraintCollocator` object associated with this ``Problem``
-    and may be accessed as follows::
-
-       Problem_instance.collocator.name_of_attribute
+    The attributes may be accessed as follows: ``Problem_instance.collocator.name_of_attribute``
 
     """
 
@@ -168,12 +158,9 @@ class Problem(cyipopt.Problem):
             ``{x(t): (-1.0, 5.0)}``.
 
         """
-        # NOTE : The docstring of ConstraintCollocator is grafted on to this
-        # docstring, so be aware when editing this docstring.
 
-        if equations_of_motion.has(sm.Derivative) is False:
-            raise ValueError(
-                'No time derivatives are present in the equations of motion.' +
+        if equations_of_motion.has(sm.Derivative) == False:
+            raise ValueError('No time derivatives are present.' +
                 ' The equations of motion must be ordinary ' +
                 'differential equations (ODEs) or ' +
                 'differential algebraic equations (DAEs).')
@@ -184,22 +171,21 @@ class Problem(cyipopt.Problem):
             instance_constraints, time_symbol, tmp_dir, integration_method,
             parallel, show_compile_output=show_compile_output, backend=backend)
 
+        self.bounds = bounds
+        self.obj = obj
+        self.obj_grad = obj_grad
         self.con = self.collocator.generate_constraint_function()
         logging.info('Constraint function generated.')
         self.con_jac = self.collocator.generate_jacobian_function()
         logging.info('Jacobian function generated.')
 
-        (self.con_jac_rows,
-         self.con_jac_cols) = self.collocator.jacobian_indices()
+        self.con_jac_rows, self.con_jac_cols = \
+            self.collocator.jacobian_indices()
 
         self.num_free = self.collocator.num_free
         self.num_constraints = self.collocator.num_constraints
 
-        self.obj = obj
-        self.obj_grad = obj_grad
-
-        # Values from collocator must be set before setting bounds.
-        self.bounds = bounds
+        self._generate_bound_arrays()
 
         # All constraints are expected to be equal to zero.
         con_bounds = np.zeros(self.num_constraints)
@@ -211,33 +197,7 @@ class Problem(cyipopt.Problem):
                                       cl=con_bounds,
                                       cu=con_bounds)
 
-        # this is reset on any call to .solve()
         self.obj_value = []
-
-    @property
-    def bounds(self):
-        """Dictionary of states, specifieds, parameters, or the variable time
-        step mapped to tuples of lower and upper bounds; either of which can be
-        infinity."""
-        return self._bounds
-
-    @bounds.setter
-    def bounds(self, bounds):
-        self._bounds = bounds
-        # sets self.lower_bound and self.upper_bound
-        self._generate_bound_arrays()
-
-    @property
-    def lower_bound(self):
-        """Array of lower bounds, matching length and order of ``free``. Set by
-        setting ``bounds``."""
-        return self._lower_bound
-
-    @property
-    def upper_bound(self):
-        """Array of upper bounds, matching length and order of ``free``. Set by
-        setting ``bounds``."""
-        return self._upper_bound
 
     def solve(self, free, lagrange=[], zl=[], zu=[], respect_bounds=False):
         """Returns the optimal solution and an info dictionary.
@@ -289,8 +249,6 @@ class Problem(cyipopt.Problem):
                 gives the status of the algorithm as a message
 
         """
-        self.obj_value = []
-
         if respect_bounds:
             self.check_bounds_conflict(free)
         return super().solve(free, lagrange=lagrange, zl=zl, zu=zu)
@@ -405,8 +363,8 @@ class Problem(cyipopt.Problem):
                     msg = 'Bound variable {} not present in free variables.'
                     raise ValueError(msg.format(var))
 
-        self._lower_bound = lb
-        self._upper_bound = ub
+        self.lower_bound = lb
+        self.upper_bound = ub
 
     def objective(self, free):
         """Returns the value of the objective function given a solution to the
