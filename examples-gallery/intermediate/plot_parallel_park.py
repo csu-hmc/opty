@@ -160,7 +160,7 @@ instance_constraints = (
 bounds = {
     delta: (np.deg2rad(-45.0), np.deg2rad(45.0)),
     T: (-100.0, 100.0),
-    F: (-10000.0, 10000.0),
+    F: (-10000.0, np.inf),
 }
 
 # %%
