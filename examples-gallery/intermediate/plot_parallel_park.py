@@ -159,8 +159,8 @@ instance_constraints = (
 # Add some physical limits to some variables.
 bounds = {
     delta: (np.deg2rad(-45.0), np.deg2rad(45.0)),
-    T: (-100.0, 100.0),
-    F: (-10000.0, np.inf),
+    T: (-39.0, 41.0),
+    F: (-177.0, 252.0),
 }
 
 # %%
