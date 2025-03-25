@@ -521,7 +521,7 @@ class Problem(cyipopt.Problem):
         self.obj_value.append(args[2])
 
     @_optional_plt_dep
-    def plot_trajectories(self, vector, axes=None):
+    def plot_trajectories(self, vector, axes=None, plot_bounds=False):
         """Returns the axes for two plots. The first plot displays the state
         trajectories versus time and the second plot displays the input
         trajectories versus time.
@@ -533,6 +533,9 @@ class Problem(cyipopt.Problem):
             canonical form.
         axes : ndarray of AxesSubplot, shape(n + m, )
             An array of matplotlib axes to plot to.
+        plot_bounds : bool, optional
+            If True, the bounds will be plotted in the plot of the respective
+            trajectory.
 
         Returns
         =======
@@ -597,6 +600,15 @@ class Problem(cyipopt.Problem):
         for ax, traj, symbol in zip(axes, trajectories, traj_syms):
             ax.plot(time, traj)
             ax.set_ylabel(sm.latex(symbol, mode='inline'))
+
+            if self.bounds is not None and plot_bounds:
+                if symbol in self.bounds.keys():
+                    if self.bounds[symbol][0] not in [-np.inf, np.inf]:
+                        ax.axhline(self.bounds[symbol][0], color='black',
+                                lw=0.5, linestyle='--')
+                    if self.bounds[symbol][1] not in [-np.inf, np.inf]:
+                        ax.axhline(self.bounds[symbol][1], color='black',
+                            lw=0.5, linestyle='--')
         ax.set_xlabel('Time')
         axes[0].set_title('State Trajectories')
         if (self.collocator.num_unknown_input_trajectories +
