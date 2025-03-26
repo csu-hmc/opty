@@ -159,8 +159,8 @@ instance_constraints = (
 # Add some physical limits to some variables.
 bounds = {
     delta: (np.deg2rad(-45.0), np.deg2rad(45.0)),
-    T: (-100.0, 100.0),
-    F: (-10000.0, 10000.0),
+    T: (-50.0, 50.0),
+    F: (-300.0, 300.0),
 }
 
 # %%
@@ -182,7 +182,7 @@ initial_guess = np.ones(prob.num_free)
 initial_guess[:num_nodes] = x_guess
 initial_guess[num_nodes:2*num_nodes] = y_guess
 
-_ = prob.plot_trajectories(initial_guess)
+_ = prob.plot_trajectories(initial_guess, show_bounds=True)
 
 # %%
 # Find the optimal solution.
@@ -192,7 +192,7 @@ print(info['obj_val'])
 
 # %%
 # Plot the optimal state and input trajectories.
-_ = prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution, show_bounds=True)
 
 # %%
 # Plot the constraint violations.
