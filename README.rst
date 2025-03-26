@@ -230,7 +230,8 @@ and open the result with your default web browser, for example::
 
    $ xdg-open _build/html/index.html
 
-Alternatively, in the windows explorer open ``opyt/docs/_build/html/index.html``.
+Alternatively, in the windows explorer open
+``\path\to\opty\docs\_build\html\index.html``.
 
 Acknowledgements
 ================
