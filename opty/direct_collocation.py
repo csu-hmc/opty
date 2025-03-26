@@ -129,10 +129,9 @@ class Problem(cyipopt.Problem):
                       c1, ..., co]
 
 
-    The ``obj``, ``obj_grad``, and ``bounds`` attributes may be changed to new
-    functions and dictionaries, respectively, after instantiation of
-    ``Problem`` but changing ``problem.bounds[state] = (low, high)`` will have
-    no effect.
+    The ``bounds`` attribute may be changed to a new dictionary after
+    instantiation of ``Problem`` by setting ``Problem.bounds = {..}`` but
+    changing ``problem.bounds[state] = (low, high)`` will have no effect.
 
     Some attributes are only accessible from the
     :py:class:`ConstraintCollocator` object associated with this ``Problem``
@@ -405,8 +404,20 @@ class Problem(cyipopt.Problem):
                     msg = 'Bound variable {} not present in free variables.'
                     raise ValueError(msg.format(var))
 
-        self._lower_bound = lb
-        self._upper_bound = ub
+        # NOTE : The lower and upper bounds arrays are passed into Problem and
+        # pointers to the data in the arrays are stored in the underlying Ipopt
+        # problem object. So if they already exist and the user modifies them
+        # by creating a new Problem.bounds dictionary update the data instead
+        # of created new arrays.
+        if hasattr(self, '_lower_bound'):
+            self._lower_bound[:] = lb
+        else:
+            self._lower_bound = lb
+
+        if hasattr(self, 'upper_bound'):
+            self._upper_bound[:] = ub
+        else:
+            self._upper_bound = ub
 
     def objective(self, free):
         """Returns the value of the objective function given a solution to the
