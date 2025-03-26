@@ -294,8 +294,8 @@ _ = prob.plot_constraint_violations(solution)
 # changing acceleration vectors can been seen more clearly.
 fps = 100
 
-state_vals, input_vals, *_ = prob.parse_free(solution)
-t_arr = np.linspace(t0, num_nodes*solution[-1], num_nodes)
+state_vals, input_vals, _, _ = prob.parse_free(solution)
+t_arr = prob.time_vector(solution=solution)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 

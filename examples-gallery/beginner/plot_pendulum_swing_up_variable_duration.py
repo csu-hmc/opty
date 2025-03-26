@@ -123,7 +123,7 @@ _ = prob.plot_constraint_violations(solution, subplots=True)
 # %%
 # Animate the pendulum swing up.
 interval_value = solution[-1]
-time = np.linspace(0.0, num_nodes*interval_value, num=num_nodes)
+time = prob.time_vector(solution=solution)
 angle = solution[:num_nodes]
 
 fig = plt.figure()
