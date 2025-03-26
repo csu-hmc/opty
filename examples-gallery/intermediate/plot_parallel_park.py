@@ -182,7 +182,7 @@ initial_guess = np.ones(prob.num_free)
 initial_guess[:num_nodes] = x_guess
 initial_guess[num_nodes:2*num_nodes] = y_guess
 
-_ = prob.plot_trajectories(initial_guess)
+_ = prob.plot_trajectories(initial_guess, show_bounds=True)
 
 # %%
 # Find the optimal solution.
