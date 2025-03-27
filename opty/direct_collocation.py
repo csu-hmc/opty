@@ -837,13 +837,16 @@ class Problem(cyipopt.Problem):
                 msg = 'Start time must be less than the final time.'
                 raise ValueError(msg)
             else:
-                return np.arange(t0, t0 + self.collocator.num_collocation_nodes
-                        *solution[-1], solution[-1])
+                return np.linspace(t0, t0
+                                   + (self.collocator.num_collocation_nodes-1)
+                                   *solution[-1],
+                                   self.collocator.num_collocation_nodes)
 
         else:
-            return np.arange(t0, t0 + self.collocator.num_collocation_nodes*
-                self.collocator.node_time_interval,
-                self.collocator.node_time_interval)
+            return np.linspace(t0, t0
+                               + (self.collocator.num_collocation_nodes-1)
+                               *self.collocator.node_time_interval,
+                                self.collocator.num_collocation_nodes)
 
 
 class ConstraintCollocator(object):
