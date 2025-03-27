@@ -1939,7 +1939,13 @@ def test_attributes_read_only():
             setattr(test, XX, 5)
 
 def test_time_vector():
-    """Test to ensure that time_vector retunrs the correct values."""
+    """Test to ensure that time_vector retunrs the correct values.
+    Many wrong time vectors and a few right ones are given, the method should
+    give the correct time vector, and not any of the wrong ones.
+    So, wrong_time_vector is mostly an incorrect one.
+    """
+
+    np.random.seed(123)
 
     x, ux = mech.dynamicsymbols('x ux')
     t = mech.dynamicsymbols._t
@@ -1951,7 +1957,7 @@ def test_time_vector():
         ])
 
     state_symbols = (x, ux)
-    num_nodes = 25
+    num_nodes = 10
 
     # A: constant time interval
     t0, tf = np.random.uniform(0.0, 2.0), 10.0
@@ -1976,14 +1982,46 @@ def test_time_vector():
         time_symbol=t,
         backend='numpy'
     )
-    expected_time_vector = np.linspace(t0, t0 + (num_nodes-1)*interval_value,
+
+    # correct t0 must be accepted
+    wrong_time_vector = np.linspace(t0, t0 + (num_nodes-1)*interval_value,
                                        num_nodes)
     time_vector = prob.time_vector(start_time=t0)
-    assert np.allclose(time_vector, expected_time_vector)
+    assert np.allclose(time_vector, wrong_time_vector)
 
+    # incorrect t0 must be rejected
+    wrong_time_vector = np.linspace(t0+1.e-3, t0 + (num_nodes-1)*interval_value,
+                                       num_nodes)
+    time_vector = prob.time_vector(start_time=t0)
+    assert not np.allclose(time_vector, wrong_time_vector)
+
+    # whether or not a solution is given does not matter in casa A
     solution = np.random.randn(prob.num_free)
+    wrong_time_vector = np.linspace(t0, t0 + (num_nodes-1)*interval_value,
+                                       num_nodes)
     time_vector = prob.time_vector(solution, start_time=t0)
-    assert np.allclose(time_vector, expected_time_vector)
+    assert np.allclose(time_vector, wrong_time_vector)
+
+    # np.arange does not give the final time point, so may guve wrong length,
+    # np.linspace does.
+    wrong_time_vector = np.arange(t0, t0
+                                     + (num_nodes-1)*(interval_value),
+                                     interval_value)
+    assert len(time_vector) != len(wrong_time_vector)
+
+    # But due to numerical errors, it may also happen to give the right length.
+    wrong_time_vector = np.arange(t0, t0 + (num_nodes-1)*interval_value
+                                     +1.e-13, interval_value)
+    time_vector = prob.time_vector(solution, start_time=t0)
+    assert len(time_vector) == len(wrong_time_vector)
+
+    # Something which is flat wrong must be jecteded, either length
+    wrong_time_vector = (0.0, 0.1, 0.2, 0.4, 0.5, 0.6, 0.7, 0.9, 1.0)
+    assert len(time_vector) != len(wrong_time_vector)
+    #..or values.
+    wrong_time_vector =(0.0, 0.1, 0.2, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
+    assert not np.allclose(time_vector, wrong_time_vector)
+
 
     # B: variable time interval
     h =sym.symbols('h')
@@ -2018,13 +2056,13 @@ def test_time_vector():
     solution = np.random.randn(prob.num_free)
     solution[-1] = np.random.uniform(2.5/(num_nodes-1), 10.0/(num_nodes-1))
     time_vector = prob.time_vector(solution, start_time=t0)
-    expected_time_vector = np.linspace(t0, t0 + (num_nodes-1)*solution[-1],
+    wrong_time_vector = np.linspace(t0, t0 + (num_nodes-1)*solution[-1],
                                        num_nodes)
-    assert np.allclose(time_vector, expected_time_vector)
+    assert np.allclose(time_vector, wrong_time_vector)
 
     # final time > initial time
     solution[-1] = 1.e-75
-    expected_time_vector = np.linspace(t0, t0 + (num_nodes-1)*solution[-1],
+    wrong_time_vector = np.linspace(t0, t0 + (num_nodes-1)*solution[-1],
                                        num_nodes)
     with raises(ValueError):
         time_vector = prob.time_vector(solution, start_time=t0)
@@ -2033,6 +2071,10 @@ def test_time_vector():
     solution[-1] = 0.0
     with raises(ValueError):
         time_vector = prob.time_vector(solution, start_time=t0)
+
+    # Something which is flat wrong must be jecteded.
+    wrong_time_vector = (0.0, 0.1, 0.2, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
+    assert not np.allclose(time_vector, wrong_time_vector)
 
 def test_check_bounds_conflict():
     """Test to ensure that the method of Problem, bounds_conflict_initial_guess
