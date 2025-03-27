@@ -1976,8 +1976,8 @@ def test_time_vector():
         time_symbol=t,
         backend='numpy'
     )
-    expected_time_vector = np.arange(t0, t0 + num_nodes*interval_value,
-                        interval_value)
+    expected_time_vector = np.linspace(t0, t0 + (num_nodes-1)*interval_value,
+                                       num_nodes)
     time_vector = prob.time_vector(start_time=t0)
     assert np.allclose(time_vector, expected_time_vector)
 
@@ -2018,14 +2018,14 @@ def test_time_vector():
     solution = np.random.randn(prob.num_free)
     solution[-1] = np.random.uniform(2.5/(num_nodes-1), 10.0/(num_nodes-1))
     time_vector = prob.time_vector(solution, start_time=t0)
-    expected_time_vector = np.arange(t0, t0 + num_nodes*solution[-1],
-                solution[-1])
+    expected_time_vector = np.linspace(t0, t0 + (num_nodes-1)*solution[-1],
+                                       num_nodes)
     assert np.allclose(time_vector, expected_time_vector)
 
     # final time > initial time
     solution[-1] = 1.e-75
-    expected_time_vector = np.arange(t0, t0 + num_nodes*solution[-1],
-                solution[-1])
+    expected_time_vector = np.linspace(t0, t0 + (num_nodes-1)*solution[-1],
+                                       num_nodes)
     with raises(ValueError):
         time_vector = prob.time_vector(solution, start_time=t0)
 
