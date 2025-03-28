@@ -201,9 +201,10 @@ def drucken(selection, fig, ax, video=True):
 
     if selection == 0:
         duration = (num_nodes - 1)*solution[-1]
+        times = prob.time_vector(solution=solution)
     else:
         duration = fixed_duration
-    times = np.linspace(0.0, duration, num=num_nodes)
+        times = prob.time_vector()
     interval_value = duration/(num_nodes - 1)
 
     strasse1 = strasse(x, a, b)

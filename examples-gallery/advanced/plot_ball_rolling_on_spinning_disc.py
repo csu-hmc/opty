@@ -486,7 +486,7 @@ def add_point_to_data(line, x, y):
 
 state_vals, input_vals, _, h_val = prob.parse_free(solution)
 
-t_arr = np.linspace(t0, num_nodes*h_val, num_nodes)
+t_arr = prob.time_vector(solution=solution)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 

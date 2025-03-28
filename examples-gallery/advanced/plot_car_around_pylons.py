@@ -376,7 +376,7 @@ fps = 10
 state_vals, input_vals, _, h_val = prob.parse_free(solution)
 
 tf = h_val*(num_nodes - 1)
-t_arr = np.linspace(t0, tf, num_nodes)
+t_arr = prob.time_vector(solution=solution)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 

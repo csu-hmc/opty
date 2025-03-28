@@ -258,7 +258,7 @@ _ = prob.plot_constraint_violations(solution)
 # Use symmeplot to make an animation of the motion.
 # sphinx_gallery_thumbnail_number = 3
 xs, rs, _, h_val = prob.parse_free(solution)
-times = np.linspace(0.0, (num_nodes - 1)*h_val, num=num_nodes)
+times = prob.time_vector(solution=solution)
 
 
 def animate(fname='animation.gif'):

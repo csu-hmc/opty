@@ -768,7 +768,7 @@ akb_len, akt_len, knb_len, knt_len = eval_mus_lens(xs[:4], p_vals)
 
 def plot_muscles():
 
-    time = np.linspace(0, num_nodes*h_val, num=num_nodes)
+    time = problem.time_vector(solution=solution)
 
     fig, axes = plt.subplots(4, 1, sharex=True, layout='constrained',
                              figsize=(6.4, 6.4))
@@ -812,7 +812,7 @@ roll_pow = -Cr*m*g*rw*G*u1
 air_pow = -rho*CD*Ar*G**3*rw**3*u1**2/2*u1
 eval_pow = sm.lambdify((u1.diff(t), u1, p),
                        (kin_pow, roll_pow, air_pow))
-time = np.linspace(0, num_nodes*h_val, num=num_nodes)
+time = problem.time_vector(solution=solution)
 u1ds = np.diff(xs[4, :], prepend=0.0)/np.diff(time, prepend=-h_val)
 kps, rps, aps = eval_pow(u1ds, xs[4, :], p_vals)
 

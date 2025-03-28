@@ -106,7 +106,6 @@ sm.pprint(eom)
 duration = 30.0  # seconds
 num_nodes = 501
 interval_value = duration/(num_nodes - 1)
-time = np.linspace(0.0, duration, num=num_nodes)
 
 # %%
 # Provide some reasonably realistic values for the constants.
@@ -175,6 +174,7 @@ prob.add_option('nlp_scaling_method', 'gradient-based')
 
 # %%
 # Give some rough estimates for the x and y trajectories.
+time = prob.time_vector()
 x_guess = 3.0/duration*2.0*time
 x_guess[num_nodes//2:] = 6.0 - 3.0/duration*2.0*time[num_nodes//2:]
 y_guess = 2.0/duration*time
