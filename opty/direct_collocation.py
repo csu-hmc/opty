@@ -833,17 +833,20 @@ class Problem(cyipopt.Problem):
             elif solution[-1] <= 0:
                 msg = 'Time interval must be strictly greater than zero.'
                 raise ValueError(msg)
-            elif t0 >= solution[-1] * self.collocator.num_collocation_nodes:
+            elif t0 >= solution[-1]*self.collocator.num_collocation_nodes:
                 msg = 'Start time must be less than the final time.'
                 raise ValueError(msg)
             else:
-                return np.arange(t0, t0 + self.collocator.num_collocation_nodes
-                        *solution[-1], solution[-1])
+                return np.linspace(t0, t0
+                                   + (self.collocator.num_collocation_nodes-1)
+                                   *solution[-1],
+                                   self.collocator.num_collocation_nodes)
 
         else:
-            return np.arange(t0, t0 + self.collocator.num_collocation_nodes*
-                self.collocator.node_time_interval,
-                self.collocator.node_time_interval)
+            return np.linspace(t0, t0
+                               + (self.collocator.num_collocation_nodes-1)
+                               *self.collocator.node_time_interval,
+                                self.collocator.num_collocation_nodes)
 
 
 class ConstraintCollocator(object):
