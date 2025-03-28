@@ -226,11 +226,12 @@ Build the HTML documentation with::
    (opty-dev)$ cd /path/to/opty/docs
    (opty-dev)$ make html
 
-and open the result with your web browser, for example::
+and open the result with your default web browser, for example::
 
-   $ firefox _build/html/index.html
+   $ xdg-open _build/html/index.html
 
-Alternatively, in the windows explorer open ``opyt/docs/_build/html/index.html``.
+Alternatively, in the windows explorer open
+``\path\to\opty\docs\_build\html\index.html``.
 
 Acknowledgements
 ================

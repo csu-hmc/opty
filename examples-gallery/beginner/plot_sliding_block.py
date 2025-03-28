@@ -2,6 +2,17 @@
 Block Sliding Over a Hill
 =========================
 
+Objective
+---------
+
+- Show how to use fixed time interval and variable time interval on a very
+  simple example.
+- Show the use of ``backend='numpy'`` in the ``Problem`` class which sets up
+  small problems faster.
+
+Introduction
+------------
+
 A block, modeled as a particle is sliding on a road to cross a hill. The block
 is subject to gravity and speed dependent viscous friction. Gravity points in
 the negative Y direction. A force tangential to the road is applied to the
@@ -171,6 +182,7 @@ for selection in (0, 1):
         known_parameter_map=par_map,
         instance_constraints=instance_constraints,
         bounds=bounds,
+        backend='numpy',
     )
 
     initial_guess = prob.create_linear_initial_guess()
@@ -182,14 +194,17 @@ for selection in (0, 1):
 
 # %%
 # Animate the solutions and plot the results.
+
+
 def drucken(selection, fig, ax, video=True):
     solution = solution_list[selection]
 
     if selection == 0:
         duration = (num_nodes - 1)*solution[-1]
+        times = prob.time_vector(solution=solution)
     else:
         duration = fixed_duration
-    times = np.linspace(0.0, duration, num=num_nodes)
+        times = prob.time_vector()
     interval_value = duration/(num_nodes - 1)
 
     strasse1 = strasse(x, a, b)
@@ -298,11 +313,11 @@ _ = prob_list[selection].plot_objective_value()
 
 # %%
 # Plot errors in the solution.
-_ =prob_list[selection].plot_constraint_violations(solution_list[selection])
+_ = prob_list[selection].plot_constraint_violations(solution_list[selection])
 
 # %%
 # Plot the trajectories of the block.
-_ =prob_list[selection].plot_trajectories(solution_list[selection])
+_ = prob_list[selection].plot_trajectories(solution_list[selection])
 
 # %%
 # Animate the solution.

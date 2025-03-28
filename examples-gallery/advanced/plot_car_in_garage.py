@@ -68,7 +68,7 @@ import sympy as sm
 from scipy.interpolate import CubicSpline
 
 from opty.direct_collocation import Problem
-from opty.utils import parse_free, create_objective_function
+from opty.utils import create_objective_function
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
@@ -386,9 +386,8 @@ def add_point_to_data(line, x, y):
     line.set_data(np.append(old_x, x), np.append(old_y, y))
 
 
-state_vals, input_vals, _ = parse_free(solution, len(state_symbols),
-                len(specified_symbols), num_nodes)
-t_arr = np.linspace(t0, tf, num_nodes)
+state_vals, input_vals, _ = prob.parse_free(solution)
+t_arr = prob.time_vector()
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 

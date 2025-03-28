@@ -8,6 +8,7 @@ Objectives
 - Demonstrate how to make the simulation duration variable.
 - Show how to use the NumPy backend which solves the problem without needing
   just-in-time C compilation.
+- Demonstrate plotting the constraint violations as subplots.
 
 Introduction
 ------------
@@ -117,12 +118,12 @@ _ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-_ = prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution, subplots=True)
 
 # %%
 # Animate the pendulum swing up.
 interval_value = solution[-1]
-time = np.linspace(0.0, num_nodes*interval_value, num=num_nodes)
+time = prob.time_vector(solution=solution)
 angle = solution[:num_nodes]
 
 fig = plt.figure()

@@ -45,7 +45,6 @@ average speed over half a period.
 Import all necessary modules, functions, and classes:
 """
 import os
-import pprint
 from pkg_resources import parse_version
 from opty import Problem
 from opty.utils import f_minus_ma
@@ -117,7 +116,7 @@ Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = specified
 # The constants are loaded from a file of realistic geometry, mass, inertia,
 # and foot deformation properties of an adult human.
 par_map = simulate.load_constants(constants, 'human-gait-constants.yml')
-pprint.pprint(par_map)
+par_map
 
 # %%
 # gait2d provides "hand of god" inputs to manipulate the trunk for some
@@ -247,7 +246,7 @@ else:
 # %%
 # Use symmeplot to make an animation of the motion.
 xs, rs, _, h_val = prob.parse_free(solution)
-times = np.linspace(0.0, (num_nodes - 1)*h_val, num=num_nodes)
+times = prob.time_vector(solution=solution)
 
 
 def animate():
@@ -372,7 +371,7 @@ animation = animate()
 # Now see what the solution looks like in the Moon's gravitational field.
 g = constants[0]
 prob.collocator.known_parameter_map[g] = 1.625  # m/s**2
-pprint.pprint(prob.collocator.known_parameter_map)
+prob.collocator.known_parameter_map
 
 # %%
 # Use earth's solution as initial guess.

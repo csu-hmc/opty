@@ -120,7 +120,7 @@ _ = prob.plot_objective_value()
 
 # %%
 # Animate the pendulum swing up.
-time = np.linspace(0.0, duration, num=num_nodes)
+time = prob.time_vector()
 angle = solution[:num_nodes]
 
 fig = plt.figure()

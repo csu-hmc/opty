@@ -479,7 +479,7 @@ class Problem(cyipopt.Problem):
         self.obj_value.append(args[2])
 
     @_optional_plt_dep
-    def plot_trajectories(self, vector, axes=None):
+    def plot_trajectories(self, vector, axes=None, show_bounds=False):
         """Returns the axes for two plots. The first plot displays the state
         trajectories versus time and the second plot displays the input
         trajectories versus time.
@@ -491,6 +491,9 @@ class Problem(cyipopt.Problem):
             canonical form.
         axes : ndarray of AxesSubplot, shape(n + m, )
             An array of matplotlib axes to plot to.
+        show_bounds : bool, optional
+            If True, the bounds will be plotted in the plot of the respective
+            trajectory.
 
         Returns
         =======
@@ -555,6 +558,13 @@ class Problem(cyipopt.Problem):
         for ax, traj, symbol in zip(axes, trajectories, traj_syms):
             ax.plot(time, traj)
             ax.set_ylabel(sm.latex(symbol, mode='inline'))
+
+            if self.bounds is not None and show_bounds:
+                if symbol in self.bounds.keys():
+                    ax.axhline(self.bounds[symbol][0], color='C1',
+                                           lw=1.0, linestyle='--')
+                    ax.axhline(self.bounds[symbol][1], color='C1',
+                                           lw=1.0, linestyle='--')
         ax.set_xlabel('Time')
         axes[0].set_title('State Trajectories')
         if (self.collocator.num_unknown_input_trajectories +
@@ -563,7 +573,7 @@ class Problem(cyipopt.Problem):
         return axes
 
     @_optional_plt_dep
-    def plot_constraint_violations(self, vector, axes=None):
+    def plot_constraint_violations(self, vector, axes=None, subplots=False):
         """Returns an axis with the state constraint violations plotted versus
         node number and the instance constraints as a bar graph.
 
@@ -572,6 +582,14 @@ class Problem(cyipopt.Problem):
         vector : ndarray, (n*N + q*N + r + s, )
             The initial guess, solution, or any other vector that is in the
             canonical form.
+        axes : ndarray of AxesSubplot, optional.
+            If given, it is the user's responsibility to provide the correct
+            number of axes.
+        subplots : boolean, optional.
+            If True, the equations of motion will be plotted in a separate plot
+            for each equation of motion. The default is False. If a user wants
+            to provide the axes, it is recommended to run once without
+            providing axes, to see how many are needed.
 
         Returns
         =======
@@ -593,6 +611,14 @@ class Problem(cyipopt.Problem):
 
         bars_per_plot = None
         rotation = -45
+
+        if subplots:
+            figsize = 1.25
+        else:
+            figsize = 1.75
+
+        if not isinstance(figsize, float):
+            raise ValueError('figsize given must be a float.')
 
         # find the number of bars per plot, so the bars per plot are
         # aproximately the same on each plot
@@ -650,16 +676,35 @@ class Problem(cyipopt.Problem):
         con_nodes = range(1, self.collocator.num_collocation_nodes)
 
         if axes is None:
-            fig, axes = plt.subplots(1 + num_plots, 1,
-                                     figsize=(6.4, 1.50*(1 + num_plots)),
-                                     layout='compressed')
+            if subplots is False or self.collocator.num_states == 1:
+                num_eom_plots = 1
+            else:
+                num_eom_plots = self.collocator.num_states
+
+            fig, axes = plt.subplots(num_eom_plots + num_plots, 1,
+                                     figsize=(6.4, figsize*(num_eom_plots +
+                                                            num_plots)),
+                                     layout='constrained')
+
+        else:
+            num_eom_plots = len(axes) - num_plots
 
         axes = np.asarray(axes).ravel()
 
-        axes[0].plot(con_nodes, state_violations.T)
-        axes[0].set_title('Constraint violations')
-        axes[0].set_xlabel('Node Number')
-        axes[0].set_ylabel('EoM violation')
+        if subplots is False or self.collocator.num_states == 1:
+            axes[0].plot(con_nodes, state_violations.T)
+            axes[0].set_title('Constraint violations')
+            axes[0].set_xlabel('Node Number')
+            axes[0].set_ylabel('EoM violation')
+
+        else:
+            for i in range(self.collocator.num_states):
+                axes[i].plot(con_nodes, state_violations[i])
+                axes[i].set_ylabel(f'Eq. {str(i+1)} \n violation', fontsize=9)
+                if i < self.collocator.num_states - 1:
+                    axes[i].set_xticklabels([])
+            axes[num_eom_plots-1].set_xlabel('Node Number')
+            axes[0].set_title('Constraint violations')
 
         if self.collocator.instance_constraints is not None:
             # reduce the instance constrtaints to 2 digits after the decimal
@@ -702,12 +747,13 @@ class Problem(cyipopt.Problem):
                 inst_constr = instance_constr_plot[beginn: endd]
 
                 width = [0.06*num_ticks for _ in range(num_ticks)]
-                axes[i+1].bar(range(num_ticks), inst_viol,
-                              tick_label=[sm.latex(s, mode='inline') for s in
-                                          inst_constr], width=width)
-                axes[i+1].set_ylabel('Instance')
-                axes[i+1].set_xticklabels(axes[i+1].get_xticklabels(),
-                                          rotation=rotation)
+                axes[i+num_eom_plots].bar(
+                    range(num_ticks), inst_viol,
+                    tick_label=[sm.latex(s, mode='inline') for s in
+                                inst_constr], width=width)
+                axes[i+num_eom_plots].set_ylabel('Instance')
+                axes[i+num_eom_plots].set_xticklabels(
+                    axes[i+num_eom_plots].get_xticklabels(), rotation=rotation)
 
         return axes
 
@@ -764,14 +810,14 @@ class Problem(cyipopt.Problem):
         return parse_free(free, n, q, N, variable_duration)
 
     def time_vector(self, solution=None, start_time=0.0):
-        """Returns the time instances of the problem as an numpy ndarray.
+        """Returns the time array.
 
         Parameters
         ==========
         solution : ndarray, shape(n*N + q*N + r + s,), optional
-            The solution to to problem. Needed if the time interval is variable.
+            Solution to to problem; required if the time interval is variable.
         start_time : float, optional
-            The initial time of the problem. Default is 0.0.
+            Initial time; default is ``0.0``.
 
         Returns
         =======
@@ -780,24 +826,25 @@ class Problem(cyipopt.Problem):
 
         """
         t0 = start_time
+        N = self.collocator.num_collocation_nodes
+
         if self.collocator._variable_duration:
             if solution is None:
                 msg = 'Solution vector must be provided for variable duration.'
                 raise ValueError(msg)
-            elif solution[-1] <= 0:
+            else:
+                h = solution[-1]
+
+            if h <= 0.0:
                 msg = 'Time interval must be strictly greater than zero.'
                 raise ValueError(msg)
-            elif t0 >= solution[-1] * self.collocator.num_collocation_nodes:
+            elif t0 >= h*(N - 1):
                 msg = 'Start time must be less than the final time.'
                 raise ValueError(msg)
-            else:
-                return np.arange(t0, t0 + self.collocator.num_collocation_nodes
-                        *solution[-1], solution[-1])
-
         else:
-            return np.arange(t0, t0 + self.collocator.num_collocation_nodes*
-                self.collocator.node_time_interval,
-                self.collocator.node_time_interval)
+            h = self.collocator.node_time_interval
+
+        return np.linspace(t0, t0 + h*(N - 1), num=N)
 
     def create_linear_initial_guess(self, end_time=1.0):
         """Creates an initial guess that is the linear interpolation between
@@ -1146,6 +1193,9 @@ class ConstraintCollocator(object):
         if len(self.state_symbols) != self.eom.shape[0]:
             raise ValueError('The number of states must match the number of '
                              'equations of motion.')
+
+        if backend not in ['cython', 'numpy']:
+            raise ValueError('backend must be either "cython" or "numpy".')
 
         self._state_derivative_symbols = tuple([s.diff(self.time_symbol) for
                                                s in state_symbols])

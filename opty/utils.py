@@ -551,6 +551,8 @@ int main(void) {
         # .compile() should return ['test.o'] on linux
         if sys.platform == "win32":
             ccompiler.compile([filename], extra_postargs=['/openmp'])
+        elif sys.platform == "darwin":
+            ccompiler.compile([filename], extra_postargs=['-Xclang', '-fopenmp'])
         else:
             ccompiler.compile([filename], extra_postargs=['-fopenmp'])
         exit = True
@@ -690,6 +692,9 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         if sys.platform == "win32":
             d['compile_args'] = r"'\openmp'"
             d['link_args'] = ""
+        elif sys.platform == "darwin":
+            d['compile_args'] = "'-Xclang', '-fopenmp'"
+            d['link_args'] = "'-Xclang', '-fopenmp'"
         else:
             d['compile_args'] = "'-fopenmp'"
             d['link_args'] = "'-fopenmp'"

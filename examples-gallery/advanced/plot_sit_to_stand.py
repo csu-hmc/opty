@@ -21,7 +21,6 @@ simulation.
 Import all necessary modules, functions, and classes:
 """
 import os
-import pprint
 from opty import Problem
 from opty.utils import f_minus_ma
 from pygait2d import derive, simulate
@@ -88,7 +87,7 @@ Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = specified
 # The constant values are loaded from a file of realistic geometry, mass,
 # inertia, and foot deformation properties of an adult human.
 par_map = simulate.load_constants(constants, 'human-gait-constants.yml')
-pprint.pprint(par_map)
+par_map
 
 # %%
 # gait2d provides "hand of god" inputs to manipulate the trunk for some
@@ -259,7 +258,7 @@ _ = prob.plot_constraint_violations(solution)
 # Use symmeplot to make an animation of the motion.
 # sphinx_gallery_thumbnail_number = 3
 xs, rs, _, h_val = prob.parse_free(solution)
-times = np.linspace(0.0, (num_nodes - 1)*h_val, num=num_nodes)
+times = prob.time_vector(solution=solution)
 
 
 def animate(fname='animation.gif'):

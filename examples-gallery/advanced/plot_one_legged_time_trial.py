@@ -15,7 +15,7 @@ muscles have to coordinate.
    This example requires SymPy >= 1.13.
 
 """
-from opty import Problem, parse_free
+from opty import Problem
 from scipy.optimize import fsolve
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
@@ -731,9 +731,7 @@ _ = problem.plot_trajectories(initial_guess, axes=axes)
 # Solve the Optimal Control Problem
 # ---------------------------------
 solution, info = problem.solve(initial_guess)
-xs, us, ps, h_val= parse_free(solution, len(state_vars),
-                              4, num_nodes,
-                              variable_duration=True)
+xs, us, ps, h_val = problem.parse_free(solution)
 print(info['status_msg'])
 print('Optimal value h = {:1.3f} s:'.format(h_val))
 
@@ -770,7 +768,7 @@ akb_len, akt_len, knb_len, knt_len = eval_mus_lens(xs[:4], p_vals)
 
 def plot_muscles():
 
-    time = np.linspace(0, num_nodes*h_val, num=num_nodes)
+    time = problem.time_vector(solution=solution)
 
     fig, axes = plt.subplots(4, 1, sharex=True, layout='constrained',
                              figsize=(6.4, 6.4))
@@ -814,7 +812,7 @@ roll_pow = -Cr*m*g*rw*G*u1
 air_pow = -rho*CD*Ar*G**3*rw**3*u1**2/2*u1
 eval_pow = sm.lambdify((u1.diff(t), u1, p),
                        (kin_pow, roll_pow, air_pow))
-time = np.linspace(0, num_nodes*h_val, num=num_nodes)
+time = problem.time_vector(solution=solution)
 u1ds = np.diff(xs[4, :], prepend=0.0)/np.diff(time, prepend=-h_val)
 kps, rps, aps = eval_pow(u1ds, xs[4, :], p_vals)
 

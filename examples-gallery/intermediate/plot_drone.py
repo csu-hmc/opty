@@ -32,7 +32,7 @@ thrust.
 import sympy as sm
 import sympy.physics.mechanics as me
 import numpy as np
-from opty import Problem, create_objective_function, parse_free
+from opty import Problem, create_objective_function
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
@@ -113,7 +113,6 @@ sm.pprint(eom)
 duration = 10.0  # seconds
 num_nodes = 301
 interval_value = duration/(num_nodes - 1)
-time = np.linspace(0.0, duration, num=num_nodes)
 
 # %%
 # Provide some values for the constants.
@@ -219,6 +218,7 @@ _ = prob.plot_trajectories(initial_guess, axes=axes)
 # %%
 # Find an optimal solution.
 solution, info = prob.solve(initial_guess)
+time = prob.time_vector()
 print(info['status_msg'])
 print(info['obj_val'])
 
@@ -247,8 +247,8 @@ for point in [P1, Ao, P2, Ao, P3, Ao, P4]:
 eval_point_coords = sm.lambdify((state_symbols, specified_symbols,
                                  list(par_map.keys())), coordinates, cse=True)
 
-xs, us, ps = parse_free(solution, len(state_symbols), len(specified_symbols),
-                        num_nodes)
+xs, us, ps = prob.parse_free(solution)
+
 coords = []
 for xi, ui in zip(xs.T, us.T):
     coords.append(eval_point_coords(xi, ui, list(par_map.values())))

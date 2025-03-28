@@ -55,14 +55,14 @@ import numpy as np
 import sympy as sm
 from scipy.interpolate import CubicSpline
 from opty.direct_collocation import Problem
-from opty.utils import parse_free, MathJaxRepr
+from opty.utils import MathJaxRepr
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import patches
 
 # %%
-# Set up Kane's Equations of Motion.
-#-----------------------------------
+# Set up Kane's Equations of Motion
+# ---------------------------------
 #
 
 N, A = sm.symbols('N A', cls=me.ReferenceFrame)
@@ -121,8 +121,8 @@ eom = eom.col_join(sm.Matrix([h1 - u.diff(t),  h2 - uxc.diff(t)]))
 MathJaxRepr(eom)
 
 # %%
-# Set up the Optimization Problem and Solve it.
-#----------------------------------------------
+# Set up the Optimization Problem and Solve it
+# --------------------------------------------
 #
 state_symbols = tuple((*q_ind, *q_dep, *u_ind, *u_dep, h1, h2))
 constant_symbols = (l, m1, m2, g)
@@ -150,10 +150,12 @@ def obj(free):
     """Minimize h, the time interval between nodes."""
     return free[-1]
 
+
 def obj_grad(free):
     grad = np.zeros_like(free)
     grad[-1] = 1.0
     return grad
+
 
 # %%
 # Starting and final location of the load.
@@ -233,7 +235,8 @@ prob = Problem(
 # %%
 # Reasonable initial guess.
 
-i1 = [(ending_location - starting_location)/num_nodes*i for i in range(num_nodes)]
+i1 = [(ending_location - starting_location)/num_nodes*i for i in
+      range(num_nodes)]
 i2 = [0.0 for _ in range(num_nodes)]
 i3 = i1
 i4 = [-par_map[l] for _ in range(num_nodes)]
@@ -269,15 +272,14 @@ _ = prob.plot_constraint_violations(solution)
 _ = prob.plot_trajectories(solution)
 
 # %%
-# Animate the Simulation.
-#------------------------
-h_sol = solution[-1]
+# Animate the Simulation
+# ----------------------
 fps = 10
 
+state_vals, input_vals, _, h_sol = prob.parse_free(solution)
+
 tf = h_sol*(num_nodes - 1)
-state_vals, input_vals, _ = parse_free(solution, len(state_symbols),
-                                       len(specified_symbols), num_nodes)
-t_arr = np.linspace(t0, tf, num_nodes)
+t_arr = prob.time_vector(solution=solution)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 
@@ -328,6 +330,7 @@ def init_plot():
 
     return fig, ax, line1, recht, load, pfeil
 
+
 def update(t):
     message = f'running time {t:0.2f} sec \n The red arrow shows the force.'
     ax.set_title(message, fontsize=12)
@@ -340,6 +343,7 @@ def update(t):
     pfeil.set_offsets([coords[0, 0], coords[1, 0]+0.25])
     pfeil.set_UVC(input_sol(t), 0.25)
     return line1, recht, load, pfeil
+
 
 # %%
 # A frame from the animation.
