@@ -833,7 +833,7 @@ class Problem(cyipopt.Problem):
             elif solution[-1] <= 0:
                 msg = 'Time interval must be strictly greater than zero.'
                 raise ValueError(msg)
-            elif t0 >= solution[-1] * self.collocator.num_collocation_nodes:
+            elif t0 >= solution[-1]*self.collocator.num_collocation_nodes:
                 msg = 'Start time must be less than the final time.'
                 raise ValueError(msg)
             else:
