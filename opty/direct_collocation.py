@@ -829,11 +829,13 @@ class Problem(cyipopt.Problem):
         N = self.collocator.num_collocation_nodes
 
         if self.collocator._variable_duration:
-            h = solution[-1]
             if solution is None:
                 msg = 'Solution vector must be provided for variable duration.'
                 raise ValueError(msg)
-            elif h <= 0.0:
+            else:
+                h = solution[-1]
+
+            if h <= 0.0:
                 msg = 'Time interval must be strictly greater than zero.'
                 raise ValueError(msg)
             elif t0 >= h*(N - 1):
