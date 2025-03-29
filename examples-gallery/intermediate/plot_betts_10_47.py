@@ -5,7 +5,7 @@ Singular Arc Problem
 Objective
 ---------
 
-- Show how to optimize a multiphase problem phase-wise.
+- Show how to optimize a multiphase problem phasewise.
 - Show how to use a state variable to enforce a boundary condition.
 
 
@@ -31,9 +31,9 @@ Notes
 -----
 
 ``opty`` presently does not support simultaneous optimization of multiple
-phases, so they have to be optimized phase-wise.
+phases, so they have to be optimized phasewise.
 Dr. Betts confirmed that his solution was achieved by simultaneous
-optimization. So, at least in this case, phase-wise optimization gives pretty
+optimization. So, at least in this case, phasewise optimization gives pretty
 close results.
 
 Interesting:
@@ -51,13 +51,13 @@ problems at all.
 
 
 """
-
+import os
 import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 from opty import Problem
 import matplotlib.pyplot as plt
-import os
+
 
 # %%
 # Equations of motion.
