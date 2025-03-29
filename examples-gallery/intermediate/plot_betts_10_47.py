@@ -5,8 +5,7 @@ Singular Arc Problem
 Objective
 ---------
 
-- Show how to optimize a multiphase problem phase-wise, by using the final
-  states of phase i as initial states of phase i + 1.
+- Show how to optimize a multiphase problem phase-wise.
 - Show how to use a state variable to enforce a boundary condition.
 
 
@@ -17,14 +16,14 @@ This is example 10.47 from [Betts2010]_, Chapter 10: Test Problems.
 John T. Betts made available his detailed results of this example, and 'error'
 is the relative error in the value compared to the values given.
 
-This is a three - stage problem, where the final state of one stage is the
+This is a three stage problem, where the final state of one stage is the
 initial state of the next stage.
 
 At the start of phase 2 there is a boundary condition:
 :math:`m \cdot g - (1 + \dfrac{v}{c}) \cdot \sigma v^2 e^{-h/h_0} = 0`
 It is enforced at the end of phase 1, by introducing a new state variable
-h_end, and set :math:`h_{\textrm{end}} = m \cdot g - (1 + \dfrac{v}{c}) \cdot
-\sigma v^2 e^{-h/h_0}`
+:math:`h_\textrm{end}`, and set :math:`h_{\textrm{end}} = m \cdot g - (1 +
+\dfrac{v}{c}) \cdot \sigma v^2 e^{-h/h_0}`
 and set the instance constraint :math:`h_{end} = 0` at the end of phase 1.
 
 
@@ -52,13 +51,13 @@ problems at all.
 
 
 """
-import os
+
 import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 from opty import Problem
 import matplotlib.pyplot as plt
-
+import os
 
 # %%
 # Equations of motion.
