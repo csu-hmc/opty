@@ -122,15 +122,15 @@ bounds = {
 # %%
 # Create the optimization problem and set any options.
 prob = Problem(obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval_value,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        time_symbol=t,
-        backend='numpy',
+    obj_grad,
+    eom,
+    state_symbols,
+    num_nodes,
+    interval_value,
+    instance_constraints=instance_constraints,
+    bounds=bounds,
+    time_symbol=t,
+    backend='numpy',
 )
 
 prob.add_option('max_iter', 1000)
@@ -161,11 +161,11 @@ error_v = (solution[2*num_nodes-1] - 791.2744)/791.2744 * 100
 error_h = (solution[num_nodes-1] - 4560.8912)/4560.8912 * 100
 error_m = (solution[3*num_nodes-1] - 1.323901)/1.323901 * 100
 print((f'duration of phase 1 is {(num_nodes-1) * solution[-1]:.3f}, '
-      f'error is   {error_t:.3f} %'))
+       f'error is   {error_t:.3f} %'))
 print((f'Height achieved is {- info['obj_val']/solution[-1]:.3f}, '
-      f'error is    {error_h:.3f} %'))
+       f'error is    {error_h:.3f} %'))
 print((f'Velocity achieved is {solution[2*num_nodes-1]:.3f}, '
-      f'error is   {error_v:.3f} %'))
+       f'error is   {error_v:.3f} %'))
 print(f'Final mass is {solution[3*num_nodes-1]:.3f}, ')
 # %%
 # **Phase 2  Singular Arc**
@@ -216,15 +216,15 @@ bounds = {
 # %%
 # Create the optimization problem and set any options.
 prob = Problem(obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval_value,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        time_symbol=t,
-        backend='numpy',
+    obj_grad,
+    eom,
+    state_symbols,
+    num_nodes,
+    interval_value,
+    instance_constraints=instance_constraints,
+    bounds=bounds,
+    time_symbol=t,
+    backend='numpy',
 )
 
 prob.add_option('max_iter', 3000)
@@ -238,10 +238,9 @@ initial_guess = np.array((*[solution[num_nodes-1] for _ in range(num_nodes)],
 
 # %%
 # Find the optimal solution.
-for _ in range(1):
-    solution, info = prob.solve(initial_guess)
-    initial_guess = solution
-    print(info['status_msg'])
+solution, info = prob.solve(initial_guess)
+initial_guess = solution
+print(info['status_msg'])
 t_phase2 = solution[-1]
 solution2 = solution
 # %%
@@ -262,11 +261,11 @@ error_v = (solution[2*num_nodes-1] - 789.64098)/789.64098 * 100
 error_h = (solution[num_nodes-1] - 11121.110)/11121.110 * 100
 error_m = (solution[3*num_nodes-1] - 1.0)/1.0 * 100
 print((f'duration of phase 2 is {(num_nodes-1) * solution[-1]:.3f}, '
-      f'error is   {error_t:.3f} %'))
+       f'error is   {error_t:.3f} %'))
 print((f'Height achieved is {- info['obj_val']/solution[-1]:.3f}, '
-      f'error is   {error_h:.3f} %'))
+       f'error is   {error_h:.3f} %'))
 print((f'Velocity achieved is {solution[2*num_nodes-1]:.3f}, '
-      f'error is  {error_v:.3f} %'))
+       f'error is  {error_v:.3f} %'))
 print(f'Final mass is {solution[3*num_nodes-1]:.3f}, ')
 
 # %%
@@ -325,15 +324,15 @@ bounds = {
 # %%
 # Create the optimization problem and set any options.
 prob = Problem(obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes,
-        interval_value,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        time_symbol=t,
-        backend='numpy',
+    obj_grad,
+    eom,
+    state_symbols,
+    num_nodes,
+    interval_value,
+    instance_constraints=instance_constraints,
+    bounds=bounds,
+    time_symbol=t,
+    backend='numpy',
 )
 
 prob.add_option('max_iter', 20000)
@@ -351,7 +350,7 @@ else:
                         *[solution[2*num_nodes-1] for _ in range(num_nodes)],
                         *[solution[3*num_nodes-1] for _ in range(num_nodes)],
                         solution[-1])
-      )
+    )
 
     # Find the optimal solution.
     solution, info = prob.solve(initial_guess)
@@ -375,7 +374,7 @@ print(f'final speed is  {solution[2*num_nodes-1]:.3e}, ideally it should be 0')
 print('\n')
 error_h = (solution[num_nodes-1] - 18664.187)/18664.187 * 100
 print((f'final height achieved is is {solution[num_nodes-1]:.3f}, error is '
-      f'           {error_h:.3f} %'))
+       f'           {error_h:.3f} %'))
 
 error_t1 = (t_phase1*(num_nodes-1) - 13.751270)/13.751270 * 100
 error_t2 = ((t_phase1+t_phase2)*(num_nodes-1) - 21.987)/21.987 * 100
@@ -385,7 +384,7 @@ print(('duration of first and second phase is '
 error_t3 = (((t_phase1+t_phase2+t_phase3)*(num_nodes-1) - 42.641355)/42.641355
              * 100)
 print((f'total duration  is {(t_phase1+t_phase2+t_phase3) * (num_nodes-1):.3f}'
-      f' sec, error is                     {error_t3:.3f} %'))
+       f' sec, error is                     {error_t3:.3f} %'))
 
 # %%
 # Plot complete journey.
