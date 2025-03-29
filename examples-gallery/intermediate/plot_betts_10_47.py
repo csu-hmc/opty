@@ -48,12 +48,12 @@ problems at all.
 **States**
 
 - :math:`h, v, m` : state variables
-- :math:`h_{\textrm{end}}` : state variable to enforce the boundary condition
-  at the end of phase 1
+- :math:`h_{\textrm{end}}` : state variable to enforce a boundary condition
+
 
 """
-import numpy as np
 import os
+import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 from opty import Problem
