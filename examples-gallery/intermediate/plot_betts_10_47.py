@@ -47,17 +47,18 @@ problems at all.
 
 **States**
 
-- :math:`h, v, m`: state variables
-- :math:`h_{\textrm{end}}`: state variable to enforce the boundary condition
+- :math:`h, v, m` : state variables
+- :math:`h_{\textrm{end}}` : state variable to enforce the boundary condition
   at the end of phase 1
 
 """
 import numpy as np
+import os
 import sympy as sm
 import sympy.physics.mechanics as me
 from opty import Problem
 import matplotlib.pyplot as plt
-import os
+
 
 # %%
 # Equations of motion.
