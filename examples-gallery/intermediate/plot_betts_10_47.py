@@ -1,4 +1,3 @@
-# %%
 r"""
 Singular Arc Problem
 ====================
@@ -161,13 +160,13 @@ error_t = (t_phase1*(num_nodes-1) - 13.726485)/13.726485 * 100
 error_v = (solution[2*num_nodes-1] - 791.2744)/791.2744 * 100
 error_h = (solution[num_nodes-1] - 4560.8912)/4560.8912 * 100
 error_m = (solution[3*num_nodes-1] - 1.323901)/1.323901 * 100
-print((f'duration of phase 1 is {(num_nodes-1) * solution[-1]:.3f}, '
-       f'error is   {error_t:.3f} %'))
-print((f'Height achieved is {- info['obj_val']/solution[-1]:.3f}, '
-       f'error is    {error_h:.3f} %'))
-print((f'Velocity achieved is {solution[2*num_nodes-1]:.3f}, '
-       f'error is   {error_v:.3f} %'))
-print(f'Final mass is {solution[3*num_nodes-1]:.3f}, ')
+print((f"duration of phase 1 is {(num_nodes-1) * solution[-1]:.3f}, "
+       f"error is   {error_t:.3f} %"))
+print((f"Height achieved is {- info['obj_val']/solution[-1]:.3f}, "
+       f"error is    {error_h:.3f} %"))
+print((f"Velocity achieved is {solution[2*num_nodes-1]:.3f}, "
+       f"error is   {error_v:.3f} %"))
+print(f"Final mass is {solution[3*num_nodes-1]:.3f}, ")
 # %%
 # **Phase 2  Singular Arc**
 #
@@ -263,7 +262,7 @@ error_h = (solution[num_nodes-1] - 11121.110)/11121.110 * 100
 error_m = (solution[3*num_nodes-1] - 1.0)/1.0 * 100
 print((f'duration of phase 2 is {(num_nodes-1) * solution[-1]:.3f}, '
        f'error is   {error_t:.3f} %'))
-print((f'Height achieved is {- info['obj_val']/solution[-1]:.3f}, '
+print((f"Height achieved is {- info['obj_val']/solution[-1]:.3f}, "
        f'error is   {error_h:.3f} %'))
 print((f'Velocity achieved is {solution[2*num_nodes-1]:.3f}, '
        f'error is  {error_v:.3f} %'))
