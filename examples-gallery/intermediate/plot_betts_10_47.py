@@ -1,3 +1,4 @@
+# %%
 r"""
 Singular Arc Problem
 ====================
@@ -51,12 +52,13 @@ problems at all.
 
 
 """
-import os
+
 import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 from opty import Problem
 import matplotlib.pyplot as plt
+import os
 
 
 # %%
@@ -275,6 +277,7 @@ print(f'Final mass is {solution[3*num_nodes-1]:.3f}, ')
 # **States**
 #
 # - :math:`h, v, m`: state variables.
+#
 # Set up the eoms.
 eom = sm.Matrix([
         -h.diff(t) + v,
