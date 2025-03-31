@@ -1,4 +1,3 @@
-# %%
 """
 Parallel Park a Car
 ===================
@@ -8,6 +7,7 @@ Objective
 
 - Show how opty may be used to move a mechanical object from, A to B with
   given instance constraints at A and B using minimum energy.
+- Shows how to set up a set of nonholonomic DAEs.
 
 Introduction
 ------------
@@ -227,9 +227,9 @@ _ = prob.plot_constraint_violations(solution)
 # Show the optimal path of the mass center.
 xs, us, ps = prob.parse_free(solution)
 fig, ax = plt.subplots()
-ax.plot(xs[0, :], xs[1, :])
+ax.plot(xs[0], xs[1])
 ax.set_xlabel(r'$x$ [m]')
-_ = ax.set_ylabel(r'$y$ [m]');
+_ = ax.set_ylabel(r'$y$ [m]')
 
 # %%
 # Animate the motion of the car.
