@@ -1,4 +1,4 @@
-"""
+r"""
 Parallel Park a Car
 ===================
 
@@ -14,6 +14,20 @@ Introduction
 
 Given the nonholonomic bicycle model of the car find a solution for parallel
 parking it.
+
+Notes
+-----
+
+If Kane's method is used to get the equations of motion of the system, then
+the equations of motion suitable for opty are obtained by appending
+:math:`(f_r + f_r^{\star})` to the kinematic differential equations used by
+Kane's method.
+If nonholonomic constraints were used in Kane's method, as is the case here,
+they must be appended to the equations of motion for opty.
+If these nonholonomic constraints are really holonomic constraints in
+disguise, then it is generally better to append the holonomic constraints to
+avoid the drift associated with the nonholonomic constraints.
+
 
 **Constants**
 
