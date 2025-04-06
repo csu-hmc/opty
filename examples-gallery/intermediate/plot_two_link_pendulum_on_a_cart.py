@@ -1,3 +1,4 @@
+# %%
 r"""
 Upright a Double Pendulum
 =========================
@@ -9,6 +10,8 @@ Objectives
   simple problem.
 - Show the use of additional state variables to enforce terminal constraints on
   :math:`\dfrac{d^2}{dt^2}(\textrm{state variables})`.
+- Presently opty does not support *explicit* time in the equations of motion.
+  This example shows how to cirumvent this current limitation.
 
 Introduction
 ------------
@@ -16,10 +19,15 @@ Introduction
 A double pendulum is rotationally attached to a cart which can move along the
 horizontal X axis. The goal is to get the double pendulum to an upright
 position in the shortest time possible, given an upper limit on the absolute
-value of the force that can be applied to the cart. Gravity points in the
-negative Y direction.
+value of the force that can be applied to the cart. The maximun force increases
+linearly with time. Gravity points in the negative Y direction.
 To ensure that it is at rest, not only the speeds, but also its accelerations
 are constrained to be zero at the beginning and end of the motion.
+
+The current limitation with explicit time in the equations of motion is
+handled as follows: Add a state variable :math:`T`, add :math:`\dfrac{d}{dt}
+(T) = 1` to the equations of motion and set an instance constraint :math:`T(0)
+= 0`.
 
 
 Notes
@@ -31,27 +39,29 @@ One can find a lot about it in the internet.
 
 **Constants**
 
-- m1:     mass of the cart [kg]
-- m2:     mass of the first pendulum [kg]
-- m3:     mass of the second pendulum [kg]
-- lx:     length of the first pendulum rods [m]
-- iZZ1:   moment of inertia of the first pendulum about its end point [kg*m^2]
-- iZZ2:   moment of inertia of the second pendulum about its end point [kg*m^2]
-- g:      acceleration due to gravity [m/s^2]
+- :math:`m_1`: mass of the cart [kg]
+- :math:`m_2`: mass of the first pendulum [kg]
+- :math:`m_3`: mass of the second pendulum [kg]
+- :math:`l_x`: length of the first pendulum rods [m]
+- :math:`i_{ZZ1}`: moment of inertia of the first pendulum about its end point [kg*m^2]
+- :math:`i_{ZZ2}`: moment of inertia of the second pendulum about its end point [kg*m^2]
+- :math:`g`: acceleration due to gravity [m/s^2]
+
 
 **States**
 
-- q1:           position of the cart along the X axis [m]
-- q2:           angle of the first pendulum with respect to the vertical [rad]
-- q3:           angle of the second pendulum with respect to the first [rad]
-- u1:           speed of the cart along the X axis [m/s]
-- u2:           angular speed of the first pendulum [rad/s]
-- u3:           angular speed of the second pendulum [rad/s]
-- h1, h2, h3:   auxiliary states
+- :math:`q_1`: position of the cart along the X axis [m]
+- :math:`q_2`: angle of the first pendulum with respect to the vertical [rad]
+- :math:`q_3`: angle of the second pendulum with respect to the first [rad]
+- :math:`u_1`: speed of the cart along the X axis [m/s]
+- :math:`u_2`: angular speed of the first pendulum [rad/s]
+- :math:`u_3`: angular speed of the second pendulum [rad/s]
+- :math:`h_1, h_2, h_3, T`: auxiliary states
+
 
 **Specifieds**
 
-- F:      force applied to the cart [N]
+- :math:`F` :  force applied to the cart [N]
 
 """
 import os
@@ -70,6 +80,7 @@ t = me.dynamicsymbols._t
 O, P1, P2, P3 = sm.symbols('O P1 P2 P3', cls=me.Point)
 O.set_vel(N, 0)
 q1, q2, q3, u1, u2, u3, F = me.dynamicsymbols('q1 q2 q3 u1 u2 u3 F')
+T = me.dynamicsymbols('T')
 h1, h2, h3 = me.dynamicsymbols('h1 h2 h3')
 lx, m1, m2, m3, g, iZZ1, iZZ2 = sm.symbols('lx, m1, m2, m3 g, iZZ1, iZZ2')
 
@@ -94,7 +105,7 @@ I2 = me.inertia(A2, 0, 0, iZZ2)
 P3a = me.RigidBody('P3a', P3, A2, m3, (I2, P3))
 bodies = [P1a, P2a, P3a]
 
-loads = [(P1, F * N.x - m1*g*N.y), (P2, -m2*g*N.y), (P3, -m3*g*N.y)]
+loads = [(P1, T * F * N.x - m1*g*N.y), (P2, -m2*g*N.y), (P3, -m3*g*N.y)]
 kd = sm.Matrix([q1.diff(t) - u1, q2.diff(t) - u2, q3.diff(t) - u3])
 
 q_ind = [q1, q2, q3]
@@ -110,15 +121,16 @@ fr, frstar = KM.kanes_equations(bodies, loads=loads)
 eom = kd.col_join(fr + frstar)
 
 # %%
-# add the auxiliary eoms for h1, h2, h3
+# Add the auxiliary eoms for h1, h2, h3, T.
 eom = eom.col_join(sm.Matrix([h1 - u1.diff(t), h2 - u2.diff(t),
-                h3 - u3.diff(t)]))
-sm.pprint(sm.trigsimp(eom))
+                   h3 - u3.diff(t), T.diff(t) - 1]))
+print((f'The equations of motion have {sm.count_ops(eom)} operations, '
+       f'and shape {eom.shape}'))
 # %%
-# Define various objects to be use in the optimization problem.
+# Define various objects to be used in the optimization problem.
 h = sm.symbols('h')
 
-state_symbols = tuple((*q_ind, *u_ind, h1, h2, h3))
+state_symbols = tuple((*q_ind, *u_ind, h1, h2, h3, T))
 constant_symbols = (lx, m1, m2, m3, g, iZZ1, iZZ2)
 specified_symbols = (F,)
 
@@ -144,6 +156,7 @@ def obj(free):
     """Minimize h, the time interval between nodes."""
     return free[-1]
 
+
 def obj_grad(free):
     grad = np.zeros_like(free)
     grad[-1] = 1.0
@@ -159,6 +172,7 @@ initial_state_constraints = {
     u1: 0.0,
     u2: 0.0,
     u3: 0.0,
+    T: 0.0,
 }
 
 final_state_constraints = {
@@ -212,18 +226,19 @@ initial_guess[6*num_nodes:7*num_nodes] = 50.0*np.ones(num_nodes)
 initial_guess[-1] = 0.01
 
 # %%
-# Use stored solution if available, else use initial_guess as given above.
+# Use stored solution if available, else use initial_guess as given above and
+# find the optimal solution.
 fname = f'double_pendulum_on_a_cart_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
+    # Use existig solution.
     solution = np.loadtxt(fname)
 else:
     # Find the optimal solution as no stored solution available.
-    for _ in range(3):
-        solution, info = prob.solve(initial_guess)
-        initial_guess = solution
-        print('Message from optimizer:', info['status_msg'])
-        print('Iterations needed', len(prob.obj_value))
-        print(f"Objective value {solution[-1]: .3e}")
+    solution, info = prob.solve(initial_guess)
+    print('Message from optimizer:', info['status_msg'])
+    print('Iterations needed', len(prob.obj_value))
+    print(f"Objective value {solution[-1]:.3e}")
+#np.savetxt(fname, solution, fmt='%.12f')
 
 # %%
 # Plot the accuracy of the solution.
@@ -231,10 +246,19 @@ _ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the state trajectories.
-_ = prob.plot_trajectories(solution)
+state_sol, input_sol, _, h_var = prob.parse_free(solution)
+times = prob.time_vector(solution)
+actual_force = input_sol[:] * state_sol[-1]
+fig, axes = plt.subplots(12, 1, figsize=(6.4, 13), sharex=True,
+                         layout='constrained')
+axes[-1].plot(times, actual_force)
+axes[-1].set_ylabel('Force [N]')
+axes[-1].set_xlabel('Time [s]')
+axes[-1].set_title('Actual Force Applied to the Cart = F(t) * T(t)')
+_ = prob.plot_trajectories(solution, axes=axes, show_bounds=True)
 
 # %%
-# animate the solution.
+# Animate the solution.
 
 state_sol, _, _, h_var = prob.parse_free(solution)
 state_sol1 = state_sol.T[::4, :]
@@ -303,8 +327,10 @@ def animate_pendulum(time, P1_x, P1_y, P2_x, P2_y):
     ax.add_patch(recht)
     return fig, ax, line1, line2, recht
 
-duration = (num_nodes - 1) * solution[-1] *4
+
+duration = (num_nodes - 1) * solution[-1] * 4
 times = np.linspace(0.0, duration, num_nodes)
+
 
 def animate(i):
     message = (f'running time {times[i]: .2f} sec')
@@ -319,6 +345,7 @@ def animate(i):
     wert_y = [P2_y[i], P3_y[i]]
     line2.set_data(wert_x, wert_y)
     return line1, line2,
+
 
 # %%
 # A frame from the animation.
