@@ -3,22 +3,44 @@ r"""
 Time Delay Estimation
 =====================
 
-Objective
----------
+Objectives
+----------
 
 - Show how a time delay in a driving force of a mechanical system may be
   estimated from noisy measurements by introducing a state variable which
   mimicks the time.
+- Show how to handle the explicit appearance of the time ``t`` in the
+  equations of motion.
 
 
 Introduction
 ------------
 
 A simple pendulum is driven by a torque of the form:
-:math:`F \sin(\omega (t - \delta))`, and :math:`F, \omega, \tau`
+:math:`F \sin(\omega (t - \delta))`, and :math:`F, \omega, \delta`
 are to be erstimated based on noisy measurements of the angle.
 
+Presently, opty cannot handle expressions like :math:`\sin(\omega \cdot
+(t - \delta))` in the equations of motion.
+To overcome this, a state variable T(t) is introduced,
+:math:`\dfrac{dT}{dt} = 1` is added to the equations of motion, and
+:math:`T(t_0) = t_0` is added as a constraint. This way, T(t) and t have the
+same values. opty can handle :math:`\sin(T(t) - \delta)` in the equations
+of motion without any problems.
+
+Presently, opty cannot handle the **explicit** appearance of the time ``t`` in
+the equations of motion. To overcome this, the time ``t`` is replaced by the
+``T(t)`` state variable described above.
+
 The driving force is set to zero for :math:`t < \delta`.
+
+
+Notes
+-----
+
+- It takes a relatively large number of interpolations to get a good estimate.
+- It is helpful to give reasonable bounds for the parameters to be estimated.
+  Otherwise opty may converge to another local minimum.
 
 **States**
 
@@ -73,7 +95,7 @@ P.v2pt_theory(O, N, A)
 inert = me.inertia(A, 0, 0, iZZ)
 bodies = [me.RigidBody('body', P, A, m, (inert, P))]
 # Driving force set to zero for t < delta
-torque = F * sm.sin(omega*(t - delta)) * sm.Heaviside(t - delta)
+torque = F * t**2 * sm.sin(omega*(t - delta)) * sm.Heaviside(t - delta)
 forces = [(P, -m*g*N.y), (A, torque*A.z)]
 kd = sm.Matrix([q.diff(t) - u])
 
@@ -108,8 +130,8 @@ t1 = 0.0
 q10 = 0.0
 u10 = 0.0
 
-interval = 7.5
-schritte = 8000
+interval = 3.5
+schritte = 5000
 
 pL_vals = [m1, g1, l1, iZZ1, F1, omega1, delta1, t1]
 y0 = [q10, u10]
@@ -149,17 +171,20 @@ _ = ax.legend()
 
 steep = 10.0
 T = sm.symbols('T', cls=sm.Function)
+TEST = sm.symbols('TEST', cls=sm.Function)
 
 
 def step_diff(x, a, steep):
+    """A differentiable approximation of the Heaviside function."""
     return 0.5 * (1.0 + sm.tanh(steep * (x - a)))
 
 
 # %%
 # Replace the nondifferentiable Heaviside function with a differentiable
 # approximation.
-# Add the eom, suitab le to make T(t) mimick the time t.
-torque = F * sm.sin(omega*(T(t) - delta)) * step_diff(T(t), delta, steep)
+# Add the eom, suitable to make T(t) mimick the time t.
+torque = F * T(t)**2 * sm.sin(omega*(T(t) - delta)) * step_diff(T(t), delta,
+                                                                steep)
 forces = [(P, -m*g*N.y), (A, torque*A.z)]
 kd = sm.Matrix([q.diff(t) - u])
 
@@ -189,7 +214,7 @@ par_map[iZZ] = iZZ1
 # %%
 # Create the noisy measurements.
 measurements = (resultat.T.flatten() + np.random.normal(0, 1.0, 2 * num_nodes)
-                * 0.01)
+                * 0.1)
 
 
 def obj(free):
@@ -236,6 +261,8 @@ print('Sequence of unknown parameters in solution',
 
 initial_guess = np.random.rand(prob.num_free)
 
+# %%
+# Solve the problem.
 solution, info = prob.solve(initial_guess)
 print(info['status_msg'])
 
@@ -253,9 +280,9 @@ _ = prob.plot_objective_value()
 
 # %%
 # Print the results.
-print((f'estimated \u03C9 = {solution[-2]:.3f}, given value = {delta1}, '
+print((f'estimated \u03B4 = {solution[-2]:.3f}, given value = {delta1}, '
        f'hence error = {(solution[-2] - delta1)/delta1*100:.3f} %'))
-print((f'estimated \u03B4 = {solution[-1]:.3f}, given value = {omega1},'
+print((f'estimated \u03C9 = {solution[-1]:.3f}, given value = {omega1},'
        f' hence error = {(solution[-1] - omega1)/omega1*100:.3f} %'))
 print((f'estimated F = {solution[-3]:.3f}, given value = {F1},'
        f' hence error = {(solution[-3] - F1)/F1*100:.3f} %'))
