@@ -64,6 +64,14 @@ def test_pendulum():
 
     assert prob.collocator.num_instance_constraints == 4
 
+    # NOTE : you cannot set the bounds directly, it has to be done via setting
+    # the Problem.bounds to a new dictionary.
+    with raises(AttributeError):
+        prob.lower_bound = np.ones(prob.num_free)
+
+    with raises(AttributeError):
+        prob.upper_bound = np.ones(prob.num_free)
+
 
 def test_Problem():
 
@@ -101,7 +109,30 @@ def test_Problem():
                                0.5, INF, 1.0])
     np.testing.assert_allclose(prob.upper_bound, expected_upper)
 
+    lb = prob.lower_bound
+    ub = prob.upper_bound
+
     assert prob.collocator.num_instance_constraints == 0
+
+    prob.bounds = {
+        x: (-12.0, 12.0),
+        f: (-8.0, 8.0),
+        m: (-1.0, 1.0),
+        c: (-0.5, 0.5),
+    }
+
+    expected_lower = np.array([-12.0, -12.0,
+                               -INF, -INF,
+                               -8.0, -8.0,
+                               -0.5, -INF, -1.0])
+    np.testing.assert_allclose(prob.lower_bound, expected_lower)
+    assert np.shares_memory(lb, prob.lower_bound)
+    expected_upper = np.array([12.0, 12.0,
+                               INF, INF,
+                               8.0, 8.0,
+                               0.5, INF, 1.0])
+    np.testing.assert_allclose(prob.upper_bound, expected_upper)
+    assert np.shares_memory(ub, prob.upper_bound)
 
 
 class TestConstraintCollocator():
