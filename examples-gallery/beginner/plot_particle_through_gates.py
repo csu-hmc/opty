@@ -103,7 +103,7 @@ for i in (0.0, 0.1, 0.3, 0.5, 0.8, 1.0, 1.2, 1.4):
 
 # %%
 # Set Up the Equations of Motion
-# -----------------------------
+# ------------------------------
 N = me.ReferenceFrame('N')
 O, P = sm.symbols('O P', cls=me.Point)
 
