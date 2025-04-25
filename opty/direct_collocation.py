@@ -100,6 +100,7 @@ class Problem(cyipopt.Problem):
     =====
 
     - N : number of collocation nodes
+    - M : number of equations of motion
     - n : number of states
     - m : number of input trajectories
     - q : number of unknown input trajectories
@@ -108,7 +109,7 @@ class Problem(cyipopt.Problem):
       variable duration)
     - o : number of instance constraints
     - nN + qN + r + s : number of free variables
-    - n(N - 1) + o : number of constraints
+    - M(N - 1) + o : number of constraints
 
     If ``x`` are the state variables, ``u`` are the unknown input trajectories,
     and ``p`` are the unknown parameters, and ``h`` is the unknown time
@@ -121,11 +122,11 @@ class Problem(cyipopt.Problem):
                p1, ... pr,
                h]
 
-    If the equations of motion are equations ``eom1`` to ``eomn`` and  instance
+    If the equations of motion are equations ``eom1`` to ``eomM`` and  instance
     constraints are ``c``,  the constraint array is ordered as::
 
        constraints = [eom12, ... eom1N,
-                      eomn2, ... eomnN,
+                      eomM2, ... eomMN,
                       c1, ..., co]
 
     The attributes may be accessed as follows: ``Problem_instance.collocator.name_of_attribute``
@@ -233,15 +234,15 @@ class Problem(cyipopt.Problem):
         info: :py:class:`dict` with the following entries
             ``x``: :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
                 optimal solution
-            ``g``: :py:class:`numpy.ndarray`, shape `(n*(N-1) + o, )`
+            ``g``: :py:class:`numpy.ndarray`, shape `(M*(N-1) + o, )`
                 constraints at the optimal solution
             ``obj_val``: :py:class:`float`
                 objective value at optimal solution
-            ``mult_g``: :py:class:`numpy.ndarray`, shape `(n*(N-1) + o, )`
+            ``mult_g``: :py:class:`numpy.ndarray`, shape `(M*(N-1) + o, )`
                 final values of the constraint multipliers
-            ``mult_x_L``: :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+            ``mult_x_L``: :py:class:`numpy.ndarray`, shape `(M*N + q*N + r + s, )`
                 bound multipliers at the solution
-            ``mult_x_U``: :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+            ``mult_x_U``: :py:class:`numpy.ndarray`, shape `(M*N + q*N + r + s, )`
                 bound multipliers at the solution
             ``status``: :py:class:`int`
                 gives the status of the algorithm
@@ -430,13 +431,14 @@ class Problem(cyipopt.Problem):
 
         Returns
         =======
-        constraints_val : ndarray, shape(n*(N - 1) + o, )
+        constraints_val : ndarray, shape(M*(N - 1) + o, )
             The value of the constraint function.
 
         Notes
         =====
 
         - N : number of collocation nodes
+        - M : number of equations of motion
         - n : number of unknown state trajectories
         - q : number of unknown input trajectories
         - r : number of unknown parameters
@@ -455,8 +457,19 @@ class Problem(cyipopt.Problem):
         =======
         jac_row_idxs : ndarray, shape(2*n + q + r + s, )
             The row indices for the non-zero values in the Jacobian.
-        jac_col_idxs : ndarray, shape(n*(N - 1) + o, )
+        jac_col_idxs : ndarray, shape(M*(N - 1) + o, )
             The column indices for the non-zero values in the Jacobian.
+
+        Notes
+        =====
+
+        - N : number of collocation nodes
+        - M : number of equations of motion
+        - n : number of unknown state trajectories
+        - q : number of unknown input trajectories
+        - r : number of unknown parameters
+        - s : number of unknown time intervals
+        - o : number of instance constraints
 
         """
         return (self.con_jac_rows, self.con_jac_cols)
@@ -467,7 +480,7 @@ class Problem(cyipopt.Problem):
 
         Returns
         =======
-        jac_vals : ndarray, shape((2*n + q + r + s)*(n*(N - 1)) + o, )
+        jac_vals : ndarray, shape((2*n + q + r + s)*(M*(N - 1)) + o, )
             Non-zero Jacobian values in triplet format.
 
         """
@@ -504,6 +517,7 @@ class Problem(cyipopt.Problem):
         =====
 
         - N : number of collocation nodes
+        - M : number of equations of motion
         - n : number of unknown state trajectories
         - m : number of input trajectories
         - q : number of unknown input trajectories
@@ -602,6 +616,7 @@ class Problem(cyipopt.Problem):
         =====
 
         - N : number of collocation nodes
+        - M : number of equations of motion
         - n : number of unknown state trajectories
         - q : number of unknown input trajectories
         - r : number of unknown parameters
@@ -668,18 +683,17 @@ class Problem(cyipopt.Problem):
 
         N = self.collocator.num_collocation_nodes
         con_violations = self.con(vector)
-        state_violations = con_violations[
-            :(N - 1) * self.collocator.num_states]
-        instance_violations = con_violations[len(state_violations):]
-        state_violations = state_violations.reshape(
-            (self.collocator.num_states, N - 1))
+        eom_violations = con_violations[:self.collocator.num_eom*(N - 1)]
+        instance_violations = con_violations[len(eom_violations):]
+        eom_violations = eom_violations.reshape((self.collocator.num_eom,
+                                                 N - 1))
         con_nodes = range(1, self.collocator.num_collocation_nodes)
 
         if axes is None:
-            if subplots is False or self.collocator.num_states == 1:
+            if subplots is False or self.collocator.num_eom == 1:
                 num_eom_plots = 1
             else:
-                num_eom_plots = self.collocator.num_states
+                num_eom_plots = self.collocator.num_eom
 
             fig, axes = plt.subplots(num_eom_plots + num_plots, 1,
                                      figsize=(6.4, figsize*(num_eom_plots +
@@ -691,23 +705,23 @@ class Problem(cyipopt.Problem):
 
         axes = np.asarray(axes).ravel()
 
-        if subplots is False or self.collocator.num_states == 1:
-            axes[0].plot(con_nodes, state_violations.T)
+        if subplots is False or self.collocator.num_eom == 1:
+            axes[0].plot(con_nodes, eom_violations.T)
             axes[0].set_title('Constraint violations')
             axes[0].set_xlabel('Node Number')
             axes[0].set_ylabel('EoM violation')
 
         else:
-            for i in range(self.collocator.num_states):
-                axes[i].plot(con_nodes, state_violations[i])
+            for i in range(self.collocator.num_eom):
+                axes[i].plot(con_nodes, eom_violations[i])
                 axes[i].set_ylabel(f'Eq. {str(i+1)} \n violation', fontsize=9)
-                if i < self.collocator.num_states - 1:
+                if i < self.collocator.num_eom - 1:
                     axes[i].set_xticklabels([])
             axes[num_eom_plots-1].set_xlabel('Node Number')
             axes[0].set_title('Constraint violations')
 
         if self.collocator.instance_constraints is not None:
-            # reduce the instance constrtaints to 2 digits after the decimal
+            # reduce the instance constraints to 2 digits after the decimal
             # point.  give the time in tha variables with 2 digits after the
             # decimal point.  if variable h is used, use the result for h in
             # the time.
@@ -794,6 +808,7 @@ class Problem(cyipopt.Problem):
         =====
 
         - N : number of collocation nodes
+        - M : number of equations of motion
         - n : number of unknown state trajectories
         - q : number of unknown input trajectories
         - r : number of unknown parameters
@@ -857,6 +872,7 @@ class ConstraintCollocator(object):
     =====
 
     - N : number of collocation nodes
+    - M : number of equations of motion
     - n : number of states
     - m : number of input trajectories
     - q : number of unknown input trajectories
@@ -865,7 +881,7 @@ class ConstraintCollocator(object):
       variable duration)
     - o : number of instance constraints
     - nN + qN + r + s : number of free variables
-    - n(N - 1) + o : number of constraints
+    - M(N - 1) + o : number of constraints
 
     Some of the attributes are explained in more detail under Parameters below.
 
@@ -883,13 +899,12 @@ class ConstraintCollocator(object):
 
         Parameters
         ==========
-        equations_of_motion : sympy.Matrix, shape(n, 1)
+        equations_of_motion : sympy.Matrix, shape(M, 1)
             A column matrix of SymPy expressions defining the right hand side
-            of the equations of motion when the left hand side is zero, e.g.
-            ``0 = x'(t) - f(x(t), u(t), p)`` or ``0 = f(x'(t), x(t), u(t),
-            p)``. These should be in first order form but not necessairly
-            explicit. They can be ordinary differential equations or
-            differential algebraic equations.
+            of the equations of motion when the left hand side is zero, i.e.
+            `0 = f(x'(t), x(t), u(t), p)``. These should be in first order form
+            but not necessairly explicit. They can be ordinary differential
+            equations or differential algebraic equations.
         state_symbols : iterable
             An iterable containing all ``n`` of the SymPy functions of time
             which represent the states in the equations of motion.
@@ -959,16 +974,15 @@ class ConstraintCollocator(object):
         self._state_symbols = tuple(state_symbols)
         if len(self.state_symbols) != len(set(self.state_symbols)):
             raise ValueError('State symbols must be unique.')
-        if len(self.state_symbols) != self.eom.shape[0]:
-            raise ValueError('The number of states must match the number of '
-                             'equations of motion.')
+
+        # TODO : Check that for every derivative of time in eom, there is a
+        # state variable in state_symbols.
 
         if backend not in ['cython', 'numpy']:
             raise ValueError('backend must be either "cython" or "numpy".')
 
         self._state_derivative_symbols = tuple([s.diff(self.time_symbol) for
                                                s in state_symbols])
-        self._num_states = len(self.state_symbols)
 
         self._num_collocation_nodes = num_collocation_nodes
 
@@ -985,7 +999,7 @@ class ConstraintCollocator(object):
 
         self._instance_constraints = instance_constraints
 
-        self._num_constraints = self.num_states * (num_collocation_nodes - 1)
+        self._num_constraints = self.num_eom*(num_collocation_nodes - 1)
 
         self._tmp_dir = tmp_dir
         self._parallel = parallel
@@ -1189,6 +1203,14 @@ class ConstraintCollocator(object):
         return self._num_constraints
 
     @property
+    def num_eom(self):
+        """
+        Number of equations in the equations of motion.
+        Type: int
+        """
+        return self.eom.shape[0]
+
+    @property
     def num_free(self):
         """
         Number of variables to be optimized = n*N + q*N + r + s.
@@ -1242,7 +1264,7 @@ class ConstraintCollocator(object):
         The number of states = len(state_symbols) = n.
         Type: int
         """
-        return self._num_states
+        return len(self.state_symbols)
 
     @property
     def num_unknown_input_trajectories(self):
@@ -1350,7 +1372,6 @@ class ConstraintCollocator(object):
         Type: r-tuple
         """
         return self._unknown_parameters
-
 
     @integration_method.setter
     def integration_method(self, method):
@@ -1642,7 +1663,7 @@ class ConstraintCollocator(object):
         Jacobian of the constraints."""
         idx_map = self.instance_constraints_free_index_map
 
-        num_eom_constraints = self.num_states*(self.num_collocation_nodes - 1)
+        num_eom_constraints = self.num_eom*(self.num_collocation_nodes - 1)
 
         rows = []
         cols = []
@@ -1716,9 +1737,9 @@ class ConstraintCollocator(object):
         The function should evaluate and return an array:
 
             [con_1_2, ..., con_1_N, con_2_2, ...,
-             con_2_N, ..., con_n_2, ..., con_n_N]
+             con_2_N, ..., con_M_2, ..., con_M_N]
 
-        for n states and N-1 constraints at the time points.
+        for M equatiosn of motion and N-1 constraints at the time points.
 
         """
         xi_syms = self.current_discrete_state_symbols
@@ -1778,10 +1799,10 @@ class ConstraintCollocator(object):
 
             Returns
             -------
-            constraints : ndarray, shape(N-1,)
+            constraints : ndarray, shape(M*(N-1),)
                 The array of constraints from t = 2, ..., N.
                 [con_1_2, ..., con_1_N, con_2_2, ...,
-                 con_2_N, ..., con_n_2, ..., con_n_N]
+                 con_2_N, ..., con_M_2, ..., con_M_N]
 
             """
 
@@ -1821,7 +1842,7 @@ class ConstraintCollocator(object):
             # TODO : Move this to an attribute of the class so that it is
             # only initialized once and just reuse it on each evaluation of
             # this function.
-            result = np.empty((num_constraints, state_values.shape[0]))
+            result = np.empty((num_constraints, self.num_eom))
 
             return f(result, *args).T.flatten()
 
@@ -1835,28 +1856,28 @@ class ConstraintCollocator(object):
         -------
         jac_row_idxs : ndarray, shape(2*n + q + r + s,)
             The row indices for the non-zero values in the Jacobian.
-        jac_col_idxs : ndarray, shape(n + o,)
+        jac_col_idxs : ndarray, shape(M + o,)
             The column indices for the non-zero values in the Jacobian.
 
         """
 
         N = self.num_collocation_nodes
+        M = self.num_eom
         n = self.num_states
 
         num_constraint_nodes = N - 1
 
         if self.integration_method == 'backward euler':
 
-            num_partials = n * (2 * n + self.num_unknown_input_trajectories +
-                                self.num_unknown_parameters +
-                                int(self._variable_duration))
+            num_partials = M*(2*n + self.num_unknown_input_trajectories +
+                              self.num_unknown_parameters +
+                              int(self._variable_duration))
 
         elif self.integration_method == 'midpoint':
 
-            num_partials = n * (2 * n + 2 *
-                                self.num_unknown_input_trajectories +
-                                self.num_unknown_parameters +
-                                int(self._variable_duration))
+            num_partials = M*(2*n + 2*self.num_unknown_input_trajectories +
+                              self.num_unknown_parameters +
+                              int(self._variable_duration))
 
         num_non_zero_values = num_constraint_nodes * num_partials
 
@@ -1867,6 +1888,10 @@ class ConstraintCollocator(object):
 
         jac_row_idxs = np.empty(num_non_zero_values, dtype=int)
         jac_col_idxs = np.empty(num_non_zero_values, dtype=int)
+
+        # TODO : Go over the remainder of this function and comments to make
+        # sure it is correct for the change to allow M equations of motion != n
+        # states.
 
         """
         The symbolic derivative matrix for a single constraint node follows
@@ -1981,6 +2006,7 @@ class ConstraintCollocator(object):
         """
         for i in range(num_constraint_nodes):
 
+            # M : number of equations of motion
             # n : number of states
             # m : number of input trajectories
             # p : number of parameters
@@ -1988,13 +2014,13 @@ class ConstraintCollocator(object):
             # r : number of unknown parameters
             # s : number of unknown time intervals
 
-            # the states repeat every N - 1 constraints
-            # row_idxs = [0 * (N - 1), 1 * (N - 1),  2 * (N - 1), ..., n * (N - 1)]
+            # the eoms repeat every N - 1 constraints
+            # row_idxs = [0*(N - 1), 1*(N - 1),  2*(N - 1), ..., M*(N - 1)]
 
             # This gives the Jacobian row indices matching the ith
             # constraint node for each state. ith corresponds to the loop
             # indice.
-            row_idxs = [j * (num_constraint_nodes) + i for j in range(n)]
+            row_idxs = [j * (num_constraint_nodes) + i for j in range(M)]
 
             # first row, the columns indices mapping is:
             # [1, N + 1, ..., N - 1] : [x1p, x1i, 0, ..., 0]
@@ -2151,8 +2177,8 @@ class ConstraintCollocator(object):
             Returns
             -------
             constraint_jacobian_values : ndarray, shape(see below,)
-                backward euler: shape((N - 1) * n * (2*n + q + r + s),)
-                midpoint: shape((N - 1) * n * (2*n + 2*q + r + s),)
+                backward euler: shape((N - 1) * M * (2*n + q + r + s),)
+                midpoint: shape((N - 1) * M * (2*n + 2*q + r + s),)
                 The values of the non-zero entries of the constraints
                 Jacobian. These correspond to the triplet formatted indices
                 returned from jacobian_indices.
@@ -2160,6 +2186,7 @@ class ConstraintCollocator(object):
             Notes
             -----
             - N : number of collocation nodes
+            - M : number of equations of motion
             - n : number of states
             - m : number of input trajectories
             - p : number of parameters
@@ -2195,8 +2222,8 @@ class ConstraintCollocator(object):
             args += [c for c in parameter_values]
             args += [interval_value]
 
-            # backward euler: shape(N - 1, n, 2*n + q + r)
-            # midpoint: shape(N - 1, n, 2*n + 2*q + r)
+            # backward euler: shape(N - 1, M, 2*n + q + r)
+            # midpoint: shape(N - 1, M, 2*n + 2*q + r)
             non_zero_derivatives = eval_partials(result, *args)
 
             return non_zero_derivatives.ravel()
