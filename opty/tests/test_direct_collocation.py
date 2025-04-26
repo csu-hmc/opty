@@ -14,16 +14,16 @@ from ..utils import (create_objective_function, sort_sympy, parse_free,
                      _coo_matrix)
 
 
-def test_extra_algebraic():
+def test_extra_algebraic(plot=False):
 
-    m, r = sym.symbols('m, r', real=True)
-    x, y = mech.dynamicsymbols('x, y', real=True)
+    m = sym.symbols('m', real=True)
+    x, y, theta = mech.dynamicsymbols('x, y, theta', real=True)
     vx, vy = mech.dynamicsymbols('v_x, v_y', real=True)
     Fx, Fy = mech.dynamicsymbols('F_x, F_y')
     t = mech.dynamicsymbols._t
 
     states = (x, y, vx, vy)  # n states
-    specifieds = (Fx, Fy)
+    specifieds = (Fx, Fy, theta)
 
     # M equations of motion
     eom = sym.Matrix([
@@ -31,32 +31,32 @@ def test_extra_algebraic():
         x.diff() - vx,
         m*vy.diff() - Fy,
         y.diff() - vy,
-        x**2 + y**2 - r**2,  # extra algebraic equation making n != M
+        -sym.sin(theta)*vx + sym.cos(theta)*vy,
+        #-sym.sin(theta)*x.diff() + sym.cos(theta)*y.diff(),
     ])
 
     num_nodes = 100
     interval_value = 0.1
     dur = interval_value*(num_nodes - 1)
 
-    obj_func = sym.Integral(Fx**2 + Fy**2, t)
+    obj_func = sym.Integral(Fx**2 + Fy**2 + theta**2, t)
     obj, obj_grad = create_objective_function(
         obj_func, states, specifieds, tuple(), num_nodes,
         interval_value, time_symbol=t)
 
     instance_constraints = (
         x.func(0.0),
-        y.func(0.0) + r,
+        y.func(0.0),
         vx.func(0.0),
         vy.func(0.0),
-        x.func(dur),
-        y.func(dur) - r,
+        x.func(dur) - 1.0,
+        y.func(dur) - 1.0,
         vx.func(dur),
         vy.func(dur),
     )
 
     par_map = {
         m: 1.0,
-        r: 1.0,
     }
 
     prob = Problem(
@@ -73,7 +73,10 @@ def test_extra_algebraic():
     )
 
     initial_guess = np.zeros(prob.num_free)
-    prob.solve(initial_guess)
+    solution, _ = prob.solve(initial_guess)
+
+    if plot:
+        prob.plot_trajectories(solution)
 
 
 def test_pendulum():
