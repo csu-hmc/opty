@@ -129,8 +129,6 @@ class Problem(cyipopt.Problem):
                       eomM2, ... eomMN,
                       c1, ..., co]
 
-    The attributes may be accessed as follows: ``Problem_instance.collocator.name_of_attribute``
-
     """
 
     INF = 10e19
@@ -160,11 +158,11 @@ class Problem(cyipopt.Problem):
 
         """
 
-        if equations_of_motion.has(sm.Derivative) == False:
-            raise ValueError('No time derivatives are present.' +
-                ' The equations of motion must be ordinary ' +
-                'differential equations (ODEs) or ' +
-                'differential algebraic equations (DAEs).')
+        if not equations_of_motion.has(sm.Derivative):
+            raise ValueError('No time derivatives are present.'
+                             ' The equations of motion must be ordinary '
+                             'differential equations (ODEs) or '
+                             'differential algebraic equations (DAEs).')
 
         self.collocator = ConstraintCollocator(
             equations_of_motion, state_symbols, num_collocation_nodes,
