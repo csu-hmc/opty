@@ -16,6 +16,7 @@ import sympy.physics.mechanics as me
 import matplotlib.pyplot as plt
 from opty import Problem
 from opty.utils import create_objective_function, MathJaxRepr
+from scipy.sparse import coo_matrix
 
 m, r = sm.symbols('m, r', real=True)
 x, y, z = me.dynamicsymbols('x, y, z', real=True)
@@ -83,9 +84,19 @@ prob = Problem(
     instance_constraints=instance_constraints,
     time_symbol=t,
     backend='numpy',
+    integration_method='midpoint',
 )
 
 initial_guess = np.random.random(prob.num_free)
+
+# %%
+jac_vals = prob.jacobian(initial_guess)
+row_idxs, col_idxs = prob.jacobianstructure()
+jacobian_matrix = coo_matrix((jac_vals, (row_idxs, col_idxs)))
+
+plt.spy(jacobian_matrix)
+
+# %%
 solution, info = prob.solve(initial_guess)
 
 # %%
