@@ -1894,75 +1894,98 @@ class ConstraintCollocator(object):
         # states.
 
         """
+        M : number of equations of motion
+        N : number of collocation nodes
+        Q = N-1
+        P = N-2
+
         The symbolic derivative matrix for a single constraint node follows
         these patterns:
 
         Backward Euler
         --------------
-        i: ith, p: ith-1
+        i: ith, b: ith-1 (b = before)
+
+        This Jacobian calculates the partials at the ith node::
+
+                 d eom(xi, xb, ui, p, h)  in R^M
+            Ji = -----------------------
+                 d [xi, xb, ui, p, h]     in R^(2*n + q + r + 1)
 
         For example:
+
         x1i = the first state at the ith constraint node
         uqi = the qth input at the ith constraint node
-        uqn = the qth input at the ith+1 constraint node
 
-        [x1] [x1i, ..., xni, x1p, ..., xnp, u1i, .., uqi, p1, ..., pr, h]
+        Walk through i = 1 to N and calculate Ji with the correct input values
+        that follow this pattern:
+
+        [x1] [x11, ..., xn1, x10, ..., xn0, u11, .., uq1, p1, ..., pr, h]
         [. ]
+        [xi] [x1i, ..., xni, x1b, ..., xnb, u1i, .., uqi, p1, ..., pr, h]
         [. ]
-        [. ]
-        [xn]
+        [xQ] [x1Q, ..., xnQ, x1P, ..., xnP, u1Q, .., uqQ, p1, ..., pr, h]
 
         Midpoint
         --------
-        i: ith, n: ith+1
+        i: ith, f: ith+1 (f = following)
 
-        [x1] [x1i, ..., xni, x1n, ..., xnn, u1i, .., uqi, u1n, ..., uqn, p1, ..., pp, h]
-        [. ]
-        [. ]
-        [. ]
-        [xn]
+        uqn = the q input at the ith+1 constraint node
+        n: also number of states (confusing)
 
-        Each of these matrices are evaulated at N-1 constraint nodes and
-        then the 3D matrix is flattened into a 1d array. The backward euler
-        uses nodes 1 <= i <= N-1 and the midpoint uses 0 <= i <= N - 2. So
-        the flattened arrays looks like:
+        This Jacobian calculates the partials at the ith node::
 
-        M = N-1
-        P = N-2
+                 d eom(xi, xf, ui, uf, p, h)  in R^M
+            Ji = ---------------------------
+                 d [xi, xf, ui, uf, p, h]     in R^(2*n + 2*q + r + 1)
+
+        Walk through i = 0 to Q and calculate Ji with the correct input values
+        that follow this pattern:
+
+        [x0] [x10, ..., xn0, x1f, ..., xnf, u10, .., uq0, u1f, ..., uqf, p1, ..., pp, h]
+        [. ]
+        [xi] [x1i, ..., xni, x1f, ..., xnf, u1i, .., uqi, u1f, ..., uqf, p1, ..., pp, h]
+        [. ]
+        [xP] [x1P, ..., xnP, x1Q, ..., xnQ, u1P, .., uqP, u1Q, ..., uqQ, p1, ..., pp, h]
+
+        Each of these Jacobian matrices are evaulated at N-1 constraint nodes
+        and then the 3D matrix is flattened into a 1D array. The backward euler
+        uses nodes 1 <= i <= N-1 and the midpoint uses 0 <= i <= N - 2 for any
+        given Jacobian evaluation. So the flattened arrays looks like:
 
         Backward Euler
         --------------
 
-        i=1  x1  | [x11, ..., xn1, x10, ..., xn0, u11, .., uq1, p1, ..., pr, h,
-             x2  |  x11, ..., xn1, x10, ..., xn0, u11, .., uq1, p1, ..., pr, h,
-             ... |  ...,
-             xn  |  x11, ..., xn1, x10, ..., xn0, u11, .., uq1, p1, ..., pr, h,
-        i=2  x1  |  x12, ..., xn2, x11, ..., xn1, u12, .., uq2, p1, ..., pr, h,
-             x2  |  x12, ..., xn2, x11, ..., xn1, u12, .., uq2, p1, ..., pr, h,
-             ... |  ...,
-             xn  |  x12, ..., xn2, x11, ..., xn1, u12, .., uq2, p1, ..., pr, h,
-                 |  ...,
-        i=M  x1  |  x1M, ..., xnM, x1P, ..., xnP, u1M, .., uqM, p1, ..., pr, h,
-             x2  |  x1M, ..., xnM, x1P, ..., xnP, u1M, .., uqM, p1, ..., pr, h,
-             ... |  ...,
-             xn  |  x1M, ..., xnM, x1P, ..., xnP, u1M, .., uqM, p1, ..., pr, h]
+        i=1  eom1  | [x11, ..., xn1, x10, ..., xn0, u11, .., uq1, p1, ..., pr, h,
+             eom2  |  x11, ..., xn1, x10, ..., xn0, u11, .., uq1, p1, ..., pr, h,
+             ...   |  ...,
+             eomM  |  x11, ..., xn1, x10, ..., xn0, u11, .., uq1, p1, ..., pr, h,
+        i=2  eom1  |  x12, ..., xn2, x11, ..., xn1, u12, .., uq2, p1, ..., pr, h,
+             eom2  |  x12, ..., xn2, x11, ..., xn1, u12, .., uq2, p1, ..., pr, h,
+             ...   |  ...,
+             eomM  |  x12, ..., xn2, x11, ..., xn1, u12, .., uq2, p1, ..., pr, h,
+                   |  ...,
+        i=Q  eom1  |  x1Q, ..., xnQ, x1P, ..., xnP, u1Q, .., uqQ, p1, ..., pr, h,
+             eom2  |  x1Q, ..., xnQ, x1P, ..., xnP, u1Q, .., uqQ, p1, ..., pr, h,
+             ...   |  ...,
+             eomM  |  x1Q, ..., xnQ, x1P, ..., xnP, u1Q, .., uqQ, p1, ..., pr, h]
 
         Midpoint
         --------
 
-        i=0   x1  | [x10, ..., xn0, x11, ..., xn1, u10, .., uq0, u11, .., uq1, p1, ..., pr, h,
-                x2  |  x10, ..., xn0, x11, ..., xn1, u10, .., uq0, u11, .., uq1, p1, ..., pr, h,
-                ... |  ...,
-                xn  |  x10, ..., xn0, x11, ..., xn1, u10, .., uq0, u11, .., uq1, p1, ..., pr, h,
-        i=1   x1  |  x11, ..., xn1, x12, ..., xn2, u11, .., uq1, u12, .., uq2, p1, ..., pr, h,
-                x2  |  x11, ..., xn1, x12, ..., xn2, u11, .., uq1, u12, .., uq2, p1, ..., pr, h,
-                ... |  ...,
-                xn  |  x11, ..., xn1, x12, ..., xn2, u11, .., uq1, u12, .., uq2, p1, ..., pr, h,
-                ... |  ...,
-        i=P   x1  |  x1P, ..., xnP, x1M, ..., xnM, u1P, .., uqP, u1M, .., uqM, p1, ..., pr, h,
-                x2  |  x1P, ..., xnP, x1M, ..., xnM, u1P, .., uqP, u1M, .., uqM, p1, ..., pr, h,
-                ... |  ...,
-                xn  |  x1P, ..., xnP, x1M, ..., xnM, u1P, .., uqP, u1M, .., uqM, p1, ..., pr, h]
+        i=0   eom1  | [x10, ..., xn0, x11, ..., xn1, u10, .., uq0, u11, .., uq1, p1, ..., pr, h,
+              eom2  |  x10, ..., xn0, x11, ..., xn1, u10, .., uq0, u11, .., uq1, p1, ..., pr, h,
+              ...   |  ...,
+              eomM  |  x10, ..., xn0, x11, ..., xn1, u10, .., uq0, u11, .., uq1, p1, ..., pr, h,
+        i=1   eom1  |  x11, ..., xn1, x12, ..., xn2, u11, .., uq1, u12, .., uq2, p1, ..., pr, h,
+              eom2  |  x11, ..., xn1, x12, ..., xn2, u11, .., uq1, u12, .., uq2, p1, ..., pr, h,
+              ...   |  ...,
+              eomM  |  x11, ..., xn1, x12, ..., xn2, u11, .., uq1, u12, .., uq2, p1, ..., pr, h,
+              ...   |  ...,
+        i=P   eom1  |  x1P, ..., xnP, x1Q, ..., xnQ, u1P, .., uqP, u1Q, .., uqQ, p1, ..., pr, h,
+              eom2  |  x1P, ..., xnP, x1Q, ..., xnQ, u1P, .., uqP, u1Q, .., uqQ, p1, ..., pr, h,
+              ...   |  ...,
+              eomM  |  x1P, ..., xnP, x1Q, ..., xnQ, u1P, .., uqP, u1Q, .., uqQ, p1, ..., pr, h]
 
         These two arrays contain of the non-zero values of the sparse
         Jacobian[#]_.
@@ -1970,42 +1993,42 @@ class ConstraintCollocator(object):
         .. [#] Some of the partials can be equal to zero and could be
             excluded from the array. These could be a significant number.
 
-        Now we need to generate the triplet format indices of the full
-        sparse Jacobian for each one of the entries in these arrays. The
-        format of the Jacobian matrix is:
+        Now we need to generate the triplet format indices of the full sparse
+        Jacobian for each one of the entries in these arrays. The format of the
+        Jacobian matrix is:
 
         Backward Euler
         --------------
 
-                [x10, ..., x1N-1, ..., xn0, ..., xnN-1, u10, ..., u1N-1, ..., uq0, ..., uqN-1, p1, ..., pr, h]
-        [x11]
-        [x12]
+                [x10, ..., x1Q, ..., xn0, ..., xnQ, u10, ..., u1Q, ..., uq0, ..., uqQ, p1, ..., pr, h]
+        [eom10]
+        [eom11]
         [...]
-        [x1M]
+        [eom1Q]
         [...]
-        [xn1]
-        [xn2]
+        [eomM0]
+        [eomM1]
         [...]
-        [xnM]
+        [eomMQ]
 
         Midpoint
         --------
 
-                [x10, ..., x1N-1, ..., xn0, ..., xnN-1, u10, ..., u1N-1, ..., uq0, ..., uqN-1, p1, ..., pr, h]
-        [x10]
-        [x11]
+               [x10, ..., x1N-1, ..., xn0, ..., xnN-1, u10, ..., u1N-1, ..., uq0, ..., uqN-1, p1, ..., pr, h]
+        [eom10]
+        [eom11]
         [...]
-        [x1P]
+        [eom1P]
         [...]
-        [xn0]
-        [xn1]
+        [eomM0]
+        [eomM1]
         [...]
-        [xnP]
-
+        [eomMP]
 
         """
         for i in range(num_constraint_nodes):
 
+            # N : number of collocation nodes
             # M : number of equations of motion
             # n : number of states
             # m : number of input trajectories
@@ -2017,10 +2040,9 @@ class ConstraintCollocator(object):
             # the eoms repeat every N - 1 constraints
             # row_idxs = [0*(N - 1), 1*(N - 1),  2*(N - 1), ..., M*(N - 1)]
 
-            # This gives the Jacobian row indices matching the ith
-            # constraint node for each state. ith corresponds to the loop
-            # indice.
-            row_idxs = [j * (num_constraint_nodes) + i for j in range(M)]
+            # This gives the Jacobian row indices matching the ith constraint
+            # node for each state. ith corresponds to the loop indice.
+            row_idxs = [j*(num_constraint_nodes) + i for j in range(M)]
 
             # first row, the columns indices mapping is:
             # [1, N + 1, ..., N - 1] : [x1p, x1i, 0, ..., 0]
