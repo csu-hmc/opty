@@ -2,49 +2,67 @@
 Path Constraints
 ================
 
+Given a set of differential equations, any number of additional constraint
+equations that are functions of the states can be appended to restrict the
+trajectory. These are typically called "path constraints". Below the 6 ordinary
+differential equations of motion of a particle moving in space with an applied
+force are given. One algebraic path constraints is added to restrict the
+particle to being on the surface of a cylinder.
+
 """
 import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 import matplotlib.pyplot as plt
 from opty import Problem
-from opty.utils import create_objective_function
+from opty.utils import create_objective_function, MathJaxRepr
 
 m, r = sm.symbols('m, r', real=True)
-x, y = me.dynamicsymbols('x, y', real=True)
-vx, vy = me.dynamicsymbols('v_x, v_y', real=True)
-Fx, Fy = me.dynamicsymbols('F_x, F_y', real=True)
+x, y, z = me.dynamicsymbols('x, y, z', real=True)
+vx, vy, vz = me.dynamicsymbols('v_x, v_y, v_z', real=True)
+Fx, Fy, Fz = me.dynamicsymbols('F_x, F_y, F_z', real=True)
 t = me.dynamicsymbols._t
 
 eom = sm.Matrix([
-    m*vx.diff() + vx - Fx,
     x.diff() - vx,
-    m*vy.diff() + vy - Fy,
     y.diff() - vy,
+    z.diff() - vz,
+    m*vx.diff() - Fx,
+    m*vy.diff() - Fy,
+    m*vz.diff() - Fz,
     x**2 + y**2 - r**2,
 ])
+MathJaxRepr(eom)
 
-states = (x, y, vx, vy)
-specifieds = (Fx, Fy)
+# %%
+states = (x, y, z, vx, vy, vz)
+specifieds = (Fx, Fy, Fz)
 
 num_nodes = 101
-interval_value = 0.1
-dur = interval_value*(num_nodes - 1)
+dt = 0.1
+t0, tf = 0.0, dt*(num_nodes - 1)
 
-obj_func = sm.Integral(Fx**2 + Fy**2, t)
+obj_func = sm.Integral(Fx**2 + Fy**2 + Fz**2, t)
 obj, obj_grad = create_objective_function(
     obj_func, states, specifieds, tuple(), num_nodes,
-    interval_value, time_symbol=t)
+    dt, time_symbol=t)
 
+# %%
+# Require that the particle make a half turn around the cylinder and rise a
+# specified distance, being stationary at start and stop.
 instance_constraints = (
-    x.func(0.0),
-    y.func(0.0) + r,
-    vx.func(0.0),
-    vy.func(0.0),
-    x.func(dur),
-    y.func(dur) - r,
-    vx.func(dur),
-    vy.func(dur),
+    x.func(t0),
+    y.func(t0) + r,
+    z.func(t0),
+    vx.func(t0),
+    vy.func(t0),
+    vz.func(t0),
+    x.func(tf),
+    y.func(tf) - r,
+    z.func(tf) - 4*r,
+    vx.func(tf),
+    vy.func(tf),
+    vz.func(tf),
 )
 
 par_map = {
@@ -52,29 +70,37 @@ par_map = {
     r: 1.0,
 }
 
+# %%
+# Solve the problem.
 prob = Problem(
     obj,
     obj_grad,
     eom,
     states,
     num_nodes,
-    interval_value,
+    dt,
     known_parameter_map=par_map,
     instance_constraints=instance_constraints,
     time_symbol=t,
     backend='numpy',
 )
 
-initial_guess = np.zeros(prob.num_free)
-sol, _ = prob.solve(initial_guess)
-
-# %%
-_ = prob.plot_trajectories(sol)
-
-# %%
-_ = prob.plot_constraint_violations(sol)
+initial_guess = np.random.random(prob.num_free)
+solution, info = prob.solve(initial_guess)
 
 # %%
 _ = prob.plot_objective_value()
+
+# %%
+_ = prob.plot_trajectories(solution)
+
+# %%
+_ = prob.plot_constraint_violations(solution)
+
+# %%
+# Show the path of the particle in 3D:
+xs, _, _ = prob.parse_free(solution)
+ax = plt.figure().add_subplot(projection='3d')
+ax.plot(xs[0], xs[1], xs[2])
 
 plt.show()
