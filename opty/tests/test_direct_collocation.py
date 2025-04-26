@@ -1894,6 +1894,20 @@ def test_duplicate_state_symbols():
             instance_constraints=instance_constraints,
         )
 
+    # Test that No of state_symbols is equal to the No of time derivatives
+    state_symbols = (x,)
+    with raises(ValueError):
+        prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+        )
+
 
 def test_attributes_read_only():
     """

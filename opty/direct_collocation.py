@@ -1478,6 +1478,10 @@ class ConstraintCollocator(object):
         time_varying_symbols = me.find_dynamicsymbols(self.eom)
         state_related = states.union(states_derivatives)
         non_states = time_varying_symbols.difference(state_related)
+        if sm.Matrix(list(non_states)).has(sm.Derivative):
+            msg = ('Too few state variables provided for state time '
+                   'derivatives found in equations of motion.')
+            raise ValueError(msg)
 
         res = self._parse_inputs(non_states,
                                  self.known_trajectory_map.keys())
