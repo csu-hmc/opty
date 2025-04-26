@@ -8,17 +8,6 @@ Objectives
 - Include additional path constraints in addition to the differential
   equations.
 
-Introduction
-------------
-
-Given a set of differential equations, any number of additional constraint
-equations that are functions of the states can be appended to restrict the
-trajectory. These are typically called "path constraints". Below the 6 ordinary
-differential equations of motion of a particle moving in space with an applied
-force are given. One algebraic path constraints is added to restrict the
-particle to being on the surface of a cylinder, i.e. Pythagoras's theorem
-:math:`x^2 + y^2 = r^2`.
-
 """
 import numpy as np
 import sympy as sm
@@ -26,13 +15,26 @@ import sympy.physics.mechanics as me
 import matplotlib.pyplot as plt
 from opty import Problem
 from opty.utils import create_objective_function, MathJaxRepr
-from scipy.sparse import coo_matrix
 
+# %%
+# Introduction
+# ------------
+#
+# Given a set of differential equations, any number of additional equations
+# that are functions of the states can be appended to constrain the
+# trajectories. These are typically called "path constraints". Below the 6
+# ordinary differential equations of motion of a particle moving in space with
+# an applied force are given. One algebraic path constraints is added to
+# restrict the particle to being on the surface of a cylinder, i.e.
+# Pythagoras's theorem :math:`x^2 + y^2 = r^2`.
 m, r = sm.symbols('m, r', real=True)
 x, y, z = me.dynamicsymbols('x, y, z', real=True)
 vx, vy, vz = me.dynamicsymbols('v_x, v_y, v_z', real=True)
 Fx, Fy, Fz = me.dynamicsymbols('F_x, F_y, F_z', real=True)
 t = me.dynamicsymbols._t
+
+states = (x, y, z, vx, vy, vz)
+specifieds = (Fx, Fy, Fz)
 
 eom = sm.Matrix([
     x.diff() - vx,
@@ -46,12 +48,15 @@ eom = sm.Matrix([
 MathJaxRepr(eom)
 
 # %%
-states = (x, y, z, vx, vy, vz)
-specifieds = (Fx, Fy, Fz)
-
+# Define the time and constant parameter numerical values.
 num_nodes = 101
 dt = 0.1
 t0, tf = 0.0, dt*(num_nodes - 1)
+
+par_map = {
+    m: 1.0,
+    r: 1.0,
+}
 
 # %%
 # Minimize the average force magnitude over time.
@@ -78,13 +83,8 @@ instance_constraints = (
     vz.func(tf),
 )
 
-par_map = {
-    m: 1.0,
-    r: 1.0,
-}
-
 # %%
-# Solve the problem.
+# Setup and solve the problem.
 prob = Problem(
     obj,
     obj_grad,
@@ -98,23 +98,15 @@ prob = Problem(
     backend='numpy',
 )
 
-# %%
-# Visualize the sparseness of the Jacobian for the non-linear programming
-# problem.
 initial_guess = np.random.random(prob.num_free)
-jac_vals = prob.jacobian(initial_guess)
-row_idxs, col_idxs = prob.jacobianstructure()
-jacobian_matrix = coo_matrix((jac_vals, (row_idxs, col_idxs)))
-plt.spy(jacobian_matrix)
-
-# %%
-# Solve the problem.
 solution, info = prob.solve(initial_guess)
 
 # %%
+# Plot the solution trajectories.
 _ = prob.plot_trajectories(solution)
 
 # %%
+# Plot the constraint violations.
 _ = prob.plot_constraint_violations(solution)
 
 # %%
