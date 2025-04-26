@@ -24,9 +24,9 @@ from opty.utils import create_objective_function, MathJaxRepr
 # that are functions of the states can be appended to constrain the
 # trajectories. These are typically called "path constraints". Below the 6
 # ordinary differential equations of motion of a particle moving in space with
-# an applied force are given. One algebraic path constraints is added to
-# restrict the particle to being on the surface of a cylinder, i.e.
-# Pythagoras's theorem :math:`x^2 + y^2 = r^2`.
+# an applied force are given. One algebraic path constraint is added to
+# restrict the particle to being on the surface of a cylinder: Pythagoras's
+# theorem :math:`x^2 + y^2 = r^2`.
 m, r = sm.symbols('m, r', real=True)
 x, y, z = me.dynamicsymbols('x, y, z', real=True)
 vx, vy, vz = me.dynamicsymbols('v_x, v_y, v_z', real=True)
@@ -64,6 +64,7 @@ obj_func = sm.Integral(Fx**2 + Fy**2 + Fz**2, t)
 obj, obj_grad = create_objective_function(
     obj_func, states, specifieds, tuple(), num_nodes,
     dt, time_symbol=t)
+MathJaxRepr(obj_func)
 
 # %%
 # Require that the particle make a half turn around the cylinder and rise a
