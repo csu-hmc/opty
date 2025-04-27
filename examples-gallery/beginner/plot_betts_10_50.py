@@ -5,25 +5,14 @@ Delay Equation (Göllmann, Kern, and Maurer)
 Objectives
 ----------
 
-- A simple example to show how to handle inequality constraints, which ``opty``
-  presently does not support by introducing additional state variables.
+- A simple example to show how to handle inequality constraints.
 - Shows how instance constraints on one state variable may explicitly depend on
   an instance of another state variable at a different time.
-
 
 Introduction
 ------------
 
 This is example 10.50 from [Betts2010]_.
-
-
-Description how the Objectives are Achieved
--------------------------------------------
-
-There are inequalities: :math:`x_i(t) + u_i(t) \geq 0.3`. To handle them,
-additional state variables :math:`q_i(t)` and additional equations of motion
-can be added: :math:`q_i(t) = x_i(t) + u_i(t)`, and then use bounds on
-:math:`q_i(t)`.
 
 **States**
 
@@ -39,26 +28,48 @@ import sympy as sm
 import sympy.physics.mechanics as me
 import matplotlib.pyplot as plt
 from opty.direct_collocation import Problem
-from opty.utils import create_objective_function
+from opty.utils import create_objective_function, MathJaxRepr
 
 # %%
 # Equations of Motion
 # -------------------
-t = me.dynamicsymbols._t
-
+# There are six differential equations:
+#
+# .. math::
+#
+#    \dot{x}_1 = & x_0 u_{-1} \\
+#    \dot{x}_2 = & x_1 u_0 \\
+#    \dot{x}_3 = & x_2 u_1 \\
+#    \dot{x}_4 = & x_3 u_2 \\
+#    \dot{x}_5 = & x_4 u_3 \\
+#    \dot{x}_6 = & x_5 u_4
+#
+# and six algebraic inequality constraints:
+#
+# .. math::
+#
+#    0.3 \leq u_1 + x_1 \\
+#    0.3 \leq u_2 + x_2 \\
+#    0.3 \leq u_3 + x_3 \\
+#    0.3 \leq u_4 + x_4 \\
+#    0.3 \leq u_5 + x_5 \\
+#    0.3 \leq u_6 + x_6
 x1, x2, x3, x4, x5, x6 = me.dynamicsymbols('x1, x2, x3, x4, x5, x6')
 u1, u2, u3, u4, u5, u6 = me.dynamicsymbols('u1, u2, u3, u4, u5, u6')
+t = me.dynamicsymbols._t
 
 x0 = 1.0
 u_minus_1, u0 = 0.0, 0.0
 
 eom = sm.Matrix([
+    # equality constraints
     -x1.diff(t) + x0*u_minus_1,
     -x2.diff(t) + x1*u0,
     -x3.diff(t) + x2*u1,
     -x4.diff(t) + x3*u2,
     -x5.diff(t) + x4*u3,
     -x6.diff(t) + x5*u4,
+    # inequality constraints
     u1 + x1,
     u2 + x2,
     u3 + x3,
@@ -66,7 +77,7 @@ eom = sm.Matrix([
     u5 + x5,
     u6 + x6,
 ])
-sm.pprint(eom)
+MathJaxRepr(eom)
 
 # %%
 # Define and Solve the Optimization Problem
@@ -94,8 +105,10 @@ obj, obj_grad = create_objective_function(
     time_symbol=t,
 )
 
+MathJaxRepr(objective)
+
 # %%
-# Specify the instance constraints and bounds
+# Specify the instance constraints
 instance_constraints = (
     x1.func(t0) - 1.0,
     x2.func(t0) - x1.func(tf),
@@ -112,16 +125,9 @@ instance_constraints = (
 )
 
 # %%
-#
-# .. math::
-#
-#    0.3 \leq u_1 + x_1 \leq \inf
-#    0.3 \leq u_2 + x_2 \leq \inf
-#    0.3 \leq u_3 + x_3 \leq \inf
-#    0.3 \leq u_4 + x_4 \leq \inf
-#    0.3 \leq u_5 + x_5 \leq \inf
-#    0.3 \leq u_6 + x_6 \leq \inf
-
+# Specify the bounds on the inequality constraints in the equations of motion.
+# The key should match the corresponding index of the equation to apply the
+# bounds to.
 eom_bounds = {
     6: (0.3, np.inf),
     7: (0.3, np.inf),
@@ -149,18 +155,18 @@ prob = Problem(
 
 prob.add_option('max_iter', 1000)
 
-initial_guess = np.random.rand(prob.num_free) * 0.1
+initial_guess = np.random.rand(prob.num_free)*0.1
 
-for _ in range(1):
-    solution, info = prob.solve(initial_guess)
-    initial_guess = solution
-    print(info['status_msg'])
-    print(f'Objective value achieved: {info["obj_val"]:.4f}, as per the book '
-          f'it is {3.10812211}, so the error is: '
-          f'{(info["obj_val"] - 3.10812211)/3.10812211*100:.3f} % ')
-    print('\n')
+solution, info = prob.solve(initial_guess)
+initial_guess = solution
+print(info['status_msg'])
+print(f'Objective value achieved: {info["obj_val"]: .4f}, as per the book '
+      f'it is {3.10812211}, so the error is: '
+      f'{(info["obj_val"] - 3.10812211)/3.10812211*100: .3f} % ')
+print('\n')
 
 # %%
+# Plot the sparsity of the NLP Jacobian.
 _ = prob.plot_jacobian_sparsity()
 
 # %%
@@ -169,12 +175,11 @@ _ = prob.plot_trajectories(solution, show_bounds=True)
 
 # %%
 # Plot the constraint violations.
-_ = prob.plot_constraint_violations(solution, subplots=True)
+# sphinx_gallery_thumbnail_number = 3
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the objective function.
 _ = prob.plot_objective_value()
 
-# %%
-# sphinx_gallery_thumbnail_number = 2
 plt.show()
