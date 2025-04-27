@@ -38,6 +38,7 @@ can be added: :math:`q_i(t) = x_i(t) + u_i(t)`, and then use bounds on
 import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
+import matplotlib.pyplot as plt
 from opty.direct_collocation import Problem
 from opty.utils import create_objective_function
 
@@ -47,7 +48,6 @@ from opty.utils import create_objective_function
 t = me.dynamicsymbols._t
 
 x1, x2, x3, x4, x5, x6 = me.dynamicsymbols('x1, x2, x3, x4, x5, x6')
-q1, q2, q3, q4, q5, q6 = me.dynamicsymbols('q1, q2, q3, q4, q5, q6')
 u1, u2, u3, u4, u5, u6 = me.dynamicsymbols('u1, u2, u3, u4, u5, u6')
 
 x0 = 1.0
@@ -60,12 +60,12 @@ eom = sm.Matrix([
     -x4.diff(t) + x3*u2,
     -x5.diff(t) + x4*u3,
     -x6.diff(t) + x5*u4,
-    -q1 + u1 + x1,
-    -q2 + u2 + x2,
-    -q3 + u3 + x3,
-    -q4 + u4 + x4,
-    -q5 + u5 + x5,
-    -q6 + u6 + x6,
+    u1 + x1,  # 0.3 >= c >= inf
+    u2 + x2,
+    u3 + x3,
+    u4 + x4,
+    u5 + x5,
+    u6 + x6,
 ])
 sm.pprint(eom)
 
@@ -76,8 +76,8 @@ num_nodes = 501
 t0, tf = 0.0, 1.0
 interval_value = (tf - t0)/(num_nodes - 1)
 
-state_symbols = (x1, x2, x3, x4, x5, x6, q1, q2, q3, q4, q5, q6)
-unkonwn_input_trajectories = (u1, u2, u3, u4, u5, u6)
+state_symbols = (x1, x2, x3, x4, x5, x6)
+unknown_input_trajectories = (u1, u2, u3, u4, u5, u6)
 
 # %%
 # Specify the objective function and form the gradient.
@@ -88,7 +88,7 @@ objective = sm.Integral(
 obj, obj_grad = create_objective_function(
     objective,
     state_symbols,
-    unkonwn_input_trajectories,
+    unknown_input_trajectories,
     tuple(),
     num_nodes,
     interval_value,
@@ -105,28 +105,17 @@ instance_constraints = (
     x4.func(t0) - x3.func(tf),
     x5.func(t0) - x4.func(tf),
     x6.func(t0) - x5.func(tf),
-    q1.func(t0) - 0.5,
-    q2.func(t0) - 0.5,
-    q3.func(t0) - 0.5,
-    q4.func(t0) - 0.5,
-    q5.func(t0) - 0.5,
-    q6.func(t0) - 0.5,
+    u1.func(t0) + x1.func(t0) - 0.5,
+    u2.func(t0) + x2.func(t0) - 0.5,
+    u3.func(t0) + x3.func(t0) - 0.5,
+    u4.func(t0) + x4.func(t0) - 0.5,
+    u5.func(t0) + x5.func(t0) - 0.5,
+    u6.func(t0) + x6.func(t0) - 0.5,
 )
-
-limit_value = np.inf
-bounds = {
-    q1: (0.3, limit_value),
-    q2: (0.3, limit_value),
-    q3: (0.3, limit_value),
-    q4: (0.3, limit_value),
-    q5: (0.3, limit_value),
-    q6: (0.3, limit_value),
-}
 
 # %%
 # Solve the Optimization Problem
 # ------------------------------
-
 prob = Problem(
     obj,
     obj_grad,
@@ -135,13 +124,17 @@ prob = Problem(
     num_nodes,
     interval_value,
     instance_constraints=instance_constraints,
-    bounds=bounds,
     time_symbol=t,
+    backend='numpy',
+    eom_lower_bound=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                     0.3, 0.3, 0.3, 0.3, 0.3, 0.3],
+    eom_upper_bound=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                     np.inf, np.inf, np.inf, np.inf, np.inf, np.inf],
 )
 
 prob.add_option('max_iter', 1000)
 
-initial_guess = np.random.rand(18*num_nodes) * 0.1
+initial_guess = np.random.rand(prob.num_free) * 0.1
 
 for _ in range(1):
     solution, info = prob.solve(initial_guess)
@@ -153,8 +146,11 @@ for _ in range(1):
     print('\n')
 
 # %%
+_ = prob.plot_jacobian_sparsity()
+
+# %%
 # Plot the optimal state and input trajectories.
-_ = prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution, show_bounds=True)
 
 # %%
 # Plot the constraint violations.
@@ -176,3 +172,4 @@ else:
 
 # %%
 # sphinx_gallery_thumbnail_number = 2
+plt.show()

@@ -72,15 +72,15 @@ class _DocInherit(object):
 
     @staticmethod
     def _combine_docs(prob_doc, coll_doc):
-        beg, end = prob_doc.split('bounds')
+        beg, end = prob_doc.split('bounds :')
         if sys.version_info[1] >= 13:
             sep = 'Parameters\n==========\n'
             _, middle = coll_doc.split(sep)
-            bounds = 'bounds'
+            bounds = 'bounds :'
             mid = middle[:-1]
         else:
             sep = 'Parameters\n        ==========\n        '
-            bounds = '        bounds'
+            bounds = '        bounds :'
             _, middle = coll_doc.split(sep)
             mid = middle[:-9]
         return beg + mid + bounds + end
@@ -150,12 +150,6 @@ class Problem(cyipopt.Problem):
         obj_grad : function
             Returns the gradient of the objective function given the free
             vector.
-        bounds : dictionary, optional
-            This dictionary should contain a mapping from any of the symbolic
-            states, unknown trajectories, unknown parameters, or unknown time
-            interval to a 2-tuple of floats, the first being the lower bound
-            and the second the upper bound for that free variable, e.g.
-            ``{x(t): (-1.0, 5.0)}``.
         eom_lower_bound : array_like, shape(M,)
             Optional lower bounds for the equations of motion, default is
             ``0.0`` for each equation. Order corresponds to order of
@@ -164,6 +158,12 @@ class Problem(cyipopt.Problem):
             Optional upper bounds for the equations of motion, default is
             ``0.0`` for each equation. Order corresponds to order of
             ``equations_of_motion``.
+        bounds : dictionary, optional
+            This dictionary should contain a mapping from any of the symbolic
+            states, unknown trajectories, unknown parameters, or unknown time
+            interval to a 2-tuple of floats, the first being the lower bound
+            and the second the upper bound for that free variable, e.g.
+            ``{x(t): (-1.0, 5.0)}``.
 
         """
 
@@ -829,9 +829,12 @@ class Problem(cyipopt.Problem):
 
         from scipy.sparse import coo_matrix
         jac_vals = self.jacobian(np.ones(self.num_free))
-        row_idxs, col_idxs = prob.jacobianstructure()
+        row_idxs, col_idxs = self.jacobianstructure()
         jacobian_matrix = coo_matrix((jac_vals, (row_idxs, col_idxs)))
-        plt.spy(jacobian_matrix)
+        if ax is None:
+            fig, ax = plt.subplots()
+            ax.spy(jacobian_matrix)
+        return ax
 
     def parse_free(self, free):
         """Parses the free parameters vector and returns it's components.
@@ -1662,9 +1665,16 @@ class ConstraintCollocator(object):
         """Instantiates a dictionary mapping the instance functions to the
         nearest index in the free variables vector."""
 
+        N = self.num_collocation_nodes
+        n = self.num_states
+
         def determine_free_index(time_index, state):
-            state_index = self.state_symbols.index(state)
-            return time_index + state_index * self.num_collocation_nodes
+            if state in self.state_symbols:
+                state_index = self.state_symbols.index(state)
+                return time_index + state_index*N
+            elif state in self.unknown_input_trajectories:
+                state_index = self.unknown_input_trajectories.index(state)
+                return time_index + n*N + state_index*N
 
         N = self.num_collocation_nodes
         h = self.node_time_interval
