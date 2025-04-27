@@ -900,9 +900,9 @@ class ConstraintCollocator(object):
         equations_of_motion : sympy.Matrix, shape(M, 1)
             A column matrix of SymPy expressions defining the right hand side
             of the equations of motion when the left hand side is zero, i.e.
-            `0 = f(x'(t), x(t), u(t), p)``. These should be in first order form
-            but not necessairly explicit. They can be ordinary differential
-            equations or differential algebraic equations.
+            ``0 = f(x'(t), x(t), u(t), p)``. These should be in first order
+            form but not necessairly explicit. They can be ordinary
+            differential equations or differential algebraic equations.
         state_symbols : iterable
             An iterable containing all ``n`` of the SymPy functions of time
             which represent the states in the equations of motion.
@@ -1064,7 +1064,7 @@ class ConstraintCollocator(object):
         """
         Discretized equations of motion. Depending on the integration method
         used.
-        Type: sympy.Matrix, shape(n, 1)
+        Type: sympy.Matrix, shape(M, 1)
         """
         return self._discrete_eom
 
@@ -1072,7 +1072,7 @@ class ConstraintCollocator(object):
     def eom(self):
         """
         The equations of motion used.
-        Type: sympy.Matrix, shape(n, 1)
+        Type: sympy.Matrix, shape(M, 1)
         """
         return self._eom
 
