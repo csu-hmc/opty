@@ -131,8 +131,7 @@ def test_pendulum():
         time_symbol=t,
         bounds={T(t): (-2.0, 2.0)},
         show_compile_output=True,
-        eom_lower_bound=[-20.0, -10.0],
-        eom_upper_bound=[20.0, 10.0],
+        eom_bounds={0: (-20.0, 20.0), 1: (-10.0, 10.0)},
     )
 
     assert prob.collocator.num_instance_constraints == 4

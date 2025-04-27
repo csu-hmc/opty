@@ -72,18 +72,16 @@ class _DocInherit(object):
 
     @staticmethod
     def _combine_docs(prob_doc, coll_doc):
-        beg, end = prob_doc.split('bounds :')
+        beg, end = prob_doc.split('SPLIT')
         if sys.version_info[1] >= 13:
             sep = 'Parameters\n==========\n'
             _, middle = coll_doc.split(sep)
-            bounds = 'bounds :'
             mid = middle[:-1]
         else:
             sep = 'Parameters\n        ==========\n        '
-            bounds = '        bounds :'
             _, middle = coll_doc.split(sep)
             mid = middle[:-9]
-        return beg + mid + bounds + end
+        return beg + mid + end
 
 _doc_inherit = _DocInherit
 
@@ -140,7 +138,7 @@ class Problem(cyipopt.Problem):
                  instance_constraints=None, time_symbol=None, tmp_dir=None,
                  integration_method='backward euler', parallel=False,
                  bounds=None, show_compile_output=False, backend='cython',
-                 eom_lower_bound=None, eom_upper_bound=None):
+                 eom_bounds=None):
         """
 
         Parameters
@@ -150,23 +148,29 @@ class Problem(cyipopt.Problem):
         obj_grad : function
             Returns the gradient of the objective function given the free
             vector.
-        eom_lower_bound : array_like, shape(M,)
-            Optional lower bounds for the equations of motion, default is
-            ``0.0`` for each equation. Order corresponds to order of
-            ``equations_of_motion``.
-        eom_upper_bound : array_like, shape(M,)
-            Optional upper bounds for the equations of motion, default is
-            ``0.0`` for each equation. Order corresponds to order of
-            ``equations_of_motion``.
+        SPLIT
         bounds : dictionary, optional
             This dictionary should contain a mapping from any of the symbolic
             states, unknown trajectories, unknown parameters, or unknown time
             interval to a 2-tuple of floats, the first being the lower bound
             and the second the upper bound for that free variable, e.g.
             ``{x(t): (-1.0, 5.0)}``.
+        eom_bounds : dictionary, optional
+            Optional lower and upper bounds for the equations of motion,
+            default is ``(0.0, 0.0)`` for each equation making them equality
+            constraints. Dictionary is a mapping of equation of motion integer
+            indices to a tuple of a lower and upper bounds given as floats.
+            The index integer corresponds to the order of
+            ``equations_of_motion``.  Example: ``{3: (0.0, np.inf)}`` would
+            make the 4th equation of motion an inequality constraint that
+            cannot be below zero. Beware of transforming essential differential
+            equations into inequality constraints, as that is likely not
+            desired. These are typically used only for additional path
+            constraints.
 
         """
 
+        # TODO : This check belongs in the ConstraintCollocator, not here.
         if not equations_of_motion.has(sm.Derivative):
             raise ValueError('No time derivatives are present.'
                              ' The equations of motion must be ordinary '
@@ -180,6 +184,7 @@ class Problem(cyipopt.Problem):
             parallel, show_compile_output=show_compile_output, backend=backend)
 
         self.bounds = bounds
+        self.eom_bounds = eom_bounds
         self.obj = obj
         self.obj_grad = obj_grad
         self.con = self.collocator.generate_constraint_function()
@@ -194,8 +199,7 @@ class Problem(cyipopt.Problem):
         self.num_constraints = self.collocator.num_constraints
 
         self._generate_bound_arrays()
-        self._generate_constraint_bound_arrays(eom_lower_bound,
-                                               eom_upper_bound)
+        self._generate_constraint_bound_arrays()
 
         super(Problem, self).__init__(n=self.num_free,
                                       m=self.num_constraints,
@@ -331,33 +335,20 @@ class Problem(cyipopt.Problem):
         else:
             pass
 
-    def _generate_constraint_bound_arrays(self, eom_lower_bound,
-                                          eom_upper_bound):
+    def _generate_constraint_bound_arrays(self):
 
         # The default is that all constraints associated with the provided
         # equations of motion are equality constraints.
         low_con_bounds = np.zeros(self.num_constraints)
         upp_con_bounds = np.zeros(self.num_constraints)
 
-        N = self.collocator.num_collocation_nodes
-        msg = (f'Equation of motion upper bounds length incorrect, '
-               f'should {self.collocator.num_eom}.')
-
         # If the user provides bounds for the equations of motion, process
         # them.
-        if eom_lower_bound is not None:
-            if len(eom_lower_bound) == self.collocator.num_eom:
-                for i, v in enumerate(eom_lower_bound):
-                    low_con_bounds[i*(N - 1):(i + 1)*(N - 1)] = v
-            else:
-                raise ValueError(msg)
-
-        if eom_upper_bound is not None:
-            if len(eom_upper_bound) == self.collocator.num_eom:
-                for i, v in enumerate(eom_upper_bound):
-                    upp_con_bounds[i*(N - 1):(i + 1)*(N - 1)] = v
-            else:
-                raise ValueError(msg)
+        if self.eom_bounds is not None:
+            N = self.collocator.num_collocation_nodes
+            for eom_idx, bnds in self.eom_bounds.items():
+                low_con_bounds[eom_idx*(N - 1):(eom_idx + 1)*(N - 1)] = bnds[0]
+                upp_con_bounds[eom_idx*(N - 1):(eom_idx + 1)*(N - 1)] = bnds[1]
 
         self._low_con_bounds = low_con_bounds
         self._upp_con_bounds = upp_con_bounds

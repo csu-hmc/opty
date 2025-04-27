@@ -28,7 +28,6 @@ can be added: :math:`q_i(t) = x_i(t) + u_i(t)`, and then use bounds on
 **States**
 
 - :math:`x_1, x_2, x_3. x_4. x_5, x_6` : state variables
-- :math:`q_1, q_2, q_3. q_4. q_5, q_6` : state variables for the inequalities
 
 **Controls**
 
@@ -60,7 +59,7 @@ eom = sm.Matrix([
     -x4.diff(t) + x3*u2,
     -x5.diff(t) + x4*u3,
     -x6.diff(t) + x5*u4,
-    u1 + x1,  # 0.3 >= c >= inf
+    u1 + x1,
     u2 + x2,
     u3 + x3,
     u4 + x4,
@@ -97,7 +96,6 @@ obj, obj_grad = create_objective_function(
 
 # %%
 # Specify the instance constraints and bounds
-
 instance_constraints = (
     x1.func(t0) - 1.0,
     x2.func(t0) - x1.func(tf),
@@ -114,6 +112,26 @@ instance_constraints = (
 )
 
 # %%
+#
+# .. math::
+#
+#    0.3 \leq u_1 + x_1 \leq \inf
+#    0.3 \leq u_2 + x_2 \leq \inf
+#    0.3 \leq u_3 + x_3 \leq \inf
+#    0.3 \leq u_4 + x_4 \leq \inf
+#    0.3 \leq u_5 + x_5 \leq \inf
+#    0.3 \leq u_6 + x_6 \leq \inf
+
+eom_bounds = {
+    6: (0.3, np.inf),
+    7: (0.3, np.inf),
+    8: (0.3, np.inf),
+    9: (0.3, np.inf),
+    10: (0.3, np.inf),
+    11: (0.3, np.inf),
+}
+
+# %%
 # Solve the Optimization Problem
 # ------------------------------
 prob = Problem(
@@ -126,10 +144,7 @@ prob = Problem(
     instance_constraints=instance_constraints,
     time_symbol=t,
     backend='numpy',
-    eom_lower_bound=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                     0.3, 0.3, 0.3, 0.3, 0.3, 0.3],
-    eom_upper_bound=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                     np.inf, np.inf, np.inf, np.inf, np.inf, np.inf],
+    eom_bounds=eom_bounds,
 )
 
 prob.add_option('max_iter', 1000)
@@ -154,21 +169,11 @@ _ = prob.plot_trajectories(solution, show_bounds=True)
 
 # %%
 # Plot the constraint violations.
-_ = prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution, subplots=True)
 
 # %%
 # Plot the objective function.
 _ = prob.plot_objective_value()
-
-# %%
-# Are the inequality constraints satisfied?
-min_q = np.min(solution[7*num_nodes:12*num_nodes-1])
-if min_q >= 0.3:
-    print(f"Minimal value of the q\u1D62 is: {min_q:.12f} >= 0.3, "
-          f"so satisfied.")
-else:
-    print(f"Minimal value of the q\u1D62 is: {min_q:.12f} < 0.3, "
-          f"so not satisfied.")
 
 # %%
 # sphinx_gallery_thumbnail_number = 2
