@@ -715,6 +715,12 @@ class Problem(cyipopt.Problem):
         instance_violations = con_violations[len(eom_violations):]
         eom_violations = eom_violations.reshape((self.collocator.num_eom,
                                                  N - 1))
+        # TODO : figure out a way to plot the inequality constraint violations
+        # don't plot inequality
+        if self.eom_bounds is not None:
+            for k, v in self.eom_bounds.items():
+                eom_violations[k] = np.nan
+
         con_nodes = range(1, self.collocator.num_collocation_nodes)
 
         if axes is None:
@@ -741,8 +747,15 @@ class Problem(cyipopt.Problem):
 
         else:
             for i in range(self.collocator.num_eom):
-                axes[i].plot(con_nodes, eom_violations[i])
-                axes[i].set_ylabel(f'Eq. {str(i+1)} \n violation', fontsize=9)
+                if ((self.eom_bounds is not None) and
+                    (i in self.eom_bounds.keys())):  # don't plot if inequality
+                    axes[i].plot(con_nodes, np.nan*np.ones_like(con_nodes))
+                    axes[i].set_ylabel(f'Eq. {str(i+1)} \n not shown',
+                                       fontsize=9)
+                else:
+                    axes[i].plot(con_nodes, eom_violations[i])
+                    axes[i].set_ylabel(f'Eq. {str(i+1)} \n violation',
+                                       fontsize=9)
                 if i < self.collocator.num_eom - 1:
                     axes[i].set_xticklabels([])
             axes[num_eom_plots-1].set_xlabel('Node Number')
