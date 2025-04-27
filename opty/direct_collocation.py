@@ -66,8 +66,8 @@ class _DocInherit(object):
     def use_parent_doc(self, func, source):
         if source is None:
             raise NameError("Can't find '%s' in parents" % self.name)
-        func.__doc__ = self._combine_docs(self.mthd.__doc__,
-                                          ConstraintCollocator.__init__.__doc__)
+        func.__doc__ = self._combine_docs(
+            self.mthd.__doc__, ConstraintCollocator.__init__.__doc__)
         return func
 
     @staticmethod
@@ -84,6 +84,7 @@ class _DocInherit(object):
             _, middle = coll_doc.split(sep)
             mid = middle[:-9]
         return beg + mid + bounds + end
+
 
 _doc_inherit = _DocInherit
 
@@ -227,20 +228,20 @@ class Problem(cyipopt.Problem):
 
         Returns
         -------
-        x : :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+        x : :py:class:`numpy.ndarray`, shape`(n*N + q*N + r + s, )`
             Optimal solution.
         info: :py:class:`dict` with the following entries
-            ``x``: :py:class:`numpy.ndarray`, shape `(n*N + q*N + r + s, )`
+            ``x``: :py:class:`numpy.ndarray`, shape`(n*N + q*N + r + s, )`
                 optimal solution
-            ``g``: :py:class:`numpy.ndarray`, shape `(M*(N-1) + o, )`
+            ``g``: :py:class:`numpy.ndarray`, shape`(M*(N-1) + o, )`
                 constraints at the optimal solution
             ``obj_val``: :py:class:`float`
                 objective value at optimal solution
-            ``mult_g``: :py:class:`numpy.ndarray`, shape `(M*(N-1) + o, )`
+            ``mult_g``: :py:class:`numpy.ndarray`, shape`(M*(N-1) + o, )`
                 final values of the constraint multipliers
-            ``mult_x_L``: :py:class:`numpy.ndarray`, shape `(M*N + q*N + r + s, )`
+            ``mult_x_L``: :py:class:`numpy.ndarray`, shape`(M*N + q*N + r + s, )`
                 bound multipliers at the solution
-            ``mult_x_U``: :py:class:`numpy.ndarray`, shape `(M*N + q*N + r + s, )`
+            ``mult_x_U``: :py:class:`numpy.ndarray`, shape`(M*N + q*N + r + s, )`
                 bound multipliers at the solution
             ``status``: :py:class:`int`
                 gives the status of the algorithm
@@ -268,8 +269,8 @@ class Problem(cyipopt.Problem):
         ------
         ValueError
             If the lower bound for variable is greater than its upper bound,
-            ``opty`` may not break, but the solution will likely not be correct.
-            Hence a ValueError is raised in such as case.
+            ``opty`` may not break, but the solution will likely not be
+            correct. Hence a ValueError is raised in such as case.
 
             If the initial guess for any variable is outside its bounds,
             a ValueError is raised.
@@ -283,7 +284,7 @@ class Problem(cyipopt.Problem):
                     errors.append(key)
             if len(errors) > 0:
                 msg = (f'The lower bound(s) for {errors} is (are) greater than'
-                           ' the upper bound(s).')
+                       f' the upper bound(s).')
                 raise ValueError(msg)
 
             violating_variables = []
@@ -296,12 +297,12 @@ class Problem(cyipopt.Problem):
                         violating_variables.append(local_ts)
 
             symbole = (self.collocator.state_symbols +
-                self.collocator.unknown_input_trajectories)
+                       self.collocator.unknown_input_trajectories)
             for symb in symbole:
                 if symb in self.bounds.keys():
                     idx = symbole.index(symb)
                     feld = free[idx*self.collocator.num_collocation_nodes:
-                            (idx+1)*self.collocator.num_collocation_nodes]
+                                (idx+1)*self.collocator.num_collocation_nodes]
                     if (np.any(feld < self.bounds[symb][0])
                         or np.any(feld > self.bounds[symb][1])):
                         violating_variables.append(symb)
@@ -317,7 +318,7 @@ class Problem(cyipopt.Problem):
 
             if len(violating_variables) > 0:
                 msg = (f'The initial guesses for {violating_variables} are in '
-                f'conflict with their bounds.')
+                       f'conflict with their bounds.')
                 raise ValueError(msg)
 
         else:
@@ -573,10 +574,10 @@ class Problem(cyipopt.Problem):
 
             if self.bounds is not None and show_bounds:
                 if symbol in self.bounds.keys():
-                    ax.axhline(self.bounds[symbol][0], color='C1',
-                                           lw=1.0, linestyle='--')
-                    ax.axhline(self.bounds[symbol][1], color='C1',
-                                           lw=1.0, linestyle='--')
+                    ax.axhline(self.bounds[symbol][0], color='C1', lw=1.0,
+                               linestyle='--')
+                    ax.axhline(self.bounds[symbol][1], color='C1', lw=1.0,
+                               linestyle='--')
         ax.set_xlabel('Time')
         axes[0].set_title('State Trajectories')
         if (self.collocator.num_unknown_input_trajectories +
@@ -2172,7 +2173,8 @@ class ConstraintCollocator(object):
         elif self._backend == 'numpy':
             eval_partials = lambdify_matrix(args, symbolic_partials)
 
-        if isinstance(symbolic_partials, tuple) and len(symbolic_partials) == 2:
+        if (isinstance(symbolic_partials, tuple) and
+            len(symbolic_partials) == 2):
             num_rows = symbolic_partials[1][0].shape[0]
             num_cols = symbolic_partials[1][0].shape[1]
         else:
@@ -2236,7 +2238,8 @@ class ConstraintCollocator(object):
                 if self.integration_method == 'midpoint':
                     sn = specified_values[:, adjacent_start:adjacent_stop]
                     args += [s for s in sn]
-            elif len(specified_values.shape) == 1 and specified_values.size != 0:
+            elif (len(specified_values.shape) == 1 and
+                  specified_values.size != 0):
                 si = specified_values[current_start:current_stop]
                 args += [si]
                 if self.integration_method == 'midpoint':
@@ -2347,7 +2350,8 @@ class ConstraintCollocator(object):
 
         intro, second = func.__doc__.split('Parameters')
         params, returns = second.split('Returns')
-        new_doc = '{}Parameters\n----------\nfree : ndarray, shape()\n\nReturns\n{}'
+        new_doc = ('{}Parameters\n----------\n'
+                   'free : ndarray, shape()\n\nReturns\n{}')
         constraints.__doc__ = new_doc.format(intro, returns)
 
         return constraints
