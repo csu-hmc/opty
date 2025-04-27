@@ -15,6 +15,10 @@ from ..utils import (create_objective_function, sort_sympy, parse_free,
 
 
 def test_extra_algebraic(plot=False):
+    """
+    Chaplygin Sleigh example with a single nonholonomic constraint and the
+    sleigh angle as an input.
+    """
 
     m = sym.symbols('m', real=True)
     x, y, theta = mech.dynamicsymbols('x, y, theta', real=True)
@@ -32,6 +36,7 @@ def test_extra_algebraic(plot=False):
         m*vy.diff() - Fy,
         y.diff() - vy,
         -sym.sin(theta)*vx + sym.cos(theta)*vy,
+        # NOTE : the following also works
         #-sym.sin(theta)*x.diff() + sym.cos(theta)*y.diff(),
     ])
 
@@ -83,7 +88,7 @@ def test_pendulum():
 
     target_angle = np.pi
     duration = 10.0
-    num_nodes = 500
+    num_nodes = 51
     interval_value = duration / (num_nodes - 1)
 
     # Symbolic equations of motion
@@ -96,10 +101,7 @@ def test_pendulum():
     specified_symbols = (T(t),)
 
     eom = sym.Matrix([theta(t).diff() - omega(t),
-                     I*omega(t).diff() + m*g*h*sym.sin(theta(t)) - T(t)])
-
-    extra_algebraic = sym.Matrix([sym.sin(theta(t)) - 2*sym.sin(theta(t))])
-    eom = eom.col_join(extra_algebraic)
+                      I*omega(t).diff() + m*g*h*sym.sin(theta(t)) - T(t)])
 
     # Specify the known system parameters.
     par_map = OrderedDict()
@@ -128,9 +130,22 @@ def test_pendulum():
         instance_constraints=instance_constraints,
         time_symbol=t,
         bounds={T(t): (-2.0, 2.0)},
-        show_compile_output=True)
+        show_compile_output=True,
+        eom_lower_bound=[-20.0, -10.0],
+        eom_upper_bound=[20.0, 10.0],
+    )
 
     assert prob.collocator.num_instance_constraints == 4
+
+    expected_low_con_bounds = np.zeros(prob.num_constraints)
+    expected_low_con_bounds[:50] = -20.0
+    expected_low_con_bounds[50:100] = -10.0
+    np.testing.assert_allclose(prob._low_con_bounds, expected_low_con_bounds)
+
+    expected_upp_con_bounds = np.zeros(prob.num_constraints)
+    expected_upp_con_bounds[:50] = 20.0
+    expected_upp_con_bounds[50:100] = 10.0
+    np.testing.assert_allclose(prob._upp_con_bounds, expected_upp_con_bounds)
 
 
 def test_Problem():

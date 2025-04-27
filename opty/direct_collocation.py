@@ -139,7 +139,8 @@ class Problem(cyipopt.Problem):
                  known_parameter_map={}, known_trajectory_map={},
                  instance_constraints=None, time_symbol=None, tmp_dir=None,
                  integration_method='backward euler', parallel=False,
-                 bounds=None, show_compile_output=False, backend='cython'):
+                 bounds=None, show_compile_output=False, backend='cython',
+                 eom_lower_bound=None, eom_upper_bound=None):
         """
 
         Parameters
@@ -155,6 +156,14 @@ class Problem(cyipopt.Problem):
             interval to a 2-tuple of floats, the first being the lower bound
             and the second the upper bound for that free variable, e.g.
             ``{x(t): (-1.0, 5.0)}``.
+        eom_lower_bound : array_like, shape(M,)
+            Optional lower bounds for the equations of motion, default is
+            ``0.0`` for each equation. Order corresponds to order of
+            ``equations_of_motion``.
+        eom_upper_bound : array_like, shape(M,)
+            Optional upper bounds for the equations of motion, default is
+            ``0.0`` for each equation. Order corresponds to order of
+            ``equations_of_motion``.
 
         """
 
@@ -185,16 +194,15 @@ class Problem(cyipopt.Problem):
         self.num_constraints = self.collocator.num_constraints
 
         self._generate_bound_arrays()
-
-        # All constraints are expected to be equal to zero.
-        con_bounds = np.zeros(self.num_constraints)
+        self._generate_constraint_bound_arrays(eom_lower_bound,
+                                               eom_upper_bound)
 
         super(Problem, self).__init__(n=self.num_free,
                                       m=self.num_constraints,
                                       lb=self.lower_bound,
                                       ub=self.upper_bound,
-                                      cl=con_bounds,
-                                      cu=con_bounds)
+                                      cl=self._low_con_bounds,
+                                      cu=self._upp_con_bounds)
 
         self.obj_value = []
 
@@ -322,6 +330,37 @@ class Problem(cyipopt.Problem):
 
         else:
             pass
+
+    def _generate_constraint_bound_arrays(self, eom_lower_bound,
+                                          eom_upper_bound):
+
+        # The default is that all constraints associated with the provided
+        # equations of motion are equality constraints.
+        low_con_bounds = np.zeros(self.num_constraints)
+        upp_con_bounds = np.zeros(self.num_constraints)
+
+        N = self.collocator.num_collocation_nodes
+        msg = (f'Equation of motion upper bounds length incorrect, '
+               f'should {self.collocator.num_eom}.')
+
+        # If the user provides bounds for the equations of motion, process
+        # them.
+        if eom_lower_bound is not None:
+            if len(eom_lower_bound) == self.collocator.num_eom:
+                for i, v in enumerate(eom_lower_bound):
+                    low_con_bounds[i*(N - 1):(i + 1)*(N - 1)] = v
+            else:
+                raise ValueError(msg)
+
+        if eom_upper_bound is not None:
+            if len(eom_upper_bound) == self.collocator.num_eom:
+                for i, v in enumerate(eom_upper_bound):
+                    upp_con_bounds[i*(N - 1):(i + 1)*(N - 1)] = v
+            else:
+                raise ValueError(msg)
+
+        self._low_con_bounds = low_con_bounds
+        self._upp_con_bounds = upp_con_bounds
 
     def _generate_bound_arrays(self):
         lb = -self.INF * np.ones(self.num_free)
@@ -781,6 +820,18 @@ class Problem(cyipopt.Problem):
         ax.set_xlabel('Iteration Number')
 
         return ax
+
+    @_optional_plt_dep
+    def plot_jacobian_sparsity(self, ax=None):
+        # %%
+        # Visualize the sparseness of the Jacobian for the non-linear programming
+        # problem.
+
+        from scipy.sparse import coo_matrix
+        jac_vals = self.jacobian(np.ones(self.num_free))
+        row_idxs, col_idxs = prob.jacobianstructure()
+        jacobian_matrix = coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        plt.spy(jacobian_matrix)
 
     def parse_free(self, free):
         """Parses the free parameters vector and returns it's components.
