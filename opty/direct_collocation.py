@@ -826,11 +826,13 @@ class Problem(cyipopt.Problem):
         return ax
 
     @_optional_plt_dep
-    def plot_jacobian_sparsity(self, ax=None):
+    def _plot_jacobian_sparsity(self, ax=None):
+        # TODO : Make this a public method.
         # %%
         # Visualize the sparseness of the Jacobian for the non-linear programming
         # problem.
 
+        # TODO : Figure out how to not depend on scipy if possible.
         from scipy.sparse import coo_matrix
         jac_vals = self.jacobian(np.ones(self.num_free))
         row_idxs, col_idxs = self.jacobianstructure()

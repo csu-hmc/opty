@@ -166,12 +166,8 @@ print(f'Objective value achieved: {info["obj_val"]: .4f}, as per the book '
 print('\n')
 
 # %%
-# Plot the sparsity of the NLP Jacobian.
-_ = prob.plot_jacobian_sparsity()
-
-# %%
 # Plot the optimal state and input trajectories.
-_ = prob.plot_trajectories(solution, show_bounds=True)
+_ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
