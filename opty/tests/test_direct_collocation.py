@@ -14,6 +14,71 @@ from ..utils import (create_objective_function, sort_sympy, parse_free,
                      _coo_matrix)
 
 
+def test_extra_algebraic(plot=False):
+
+    m = sym.symbols('m', real=True)
+    x, y, theta = mech.dynamicsymbols('x, y, theta', real=True)
+    vx, vy = mech.dynamicsymbols('v_x, v_y', real=True)
+    Fx, Fy = mech.dynamicsymbols('F_x, F_y')
+    t = mech.dynamicsymbols._t
+
+    states = (x, y, vx, vy)  # n states
+    specifieds = (Fx, Fy, theta)
+
+    # M equations of motion
+    eom = sym.Matrix([
+        m*vx.diff() - Fx,
+        x.diff() - vx,
+        m*vy.diff() - Fy,
+        y.diff() - vy,
+        -sym.sin(theta)*vx + sym.cos(theta)*vy,
+        #-sym.sin(theta)*x.diff() + sym.cos(theta)*y.diff(),
+    ])
+
+    num_nodes = 100
+    interval_value = 0.1
+    dur = interval_value*(num_nodes - 1)
+
+    obj_func = sym.Integral(Fx**2 + Fy**2 + theta**2, t)
+    obj, obj_grad = create_objective_function(
+        obj_func, states, specifieds, tuple(), num_nodes,
+        interval_value, time_symbol=t)
+
+    instance_constraints = (
+        x.func(0.0),
+        y.func(0.0),
+        vx.func(0.0),
+        vy.func(0.0),
+        x.func(dur) - 1.0,
+        y.func(dur) - 1.0,
+        vx.func(dur),
+        vy.func(dur),
+    )
+
+    par_map = {
+        m: 1.0,
+    }
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        states,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    initial_guess = np.zeros(prob.num_free)
+    solution, _ = prob.solve(initial_guess)
+
+    if plot:
+        prob.plot_trajectories(solution)
+
+
 def test_pendulum():
 
     target_angle = np.pi
@@ -32,6 +97,9 @@ def test_pendulum():
 
     eom = sym.Matrix([theta(t).diff() - omega(t),
                      I*omega(t).diff() + m*g*h*sym.sin(theta(t)) - T(t)])
+
+    extra_algebraic = sym.Matrix([sym.sin(theta(t)) - 2*sym.sin(theta(t))])
+    eom = eom.col_join(extra_algebraic)
 
     # Specify the known system parameters.
     par_map = OrderedDict()
@@ -1829,8 +1897,8 @@ def test_duplicate_state_symbols():
             instance_constraints=instance_constraints,
         )
 
-    # Test that No of state_symbols is equal to the No of eoms
-    state_symbols = (x, ux, z)
+    # Test that No of state_symbols is equal to the No of time derivatives
+    state_symbols = (x,)
     with raises(ValueError):
         prob = Problem(
             obj,
@@ -1842,6 +1910,7 @@ def test_duplicate_state_symbols():
             known_parameter_map=par_map,
             instance_constraints=instance_constraints,
         )
+
 
 def test_attributes_read_only():
     """
