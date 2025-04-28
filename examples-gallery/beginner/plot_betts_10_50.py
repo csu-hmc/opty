@@ -171,7 +171,7 @@ _ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the constraint violations.
-# sphinx_gallery_thumbnail_number = 3
+# sphinx_gallery_thumbnail_number = 2
 _ = prob.plot_constraint_violations(solution)
 
 # %%
