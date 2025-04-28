@@ -65,7 +65,7 @@ Features
 - Solve fixed duration or variable duration problems.
 - Easy specification of bounds on free variables.
 - Easily specify additional "instance" constraints.
-- Supports additional path constraints.
+- Supports additional equality and inequality path constraints.
 - Efficient numerical execution of large equations of motion.
 - Automatic parallel execution using openmp if installed.
 - Built with support of sympy.physics.mechanics and PyDy in mind.
