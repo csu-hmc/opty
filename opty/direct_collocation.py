@@ -72,18 +72,16 @@ class _DocInherit(object):
 
     @staticmethod
     def _combine_docs(prob_doc, coll_doc):
-        beg, end = prob_doc.split('bounds')
+        beg, end = prob_doc.split('SPLIT')
         if sys.version_info[1] >= 13:
             sep = 'Parameters\n==========\n'
             _, middle = coll_doc.split(sep)
-            bounds = 'bounds'
             mid = middle[:-1]
         else:
             sep = 'Parameters\n        ==========\n        '
-            bounds = '        bounds'
             _, middle = coll_doc.split(sep)
             mid = middle[:-9]
-        return beg + mid + bounds + end
+        return beg + mid + end
 
 
 _doc_inherit = _DocInherit
@@ -140,7 +138,8 @@ class Problem(cyipopt.Problem):
                  known_parameter_map={}, known_trajectory_map={},
                  instance_constraints=None, time_symbol=None, tmp_dir=None,
                  integration_method='backward euler', parallel=False,
-                 bounds=None, show_compile_output=False, backend='cython'):
+                 bounds=None, show_compile_output=False, backend='cython',
+                 eom_bounds=None):
         """
 
         Parameters
@@ -150,15 +149,29 @@ class Problem(cyipopt.Problem):
         obj_grad : function
             Returns the gradient of the objective function given the free
             vector.
+        SPLIT
         bounds : dictionary, optional
             This dictionary should contain a mapping from any of the symbolic
             states, unknown trajectories, unknown parameters, or unknown time
             interval to a 2-tuple of floats, the first being the lower bound
             and the second the upper bound for that free variable, e.g.
             ``{x(t): (-1.0, 5.0)}``.
+        eom_bounds : dictionary, optional
+            Optional lower and upper bounds for the equations of motion,
+            default is ``(0.0, 0.0)`` for each equation making them equality
+            constraints. Dictionary is a mapping of equation of motion integer
+            indices to a tuple of a lower and upper bounds given as floats.
+            The index integer corresponds to the order of
+            ``equations_of_motion``.  Example: ``{3: (0.0, np.inf)}`` would
+            make the 4th equation of motion an inequality constraint that
+            cannot be below zero. Beware of transforming essential differential
+            equations into inequality constraints, as that is likely not
+            desired. These are typically used only for additional path
+            constraints.
 
         """
 
+        # TODO : This check belongs in the ConstraintCollocator, not here.
         if not equations_of_motion.has(sm.Derivative):
             raise ValueError('No time derivatives are present.'
                              ' The equations of motion must be ordinary '
@@ -172,6 +185,7 @@ class Problem(cyipopt.Problem):
             parallel, show_compile_output=show_compile_output, backend=backend)
 
         self.bounds = bounds
+        self.eom_bounds = eom_bounds
         self.obj = obj
         self.obj_grad = obj_grad
         self.con = self.collocator.generate_constraint_function()
@@ -186,16 +200,14 @@ class Problem(cyipopt.Problem):
         self.num_constraints = self.collocator.num_constraints
 
         self._generate_bound_arrays()
-
-        # All constraints are expected to be equal to zero.
-        con_bounds = np.zeros(self.num_constraints)
+        self._generate_constraint_bound_arrays()
 
         super(Problem, self).__init__(n=self.num_free,
                                       m=self.num_constraints,
                                       lb=self.lower_bound,
                                       ub=self.upper_bound,
-                                      cl=con_bounds,
-                                      cu=con_bounds)
+                                      cl=self._low_con_bounds,
+                                      cu=self._upp_con_bounds)
 
         self.obj_value = []
 
@@ -323,6 +335,24 @@ class Problem(cyipopt.Problem):
 
         else:
             pass
+
+    def _generate_constraint_bound_arrays(self):
+
+        # The default is that all constraints associated with the provided
+        # equations of motion are equality constraints.
+        low_con_bounds = np.zeros(self.num_constraints)
+        upp_con_bounds = np.zeros(self.num_constraints)
+
+        # If the user provides bounds for the equations of motion, process
+        # them.
+        if self.eom_bounds is not None:
+            N = self.collocator.num_collocation_nodes
+            for eom_idx, bnds in self.eom_bounds.items():
+                low_con_bounds[eom_idx*(N - 1):(eom_idx + 1)*(N - 1)] = bnds[0]
+                upp_con_bounds[eom_idx*(N - 1):(eom_idx + 1)*(N - 1)] = bnds[1]
+
+        self._low_con_bounds = low_con_bounds
+        self._upp_con_bounds = upp_con_bounds
 
     def _generate_bound_arrays(self):
         lb = -self.INF * np.ones(self.num_free)
@@ -686,6 +716,12 @@ class Problem(cyipopt.Problem):
         instance_violations = con_violations[len(eom_violations):]
         eom_violations = eom_violations.reshape((self.collocator.num_eom,
                                                  N - 1))
+        # TODO : figure out a way to plot the inequality constraint violations
+        # don't plot inequality
+        if self.eom_bounds is not None:
+            for k, v in self.eom_bounds.items():
+                eom_violations[k] = np.nan
+
         con_nodes = range(1, self.collocator.num_collocation_nodes)
 
         if axes is None:
@@ -712,8 +748,15 @@ class Problem(cyipopt.Problem):
 
         else:
             for i in range(self.collocator.num_eom):
-                axes[i].plot(con_nodes, eom_violations[i])
-                axes[i].set_ylabel(f'Eq. {str(i+1)} \n violation', fontsize=9)
+                if ((self.eom_bounds is not None) and
+                    (i in self.eom_bounds.keys())):  # don't plot if inequality
+                    axes[i].plot(con_nodes, np.nan*np.ones_like(con_nodes))
+                    axes[i].set_ylabel(f'Eq. {str(i+1)} \n not shown',
+                                       fontsize=9)
+                else:
+                    axes[i].plot(con_nodes, eom_violations[i])
+                    axes[i].set_ylabel(f'Eq. {str(i+1)} \n violation',
+                                       fontsize=9)
                 if i < self.collocator.num_eom - 1:
                     axes[i].set_xticklabels([])
             axes[num_eom_plots-1].set_xlabel('Node Number')
@@ -781,6 +824,23 @@ class Problem(cyipopt.Problem):
         ax.set_ylabel('Objective Value')
         ax.set_xlabel('Iteration Number')
 
+        return ax
+
+    @_optional_plt_dep
+    def _plot_jacobian_sparsity(self, ax=None):
+        # TODO : Make this a public method.
+        # %%
+        # Visualize the sparseness of the Jacobian for the non-linear programming
+        # problem.
+
+        # TODO : Figure out how to not depend on scipy if possible.
+        from scipy.sparse import coo_matrix
+        jac_vals = self.jacobian(np.ones(self.num_free))
+        row_idxs, col_idxs = self.jacobianstructure()
+        jacobian_matrix = coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        if ax is None:
+            fig, ax = plt.subplots()
+            ax.spy(jacobian_matrix)
         return ax
 
     def parse_free(self, free):
@@ -1612,9 +1672,16 @@ class ConstraintCollocator(object):
         """Instantiates a dictionary mapping the instance functions to the
         nearest index in the free variables vector."""
 
+        N = self.num_collocation_nodes
+        n = self.num_states
+
         def determine_free_index(time_index, state):
-            state_index = self.state_symbols.index(state)
-            return time_index + state_index * self.num_collocation_nodes
+            if state in self.state_symbols:
+                state_index = self.state_symbols.index(state)
+                return time_index + state_index*N
+            elif state in self.unknown_input_trajectories:
+                state_index = self.unknown_input_trajectories.index(state)
+                return time_index + n*N + state_index*N
 
         N = self.num_collocation_nodes
         h = self.node_time_interval
