@@ -16,7 +16,7 @@ import sympy.physics.mechanics as me
 import yeadon
 from pydy.codegen.ode_function_generators import generate_ode_function
 
-sym_kwargs = {'positive': True, 'real': True}
+sym_kwargs = {'nonnegative': True, 'real': True}
 me.dynamicsymbols._t = sy.symbols('t', **sym_kwargs)
 
 
@@ -284,6 +284,15 @@ class PlanarStandingHumanOnMovingPlatform(object):
                self.frames['inertial'].x)
         self.points['ankle'].set_acc(self.frames['inertial'], vec)
 
+        for name, point in self.points.items():
+            # TODO : should be a method on point, like point.subs() to go
+            # through all things stored on Point and sub in values.
+            self.points[name].set_acc(
+                self.frames['inertial'],
+                point.acc(self.frames['inertial']).subs(
+                    {self.specified['platform_speed'].diff():
+                     self.specified['platform_acceleration']}))
+
     def _create_inertia_dyadics(self):
 
         leg_inertia_dyadic = me.inertia(self.frames['leg'], 0, 0,
@@ -501,6 +510,29 @@ class PlanarStandingHumanOnMovingPlatform(object):
 
         self.A = sy.simplify(A)
         self.B = sy.simplify(B)
+
+    def closed_loop_state_space(self):
+
+        op_point = {v: 0 for v in [s.diff() for s in self.states()] +
+                    self.states() + list(self.specified.values())}
+
+        xd = sy.Matrix(list(op_point.keys())[:4])
+        x = sy.Matrix(list(op_point.keys())[4:8])
+        u = sy.Matrix(list(op_point.keys())[8:])
+        M_ = self.fr_plus_frstar_closed.jacobian(xd).xreplace(op_point)
+        f_ = self.fr_plus_frstar_closed.jacobian(x).xreplace(op_point)
+        b_ = self.fr_plus_frstar_closed.jacobian(u).xreplace(op_point)
+
+        M = sy.Matrix([[1, 0, 0, 0], [0, 1, 0, 0]]).col_join(M_)
+        f = sy.Matrix([[0, 0, 1, 0], [0, 0, 0, 1]]).col_join(f_)
+        b = sy.zeros(2, 5).col_join(b_)
+
+        A = M.LUsolve(-f)
+        B = M.LUsolve(-b)
+        C = sy.eye(A.shape[0])
+        D = sy.zeros(*B.shape)
+
+        return A, B, C, D
 
     def derive(self):
         self._setup_problem()
