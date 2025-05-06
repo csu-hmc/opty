@@ -73,6 +73,7 @@ Notes
 
     :math:`-\infty < eom - g(\textrm{state variables}, \textrm{parameters})
     \leq b`.
+
   This was essentially done here.
 
 
