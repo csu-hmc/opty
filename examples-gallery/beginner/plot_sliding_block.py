@@ -1,4 +1,3 @@
-# %%
 """
 Block Sliding Over a Hill
 =========================
@@ -186,6 +185,7 @@ for selection in (0, 1):
         backend='numpy',
     )
 
+    initial_guess = prob.create_linear_initial_guess()
     solution, info = prob.solve(initial_guess)
     solution_list.append(solution)
     info_list.append(info)
