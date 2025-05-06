@@ -1,3 +1,4 @@
+# %%
 r"""
 Particle Flight in Tube
 =======================
@@ -6,9 +7,10 @@ Objectives
 ----------
 
 - Shows how the introduction of an additional state variable may be used to
-  solve a nonlinear equation
-- Shows how additional state variables may be used to enforce inequality
-  constraints, which ``opty`` at present does not support.
+  solve a nonlinear equation. A state variable is used as its time derivative
+  is needed and presently opty does not allow derivatives of unknown input
+  trajectories.
+- Shows the use of inequalities.
 
 Introduction
 ------------
@@ -39,48 +41,68 @@ the curve from the particle.  This leads to a nonlinear equation for
 :math:`\textrm{cut}_{\textrm{param}}`, which is added to the equations of
 motion by declaring a new state variable :math:`\textrm{cut}_{\textrm{param}}`.
 
-In addition, a new state variable ``dist`` is introduced, which is the distance
-from the particle from the curve. This way the distance particle to the
-centerline of the tube may be bounded to be less than the radius of the tube.
+The particle must not leave the tube with radius :math:`\textrm{radius}`. At a
+certain point on the curve, determined by :math:`\textrm{cut}_{\textrm{param}}
+= \textrm{wo}`, the paricle must pass through a narrow gate. the gate is
+modeled as a circle with its center on the curve, and with radius
+:math:`\textrm{radius} \cdot \textrm{factor}`, with :math:`0 <
+\textrm{factor} < 1`. This is accomplished with the help of a smooth hump
+function. This hump function equals one around a vicinity of
+:math:`\textrm{wo}`, determined by :math:`\epsilon`, and zero otherwise.
 
-The particle must pass through a narrow gate at an intermediate time. The gate
-is modeled as a circle with its center on the curve. As opty presently does not
-allow inequalities in instance constraints, a new state variable ``gate``, and
-a new specified variable, :math:`\textrm{gate}_h` are introduced.
 
-Note
-----
+Notes
+-----
 
-To get a solution one had to start with fewer terminal constraints and then
-use the solution achived to restart the optimization with more terminal
-constraints. The gate was added last.
+- To get a solution one has to start with fewer terminal constraints and then
+  use the solution achived to restart the optimization with more terminal
+  constraints. The gate is added last.
+- Inequality constraints are of the form:
+
+    :math:`a \leq eom \leq b`, with :math:`\textrm{a}` and :math:`\textrm{b}`
+    being ``floats``.
+
+    If an inequality of the form:
+    :math:`a + f(\textrm{state variables}, \textrm{parameters}) \leq eom
+    \leq b + g(\textrm{state variables}, \textrm{parameters})`
+
+    is needed, one rewrites them as two inequalities of the form:
+
+    :math:`a \leq eom -f(\textrm{state variables}, \textrm{parameters}) <
+    \infty`
+
+    :math:`-\infty < eom - g(\textrm{state variables}, \textrm{parameters})
+    \leq b`.
+  This was essentially done here.
+
 
 **Constants**
 
 - :math:`m` : particle mass, [kg]
 - :math:`c` : viscous friction coefficient of air [Nms]
 - :math:`a_1, a_2, a_3` : parameters of the curve (centerline) [m]
+- :math:`g` : gravitational acceleration [m/s^2]
 - :math:`\textrm{radius}` : radius of the tube [m]
 - :math:`\textrm{max}_z` : maximum height of the particle [m]
+- :math:`\textrm{factor}` : factor for the radius of the gate
+- :math:`\textrm{wo}` : parameter of the curve where the gate is located
+- :math:`\epsilon` : small parameter for the hump function
+- :math:`\textrm{steepness}` : determines the steepness of the hump function
+
 
 **States**
 
 - :math:`x, y, z` : position of the particle [m]
-- :math:`v_1, v_2, v_3` : speed of particle [m]
-- :math:`\textrm{dist}` : distance of the particle from the curve [m]
+- :math:`v_1, v_2, v_3` : speed of particle [m/s]
 - :math:`\textrm{cut}_{\textrm{param}}` : parameter of the curve where the
-  distance is closest.
-- :math:`\textrm{cut}_{\textrm{dt}} = \dfrac{d}{dt} \textrm{cut}_{param}`:
-  :math:`\textrm{cut}_{\textrm{dt}} \geq 0`, so the particle never flies
-  backwards.
-- :math:`\textrm{gate}` : explained further down.
+  distance is closest
 
 **Specifieds**
 
 - :math:`F_x, F_y, F_z` : forces acting on the particle [N]
-- :math:`\textrm{gate}_h` : explained further down.
 
 """
+import os
 import sympy as sm
 import sympy.physics.mechanics as me
 import numpy as np
@@ -99,6 +121,7 @@ t = me.dynamicsymbols._t
 
 O, Dmc = sm.symbols('O, Dmc', cls=me.Point)
 N = sm.symbols('N', cls=me.ReferenceFrame)
+O.set_vel(N, 0)
 
 Dmc.set_pos(O, x*N.x + y*N.y + z*N.z)
 Dmc.set_vel(N, vx*N.x + vy*N.y + vz*N.z)
@@ -108,8 +131,6 @@ kinematical = sm.Matrix([
     vy - y.diff(t),
     vz - z.diff(t),
 ])
-
-O.set_vel(N, 0)
 
 point = me.Particle('point', Dmc, m)
 
@@ -168,7 +189,8 @@ def intersect(r1, curve, point, x1, x2, x3):
 
     vector = (fdr.subs(r, r1), gdr.subs(r, r1), hdr.subs(r, r1))
     intersect_eqn = me.msubs(plane(vector, point, x1, x2, x3),
-        {x1: f.subs(r, r1), x2: g.subs(r, r1), x3: h.subs(r, r1)})
+                             {x1: f.subs(r, r1), x2: g.subs(r, r1),
+                              x3: h.subs(r, r1)})
     return intersect_eqn
 
 
@@ -189,54 +211,71 @@ def distance(N, r1, curve, point):
     dist = (P11 - P21).magnitude()
     return dist
 
+# %%
+# Define a differentiable ``hump function``.
+
+
+def hump_diff(x, a, b, steepness):
+    """
+    Returns 1 if x is between a and b, and 0 otherwise. The function is smooth
+    and differentiable infinitely often.
+
+    Parameters:
+
+    - x: The input value (scalar or array-like).
+    - a: Left edge of the hump.
+    - b: Right edge of the hump.
+    - steepness: The steepness of the hump.
+
+    """
+    return 0.5 * (sm.tanh(steepness * (x - a)) - sm.tanh(steepness * (x - b)))
+
 
 # %%
 # Enlarge the equations of motion.
 #
-# A.
 # :math:`h_1` is a nonlinear equation for :math:`\textrm{cut}_\textrm{param}`,
 # the parameter for the point on the curve closest to the particle. :math:`h_2`
-# is the distance of the particle from the curve, so :math:`\textrm{dist}` can
-# be bound to be less than the radius of the tube.
-dist, cut_param, cutdt = me.dynamicsymbols('dist, cut_param, cutdt', real=True)
+# is the distance of the particle from the curve, it can be bound to be less
+# than the radius of the tube.
+# The meaning of :math:`h_3` is explained in the second point of the notes
+# above.
+cut_param = me.dynamicsymbols('cut_param', real=True)
 a1, a2, a3 = sm.symbols('a1, a2, a3', real=True)
 x1, x2, x3 = sm.symbols('x1, x2, x3', real=True)
 
-r = sm.symbols('r', real=True)
+r, faktor, wo, epsilon = sm.symbols('r, faktor, wo, epsilon', real=True)
+radius = sm.symbols('radius', real=True)
+steepness = sm.symbols('steepness', real=True)
 
 curve = [a1*sm.sin(2*np.pi*r), a2*sm.cos(2*np.pi*r), a3*r]
 
 h1 = intersect(cut_param, curve, (x, y, z), x1, x2, x3)
 h2 = distance(N, cut_param, curve, (x, y, z))
-eom = eom.col_join(sm.Matrix([h1, dist-h2, -cutdt + cut_param.diff(t)]))
 
-# %%
-# B.
-# At an intermediate time :math:`t_m`, the particle must go through a narrow
-# gate. Set :math:`\textrm{gate} = \textrm{gate}_h \cdot \textrm{dist}`, set
-# :math:`\textrm{gate}_h \geq 1`, and :math:`\textrm{gate}(t_m)` = radius of
-# the gate.
-gate, gate_h = me.dynamicsymbols('gate, gate_h', real=True)
-eom = eom.col_join(sm.Matrix([-gate + gate_h*dist]))
+h3 = h2 + (1 - faktor) * radius * hump_diff(cut_param, wo - epsilon,
+                                            wo + epsilon, steepness)
+
+eom = eom.col_join(sm.Matrix([h1, h3, cut_param.diff(t)]))
+
 print(f'the shape of the eoms is {eom.shape}, and they contain '
       f'{sm.count_ops(eom)} operations.')
 
 # %%
 # Set up the Optimization and Solve It
 # ------------------------------------
-state_symbols = (x, y, z, vx, vy, vz, cut_param, dist, cutdt, gate)
-specified_symbols = (Fx, Fy, Fz, gate_h)
+state_symbols = (x, y, z, vx, vy, vz, cut_param)
+specified_symbols = (Fx, Fy, Fz)
 
 t0, duration = 0, 5.0
-num_nodes = 101
+num_nodes = 501
 interval_value = duration/(num_nodes - 1)
-tm = interval_value*50
 
 # %%
 # Provide some values for the constants.
-radius = 1.0
+
 max_z = 12.0
-start_param = 0.001
+
 par_map = {
     c: 0.5*0.1*1.2,
     g: 9.81,
@@ -244,6 +283,11 @@ par_map = {
     a1: 5.0,
     a2: 5.0,
     a3: 5.0,
+    radius: 1.0,
+    steepness: 50.0,
+    faktor: 0.25,
+    wo: 1.0,
+    epsilon: 0.25,
 }
 
 # %%
@@ -267,23 +311,17 @@ eval_curve = sm.lambdify((r, a1, a2, a3), curve, cse=True)
 
 instance_constraints = (
     # start level
-    x.func(0.0) - eval_curve(start_param, par_map[a1], par_map[a2],
-                             par_map[a3])[0],
-    y.func(0.0) - eval_curve(start_param, par_map[a1], par_map[a2],
-                             par_map[a3])[1],
-    z.func(0.0) - eval_curve(start_param, par_map[a1], par_map[a2],
-                             par_map[a3])[2],
-    cut_param.func(0.0) - start_param,
-    dist.func(0.0),
-    # intermediate level
-    gate.func(tm) - radius/4.0,
-    # end level
+    x.func(0.0),
+    y.func(0.0) - par_map[a2],
+    z.func(0.0),
+    cut_param.func(0.0),
+
     x.func(duration) - eval_curve(max_z/par_map[a3], par_map[a1], par_map[a2],
                                   par_map[a3])[0],
     y.func(duration) - eval_curve(max_z/par_map[a3], par_map[a1], par_map[a2],
                                   par_map[a3])[1],
     z.func(duration) - max_z,
-    # stationary at start and finish
+
     vx.func(0.0),
     vy.func(0.0),
     vz.func(0.0),
@@ -291,7 +329,6 @@ instance_constraints = (
     vy.func(duration),
     vz.func(duration),
 )
-print('len(instance_constraints) =', len(instance_constraints))
 
 # %%
 # Add some physical limits to the force, other bounds as needed to realize
@@ -302,15 +339,15 @@ bounds = {
     Fx: (-grenze, grenze),
     Fy: (-grenze, grenze),
     Fz: (-grenze, grenze),
-    dist: (0.0, radius),
-    cut_param: (0.0, np.inf),
+    cut_param: (0.0, 3.0),
     z: (0.0, max_z),
-    cutdt: (0.0, 5.0),
-    gate_h: (1.0, 10.0),
 }
 
-# %%
-# Create the optimization problem and set any options.
+eom_bounds = {
+    7: (-np.inf, par_map[radius]),
+    8: (0.0, np.inf)
+}
+
 prob = Problem(
     obj,
     obj_grad,
@@ -320,43 +357,207 @@ prob = Problem(
     known_parameter_map=par_map,
     instance_constraints=instance_constraints,
     bounds=bounds,
+    eom_bounds=eom_bounds,
     time_symbol=t,
+    backend='numpy',
 )
 
-prob.add_option('max_iter', 3000)
+limit = 3000
+loops = 2
 
 # %%
-# Give a guess of a plausible route with constant thrust. Here the
-# solution of a previous run is used as initial guess.
-initial_guess = np.zeros(prob.num_free)
-x_guess, y_guess, z_guess = eval_curve(np.linspace(0.0, max_z/par_map[a3],
-                                                   num=num_nodes), par_map[a1],
-                                       par_map[a2], par_map[a3])
-initial_guess[0*num_nodes:1*num_nodes] = x_guess
-initial_guess[1*num_nodes:2*num_nodes] = y_guess
-initial_guess[2*num_nodes:3*num_nodes] = z_guess
-initial_guess[-4*num_nodes:] = 10.0  # constant thrust
+# If as solution is available, it will be used. Otherwise the problem is
+# solved.
+fname = f'particle_in_tube_{num_nodes}_nodes_solution.csv'
+if os.path.exists(fname):
+    # Solution is available.
+    solution = np.loadtxt(fname)
 
-initial_guess = np.load('particle_in_tube_solution.npy')
-# %%
-# Find an optimal solution.
-for _ in range(1):
-    solution, info = prob.solve(initial_guess)
+else:
+    # One way (the only one?) to get it to converge is to start with few
+    # terminal instance constraints and then add them one by one. The date is
+    # added at the end.
+
+    initial_guess = np.zeros(prob.num_free)
+    x_guess, y_guess, z_guess = eval_curve(np.linspace(0.0, max_z/par_map[a3],
+                                                       num=num_nodes),
+                                           par_map[a1], par_map[a2],
+                                           par_map[a3])
+    initial_guess[0*num_nodes:1*num_nodes] = x_guess
+    initial_guess[1*num_nodes:2*num_nodes] = y_guess
+    initial_guess[2*num_nodes:3*num_nodes] = z_guess
+    initial_guess[-3*num_nodes:] = 50.0  # constant thrust
+
+    # Find an optimal solution.
+    instance_constraints = [
+            # start level
+            x.func(0.0),
+            y.func(0.0) - par_map[a2],
+            z.func(0.0),
+            cut_param.func(0.0),
+            z.func(duration) - max_z,
+            vx.func(0.0),
+            vy.func(0.0),
+            vz.func(0.0),
+        ]
+    par_map[faktor] = 1.0
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes, interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        eom_bounds=eom_bounds,
+        time_symbol=t,
+    )
+    prob.add_option('max_iter', limit)
+    for _ in range(loops):
+        solution, info = prob.solve(initial_guess)
+        initial_guess = solution
+        print(info['status_msg'])
+        print(info['obj_val'])
+
+    instance_constraints.append(x.func(duration) - eval_curve(max_z/par_map[a3]
+                                , par_map[a1], par_map[a2], par_map[a3])[0])
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes, interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        eom_bounds=eom_bounds,
+        time_symbol=t,
+    )
+    prob.add_option('max_iter', limit)
     initial_guess = solution
-    print(info['status_msg'])
-    print(info['obj_val'])
+    for _ in range(loops):
+        solution, info = prob.solve(initial_guess)
+        initial_guess = solution
+        print(info['status_msg'])
+        print(info['obj_val'])
+
+    instance_constraints.append(y.func(duration) - eval_curve(max_z/par_map[a3]
+                                , par_map[a1], par_map[a2], par_map[a3])[1])
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes, interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        eom_bounds=eom_bounds,
+        time_symbol=t,
+    )
+    prob.add_option('max_iter', limit)
+    initial_guess = solution
+    for _ in range(loops):
+        solution, info = prob.solve(initial_guess)
+        initial_guess = solution
+        print(info['status_msg'])
+        print(info['obj_val'])
+
+    instance_constraints.append(vx.func(duration))
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes, interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        eom_bounds=eom_bounds,
+        time_symbol=t,
+    )
+    prob.add_option('max_iter', limit)
+    initial_guess = solution
+    for _ in range(loops):
+        solution, info = prob.solve(initial_guess)
+        initial_guess = solution
+        print(info['status_msg'])
+        print(info['obj_val'])
+
+    instance_constraints.append(vy.func(duration))
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes, interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        eom_bounds=eom_bounds,
+        time_symbol=t,
+    )
+    prob.add_option('max_iter', limit)
+    initial_guess = solution
+    for _ in range(loops):
+        solution, info = prob.solve(initial_guess)
+        initial_guess = solution
+        print(info['status_msg'])
+        print(info['obj_val'])
+
+    instance_constraints.append(vz.func(duration))
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes, interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        eom_bounds=eom_bounds,
+        time_symbol=t,
+    )
+    prob.add_option('max_iter', limit)
+    initial_guess = solution
+    for _ in range(loops):
+        solution, info = prob.solve(initial_guess)
+        initial_guess = solution
+        print(info['status_msg'])
+        print(info['obj_val'])
+
+    par_map[faktor] = 0.25
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes, interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        eom_bounds=eom_bounds,
+        time_symbol=t,
+    )
+    prob.add_option('max_iter', limit)
+    initial_guess = solution
+    for _ in range(loops):
+        solution, info = prob.solve(initial_guess)
+        initial_guess = solution
+        print(info['status_msg'])
+        print(info['obj_val'])
+
+    # Plot the objective function as a function of optimizer iteration.
+    _ = prob.plot_objective_value()
 
 # %%
 # Plot the optimal state and input trajectories.
-_ = prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution, show_bounds=True)
 
 # %%
 # Plot the constraint violations.
-_ = prob.plot_constraint_violations(solution)
-
-# %%
-# Plot the objective function as a function of optimizer iteration.
-_ = prob.plot_objective_value()
+_ = prob.plot_constraint_violations(solution, subplots=True)
 
 # %%
 # Animate the Motion of the Particle
@@ -377,10 +578,9 @@ eval_coords = sm.lambdify((state_symbols, fx, fy, fz, list(par_map.keys())),
                           coordinates, cse=True)
 
 
-# %%
 # This function is to draw the tube which the particle must not leave.
 def frenet_frame(f, g, h, r, num_points=100,
-                 tube_radius=bounds[dist][1] + 0.25):
+                 tube_radius=par_map[radius] + 0.25):
     # From the internet
     # Parameterize the curve
     r_vals = r
@@ -417,7 +617,6 @@ def frenet_frame(f, g, h, r, num_points=100,
     return np.array(X), np.array(Y), np.array(Z)
 
 
-# %%
 # this function draws a circle.
 def plot_3d_circle(ax, center, radius, normal, num_points=100):
     # Essentially from the internet.
@@ -463,7 +662,6 @@ def plot_3d_circle(ax, center, radius, normal, num_points=100):
     ax.plot(circle_3d[0, :], circle_3d[1, :], circle_3d[2, :], color='blue')
 
 
-# %%
 # Animate the motion of the particle.
 def init():
     fig = plt.figure()
@@ -505,7 +703,7 @@ curvedt = [curve[i].diff(r) for i in range(3)]
 eval_curvedt = sm.lambdify((r, a1, a2, a3), curvedt, cse=True)
 normal = np.array(eval_curvedt(1.2, par_map[a1], par_map[a2], par_map[a3]))
 normal = normal / np.sqrt([np.sum(normal[i]**2) for i in range(3)])
-plot_3d_circle(ax, center=center, radius=radius/3.0, normal=normal)
+plot_3d_circle(ax, center=center, radius=par_map[radius]/3.0, normal=normal)
 
 
 def animate(i):
@@ -538,15 +736,17 @@ def animate(i):
     )
 
 
-ani = animation.FuncAnimation(fig, animate, range(0, len(time), 2),
-                              interval=int(interval_value*2000))
+frames = [i for i in range(num_nodes)]
+frames = frames[::10] + [frames[-1]]
+ani = animation.FuncAnimation(fig, animate, frames,
+                              interval=int(interval_value*10000))
 
 # %%
 fig, ax, line1, line2, pfeil = init()
-animate(35)
+animate(100)
 ax.plot_surface(X, Y, Z, rstride=1, cstride=1, color='grey', alpha=0.1,
                 edgecolor='red')
-plot_3d_circle(ax, center=center, radius=radius/3.0, normal=normal)
+plot_3d_circle(ax, center=center, radius=par_map[radius]/3.0, normal=normal)
 
-# sphinx_gallery_thumbnail_number = 4
+sphinx_gallery_thumbnail_number = 4
 plt.show()
