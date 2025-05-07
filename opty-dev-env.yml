@@ -3,9 +3,7 @@ channels:
   - conda-forge
 dependencies:
   # build
-  # NOTE : setuptools 80 breaks installing with pip install -e, see
-  # https://github.com/csu-hmc/opty/issues/457
-  - setuptools >=59.6.0,<80
+  - setuptools >=59.6.0
   # run (includes optional run deps)
   - cyipopt >=1.1.0
   - cython >=0.29.28
@@ -31,4 +29,6 @@ dependencies:
   - symmeplot
   - yeadon >=1.4.0
   - pip:
+    # NOTE : setuptools 80 breaks installing with pip install -e without the
+    # --no-build-isolation flag, see https://github.com/csu-hmc/opty/issues/457
     - --no-build-isolation -e git+https://github.com/csu-hmc/gait2d#egg=gait2d
