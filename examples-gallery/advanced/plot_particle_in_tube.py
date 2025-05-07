@@ -8,8 +8,7 @@ Objectives
 
 - Shows how the introduction of an additional state variable may be used to
   solve a nonlinear equation. A state variable is used as its time derivative
-  is needed and presently opty does not allow derivatives of unknown input
-  trajectories.
+  is needed.
 - Shows the use of inequalities.
 
 Introduction
@@ -54,9 +53,6 @@ function. This hump function equals one around a vicinity of
 Notes
 -----
 
-- To get a solution one has to start with fewer terminal constraints and then
-  use the solution achived to restart the optimization with more terminal
-  constraints. The gate is added last.
 - Inequality constraints are of the form:
 
     :math:`a \leq eom \leq b`, with :math:`\textrm{a}` and :math:`\textrm{b}`
@@ -68,11 +64,11 @@ Notes
 
     is needed, one rewrites them as two inequalities of the form:
 
-    :math:`a \leq eom -f(\textrm{state variables}, \textrm{parameters}) <
+    :math:`0 \leq eom -f(\textrm{state variables}, \textrm{parameters}) - a <
     \infty`
 
-    :math:`-\infty < eom - g(\textrm{state variables}, \textrm{parameters})
-    \leq b`.
+    :math:`-\infty < eom - g(\textrm{state variables}, \textrm{parameters}) - b
+    \leq 0`.
 
   This was essentially done here.
 
@@ -257,7 +253,7 @@ h2 = distance(N, cut_param, curve, (x, y, z))
 h3 = h2 + (1 - faktor) * radius * hump_diff(cut_param, wo - epsilon,
                                             wo + epsilon, steepness)
 
-eom = eom.col_join(sm.Matrix([h1, h3, cut_param.diff(t)]))
+eom = eom.col_join(sm.Matrix([h1, h3 - radius, cut_param.diff(t)]))
 
 print(f'the shape of the eoms is {eom.shape}, and they contain '
       f'{sm.count_ops(eom)} operations.')
@@ -310,7 +306,7 @@ obj, obj_grad = create_objective_function(
 # Specify the symbolic instance constraints.
 eval_curve = sm.lambdify((r, a1, a2, a3), curve, cse=True)
 
-instance_constraints = (
+instance_constraints = [
     # start level
     x.func(0.0),
     y.func(0.0) - par_map[a2],
@@ -329,7 +325,7 @@ instance_constraints = (
     vx.func(duration),
     vy.func(duration),
     vz.func(duration),
-)
+]
 
 # %%
 # Add some physical limits to the force, other bounds as needed to realize
@@ -345,7 +341,7 @@ bounds = {
 }
 
 eom_bounds = {
-    7: (-np.inf, par_map[radius]),
+    7: (-np.inf, 0.0),
     8: (0.0, np.inf)
 }
 
@@ -363,9 +359,6 @@ prob = Problem(
     backend='numpy',
 )
 
-limit = 3000
-loops = 2
-
 # %%
 # If as solution is available, it will be used. Otherwise the problem is
 # solved.
@@ -375,11 +368,12 @@ if os.path.exists(fname):
     solution = np.loadtxt(fname)
 
 else:
-    # One way (the only one?) to get it to converge is to start with few
-    # terminal instance constraints and then add them one by one. The date is
-    # added at the end.
+    # Solve the problem, starting with a reasonable initial guess.
+    # Switch to ``backend='numpy'`` for faster solving.
+    limit = 3000
+    loops = 2
 
-    initial_guess = np.zeros(prob.num_free)
+    initial_guess = np.ones(prob.num_free)
     x_guess, y_guess, z_guess = eval_curve(np.linspace(0.0, max_z/par_map[a3],
                                                        num=num_nodes),
                                            par_map[a1], par_map[a2],
@@ -387,141 +381,11 @@ else:
     initial_guess[0*num_nodes:1*num_nodes] = x_guess
     initial_guess[1*num_nodes:2*num_nodes] = y_guess
     initial_guess[2*num_nodes:3*num_nodes] = z_guess
-    initial_guess[-3*num_nodes:] = 50.0  # constant thrust
-
-    # Find an optimal solution.
-    instance_constraints = [
-            # start level
-            x.func(0.0),
-            y.func(0.0) - par_map[a2],
-            z.func(0.0),
-            cut_param.func(0.0),
-            z.func(duration) - max_z,
-            vx.func(0.0),
-            vy.func(0.0),
-            vz.func(0.0),
-        ]
+    initial_guess[6*num_nodes:7*num_nodes] = np.linspace(0.0, max_z/par_map[a3]
+                                                         , num_nodes)
+    initial_guess[-3*num_nodes:] = 50.0
     par_map[faktor] = 1.0
-    prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes, interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        eom_bounds=eom_bounds,
-        time_symbol=t,
-    )
     prob.add_option('max_iter', limit)
-    for _ in range(loops):
-        solution, info = prob.solve(initial_guess)
-        initial_guess = solution
-        print(info['status_msg'])
-        print(info['obj_val'])
-
-    instance_constraints.append(x.func(duration) - eval_curve(max_z/par_map[a3]
-                                , par_map[a1], par_map[a2], par_map[a3])[0])
-    prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes, interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        eom_bounds=eom_bounds,
-        time_symbol=t,
-    )
-    prob.add_option('max_iter', limit)
-    initial_guess = solution
-    for _ in range(loops):
-        solution, info = prob.solve(initial_guess)
-        initial_guess = solution
-        print(info['status_msg'])
-        print(info['obj_val'])
-
-    instance_constraints.append(y.func(duration) - eval_curve(max_z/par_map[a3]
-                                , par_map[a1], par_map[a2], par_map[a3])[1])
-    prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes, interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        eom_bounds=eom_bounds,
-        time_symbol=t,
-    )
-    prob.add_option('max_iter', limit)
-    initial_guess = solution
-    for _ in range(loops):
-        solution, info = prob.solve(initial_guess)
-        initial_guess = solution
-        print(info['status_msg'])
-        print(info['obj_val'])
-
-    instance_constraints.append(vx.func(duration))
-    prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes, interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        eom_bounds=eom_bounds,
-        time_symbol=t,
-    )
-    prob.add_option('max_iter', limit)
-    initial_guess = solution
-    for _ in range(loops):
-        solution, info = prob.solve(initial_guess)
-        initial_guess = solution
-        print(info['status_msg'])
-        print(info['obj_val'])
-
-    instance_constraints.append(vy.func(duration))
-    prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes, interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        eom_bounds=eom_bounds,
-        time_symbol=t,
-    )
-    prob.add_option('max_iter', limit)
-    initial_guess = solution
-    for _ in range(loops):
-        solution, info = prob.solve(initial_guess)
-        initial_guess = solution
-        print(info['status_msg'])
-        print(info['obj_val'])
-
-    instance_constraints.append(vz.func(duration))
-    prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes, interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        eom_bounds=eom_bounds,
-        time_symbol=t,
-    )
-    prob.add_option('max_iter', limit)
-    initial_guess = solution
     for _ in range(loops):
         solution, info = prob.solve(initial_guess)
         initial_guess = solution
@@ -529,22 +393,9 @@ else:
         print(info['obj_val'])
 
     par_map[faktor] = 0.25
-    prob = Problem(
-        obj,
-        obj_grad,
-        eom,
-        state_symbols,
-        num_nodes, interval_value,
-        known_parameter_map=par_map,
-        instance_constraints=instance_constraints,
-        bounds=bounds,
-        eom_bounds=eom_bounds,
-        time_symbol=t,
-    )
     prob.add_option('max_iter', limit)
-    initial_guess = solution
     for _ in range(loops):
-        solution, info = prob.solve(initial_guess)
+        solution, info = prob.solve(solution)
         initial_guess = solution
         print(info['status_msg'])
         print(info['obj_val'])
