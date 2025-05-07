@@ -31,4 +31,4 @@ dependencies:
   - symmeplot
   - yeadon >=1.4.0
   - pip:
-    - -e git+https://github.com/csu-hmc/gait2d#egg=gait2d
+    - --no-build-isolation -e git+https://github.com/csu-hmc/gait2d#egg=gait2d
