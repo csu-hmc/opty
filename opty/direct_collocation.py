@@ -762,7 +762,7 @@ class Problem(cyipopt.Problem):
                 if ((self.eom_bounds is not None) and
                     (i in self.eom_bounds.keys())):
                     axes[i].plot(con_nodes, eom_violations[i])
-                    axes[i].set_ylabel(f'Eq. {str(i+1)} \n value',
+                    axes[i].set_ylabel(f'Eq. {str(i)} \n value',
                                        fontsize=9)
                     axes[i].axhline(self.eom_bounds[i][0], color='C1', lw=1.0,
                                      linestyle='--')
@@ -772,7 +772,7 @@ class Problem(cyipopt.Problem):
 
                 else:
                     axes[i].plot(con_nodes, eom_violations[i])
-                    axes[i].set_ylabel(f'Eq. {str(i+1)} \n violation',
+                    axes[i].set_ylabel(f'Eq. {str(i)} \n violation',
                                        fontsize=9)
                 if i < self.collocator.num_eom - 1:
                     axes[i].set_xticklabels([])
