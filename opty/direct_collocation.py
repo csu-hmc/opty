@@ -778,11 +778,11 @@ class Problem(cyipopt.Problem):
                     axes[i].set_xticklabels([])
             axes[num_eom_plots-1].set_xlabel('Node Number')
             if self.eom_bounds is None:
-                axes[num_eom_plots-1].set_title('Constraint violations')
+                axes[0].set_title('Constraint violations')
             else:
-                axes[num_eom_plots-1].set_title((f'Constraint violations \n'
-                                                 f'value of bounded eoms'))
-            axes[0].set_title('Constraint violations')
+                axes[0].set_title((f'Constraint violations \n'
+                                                 f'Values of bounde EOMs'))
+
 
         if self.collocator.instance_constraints is not None:
             # reduce the instance constraints to 2 digits after the decimal
