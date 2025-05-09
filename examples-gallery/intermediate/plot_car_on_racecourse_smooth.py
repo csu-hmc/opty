@@ -24,11 +24,11 @@ distributed evenly along the body of the car are introduced. The inequalities
 :math:`f(x_i) > y_i > g(x_i)` ensure that the car stays on the road.
 
 The acceleration at the front and at the rear end of the car are bound to avoid
-sliding off the road. Again, enforce by using inequalities on the respective
+sliding off the road. Again, enforced by using inequalities on the respective
 equations of motion.
 
-The should (mostly) drive forward, meaning its from should be to the right
-of its back. This is enforced by the inequality :math:`x_f - x_b \geq 0`, where
+The should be aligned so its front is to the right of its back.
+This is enforced by the inequality :math:`x_f - x_b \geq 0`, where
 :math:`x_f` and :math:`x_b` are the x-coordinates of the front and back of the
 car.
 
@@ -58,7 +58,7 @@ Selecting :math:`m_h` and bounding :math:`F_h` appropriately one can make
 **Specifieds**
 
 - :math:`T_f` : torque at the front axis, that is steering torque
-- :math:`F_h` : driving the eom for :math:`F_b`
+- :math:`F_h` : driving the equation of motion for :math:`F_b`
 
 **Known Parameters**
 
@@ -167,7 +167,7 @@ eom = kd.col_join(eom)
 eom = eom.col_join(speed_constr)
 
 # %%
-# Constraints to keep the car on the road.
+# Define the street and the points on the body of the car.
 #
 XX, a, b, c, d = sm.symbols('XX a b c d')
 
@@ -205,17 +205,18 @@ eom = eom.col_join(eom_add)
 # Acceleration constraints, to avoid sliding off the race course.
 accel_front = Pf.acc(N).dot(A0.x)
 accel_back = Pb.acc(N).dot(A0.x)
-beschleunigung = sm.Matrix([accel_front, -accel_back])
+beschleunigung = sm.Matrix([accel_front, accel_back])
 
 eom = eom.col_join(beschleunigung)
 
 # %%
-# Add delay on driving force.
+# Add the 'equation of motion' for the driving force of the car, so the driving
+# force is smooth.
 acc_delay = sm.Matrix([Fb.diff(t) - Fbdt, mh * Fbdt.diff(t) - Fh])
 eom = eom.col_join(acc_delay)
 
 # %%
-# Car must normally go forwards.
+# Front of the car must be to the right of its back.
 front_x = Pf.pos_from(O).dot(N.x)
 back_x = Pb.pos_from(O).dot(N.x)
 eom = eom.col_join(
@@ -270,7 +271,7 @@ def obj_grad(free):
 
 
 # %%
-# Set up the constraints and the bounds.
+# Set up constraints and bounds.
 instance_constraints = (
         x.func(t0) + 10.0,
         ux.func(t0),
@@ -312,7 +313,7 @@ eom_bounds2 = {8 + i: (0.0, np.inf) for i in range(2*number)}
 eom_bounds = {**eom_bounds1, **eom_bounds2}
 
 # %%
-# Create the problem instance. If a solution is available, use backend='numpy',
+# Create the Problem instance. If a solution is available, use backend='numpy',
 # as it is much faster setting up the Problem. If not, use backend='cython',
 # (The default value) as it is faster to solve the problem.
 prob = Problem(
@@ -367,7 +368,7 @@ else:
     _ = prob.plot_objective_value()
 
 # %%
-_ = prob.plot_constraint_violations(solution, subplots=True)
+_ = prob.plot_constraint_violations(solution)
 # %%
 # Plot trajectories.
 _ = prob.plot_trajectories(solution, show_bounds=True)
@@ -375,7 +376,7 @@ _ = prob.plot_trajectories(solution, show_bounds=True)
 # %%
 # Aminate the Car
 # ---------------
-fps = 10
+fps = 5
 street_lam = sm.lambdify((x, a, b, c), street(x, a, b, c))
 
 state_vals, input_vals, _, h_vals = prob.parse_free(solution)
