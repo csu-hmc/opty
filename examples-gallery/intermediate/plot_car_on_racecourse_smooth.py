@@ -5,7 +5,7 @@ Car on a Race Course
 
 Objective
 ---------
-
+- Show various way to use inequalities for equations of motion.
 - unknown input trajectories can vary discontinuously. If, for whatever
   physical reason, this is not desiriable, a way is shown how to make is
   smooth.
@@ -20,29 +20,27 @@ with :math:`f(x) > g(x), \forall{x}`.
 The car is modelled as three rods, one for the body, one for the rear axle and
 one for the front axle.
 The ensure the car stays on the road, *number* points :math:`P_i(x_i | y_i)`
-distributed evenly along the body of the car are introduced. Forcing
-:math:`f(x_i) > y_i > g(x_i)` by introducing additional state variables
-:math:`py_{upper}` and :math:`py_{lower}` and constraints
-:math:`-py_{upper_i} + f(x_i) > 0` and :math:`py_{lower_i} - g(x_i) > 0`
-ensures that the car stays on the road.
+distributed evenly along the body of the car are introduced. The inequalities
+:math:`f(x_i) > y_i > g(x_i)` ensure that the car stays on the road.
 
 The acceleration at the front and at the rear end of the car are bound to avoid
-sliding off the road.
+sliding off the road. Again, enforce by using inequalities on the respective
+equations of motion.
+
+The should (mostly) drive forward, meaning its from should be to the right
+of its back. This is enforced by the inequality :math:`x_f - x_b \geq 0`, where
+:math:`x_f` and :math:`x_b` are the x-coordinates of the front and back of the
+car.
+
 There is no speed allowed perpendicular to the wheels, realized by two speed
 constraints.
 
-The **main** point here: The force accelerating the car, :math:`F_b`, should
+The force accelerating the car, :math:`F_b`, should
 change continuously. This is done by making :math:`F_b, F_{b_{dt}}`  state
 variables, and adding :math:`\begin{pmatrix} \dfrac{d}{dt}F_b = F_{b_{dt}} \\
 m_h \dfrac{d}{dt}F_{b_{dt}} = F_h \end{pmatrix}` to the equations of motion.
 Selecting :math:`m_h` and bounding :math:`F_h` appropriately one can make
 :math:`F_b` as smooth as desired.
-
-Notes
------
-
-- This take quite a long time to run, 30 min on a decent PC, presumably because
-  of the number of constraints.
 
 
 **States**
@@ -53,14 +51,8 @@ Notes
 - :math:`u_0` : angular velocity of the body of the car
 - :math:`q_f` : angle of the front axis relative to the body
 - :math:`u_f` : angular velocity of the front axis relative to the body
-- :math:`py_{upper_i}` : distance of point i of the car to :math:`f(x_i)`
-- :math:`py_{lower_i}` : distance of point i of the car to :math:`g(x_i)`
-- :math:`acc_f` : acceleration of the front of the car
-- :math:`acc_b` : acceleration of the back of the car
 - :math:`F_b` : driving force at the rear axis
-- :math:`F_{b_{dt}}` : timr derivative of the driving force at the rear axis
-- :math:`\textrm{ensure}_\textrm{forward}` : to ensure it drives forwards, at
-  least most of the time
+- :math:`F_{b_{dt}}` : time derivative of the driving force at the rear axis
 
 
 **Specifieds**
@@ -78,7 +70,8 @@ Notes
 - :math:`iZZ_0` : moment of inertia of the body of the car
 - :math:`iZZ_b` : moment of inertia of the rear axis
 - :math:`iZZ_f` : moment of inertia of the front axis
-- :math:`reibung` : friction coefficient between the car and the street
+- :math:`\textrm{reibung}` : friction coefficient between the car and the
+  street
 - :math:`a, b, c, d` : parameters of the street
 
 
@@ -186,8 +179,6 @@ def street(XX, a, b, c):
 # *number* is the number of points spread evenly along the car body. These
 # points must stay on the road at all times.
 number = 4
-py_upper = me.dynamicsymbols(f'py_upper:{number}')
-py_lower = me.dynamicsymbols(f'py_lower:{number}')
 
 park1y = Pf.pos_from(O).dot(N.y)
 park2y = Pb.pos_from(O).dot(N.y)
@@ -197,13 +188,16 @@ park2x = Pb.pos_from(O).dot(N.x)
 delta_x = np.linspace(park1x, park2x, number)
 delta_y = np.linspace(park1y, park2y, number)
 
+# %%
+# Ensure the *number* points along the car are between the lower and the upper
+# limits of the road.
 delta_p_u = [delta_y[i] - street(delta_x[i], a, b, c) for i in range(number)]
 delta_p_l = [-delta_y[i] + street(delta_x[i], a, b, c+d)
              for i in range(number)]
 
 eom_add = sm.Matrix([
-    *[-py_upper[i] + delta_p_u[i] for i in range(number)],
-    *[-py_lower[i] + delta_p_l[i] for i in range(number)],
+    *[delta_p_u[i] for i in range(number)],
+    *[delta_p_l[i] for i in range(number)],
 ])
 eom = eom.col_join(eom_add)
 
@@ -222,11 +216,10 @@ eom = eom.col_join(acc_delay)
 
 # %%
 # Car must normally go forwards.
-ensure_forward = me.dynamicsymbols('ensure_forward')
 front_x = Pf.pos_from(O).dot(N.x)
 back_x = Pb.pos_from(O).dot(N.x)
 eom = eom.col_join(
-    sm.Matrix([ensure_forward - (front_x - back_x)]))
+    sm.Matrix([front_x - back_x]))
 
 print(f'eom too large to print out. Its shape is {eom.shape} and it has ' +
       f'{sm.count_ops(eom)} operations')
@@ -235,11 +228,9 @@ print(f'eom too large to print out. Its shape is {eom.shape} and it has ' +
 # Set up the Optimization Problem and Solve it
 # --------------------------------------------
 h = sm.symbols('h')
-state_symbols = ([x, y, q0, qf, ux, uy, u0, uf] + py_upper + py_lower
-                 + [Fb, Fbdt, ensure_forward])
+state_symbols = ([x, y, q0, qf, ux, uy, u0, uf] + [Fb, Fbdt])
 constant_symbols = (l, m0, mb, mf, iZZ0, iZZb, iZZf, reibung, a, b, c, d)
-specified_symbols = (Tf,)
-unknown_symbols = ()
+
 
 num_nodes = 601
 t0 = 0.0
@@ -297,7 +288,7 @@ limit = 20.0
 limit1 = 15.0
 limit2 = 30.0
 delta = np.pi/4.0
-bounds1 = {
+bounds = {
         Fh: (-limit2, limit2),
         Fb: (-limit, limit),
         Tf: (-limit, limit),
@@ -306,16 +297,19 @@ bounds1 = {
         x: (-15, 15),
         y: (0.0, 25),
         h: (0.0, 0.5),
-        ensure_forward: (0.01, 5.0),
 }
-bounds2 = {py_upper[i]: (0, 10.0) for i in range(number)}
-bounds3 = {py_lower[i]: (0.0, 10.0) for i in range(number)}
-bounds = {**bounds1, **bounds2, **bounds3}
 
-eom_bounds = {
+# %%
+# Define the bounds on the equations of motion.
+eom_bounds1 = {
     16: (-limit1, limit1),  # acc_front
     17: (-limit1, limit1),  # acc_back
+    20: (0.0, np.inf)
 }
+
+eom_bounds2 = {8 + i: (0.0, np.inf) for i in range(2*number)}
+
+eom_bounds = {**eom_bounds1, **eom_bounds2}
 
 # %%
 # Create the problem instance. If a solution is available, use backend='numpy',
@@ -337,10 +331,11 @@ prob = Problem(
 )
 
 # %%
-#
-# If there is an existing solution, take it. Else calculate it from scratch.
+# If there is an existing solution, take it. Else calculate it, using a
+# reasonable initial guess and iterate from a smoother road to a more curvy
+# one..
 fname = f'car_on_racecourse_smooth_{num_nodes}_nodes_solution.csv'
-if 3 == 4: #os.path.exists(fname):
+if os.path.exists(fname):
     # Take the existing solution.
     solution = np.loadtxt(fname)
 else:
@@ -362,12 +357,12 @@ else:
         if i == 6:
             par_map[a] = 3.5
             par_map[b] = 0.5
-            solution, info = prob.solve(initial_guess)
-            initial_guess = solution
-            print(f'{i+1} - th iteration')
-            print('message from optimizer:', info['status_msg'])
-            print('Iterations needed', len(prob.obj_value))
-            print(f"objective value {info['obj_val']:.3e} \n")
+        solution, info = prob.solve(initial_guess)
+        initial_guess = solution
+        print(f'{i+1} - th iteration')
+        print('message from optimizer:', info['status_msg'])
+        print('Iterations needed', len(prob.obj_value))
+        print(f"objective value {info['obj_val']:.3e} \n")
 
     _ = prob.plot_objective_value()
 
