@@ -1,3 +1,4 @@
+# %%
 r"""
 Car on a Race Course
 ====================
@@ -187,7 +188,6 @@ def street(XX, a, b, c):
 number = 4
 py_upper = me.dynamicsymbols(f'py_upper:{number}')
 py_lower = me.dynamicsymbols(f'py_lower:{number}')
-acc_f, acc_b = me.dynamicsymbols('acc_f acc_b')
 
 park1y = Pf.pos_from(O).dot(N.y)
 park2y = Pb.pos_from(O).dot(N.y)
@@ -209,9 +209,9 @@ eom = eom.col_join(eom_add)
 
 # %%
 # Acceleration constraints, to avoid sliding off the race course.
-accel_front = Pf.acc(N).magnitude()
-accel_back = Pb.acc(N).magnitude()
-beschleunigung = sm.Matrix([-acc_f + accel_front, -acc_b + accel_back])
+accel_front = Pf.acc(N).dot(A0.x)
+accel_back = Pb.acc(N).dot(A0.x)
+beschleunigung = sm.Matrix([accel_front, -accel_back])
 
 eom = eom.col_join(beschleunigung)
 
@@ -236,7 +236,7 @@ print(f'eom too large to print out. Its shape is {eom.shape} and it has ' +
 # --------------------------------------------
 h = sm.symbols('h')
 state_symbols = ([x, y, q0, qf, ux, uy, u0, uf] + py_upper + py_lower
-                 + [acc_f, acc_b] + [Fb, Fbdt, ensure_forward])
+                 + [Fb, Fbdt, ensure_forward])
 constant_symbols = (l, m0, mb, mf, iZZ0, iZZb, iZZf, reibung, a, b, c, d)
 specified_symbols = (Tf,)
 unknown_symbols = ()
@@ -306,13 +306,16 @@ bounds1 = {
         x: (-15, 15),
         y: (0.0, 25),
         h: (0.0, 0.5),
-        acc_f: (-limit1, limit1),
-        acc_b: (-limit1, limit1),
         ensure_forward: (0.01, 5.0),
 }
 bounds2 = {py_upper[i]: (0, 10.0) for i in range(number)}
 bounds3 = {py_lower[i]: (0.0, 10.0) for i in range(number)}
 bounds = {**bounds1, **bounds2, **bounds3}
+
+eom_bounds = {
+    16: (-limit1, limit1),  # acc_front
+    17: (-limit1, limit1),  # acc_back
+}
 
 # %%
 # Create the problem instance. If a solution is available, use backend='numpy',
@@ -328,6 +331,7 @@ prob = Problem(
         known_parameter_map=par_map,
         instance_constraints=instance_constraints,
         bounds=bounds,
+        eom_bounds=eom_bounds,
         time_symbol=t,
         backend='numpy',
 )
@@ -336,7 +340,7 @@ prob = Problem(
 #
 # If there is an existing solution, take it. Else calculate it from scratch.
 fname = f'car_on_racecourse_smooth_{num_nodes}_nodes_solution.csv'
-if os.path.exists(fname):
+if 3 == 4: #os.path.exists(fname):
     # Take the existing solution.
     solution = np.loadtxt(fname)
 else:
@@ -368,7 +372,7 @@ else:
     _ = prob.plot_objective_value()
 
 # %%
-_ = prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution, subplots=True)
 # %%
 # Plot trajectories.
 _ = prob.plot_trajectories(solution, show_bounds=True)
