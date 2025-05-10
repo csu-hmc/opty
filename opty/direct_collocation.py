@@ -280,25 +280,36 @@ class Problem(cyipopt.Problem):
         Raises
         ------
         ValueError
-            If the lower bound for variable is greater than its upper bound,
-            ``opty`` may not break, but the solution will likely not be
-            correct. Hence a ValueError is raised in such as case.
+            If the lower bound for a variable or for an equation of motion is
+            greater than its upper bound, ``opty`` may not break, but the
+            solution will likely not be correct. Hence a ValueError is raised
+            in such as case.
 
             If the initial guess for any variable is outside its bounds,
             a ValueError is raised.
 
         """
+        errors1 = []
+        errors2 = []
+        if self.eom_bounds is not None:
+            # check for reversed bounds
+            for key in self.eom_bounds.keys():
+                if self.eom_bounds[key][0] > self.eom_bounds[key][1]:
+                    errors1.append(key)
+
         if self.bounds is not None:
-            errors = []
             # check for reversed bounds
             for key in self.bounds.keys():
                 if self.bounds[key][0] > self.bounds[key][1]:
-                    errors.append(key)
-            if len(errors) > 0:
+                    errors2.append(key)
+
+        errors = errors1 + errors2
+        if len(errors) > 0:
                 msg = (f'The lower bound(s) for {errors} is (are) greater than'
                        f' the upper bound(s).')
                 raise ValueError(msg)
 
+        if self.bounds is not None:
             violating_variables = []
 
             if self.collocator._variable_duration:
