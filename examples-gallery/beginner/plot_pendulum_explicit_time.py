@@ -1,3 +1,4 @@
+# %%
 r"""
 Pendulum with Explicit Times
 ============================
@@ -5,10 +6,9 @@ Pendulum with Explicit Times
 Objectives
 ----------
 
-- Show how to handle an explicit occurance of time in the equations of motion,
-  which opty presently cannot handle directly.
-- Show how to use additional state variables to have instance constraints on
-  functions of state variables and imputs.
+- Show how to handle an explicit occurance of time in the equations of motion.
+- Show how to use unknown input trajectories to have instance constraints on
+  functions of state variables and inputs.
 
 
 Introduction
@@ -34,8 +34,6 @@ Notes
 
 - The driving torque seems a bit 'artificial'. It was selected to show how to
   handle explicit time in the equations of motion.
-- This seems to be a difficult problem for opty, it takes almost 30,000
-  iterations to solve it.
 - Note that opty sets the ``unkonwn input trajectory`` :math:`\omega` such that
   the actual torque on the pendulum corresponds to the 'bang bang' solution
   one would intuitively expect.
@@ -45,7 +43,6 @@ Notes
 - :math:`q` - angle of the pendulum
 - :math:`u` - angular velocity of the pendulum
 - :math:`T` - time
-- :math:`acc_{\textrm{help}}` - angular acceleration of the pendulum
 
 **Parameters**
 
@@ -57,9 +54,12 @@ Notes
 
 **Inputs**
 
-- :math:`F` - driving force [N]
 - :math:`\omega` - frequency of the driving force [1/s]
+- :math:`acc_{\textrm{help}}` - angular acceleration of the pendulum
 
+**Unknown Parameters**
+
+- :math:`F` - driving force [N]
 
 """
 import os
@@ -74,6 +74,8 @@ from scipy.interpolate import CubicSpline
 from matplotlib.animation import FuncAnimation
 
 # %%
+# Set up the Equations of Motion
+# -------------------------------
 N, A = sm.symbols('N A', cls=me.ReferenceFrame)
 O, P = sm.symbols('O P', cls=me.Point)
 O.set_vel(N, 0)
@@ -106,6 +108,14 @@ KM = me.KanesMethod(N,
 
 fr, frstar = KM.kanes_equations(bodies, forces)
 eom = kd.col_join(fr + frstar)
+
+# %%
+# Add the equations of motion so that so that:
+#
+# - T = system time t
+# - :math:`\textrm{aux}_{\textrm{acc}}(t_f) = 0` may be sent as an instance
+#   constraint.
+#
 eom = eom.col_join(sm.Matrix([T.diff(t) - 1,
                               acc_help - u.diff(t),
                               ]))
@@ -116,7 +126,8 @@ MathJaxRepr(eom)
 # Set Up the Problem and Solve it
 # -------------------------------
 h = sm.symbols('h')
-state_symbols = [q, u, T, acc_help]
+state_symbols = [q, u, T]
+specified_symbols = [acc_help, omega]
 
 num_nodes = 301
 t0, tf = 0.0, h * (num_nodes - 1)
@@ -156,7 +167,7 @@ def obj_grad(free):
 
 
 # %%
-# Here ``backend_'numpy'`` is used to speed up setting up the Problem if a
+# Here ``backend='numpy'`` is used to speed up setting up the Problem if a
 # solution is available.
 prob = Problem(
     obj,
@@ -173,16 +184,16 @@ prob = Problem(
     )
 
 # %%
+# Take existing solution if available, otherwise solve the problem. If no
+# solution is available, the problem will be solved with the default
+# ``backend='cython'`` to speed up the solution process.
 fname = f'pendulum_explicit_time_{num_nodes}_nodes_solution.csv'
 
-# Use the existing solution if avaliable, else solve the problem.
 if os.path.exists(fname):
     # Use existing solution.
     solution = np.loadtxt(fname)
 else:
     # Solve the problem.
-    # Here the default value backend = 'cython' is used to expedite the
-    # solution process; there are almost 30,000 iterations.
     prob = Problem(
         obj,
         obj_grad,
@@ -212,13 +223,13 @@ fig, axes = plt.subplots(6, 1, figsize=(6.5, 6.5), layout='constrained',
                          sharex=True)
 prob.plot_trajectories(solution, show_bounds=True, axes=axes)
 sol, input, constant_values, _ = prob.parse_free(solution)
-driving_torque_lam = sm.lambdify((*state_symbols, omega, F), driving_torque,
-                                 cse=True)
+driving_torque_lam = sm.lambdify((*state_symbols, *specified_symbols, F),
+                                 driving_torque, cse=True)
 
 driving_torque_values = []
 for i in range(num_nodes):
     driving_torque_values.append(driving_torque_lam(*sol[:, i],
-                                                    input[i],
+                                                    *input[:, i],
                                                     constant_values[0]))
 times = prob.time_vector(solution)
 axes[-1].plot(times, driving_torque_values)
@@ -230,21 +241,24 @@ _ = axes[-1].set_title('Actual Driving Torque')
 # %%
 # Animation
 # ---------
-fps = 20
+fps = 15
 
 state_vals, input_vals, constant_values, h_vals = prob.parse_free(solution)
+print(sm.shape(state_vals), sm.shape(input_vals), sm.shape(constant_values))
 t_arr = prob.time_vector(solution)
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 
-act_torque = [state_vals[2, i] * constant_values[0] * np.sin(
-    state_vals[2, i] * input_vals[i]) for i in range(num_nodes)]
+act_torque = [state_vals[2, i] * constant_values[0] * np.sin(state_vals[2, i] *
+                                                             input_vals[1, i])
+              for i in range(num_nodes)]
+
 torque_sol = CubicSpline(t_arr, act_torque)
 
 pL, pL_vals = zip(*par_map.items())
 coordinates = P.pos_from(O).to_matrix(N)
-coords_lam = sm.lambdify((*state_symbols, omega, F, *pL), coordinates,
-                         cse=True)
+coords_lam = sm.lambdify((*state_symbols, *specified_symbols, *pL),
+                         coordinates, cse=True)
 
 
 # sphinx_gallery_thumbnail_number = 3
@@ -291,3 +305,5 @@ frames = np.linspace(t0, tf, int(fps * (tf - t0)))
 animation = FuncAnimation(fig, update, frames=frames, interval=1000 / fps)
 
 plt.show()
+
+# %%
