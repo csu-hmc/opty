@@ -473,6 +473,8 @@ void {routine_name}(double matrix[{matrix_output_size}], {input_args});
 """
 
 _cython_template = """\
+# cython: language_level=3
+
 import numpy as np
 from cython.parallel import prange
 cimport numpy as np
