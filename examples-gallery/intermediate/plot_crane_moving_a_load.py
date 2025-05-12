@@ -8,8 +8,8 @@ Objectives
 
 - Show the use of opty's variable node time interval feature to solve a
   relatively simple problem.
-- Show how to use additional 'pseudo' state variables to enforce
-  instance constraints on :math:`\dfrac{d^2}{dt^2}(\textrm{state variable})`
+- Show how to use additional specifieds to enforce instance constraints on
+  :math:`\dfrac{d^2}{dt^2}(\textrm{state variable})`
 
 Introduction
 ------------
@@ -31,22 +31,28 @@ The solution ``opty`` finds may not what one would expect intuitively.
 
 **Constants**
 
-- ``l``: length of the rod attaching the load to the crane [m]
-- ``m1``: mass of mover attached to the arm of the crane [kg]
-- ``m2``: mass of the load [kg]
-- ``g``: acceleration due to gravity [m/s²]
+- :math:`l` : length of the rod attaching the load to the crane [m]
+- :math:`m_1` : mass of mover attached to the arm of the crane [kg]
+- :math:`m_2` : mass of the load [kg]
+- :math:`g` : acceleration due to gravity [m/s²]
 
 **States**
 
-- ``xc``: x-coordinate of the mover [m]
-- ``q``: angle of the rod [rad]
-- ``uxc``: velocity of the mover in x-direction [m/s]
-- ``u``: angular velocity of the rod [rad/s]
-- ``h1, h2``: pseudo states to enforce instance constraints
+- :math:`x_c` : x-coordinate of the mover [m]
+- :math:`x_l` : x-coordinate of the load [m]
+- :math:`y_l` : y-coordinate of the load [m]
+- :math:`q` : angle of the rod [rad]
+- :math:`u_{xc}` : velocity of the mover in x-direction [m/s]
+- :math:`u_{xl}` : velocity of the load in x-direction [m/s]
+- :math:`u_{yl}` : velocity of the load in y-direction [m/s]
+- :math:`u` : angular velocity of the rod [rad/s]
+
 
 **Specifieds**
 
-- ``F``: force applied to the mover [N]
+- :math:`F` : force applied to the mover [N]
+- :math:`h_1` : needed to enforce instance constraints
+- :math:`h_2` : needed to enforce instance constraints
 
 """
 import os
@@ -124,13 +130,13 @@ MathJaxRepr(eom)
 # Set up the Optimization Problem and Solve it
 # --------------------------------------------
 #
-state_symbols = tuple((*q_ind, *q_dep, *u_ind, *u_dep, h1, h2))
+state_symbols = tuple((*q_ind, *q_dep, *u_ind, *u_dep))
 constant_symbols = (l, m1, m2, g)
-specified_symbols = (F,)
+specified_symbols = (F, h1, h2)
 h = sm.symbols('h')
 
 num_nodes = 150
-duration =(num_nodes - 1)*h
+duration = (num_nodes - 1)*h
 interval_value = h
 
 # %%
@@ -163,50 +169,28 @@ starting_location = 0.0
 ending_location = 15.0
 
 # %%
-# Set the initial and final states to form the instance constraints.
-initial_state_constraints = {
-    xc: starting_location,
-    xl: starting_location,
-    yl: -par_map[l],
-    q: 0.0,
-    uxc: 0.0,
-    uxl: 0.0,
-    uyl: 0.0,
-    u: 0.0,
-}
-
-final_state_constraints = {
-    xc: ending_location,
-    xl: ending_location,
-    yl: -par_map[l],
-    q: 0.0,
-    uxc: 0.0,
-    uxl: 0.0,
-    uyl: 0.0,
-    u: 0.0,
-}
+# Form the instance constraints.
 
 instance_constraints = (
-    xc.subs({t: t0}) - initial_state_constraints[xc],
-    xl.subs({t: t0}) - initial_state_constraints[xl],
-    yl.subs({t: t0}) - initial_state_constraints[yl],
-    q.subs({t: t0}) - initial_state_constraints[q],
-    uxc.subs({t: t0}) - initial_state_constraints[uxc],
-    uxl.subs({t: t0}) - initial_state_constraints[uxl],
-    uyl.subs({t: t0}) - initial_state_constraints[uyl],
-    u.subs({t: t0}) - initial_state_constraints[u],
-    xc.subs({t: tf}) - final_state_constraints[xc],
-    xl.subs({t: tf}) - final_state_constraints[xl],
-    yl.subs({t: tf}) - final_state_constraints[yl],
-    q.subs({t: tf}) - final_state_constraints[q],
-    uxc.subs({t: tf}) - final_state_constraints[uxc],
-    uxl.subs({t: tf}) - final_state_constraints[uxl],
-    uyl.subs({t: tf}) - final_state_constraints[uyl],
-    u.subs({t: tf}) - final_state_constraints[u],
-    h1.subs({t: tf}) - 0.0,
-    h2.subs({t: tf}) - 0.0,
+    xc.func(t0) - starting_location,
+    xl.func(t0) - starting_location,
+    yl.func(t0) + par_map[l],
+    q.func(t0),
+    uxc.func(t0),
+    uxl.func(t0),
+    uyl.func(t0),
+    u.func(t0),
+    xc.func(tf) - ending_location,
+    xl.func(tf) - ending_location,
+    yl.func(tf) + par_map[l],
+    q.func(tf),
+    uxc.func(tf),
+    uxl.func(tf),
+    uyl.func(tf),
+    u.func(tf),
+    h1.func(tf),
+    h2.func(tf),
 )
-
 # %%
 # Forcing h > 0.0 sometimes avoids negative 'solutions'.
 bounds = {
@@ -247,7 +231,7 @@ initial_guess = np.array(i1 + i2 + i3 + i4 + i5 + i6 + i7)
 
 # %%
 # Use the solution of a previous run if available, else the initial guess given
-# above is used.
+# above is used to solve the problem.
 fname = f'crane_moving_a_load_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
     solution = np.loadtxt(fname)
@@ -269,7 +253,7 @@ _ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the state trajectories.
-_ = prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution, show_bounds=True)
 
 # %%
 # Animate the Simulation
@@ -287,7 +271,8 @@ coordinates = P1.pos_from(O).to_matrix(N)
 coordinates = coordinates.row_join(P2.pos_from(O).to_matrix(N))
 
 pl, pl_vals = zip(*par_map.items())
-coords_lam = sm.lambdify((*state_symbols, F, *pl), coordinates, cse=True)
+coords_lam = sm.lambdify((*state_symbols, *specified_symbols, *pl),
+                         coordinates, cse=True)
 
 width, height, radius = 0.5, 0.5, 0.5
 
@@ -335,13 +320,13 @@ def update(t):
     message = f'running time {t:0.2f} sec \n The red arrow shows the force.'
     ax.set_title(message, fontsize=12)
 
-    coords = coords_lam(*state_sol(t), input_sol(t), *pl_vals)
+    coords = coords_lam(*state_sol(t), *input_sol(t), *pl_vals)
 
     line1.set_data([coords[0, 0], coords[0, 1]], [coords[1, 0], coords[1, 1]])
     recht.set_xy((coords[0, 0] - width/2., coords[1, 0] - height/2.))
     load.set_center((coords[0, 1], coords[1, 1]))
     pfeil.set_offsets([coords[0, 0], coords[1, 0]+0.25])
-    pfeil.set_UVC(input_sol(t), 0.25)
+    pfeil.set_UVC(input_sol(t)[0], 0.25)
     return line1, recht, load, pfeil
 
 
