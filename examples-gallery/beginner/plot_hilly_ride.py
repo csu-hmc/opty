@@ -18,10 +18,10 @@ eom = sm.Matrix([
     x.diff() - v*sm.cos(theta),
     y.diff() - v*sm.sin(theta),
     s.diff() - v,
-    m*v.diff() - p/v + m*g*sm.sin(theta) + 10*v**2,
+    m*v.diff() - p/v + m*g*sm.sin(theta) + v**2/3,
 ])
 
-N = 1001
+N = 101
 
 xp = np.linspace(-10000.0, 10000.0, num=40001)
 amp = 10.0
@@ -72,7 +72,7 @@ instance_constraint = (
 
 bounds = {
     h: (0.0, 10.0),
-    p: (-200.0, 1000.0),
+    p: (0.0, 1000.0),
 }
 
 prob = Problem(
