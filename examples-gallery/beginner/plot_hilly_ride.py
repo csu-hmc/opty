@@ -18,7 +18,7 @@ eom = sm.Matrix([
     x.diff() - v*sm.cos(theta),
     y.diff() - v*sm.sin(theta),
     s.diff() - v,
-    m*v.diff() - p/v + m*g*sm.sin(theta) + 10*v,
+    m*v.diff() - p/v + m*g*sm.sin(theta) + 10*v**2,
 ])
 
 N = 1001
@@ -60,14 +60,14 @@ def obj_grad(free):
 
 
 t0, tf = 0*h, (N - 1)*h
+sf = 625.0
 
 instance_constraint = (
     x.func(t0),
     y.func(t0),
     s.func(t0),
     v.func(t0),
-    s.func(tf) - 625.0,
-    #v.func(tf),
+    s.func(tf) - sf,
 )
 
 bounds = {
@@ -90,7 +90,12 @@ prob = Problem(
 )
 
 initial_guess = np.random.random(prob.num_free)
-initial_guess = 0.01*np.ones(prob.num_free)
+initial_guess[0*N:1*N] = np.linspace(0.0, sf, num=N)  # x
+initial_guess[1*N:2*N] = np.zeros(N)  # y
+initial_guess[2*N:3*N] = np.linspace(0.0, sf, num=N)  # s
+initial_guess[3*N:4*N] = 10.0*np.ones(N)  # v
+initial_guess[4*N:5*N] = 500.0*np.ones(N)  # p
+initial_guess[-1] = 0.1  # h
 solution, info = prob.solve(initial_guess)
 
 _ = prob.plot_objective_value()
