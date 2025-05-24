@@ -1066,13 +1066,13 @@ class ConstraintCollocator(object):
         self._backend = backend
 
         self._sort_parameters()
-        self._check_known_trajectories()
         self._sort_trajectories()
         self._num_free = ((self.num_states +
                            self.num_unknown_input_trajectories) *
                           self.num_collocation_nodes +
                           self.num_unknown_parameters +
                           int(self._variable_duration))
+        self._check_known_trajectories()
 
         self.integration_method = integration_method
 
@@ -1521,6 +1521,8 @@ class ConstraintCollocator(object):
         N = self.num_collocation_nodes
 
         for k, v in self.known_trajectory_map.items():
+            if isinstance(v, type(lambda x: x)):
+                v = v(np.ones(self.num_free))
             if len(v) != N:
                 msg = 'The known parameter {} is not length {}.'
                 raise ValueError(msg.format(k, N))
@@ -2325,7 +2327,7 @@ class ConstraintCollocator(object):
         self._multi_arg_con_jac_func = constraints_jacobian
 
     @staticmethod
-    def _merge_fixed_free(syms, fixed, free, typ):
+    def _merge_fixed_free(syms, fixed, free, typ, free_op_vals):
         """Returns an array with the fixed and free values combined. This just
         takes the known and unknown values and combines them for the function
         evaluation.
@@ -2349,7 +2351,10 @@ class ConstraintCollocator(object):
         # syms is order as known (fixed) then unknown (free)
         for i, s in enumerate(syms):
             if s in fixed.keys():
-                merged.append(fixed[s])
+                if isinstance(fixed[s], type(lambda x: x)):
+                    merged.append(fixed[s](free_op_vals))
+                else:
+                    merged.append(fixed[s])
             else:
                 if typ == 'traj' and len(free.shape) == 1:
                     merged.append(free)
@@ -2369,17 +2374,26 @@ class ConstraintCollocator(object):
             constraint functions or the Jacobian of the contraint functions.
             i.e. the output of _gen_multi_arg_con_func or
             _gen_multi_arg_con_jac_func.
+        typ : string
+            ``'con'`` or ``'jac'`` for constraints or Jacobian of the
+            constraints, respectively.
 
         Returns
         -------
         func : function
-            A function which returns constraint values given the system's
-            free optimization variables.
+            A function which returns constraint values given the system's free
+            optimization variables, has signature f(free), where free is
+            ndarray, shape(nN + qN + r + s, ).
 
         """
 
         def constraints(free):
+            """
+            Parameters
+            ==========
+            free : ndarray, shape(nN + qN + r + s, )
 
+            """
             if self._variable_duration:
                 (free_states, free_specified, free_constants,
                  time_interval) = parse_free(
@@ -2396,11 +2410,12 @@ class ConstraintCollocator(object):
 
             all_specified = self._merge_fixed_free(self.input_trajectories,
                                                    self.known_trajectory_map,
-                                                   free_specified, 'traj')
+                                                   free_specified, 'traj',
+                                                   free)
 
             all_constants = self._merge_fixed_free(self.parameters,
                                                    self.known_parameter_map,
-                                                   free_constants, 'par')
+                                                   free_constants, 'par', free)
 
             eom_con_vals = func(free_states, all_specified, all_constants,
                                 time_interval)
