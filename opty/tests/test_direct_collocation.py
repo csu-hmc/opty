@@ -14,6 +14,64 @@ from ..utils import (create_objective_function, sort_sympy, parse_free,
                      _coo_matrix)
 
 
+def test_implicit_known_traj():
+
+    m, g, h = sym.symbols('m, g, h', real=True, nonnegative=True)
+    x, v, f, theta = mech.dynamicsymbols('x, v, f, theta', real=True)
+
+    states = (x, v)
+
+    eom = sym.Matrix([
+        x.diff() - v,
+        m*v.diff() - f + m*g*sym.cos(theta),
+    ])
+
+    N = 20
+
+    xp = np.linspace(0.0, 1.0, num=N)
+    thetap = np.linspace(0.0, 10.0, num=N)
+
+    def calc_theta(free):
+        """
+        Parameters
+        ==========
+        free : ndarray, shape(nN + qN + r + s, )
+
+        Returns
+        =======
+        theta : ndarray, shape(N, )
+
+        """
+        x = free[0:N]
+        return np.interp(x, xp, thetap)
+
+    col = ConstraintCollocator(
+        eom,
+        states,
+        N,
+        h,
+        known_parameter_map={m: 1.0, g: 10.0},
+        known_trajectory_map={theta: calc_theta},
+        time_symbol=mech.dynamicsymbols._t,
+    )
+
+    all_specified = col._merge_fixed_free(
+        col.input_trajectories,  # symbols (theta, f)
+        col.known_trajectory_map,  # contains function for calculating theta
+        2.0*np.ones(N),  # values of f (free inputs)
+        'traj',
+        0.5*np.ones(col.num_free)  # free vector
+    )
+
+    np.testing.assert_allclose(
+        all_specified,
+        np.array([[5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5.,
+                   5., 5., 5., 5., 5.],  # theta @ x = [0.5, ..., 0.5]
+                  [2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2.,
+                   2., 2., 2., 2., 2.]])  # f
+    )
+
+
 def test_extra_algebraic(plot=False):
     """
     Chaplygin Sleigh example with a single nonholonomic constraint and the
@@ -866,9 +924,10 @@ def test_merge_fixed_free_parameters():
     all_syms = m, c, k
     known = {m: 1.0, c: 2.0}
     unknown = np.array([3.0])
+    free = np.ones(10)
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'par')
+                                                    unknown, 'par', free)
 
     expected = np.array([1.0, 2.0, 3.0])
 
@@ -880,7 +939,7 @@ def test_merge_fixed_free_parameters():
     unknown = np.array([3.0, 4.0])
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'par')
+                                                    unknown, 'par', free)
 
     expected = np.array([1.0, 2.0, 3.0, 4.0])
 
@@ -896,9 +955,10 @@ def test_merge_fixed_free_trajectories():
     all_syms = f, k
     known = {f: np.array([1.0, 2.0])}
     unknown = np.array([3.0, 4.0])
+    free = np.ones(10)
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'traj')
+                                                    unknown, 'traj', free)
 
     expected = np.array([[1.0, 2.0],
                          [3.0, 4.0]])
@@ -914,7 +974,7 @@ def test_merge_fixed_free_trajectories():
                         [7.0, 8.0]])
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'traj')
+                                                    unknown, 'traj', free)
 
     expected = np.array([[1.0, 2.0],
                          [3.0, 4.0],
