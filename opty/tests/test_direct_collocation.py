@@ -14,6 +14,41 @@ from ..utils import (create_objective_function, sort_sympy, parse_free,
                      _coo_matrix)
 
 
+def test_implicit_known_traj():
+
+    m, g, h = sym.symbols('m, g', real=True, nonnegative=True)
+    x, v, f, theta = mech.dynamicsymbols('x, v, f', real=True)
+    theta = sym.Function('theta')
+
+    states = (x, v)
+
+    eom = sm.Matrix([
+        m*v.diff() - f + m*g*sym.cos(theta(x)),
+        x.diff() - v,
+    ])
+
+    N = 20
+
+    def calc_theta(x):
+        """
+        x : ndarray, shape(n, )
+        slope : ndarray, shape(n, )
+        """
+        xp = np.linspace(0.0, 1.0, num=20)
+        fp = np.linspace(0.0, 1.0, num=20)
+        return np.interp(x, xp, fp)
+
+    col = ConstraintCollocator(
+        eom,
+        states,
+        N,
+        h,
+        known_parameter_map={m: 1.0, g: 10.0},
+        known_trajectory_map={theta(x): calc_theta},
+        time_symbol=mech.dynamicsymbols._t,
+    )
+
+
 def test_extra_algebraic(plot=False):
     """
     Chaplygin Sleigh example with a single nonholonomic constraint and the
