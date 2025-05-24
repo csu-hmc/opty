@@ -584,9 +584,14 @@ class Problem(cyipopt.Problem):
 
         if self.collocator.num_known_input_trajectories > 0:
             for knw_sym in self.collocator.known_input_trajectories:
-                trajectories = np.vstack(
-                    (trajectories,
-                     self.collocator.known_trajectory_map[knw_sym]))
+                try:
+                    trajectories = np.vstack(
+                        (trajectories,
+                        self.collocator.known_trajectory_map[knw_sym]))
+                except ValueError:
+                    trajectories = np.vstack(
+                        (trajectories,
+                        self.collocator.known_trajectory_map[knw_sym](vector)))
 
         if self.collocator.num_unknown_input_trajectories > 0:
             # NOTE : input_traj should be in the same order as
