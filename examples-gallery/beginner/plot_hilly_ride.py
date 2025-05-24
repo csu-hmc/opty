@@ -27,7 +27,7 @@ xp = np.linspace(-10000.0, 10000.0, num=40001)
 amp = 10.0
 omega = 2*np.pi/500.0  # one period every 500 meters
 yp = amp*np.sin(omega*xp)
-thetap = amp*omega*np.cos(omega*xp)
+thetap = np.atan(amp*omega*np.cos(omega*xp))
 
 fig, axes = plt.subplots(2)
 axes[0].plot(xp, yp)
