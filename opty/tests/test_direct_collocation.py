@@ -43,7 +43,7 @@ def test_implicit_known_traj():
 
         """
         x = free[0:N]
-        return np.interp(x, thetap, fp)
+        return np.interp(x, xp, thetap)
 
     col = ConstraintCollocator(
         eom,
@@ -924,9 +924,10 @@ def test_merge_fixed_free_parameters():
     all_syms = m, c, k
     known = {m: 1.0, c: 2.0}
     unknown = np.array([3.0])
+    free = np.ones(10)
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'par')
+                                                    unknown, 'par', free)
 
     expected = np.array([1.0, 2.0, 3.0])
 
@@ -938,7 +939,7 @@ def test_merge_fixed_free_parameters():
     unknown = np.array([3.0, 4.0])
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'par')
+                                                    unknown, 'par', free)
 
     expected = np.array([1.0, 2.0, 3.0, 4.0])
 
@@ -954,9 +955,10 @@ def test_merge_fixed_free_trajectories():
     all_syms = f, k
     known = {f: np.array([1.0, 2.0])}
     unknown = np.array([3.0, 4.0])
+    free = np.ones(10)
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'traj')
+                                                    unknown, 'traj', free)
 
     expected = np.array([[1.0, 2.0],
                          [3.0, 4.0]])
@@ -972,7 +974,7 @@ def test_merge_fixed_free_trajectories():
                         [7.0, 8.0]])
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'traj')
+                                                    unknown, 'traj', free)
 
     expected = np.array([[1.0, 2.0],
                          [3.0, 4.0],
