@@ -10,20 +10,28 @@ import matplotlib.pyplot as plt
 from opty import Problem
 
 m, g, h = sm.symbols('m, g, h', real=True, nonnegative=True)
-x, v, f, theta = me.dynamicsymbols('x, v, f, theta', real=True)
+s, v, x, y, p, theta = me.dynamicsymbols('s, v, x, y, p, theta', real=True)
 
-states = (x, v)
+states = (x, y, s, v)
 
 eom = sm.Matrix([
-    x.diff() - v,
-    m*v.diff() - f + m*g*sm.cos(theta),
+    x.diff() - v*sm.cos(theta),
+    y.diff() - v*sm.sin(theta),
+    s.diff() - v,
+    m*v.diff() - p/v + m*g*sm.sin(theta) + 10*v,
 ])
 
-N = 101
+N = 1001
 
-xp = np.linspace(0.0, 100.0, num=N)
-yp = 10.0*np.sin(xp)
-thetap = 40.0*np.cos(0.08*xp)
+xp = np.linspace(-10000.0, 10000.0, num=40001)
+amp = 10.0
+omega = 2*np.pi/500.0  # one period every 500 meters
+yp = amp*np.sin(omega*xp)
+thetap = amp*omega*np.cos(omega*xp)
+
+fig, axes = plt.subplots(2)
+axes[0].plot(xp, yp)
+axes[1].plot(xp, np.rad2deg(thetap))
 
 
 def calc_theta(free):
@@ -55,15 +63,17 @@ t0, tf = 0*h, (N - 1)*h
 
 instance_constraint = (
     x.func(t0),
+    y.func(t0),
+    s.func(t0),
     v.func(t0),
-    x.func(tf) - xp[-1],
+    s.func(tf) - 625.0,
+    #v.func(tf),
 )
 
 bounds = {
     h: (0.0, 10.0),
-    f: (-1000.0, 1000.0),
+    p: (-200.0, 1000.0),
 }
-
 
 prob = Problem(
     obj,
@@ -79,7 +89,8 @@ prob = Problem(
     bounds=bounds,
 )
 
-initial_guess = 20.0*np.ones(prob.num_free)
+initial_guess = np.random.random(prob.num_free)
+initial_guess = 0.01*np.ones(prob.num_free)
 solution, info = prob.solve(initial_guess)
 
 _ = prob.plot_objective_value()
@@ -91,5 +102,11 @@ _ = prob.plot_trajectories(solution)
 # %%
 # Constraint violations:
 _ = prob.plot_constraint_violations(solution)
+
+xs, rs, ps, dh = prob.parse_free(solution)
+
+fig, ax = plt.subplots()
+ax.plot(xs[0], xs[1])
+ax.set_aspect('equal')
 
 plt.show()
