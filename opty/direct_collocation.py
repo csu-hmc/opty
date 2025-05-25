@@ -986,11 +986,13 @@ class ConstraintCollocator(object):
             optimization variables.
         known_trajectory_map : dictionary, optional
             A dictionary that maps the non-state SymPy functions of time to
-            ndarrays of floats of ``shape(N,)``. Any time varying parameters in
-            the equations of motion not provided in this dictionary will become
-            free trajectories optimization variables. If solving a variable
-            duration problem, note that the values here are fixed at each node
-            and will not scale with a varying time interval.
+            ndarrays of floats of ``shape(N,)`` or functions that generate
+            ndarrays of floats given the free optimization vector as an input.
+            Any time varying parameters in the equations of motion not provided
+            in this dictionary will become free trajectories optimization
+            variables. If solving a variable duration problem, note that the
+            values here are fixed at each node and will not scale with a
+            varying time interval.
         instance_constraints : iterable of SymPy expressions, optional
             These expressions are for constraints on the states at specific
             times. They can be expressions with any state instance and any of
