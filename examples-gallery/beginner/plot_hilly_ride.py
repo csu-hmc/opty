@@ -33,7 +33,9 @@ from opty import Problem
 # - :math:`theta(t)`: slope angle
 m, g, h = sm.symbols('m, g, h', real=True, nonnegative=True)
 s, v, x, y, p = me.dynamicsymbols('s, v, x, y, p', real=True)
+#theta = me.dynamicsymbols('theta')
 theta = sm.Function('theta')(x)
+
 
 states = (x, y, s, v)
 
@@ -147,11 +149,16 @@ prob = Problem(
     N,
     h,
     known_parameter_map={m: 100.0, g: 9.81},
-    known_trajectory_map={theta.diff(x): calc_dthetadx, theta: calc_theta},
+    known_trajectory_map={
+        theta.diff(x): calc_dthetadx,
+        theta: calc_theta
+    },
     time_symbol=me.dynamicsymbols._t,
     instance_constraints=instance_constraint,
     bounds=bounds,
 )
+
+prob.add_option('derivative_test', 'first-order')
 
 # %%
 # Provide linear initial guesses for each variable.
