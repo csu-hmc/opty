@@ -32,7 +32,8 @@ from opty import Problem
 # - :math:`p(t)`: propulsion power
 # - :math:`theta(t)`: slope angle
 m, g, h = sm.symbols('m, g, h', real=True, nonnegative=True)
-s, v, x, y, p, theta = me.dynamicsymbols('s, v, x, y, p, theta', real=True)
+s, v, x, y, p = me.dynamicsymbols('s, v, x, y, p', real=True)
+theta = sm.Function('theta')(x)
 
 states = (x, y, s, v)
 
@@ -51,7 +52,7 @@ N = 101
 # the slope is then also a function of the linear distances. The following code
 # creates an elevation profile that simulates having a smooth slope.
 # :math:`\theta(x(t))`.
-amp = 20.0
+amp = 10.0
 omega = 2*np.pi/500.0  # one period every 500 meters
 xp = np.linspace(-250.0, 1250.0, num=1501)
 yp = amp*np.sin(omega*xp)
@@ -88,6 +89,21 @@ def calc_theta(free):
     return np.interp(x, xp, thetap)
 
 
+def calc_dthetadx(free):
+    """
+    Parameters
+    ==========
+    free : ndarray, shape(nN + qN + r + s, )
+
+    Returns
+    =======
+    dthetadx : ndarray, shape(N, )
+
+    """
+    x = free[0:N]
+    return np.interp(x, xp, dthetadx)
+
+
 # %%
 # Minimize the time to reach the final distance traveled :math:`s(t_f)` when
 # starting from a standstill. The time step is the last value in free.
@@ -115,7 +131,7 @@ instance_constraint = (
 # %%
 # Limit the power and make sure the time step is positive.
 bounds = {
-    h: (0.0, 10.0),
+    h: (0.0, 2.0),
     p: (0.0, 1000.0),
 }
 
@@ -131,7 +147,7 @@ prob = Problem(
     N,
     h,
     known_parameter_map={m: 100.0, g: 9.81},
-    known_trajectory_map={theta: calc_theta},
+    known_trajectory_map={theta.diff(x): calc_dthetadx, theta: calc_theta},
     time_symbol=me.dynamicsymbols._t,
     instance_constraints=instance_constraint,
     bounds=bounds,

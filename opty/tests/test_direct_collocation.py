@@ -17,13 +17,15 @@ from ..utils import (create_objective_function, sort_sympy, parse_free,
 def test_implicit_known_traj():
 
     m, g, h = sym.symbols('m, g, h', real=True, nonnegative=True)
-    x, v, f, theta = mech.dynamicsymbols('x, v, f, theta', real=True)
+    x, v, f, = mech.dynamicsymbols('x, v, f', real=True)
+
+    theta = sym.Function('theta')(x)
 
     states = (x, v)
 
     eom = sym.Matrix([
         x.diff() - v,
-        m*v.diff() - f + m*g*sym.cos(theta),
+        m*v.diff() - f + m*g*sym.sin(theta),
     ])
 
     N = 20
@@ -45,19 +47,24 @@ def test_implicit_known_traj():
         x = free[0:N]
         return np.interp(x, xp, thetap)
 
+    def calc_dthetadx(free):
+        x = free[0:N]
+        return 10.0*np.ones_like(x)
+
     col = ConstraintCollocator(
         eom,
         states,
         N,
         h,
         known_parameter_map={m: 1.0, g: 10.0},
-        known_trajectory_map={theta: calc_theta},
+        known_trajectory_map={theta.diff(x): calc_dthetadx,
+                              theta: calc_theta},
         time_symbol=mech.dynamicsymbols._t,
     )
 
     all_specified = col._merge_fixed_free(
-        col.input_trajectories,  # symbols (theta, f)
-        col.known_trajectory_map,  # contains function for calculating theta
+        col.input_trajectories,  # symbols (dthetadx, theta, f)
+        col.known_trajectory_map,  # contains function for calculating dthetadx and theta
         2.0*np.ones(N),  # values of f (free inputs)
         'traj',
         0.5*np.ones(col.num_free)  # free vector
@@ -65,7 +72,9 @@ def test_implicit_known_traj():
 
     np.testing.assert_allclose(
         all_specified,
-        np.array([[5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5.,
+        np.array([[10., 10., 10., 10., 10., 10., 10., 10., 10., 10., 10., 10.,
+                   10., 10., 10., 10., 10., 10., 10., 10.],  # theta @ x = [0.10, ..., 0.10]
+                  [5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5.,
                    5., 5., 5., 5., 5.],  # theta @ x = [0.5, ..., 0.5]
                   [2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2.,
                    2., 2., 2., 2., 2.]])  # f
