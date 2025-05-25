@@ -51,18 +51,21 @@ N = 101
 # the slope is then also a function of the linear distances. The following code
 # creates an elevation profile that simulates having a smooth slope.
 # :math:`\theta(x(t))`.
-xp = np.linspace(-250.0, 1250.0, num=1501)
-amp = 10.0
+amp = 20.0
 omega = 2*np.pi/500.0  # one period every 500 meters
+xp = np.linspace(-250.0, 1250.0, num=1501)
 yp = amp*np.sin(omega*xp)
 thetap = np.atan(amp*omega*np.cos(omega*xp))
-
-fig, axes = plt.subplots(2, sharex=True)
+dthetadx = -amp*omega**2*np.sin(omega*xp)/(amp**2*omega**2*np.cos(omega*xp)**2
+                                           + 1)
+fig, axes = plt.subplots(3, sharex=True)
 axes[0].plot(xp, yp)
 axes[0].set_ylabel(r'$y$ [m]')
 axes[1].plot(xp, np.rad2deg(thetap))
 axes[1].set_ylabel(r'$\theta$ [deg]')
-axes[1].set_xlabel(r'$x$ [m]')
+axes[2].plot(xp, np.rad2deg(dthetadx))
+axes[2].set_ylabel(r'$\frac{d\theta}{dx}$ [deg/m]')
+axes[2].set_xlabel(r'$x$ [m]')
 
 
 # %%
