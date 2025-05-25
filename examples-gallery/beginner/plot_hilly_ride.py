@@ -21,6 +21,16 @@ from opty import Problem
 
 # %%
 # Define the variables and equations of motion.
+#
+# - :math:`m`: particle mass
+# - :math:`g`: acceleration due to gravity
+# - :math:`h`: time step
+# - :math:`s(t)`: distance traveled along elevation profile
+# - :math:`v(t)`: longitudinal speed
+# - :math:`x(t)`: horizontal coordinate
+# - :math:`y(t)`: vertical coordinate
+# - :math:`p(t)`: propulsion power
+# - :math:`theta(t)`: slope angle
 m, g, h = sm.symbols('m, g, h', real=True, nonnegative=True)
 s, v, x, y, p, theta = me.dynamicsymbols('s, v, x, y, p, theta', real=True)
 
@@ -41,7 +51,7 @@ N = 101
 # the slope is then also a function of the linear distances. The following code
 # creates an elevation profile that simulates having a smooth slope.
 # :math:`\theta(x(t))`.
-xp = np.linspace(-1000.0, 1000.0, num=2001)
+xp = np.linspace(-250.0, 1250.0, num=1501)
 amp = 10.0
 omega = 2*np.pi/500.0  # one period every 500 meters
 yp = amp*np.sin(omega*xp)
