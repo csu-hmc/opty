@@ -662,7 +662,24 @@ class Problem(cyipopt.Problem):
         - r : number of unknown parameters
         - s : number of unknown time intervals
 
+        If ``eom_bounds`` are given as :math:`a \leq eom \leq b` and
+        ``subplots = True``, the values of the respective eoms are plotted and
+        their bounds are shown as dashed lines.
+
+        if ``eom_bounds`` are given and ``subplots = False``, the eom
+        violations are plotted. The violations are calculated as follows:
+
+        - eom - a if eom < a
+        - eom - b if eom > b
+        - 0 otherwise.
+
+        If only one eom is given and and eom bounds are given, then
+        ``subplots`` is set to ``True``.
+
         """
+        # This is done to make the cases below simpler.
+        if self.collocator.num_eom == 1:
+            subplots = True
 
         bars_per_plot = None
         rotation = -45
@@ -727,11 +744,22 @@ class Problem(cyipopt.Problem):
         instance_violations = con_violations[len(eom_violations):]
         eom_violations = eom_violations.reshape((self.collocator.num_eom,
                                                  N - 1))
-        # TODO : figure out a way to plot the inequality constraint violations
-        # don't plot inequality
-        if self.eom_bounds is not None:
-            for k, v in self.eom_bounds.items():
-                eom_violations[k] = np.nan
+        # If an eom has bounds a < eom < b and if subplots is False, this will
+        # be displayed for each  node:
+        # eom - a if eom < a
+        # eom - b if eom > b
+        # zero otherwise.
+        if self.eom_bounds is not None and not subplots:
+            for k in self.eom_bounds.keys():
+                left = self.eom_bounds[k][0]
+                right = self.eom_bounds[k][1]
+                for i in range(N - 1):
+                    if eom_violations[k, i] < left:
+                        eom_violations[k, i] = eom_violations[k, i] - left
+                    elif eom_violations[k, i] > right:
+                        eom_violations[k, i] = eom_violations[k, i] - right
+                    else:
+                        eom_violations[k, i] = 0.0
 
         con_nodes = range(1, self.collocator.num_collocation_nodes)
 
@@ -753,25 +781,49 @@ class Problem(cyipopt.Problem):
 
         if subplots is False or self.collocator.num_eom == 1:
             axes[0].plot(con_nodes, eom_violations.T)
-            axes[0].set_title('Constraint violations')
-            axes[0].set_xlabel('Node Number')
-            axes[0].set_ylabel('EoM violation')
+            if self.eom_bounds is None:
+                axes[0].set_title('Constraint violations')
+                axes[0].set_xlabel('Node Number')
+                axes[0].set_ylabel('EoM violation')
+            elif self.collocator.num_eom == 1:
+                axes[0].set_title('Constraint violations')
+                axes[0].set_xlabel('Node Number')
+                axes[0].set_ylabel('EoM value')
+                axes[0].axhline(self.eom_bounds[0][0], color='C1', lw=1.0,
+                                 linestyle='--')
+                axes[0].axhline(self.eom_bounds[0][1], color='C1', lw=1.0,
+                                linestyle='--')
+            else:
+                axes[0].set_title('Constraint violations')
+                axes[0].set_xlabel('Node Number')
+                axes[0].set_ylabel('EoM violations')
 
         else:
             for i in range(self.collocator.num_eom):
                 if ((self.eom_bounds is not None) and
-                    (i in self.eom_bounds.keys())):  # don't plot if inequality
-                    axes[i].plot(con_nodes, np.nan*np.ones_like(con_nodes))
-                    axes[i].set_ylabel(f'Eq. {str(i+1)} \n not shown',
+                    (i in self.eom_bounds.keys())):
+                    axes[i].plot(con_nodes, eom_violations[i])
+                    axes[i].set_ylabel(f'Eq. {str(i)} \n value',
                                        fontsize=9)
+                    axes[i].axhline(self.eom_bounds[i][0], color='C1', lw=1.0,
+                                     linestyle='--')
+                    axes[i].axhline(self.eom_bounds[i][1], color='C1', lw=1.0,
+                                     linestyle='--')
+
+
                 else:
                     axes[i].plot(con_nodes, eom_violations[i])
-                    axes[i].set_ylabel(f'Eq. {str(i+1)} \n violation',
+                    axes[i].set_ylabel(f'Eq. {str(i)} \n violation',
                                        fontsize=9)
                 if i < self.collocator.num_eom - 1:
                     axes[i].set_xticklabels([])
             axes[num_eom_plots-1].set_xlabel('Node Number')
-            axes[0].set_title('Constraint violations')
+            if self.eom_bounds is None:
+                axes[0].set_title('Constraint violations')
+            else:
+                axes[0].set_title((f'Constraint violations \n'
+                                                 f'Values of bounded EoMs'))
+
 
         if self.collocator.instance_constraints is not None:
             # reduce the instance constraints to 2 digits after the decimal
