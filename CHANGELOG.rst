@@ -8,6 +8,10 @@ Version 1.5.0.dev0
   and need for JIT compilation.
 - ``plot_constraint_violations()`` can now optionally plot on subplots for each
   constraint.
+- ``plot_trajectories()`` can optionally show the bounds.
+- Method added to compute the time vector.
+- Method added to check if a solution respects the bounds and flag to check the
+  initial guess before solving.
 - openmp parallelization now works on Mac.
 - Speed of building the examples improved by using the NumPy backend and
   animation frame reduction.
@@ -17,6 +21,11 @@ Version 1.5.0.dev0
     and their time derivatives.
   - Quarter car riding over a bumpy road showing a simultaneous control
     trajectory and parameter identification solution.
+  - Brachistochrone example.
+  - Light diffraction example showing use of smoothened discontinuous
+    functions.
+  - Car staying within a race course.
+  - Approximation of a multiphase problem.
 
 Version 1.4.0
 =============
