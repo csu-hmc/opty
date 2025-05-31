@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 # %%
 # Start with defining the fixed duration and number of nodes.
-num_nodes = 201
+num_nodes = 501
 
 # %%
 # Symbolic equations of motion, note that we make two sets: one before the #
@@ -50,7 +50,7 @@ sm.pprint(eom)
 # %%
 # Specify the known system parameters.
 par_map = {
-    m: 10.0,
+    m: 1.0,
     mu: 0.6,
     g: 9.81,
 }
@@ -84,7 +84,7 @@ instance_constraints = (
 )
 
 bounds = {
-    F(t): (-400.0, 400.0),
+    F(t): (0.0, 200.0),
     h: (0.0, 1.0),
 }
 
@@ -105,7 +105,7 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, h,
 
 # %%
 # Use a zero as an initial guess.
-initial_guess = np.random.random(prob.num_free)
+initial_guess = 0.02*np.ones(prob.num_free)
 initial_guess[-1] = 0.01
 
 # %%
