@@ -84,7 +84,7 @@ instance_constraints = (
 )
 
 bounds = {
-    F(t): (0.0, 200.0),
+    F(t): (0.0, 400.0),
     h: (0.0, 1.0),
 }
 
@@ -105,7 +105,13 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, h,
 
 # %%
 # Use a zero as an initial guess.
-initial_guess = 0.02*np.ones(prob.num_free)
+initial_guess = np.zeros(prob.num_free)
+initial_guess[0*num_nodes:1*num_nodes] = np.linspace(0.0, 10.0, num=num_nodes)
+initial_guess[1*num_nodes:2*num_nodes] = 10.0*np.ones(num_nodes)
+initial_guess[2*num_nodes:3*num_nodes] = 10.0*np.ones(num_nodes)  # F
+initial_guess[3*num_nodes:4*num_nodes] = 0.0*np.ones(num_nodes)  # Fn
+initial_guess[4*num_nodes:5*num_nodes] = 0.6*np.ones(num_nodes)  # Fp
+initial_guess[5*num_nodes:6*num_nodes] = 10.0*np.ones(num_nodes)  # psi
 initial_guess[-1] = 0.01
 
 # %%
