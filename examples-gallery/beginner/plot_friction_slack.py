@@ -2,12 +2,16 @@
 Coulomb Friction with Slack Variables
 =====================================
 
-A block is sliding on a surface with Coulomb friction. Push it with a (limited)
-rightward force until it hits a wall 1m on the right. When it hits the wall
-enforce a Newtonian collision with a coefficient of restitution e so that the
-block bounces off the wall and slides backwards to its original location. Apply
-this force such that the block reaches its original location in the minimal
-amount of time and that each phase has the same duration.
+A block of mass :math:`m` is being pushed with force :math:`F(t)` along on a
+surface. Coulomb friction acts between the block and the surface. Find a
+minimal time solution to push the block 10 meters and then back to the original
+position.
+
+Objectives
+----------
+
+- Demonstrate how slack variables and inequality constraints can be used to
+  manage discontinuties in the equations of motion.
 
 """
 
@@ -18,29 +22,29 @@ from opty.utils import MathJaxRepr
 import matplotlib.pyplot as plt
 
 # %%
-# Symbolic equations of motion, note that we make two sets: one before the #
-# collision and one after.
+# Symbolic equations of motion.
 m, mu, g, t, h = sm.symbols('m, mu, g, t, h', real=True)
-x, v, psi, Fp, Fn, F = sm.symbols('x, v, psi, Fp, Fn, F', cls=sm.Function)
+x, v, psi, Ffp, Ffn, F = sm.symbols('x, v, psi, Ffp, Ffn, F', cls=sm.Function)
 
 state_symbols = (x(t), v(t))
 constant_symbols = (m, mu, g)
-specified_symbols = (F(t), Fn(t), Fp(t), psi(t))
+specified_symbols = (F(t), Ffn(t), Ffp(t), psi(t))
 
 eom = sm.Matrix([
+    # equations of motion with positive and negative friction force
     x(t).diff(t) - v(t),
-    m*v(t).diff(t) - Fp(t) + Fn(t) - F(t),
+    m*v(t).diff(t) - Ffp(t) + Ffn(t) - F(t),
     # following two lines ensure: psi >= abs(v)
     psi(t) + v(t),  # >= 0
     psi(t) - v(t),  # >= 0
-    # mu*m*g >= Fp + Fn
-    mu*m*g - Fp(t) - Fn(t),  # >= 0
-    # mu*m*g*psi = (Fp + Fn)*psi -> mu*m*g = Fn v > 0 & mu*m*g = Fp if v < 0
-    (mu*m*g - Fp(t) - Fn(t))*psi(t),
-    # Fp*psi = -Fp*v -> Fp is zero if v > 0
-    Fp(t)*(psi(t) + v(t)),
-    # Fn*psi = Fn*v -> Fn is zero if v < 0
-    Fn(t)*(psi(t) - v(t)),
+    # mu*m*g >= Ffp + Ffn
+    mu*m*g - Ffp(t) - Ffn(t),  # >= 0
+    # mu*m*g*psi = (Ffp + Ffn)*psi -> mu*m*g = Ffn v > 0 & mu*m*g = Ffp if v < 0
+    (mu*m*g - Ffp(t) - Ffn(t))*psi(t),
+    # Ffp*psi = -Ffp*v -> Ffp is zero if v > 0
+    Ffp(t)*(psi(t) + v(t)),
+    # Ffn*psi = Ffn*v -> Ffn is zero if v < 0
+    Ffn(t)*(psi(t) - v(t)),
 ])
 sm.pprint(eom)
 MathJaxRepr(eom)
@@ -73,7 +77,7 @@ def obj_grad(free):
 # using node numbers 0 to N - 1
 # %%
 # Start with defining the fixed duration and number of nodes.
-N = 400
+N = 100
 
 t0, tm, tf = 0*h, (N//2)*h, (N - 1)*h
 instance_constraints = (
@@ -87,7 +91,7 @@ instance_constraints = (
 
 bounds = {
     F(t): (-400.0, 400.0),
-    h: (0.0, 1.0),
+    h: (0.0, 0.2),
 }
 
 eom_bounds = {
@@ -103,10 +107,9 @@ prob = Problem(obj, obj_grad, eom, state_symbols, N, h,
                instance_constraints=instance_constraints,
                time_symbol=t,
                bounds=bounds, eom_bounds=eom_bounds,
-               backend='numpy',
-               )
+               backend='numpy')
 
-prob.add_option('max_iter', 10000)
+prob.add_option('max_iter', 4000)
 
 # %%
 # Use a zero as an initial guess.
@@ -119,22 +122,22 @@ initial_guess[1*N - half:1*N] = np.linspace(10.0, 0.0, num=half)  # x
 initial_guess[1*N:2*N - half] = 10.0  # v
 initial_guess[2*N - half:2*N] = -10.0  # v
 
-initial_guess[2*N:3*N - half] = 5.0  # F
-initial_guess[3*N - half:3*N] = -5.0  # F
+initial_guess[2*N:3*N - half] = 10.0  # F
+initial_guess[3*N - half:3*N] = -10.0  # F
 
-initial_guess[3*N:4*N - half] = 0.6  # Fn
-initial_guess[4*N - half:4*N] = 0.0  # Fn
+initial_guess[3*N:4*N - half] = 1.0  # Ffn
+initial_guess[4*N - half:4*N] = 0.0  # Ffn
 
-initial_guess[4*N:5*N - half] = 0.0  # Fp
-initial_guess[5*N - half:5*N] = 0.6  # Fp
+initial_guess[4*N:5*N - half] = 0.0  # Ffp
+initial_guess[5*N - half:5*N] = 1.0  # Ffp
 
 initial_guess[5*N:6*N - half] = 10.0  # psi
 initial_guess[6*N - half:6*N] = 10.0  # psi
 
-initial_guess[-1] = 0.01
+initial_guess[-1] = 0.005
 
 # %%
-# Plot the optimal state and input trajectories.
+# Plot the initial guess.
 prob.plot_trajectories(initial_guess)
 
 # %%
@@ -154,5 +157,14 @@ prob.plot_constraint_violations(solution)
 # %%
 # Plot the optimal state and input trajectories.
 prob.plot_trajectories(solution)
+
+# %%
+# Plot the friction force.
+xs, rs, _, _ = prob.parse_free(solution)
+ts = prob.time_vector(solution)
+fig, ax = plt.subplots()
+ax.plot(ts, -rs[1] + rs[2])
+ax.set_ylabel(r'$F_f$ [N]')
+ax.set_xlabel('Time [s]')
 
 plt.show()
