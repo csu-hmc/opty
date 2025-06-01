@@ -1,6 +1,6 @@
 """
-Multiphase Collision
-====================
+Coulomb Friction with Slack Variables
+=====================================
 
 A block is sliding on a surface with Coulomb friction. Push it with a (limited)
 rightward force until it hits a wall 1m on the right. When it hits the wall
@@ -14,11 +14,8 @@ amount of time and that each phase has the same duration.
 import numpy as np
 import sympy as sm
 from opty import Problem
+from opty.utils import MathJaxRepr
 import matplotlib.pyplot as plt
-
-# %%
-# Start with defining the fixed duration and number of nodes.
-num_nodes = 501
 
 # %%
 # Symbolic equations of motion, note that we make two sets: one before the #
@@ -46,6 +43,7 @@ eom = sm.Matrix([
     Fn(t)*(psi(t) - v(t)),
 ])
 sm.pprint(eom)
+MathJaxRepr(eom)
 
 # %%
 # Specify the known system parameters.
@@ -73,18 +71,22 @@ def obj_grad(free):
 # %%
 # Specify the symbolic instance constraints, i.e. initial and end conditions
 # using node numbers 0 to N - 1
-t0, tf = 0*h, (num_nodes - 1)*h
+# %%
+# Start with defining the fixed duration and number of nodes.
+N = 400
+
+t0, tm, tf = 0*h, (N//2)*h, (N - 1)*h
 instance_constraints = (
     x(t0) - 0.0,
     v(t0) - 0.0,
-    #x(tf/2) - 10.0,
-    #v(tf/2) - 0.0,
-    x(tf) - 10.0,
+    x(tm) - 10.0,
+    v(tm) - 0.0,
+    x(tf) + 0.0,
     v(tf) - 0.0,
 )
 
 bounds = {
-    F(t): (0.0, 400.0),
+    F(t): (-400.0, 400.0),
     h: (0.0, 1.0),
 }
 
@@ -96,23 +98,44 @@ eom_bounds = {
 
 # %%
 # Create an optimization problem.
-prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, h,
+prob = Problem(obj, obj_grad, eom, state_symbols, N, h,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
                time_symbol=t,
                bounds=bounds, eom_bounds=eom_bounds,
-               backend='numpy')
+               backend='numpy',
+               )
+
+prob.add_option('max_iter', 10000)
 
 # %%
 # Use a zero as an initial guess.
+half = N//2
 initial_guess = np.zeros(prob.num_free)
-initial_guess[0*num_nodes:1*num_nodes] = np.linspace(0.0, 10.0, num=num_nodes)
-initial_guess[1*num_nodes:2*num_nodes] = 10.0*np.ones(num_nodes)
-initial_guess[2*num_nodes:3*num_nodes] = 10.0*np.ones(num_nodes)  # F
-initial_guess[3*num_nodes:4*num_nodes] = 0.0*np.ones(num_nodes)  # Fn
-initial_guess[4*num_nodes:5*num_nodes] = 0.6*np.ones(num_nodes)  # Fp
-initial_guess[5*num_nodes:6*num_nodes] = 10.0*np.ones(num_nodes)  # psi
+
+initial_guess[0*N:1*N - half] = np.linspace(0.0, 10.0, num=half)  # x
+initial_guess[1*N - half:1*N] = np.linspace(10.0, 0.0, num=half)  # x
+
+initial_guess[1*N:2*N - half] = 10.0  # v
+initial_guess[2*N - half:2*N] = -10.0  # v
+
+initial_guess[2*N:3*N - half] = 5.0  # F
+initial_guess[3*N - half:3*N] = -5.0  # F
+
+initial_guess[3*N:4*N - half] = 0.6  # Fn
+initial_guess[4*N - half:4*N] = 0.0  # Fn
+
+initial_guess[4*N:5*N - half] = 0.0  # Fp
+initial_guess[5*N - half:5*N] = 0.6  # Fp
+
+initial_guess[5*N:6*N - half] = 10.0  # psi
+initial_guess[6*N - half:6*N] = 10.0  # psi
+
 initial_guess[-1] = 0.01
+
+# %%
+# Plot the optimal state and input trajectories.
+prob.plot_trajectories(initial_guess)
 
 # %%
 # Find the optimal solution.
@@ -121,15 +144,15 @@ print(info['status_msg'])
 print(info['obj_val'])
 
 # %%
-# Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+# Plot the objective function as a function of optimizer iteration.
+prob.plot_objective_value()
 
 # %%
 # Plot the constraint violations.
 prob.plot_constraint_violations(solution)
 
 # %%
-# Plot the objective function as a function of optimizer iteration.
-prob.plot_objective_value()
+# Plot the optimal state and input trajectories.
+prob.plot_trajectories(solution)
 
 plt.show()
