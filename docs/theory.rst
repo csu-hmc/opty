@@ -2,27 +2,33 @@
 Theory
 ======
 
-Given at a set of first order continuous differential equations in time in
-implicit form:
+Given at a set of :math:`M` first order continuous differential equations in
+time in implicit form:
 
 .. math::
 
-   \mathbf{f}( \dot{\mathbf{y}}(t), \mathbf{y}(t), \mathbf{r}(t), \mathbf{p}, t ) = \mathbf{0}
+   \mathbf{f}(\dot{\mathbf{y}}(t), \mathbf{y}(t), \mathbf{u}(t), \mathbf{p}, t ) = \mathbf{0}
+   \in \mathbb{R}^M
 
 where:
 
 - :math:`t` is time
 - :math:`\mathbf{y}(t) \in \mathbb{R}^n` the state vector at time
   :math:`t`
-- :math:`\mathbf{r}(t) \in \mathbb{R}^m` is the vector of specified
+- :math:`\mathbf{u}(t) \in \mathbb{R}^m` is the vector of specified
   (exongenous) inputs at time :math:`t`
 - :math:`\mathbf{p} \in \mathbb{R}^p` is the vector of constant parameters
+
+The equations :math:`\mathbf{f}` may contain ordinary differential equations,
+differential algebraic equations, additional path constraints (algebraic or
+differential) and be augmented with specific trajectory values at instances of
+time.
 
 From here on out, the notation :math:`(t)` will be dropped for convenience.
 
 In opty, you would define these equations as a SymPy column matrix that
-contains SymPy expressions. For example, a simple compound pendulum is
-described by the first order ordinary differential equations:
+contains SymPy expressions. For example, a single degree of freedom compound
+pendulum is described by the first order ordinary differential equations:
 
 .. math::
 
@@ -50,30 +56,30 @@ In SymPy, this would look like:
    ⎢                      ⎥
    ⎣I⋅ω̇ + g⋅l⋅m⋅sin(θ) - T⎦
 
-One can then break up :math:`\mathbf{r}` and :math:`\mathbf{p}` into known,
+One can then break up :math:`\mathbf{u}` and :math:`\mathbf{p}` into known,
 :math:`k`, and unknown, :math:`u`, quantities.
 
 .. math::
 
-   \mathbf{r} = \left[ \mathbf{r}_k \quad \mathbf{r}_u \right]^T
+   \mathbf{u} = \left[ \mathbf{u}_k \quad \mathbf{u}_u \right]^T
 
    \mathbf{p} = \left[ \mathbf{p}_k \quad \mathbf{p}_u \right]^T
 
 where the dimension of the unknown vectors are:
 
-- :math:`\mathbf{r}_u \in \mathbb{R}^q`
+- :math:`\mathbf{u}_u \in \mathbb{R}^q`
 - :math:`\mathbf{p}_u \in \mathbb{R}^r`
 
 Then there are optimal state trajectories :math:`\mathbf{y}`, optimal unknown
-input trajectories :math:`\mathbf{r}_u` and optimal unknown parameter values
-:math:`\mathbf{p}_u` if some cost function, :math:`J(\mathbf{y}, \mathbf{r}_u,
+input trajectories :math:`\mathbf{u}_u` and optimal unknown parameter values
+:math:`\mathbf{p}_u` if some cost function, :math:`J(\mathbf{y}, \mathbf{u}_u,
 \mathbf{p}_u)` is specified. For example, the integral of a cost rate :math:`L`
 with respect to time:
 
 .. math::
 
-   J(\mathbf{y}, \mathbf{r}_u, \mathbf{p}_u) =
-   \int L(\mathbf{y}(t), \mathbf{r}(t), \mathbf{p}) dt
+   J(\mathbf{y}, \mathbf{u}_u, \mathbf{p}_u) =
+   \int L(\mathbf{y}(t), \mathbf{u}(t), \mathbf{p}) dt
 
 Additionally, upper :math:`U` and lower :math:`L` boundary constraints on these
 variables can be specified as follows:
@@ -81,14 +87,11 @@ variables can be specified as follows:
 .. math::
 
    \mathbf{y}^L \leq \mathbf{y} \leq \mathbf{y}^U \\
-   \mathbf{r}^L \leq \mathbf{r} \leq \mathbf{r}^U \\
+   \mathbf{u}^L \leq \mathbf{u} \leq \mathbf{u}^U \\
    \mathbf{p}^L \leq \mathbf{p} \leq \mathbf{p}^U
 
-These constraints are commonly associated with:
+which are the maximal bounds on the trajectories or parameter values.
 
-- path constraints
-- maximal bounds on the trajectories or parameter values
-- specific trajectory values at instances of time
 
 This type of problem is called an `optimal control`_ problem with the objective
 of finding the open loop input trajectories and/or the optimal system
@@ -105,10 +108,10 @@ algorithms suitable for NLP problems [Betts2010]_.
 Direct collocation transcribes the continuous differential equations into
 discretized difference equations using a variety of discrete integration
 methods. These difference equations are then treated as constraints and
-appended to the explicitly defined constraints shown above. These new
-constraints ensure that the system's dynamics are satisfied at each discretized
-time instance and relieves the need to sequentially integrate the differential
-equations as one does in shooting optimization.
+appended to any algebraic constraints. These new constraints ensure that the
+system's dynamics are satisfied at each discretized time instance and relieves
+the need to sequentially integrate the differential equations as one does in
+shooting optimization.
 
 opty currently supports two first order integration methods: the `backward
 Euler method`_ and the `midpoint method`_.
@@ -124,7 +127,7 @@ approximate the derivative of the state vector as:
 
    \frac{d\mathbf{y}}{dt} & \approx & \frac{\mathbf{y}_i - \mathbf{y}_{i-1}}{h} \\
    \mathbf{y}(t_i) & = & \mathbf{y}_i \\
-   \mathbf{r}(t_i) & = & \mathbf{r}_i
+   \mathbf{u}(t_i) & = & \mathbf{u}_i
 
 Using the midpoint method the approximation of the derivative of the state
 vector is:
@@ -133,7 +136,7 @@ vector is:
 
    \frac{d\mathbf{y}}{dt} & \approx & \frac{\mathbf{y}_{i+1} - \mathbf{y}_{i}}{h} \\
    \mathbf{y}(t_i) & = & \frac{\mathbf{y}_i + \mathbf{y}_{i+1}}{2} \\
-   \mathbf{r}(t_i) & = & \frac{\mathbf{r}_i + \mathbf{r}_{i+1}}{2}
+   \mathbf{u}(t_i) & = & \frac{\mathbf{u}_i + \mathbf{u}_{i+1}}{2}
 
 The discretized differential equation :math:`\mathbf{f}_i` can the be written
 using both of the above approximations.
@@ -143,7 +146,7 @@ For the backward Euler method:
 .. math::
 
    \mathbf{f}_i = \mathbf{f}\left(\frac{\mathbf{y}_i - \mathbf{y}_{i-1}}{h},
-                                  \mathbf{y}_i, \mathbf{r}_i, \mathbf{p}, t_i\right) = 0
+                                  \mathbf{y}_i, \mathbf{u}_i, \mathbf{p}, t_i\right) = 0
 
 For the midpoint method:
 
@@ -151,17 +154,16 @@ For the midpoint method:
 
    \mathbf{f}_i = \mathbf{f}\left(\frac{\mathbf{y}_{i+1} - \mathbf{y}_{i}}{h},
                                   \frac{\mathbf{y}_i + \mathbf{y}_{i+1}}{2},
-                                  \frac{\mathbf{r}_i + \mathbf{r}_{i+1}}{2},
+                                  \frac{\mathbf{u}_i + \mathbf{u}_{i+1}}{2},
                                   \mathbf{p}, t_i\right) = \mathbf{0}
 
 Then, defining :math:`\mathbf{x}_i` to be:
 
 .. math::
 
-   \mathbf{x}_i = [\mathbf{y}_i \quad \mathbf{r}_{ui} \quad \mathbf{p}_{u}]^T
+   \mathbf{x}_i = [\mathbf{y}_i \quad \mathbf{u}_{ui} \quad \mathbf{p}_{u}]^T
 
-
-The above equations will create :math:`n(N-1)` constraint equations and the
+The above equations will create :math:`M(N-1)` constraint equations and the
 optimization problem can formally be written as:
 
 .. math::
@@ -170,7 +172,7 @@ optimization problem can formally be written as:
               {\text{min}}
    & & J(\mathbf{x}_i) \\
    & \text{s.t.}
-   & & \mathbf{f}_i = \mathbf{0} \\
+   & & \mathbf{f}_i = \mathbf{0} \in \mathbb{R}^{M(N-1)} \\
    & & & \mathbf{x}_i^L \leq \mathbf{x}_i \leq \mathbf{x}_i^U
 
 opty translates the symbolic definition of :math:`\mathbf{f}` into
@@ -181,5 +183,5 @@ computational speed, taking advantage of pre-compilation common sub expression
 elimination, efficient memory usage, and the sparsity of the Jacobian. This is
 especially advantageous if :math:`\mathbf{f}` is very complex. The cost
 function :math:`J` and it's gradient :math:`\frac{\partial J}{\partial
-\mathbf{x}_i}` must be specified by Python functions that return a scalar, or
-vector.
+\mathbf{x}_i}` must be specified by Python functions that return a scalar and
+vector, respectively.
