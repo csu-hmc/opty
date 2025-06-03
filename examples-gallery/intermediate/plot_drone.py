@@ -229,12 +229,9 @@ prob.add_option('nlp_scaling_method', 'gradient-based')
 # problem.
 fname =f'drone_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
-    # Given solution is used.
     solution = np.loadtxt(fname)
     time = prob.time_vector()
 else:
-    # Problem must be solved.
-    # Give a guess of a direct route with constant thrust.
     initial_guess = np.zeros(prob.num_free)
     xyz_guess = np.linspace(0.0, 10.0, num=num_nodes)
     initial_guess[0*num_nodes:1*num_nodes] = xyz_guess
@@ -247,12 +244,10 @@ else:
                             layout='compressed')
     _ = prob.plot_trajectories(initial_guess, axes=axes)
 
-    # Find an optimal solution.
     solution, info = prob.solve(initial_guess)
     time = prob.time_vector()
     print(info['status_msg'])
     print(info['obj_val'])
-    # Plot the objective function as a function of optimizer iteration.
     _ = prob.plot_objective_value()
 
 
