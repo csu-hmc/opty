@@ -225,7 +225,6 @@ else:
     # Plot the objective function as a function of optimizer iteration.
     _ = prob.plot_objective_value()
 
-np.savetxt(fname, solution, fmt='%.12f')
 
 # %%
 # Plot the optimal state and input trajectories.
