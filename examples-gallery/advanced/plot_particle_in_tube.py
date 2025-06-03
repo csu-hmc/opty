@@ -409,7 +409,7 @@ _ = prob.plot_trajectories(solution, show_bounds=True)
 
 # %%
 # Plot the constraint violations.
-_ = prob.plot_constraint_violations(solution, subplots=True)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Animate the Motion of the Particle
