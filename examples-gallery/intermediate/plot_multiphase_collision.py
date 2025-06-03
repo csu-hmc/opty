@@ -191,17 +191,12 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, h,
 fname = f'multiphase_collision_initial_guess_{num_nodes}_nodes_solution.csv'
 # Check if a solution exists, otherwise calculate it.
 if os.path.exists(fname):
-    # Load the solution from file.
     solution = np.loadtxt(fname)
 else:
-    # Use a zero as an initial guess.
     initial_guess = np.zeros(prob.num_free)
-
-    # Find the optimal solution.
     solution, info = prob.solve(initial_guess)
     print(info['status_msg'])
     print(f"Smallest variable time interval {info['obj_val']:.4e} sec")
-    # Plot the objective function as a function of optimizer iteration.
     _ = prob.plot_objective_value()
 
 # Plot the optimal state and input trajectories.
@@ -273,7 +268,6 @@ prob.add_option('max_iter', 40000)
 fname = f'multiphase_collision_{num_nodes}_nodes_solution.csv'
 # Check if a solution exists, otherwise calculate it.
 if os.path.exists(fname):
-    # Load the solution from file.
     solution = np.loadtxt(fname)
 
 else:
@@ -283,11 +277,9 @@ else:
     initial_guess[6*num_nodes:7*num_nodes] = solution[4*num_nodes:5*num_nodes]
     initial_guess[-1] = solution[-1]
 
-    # Find the optimal solution.
     solution, info = prob.solve(initial_guess)
     print(info['status_msg'])
     print(f"Smallest variable time interval {info['obj_val']:.4e} sec")
-    # Plot the objective function as a function of optimizer iteration.
     _ = prob.plot_objective_value()
 
 duration2 = solution[-1] * (num_nodes - 1)
