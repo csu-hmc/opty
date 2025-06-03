@@ -202,12 +202,9 @@ prob.add_option('nlp_scaling_method', 'gradient-based')
 # Use solution if available, otherwise solve the problem.
 fname = f'parallel_park_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
-    # Use exisating solution.
     solution = np.loadtxt(fname)
     time = prob.time_vector()
 else:
-    # Give some rough estimates for the x and y trajectories and solve the
-    # problem.
     time = prob.time_vector()
     x_guess = 3.0/duration*2.0*time
     x_guess[num_nodes//2:] = 6.0 - 3.0/duration*2.0*time[num_nodes//2:]
@@ -218,11 +215,9 @@ else:
 
     _ = prob.plot_trajectories(initial_guess, show_bounds=True)
 
-    # Find the optimal solution.
     solution, info = prob.solve(initial_guess)
     print(info['status_msg'])
     print(info['obj_val'])
-    # Plot the objective function as a function of optimizer iteration.
     _ = prob.plot_objective_value()
 
 
