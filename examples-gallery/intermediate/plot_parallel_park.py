@@ -1,9 +1,33 @@
-"""
+r"""
 Parallel Park a Car
 ===================
 
+Objective
+---------
+
+- Show how opty may be used to move a mechanical object from, A to B with
+  given instance constraints at A and B using minimum energy.
+- Shows how to set up a set of nonholonomic DAEs.
+
+Introduction
+------------
+
 Given the nonholonomic bicycle model of the car find a solution for parallel
 parking it.
+
+Notes
+-----
+
+If Kane's method is used to get the equations of motion of the system, then
+the equations of motion suitable for opty are obtained by appending
+:math:`(f_r + f_r^{\star})` to the kinematic differential equations used by
+Kane's method.
+If nonholonomic constraints were used in Kane's method, as is the case here,
+they must be appended to the equations of motion for opty.
+If these nonholonomic constraints are really holonomic constraints in
+disguise, then it is generally better to append the holonomic constraints to
+avoid the drift associated with the nonholonomic constraints.
+
 
 **Constants**
 
@@ -30,6 +54,7 @@ parking it.
 
 """
 
+import os
 import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
@@ -104,7 +129,8 @@ sm.pprint(eom)
 # %%
 # Set up the time discretization.
 duration = 30.0  # seconds
-num_nodes = 501
+num_nodes = 121
+
 interval_value = duration/(num_nodes - 1)
 
 # %%
@@ -168,27 +194,32 @@ prob = Problem(obj, obj_grad, eom, state_symbols,
                num_nodes, interval_value,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
-               bounds=bounds, time_symbol=t)
+               bounds=bounds, time_symbol=t, backend='numpy')
 
 prob.add_option('nlp_scaling_method', 'gradient-based')
 
 # %%
-# Give some rough estimates for the x and y trajectories.
-time = prob.time_vector()
-x_guess = 3.0/duration*2.0*time
-x_guess[num_nodes//2:] = 6.0 - 3.0/duration*2.0*time[num_nodes//2:]
-y_guess = 2.0/duration*time
-initial_guess = np.ones(prob.num_free)
-initial_guess[:num_nodes] = x_guess
-initial_guess[num_nodes:2*num_nodes] = y_guess
+# Use solution if available, otherwise solve the problem.
+fname = f'parallel_park_{num_nodes}_nodes_solution.csv'
+if os.path.exists(fname):
+    solution = np.loadtxt(fname)
+    time = prob.time_vector()
+else:
+    time = prob.time_vector()
+    x_guess = 3.0/duration*2.0*time
+    x_guess[num_nodes//2:] = 6.0 - 3.0/duration*2.0*time[num_nodes//2:]
+    y_guess = 2.0/duration*time
+    initial_guess = np.ones(prob.num_free)
+    initial_guess[:num_nodes] = x_guess
+    initial_guess[num_nodes:2*num_nodes] = y_guess
 
-_ = prob.plot_trajectories(initial_guess, show_bounds=True)
+    _ = prob.plot_trajectories(initial_guess, show_bounds=True)
 
-# %%
-# Find the optimal solution.
-solution, info = prob.solve(initial_guess)
-print(info['status_msg'])
-print(info['obj_val'])
+    solution, info = prob.solve(initial_guess)
+    print(info['status_msg'])
+    print(info['obj_val'])
+    _ = prob.plot_objective_value()
+
 
 # %%
 # Plot the optimal state and input trajectories.
@@ -199,8 +230,6 @@ _ = prob.plot_trajectories(solution, show_bounds=True)
 _ = prob.plot_constraint_violations(solution)
 
 # %%
-# Plot the objective function as a function of optimizer iteration.
-_ = prob.plot_objective_value()
 
 # %%
 # Show the optimal path of the mass center.
@@ -208,7 +237,7 @@ xs, us, ps = prob.parse_free(solution)
 fig, ax = plt.subplots()
 ax.plot(xs[0], xs[1])
 ax.set_xlabel(r'$x$ [m]')
-ax.set_ylabel(r'$y$ [m]');
+_ = ax.set_ylabel(r'$y$ [m]')
 
 # %%
 # Animate the motion of the car.
@@ -261,12 +290,12 @@ def animate(i):
 
 
 ani = animation.FuncAnimation(fig, animate, len(time),
-                              interval=int(interval_value*1000))
+                              interval=int(interval_value*1000/4))
 
 # %%
 # A frame from the animation.
 
 # sphinx_gallery_thumbnail_number = 6
-frame(450)
+frame(80)
 
 plt.show()
