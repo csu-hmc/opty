@@ -1,3 +1,4 @@
+# %%
 r"""
 Upright a Double Pendulum
 =========================
@@ -7,7 +8,7 @@ Objectives
 
 - Show the use of opty's variable time interval feature to solve a relatively
   simple problem.
-- Show the use of additional state variables to enforce terminal constraints on
+- Show the use of specifieds to enforce terminal constraints on
   :math:`\dfrac{d^2}{dt^2}(\textrm{state variables})`.
 
 Introduction
@@ -19,7 +20,7 @@ position in the shortest time possible, given an upper limit on the absolute
 value of the force that can be applied to the cart. Gravity points in the
 negative Y direction.
 To ensure that it is at rest, not only the speeds, but also its accelerations
-are constrained to be zero at the beginning and end of the motion.
+are constrained to be zero at the end of the motion.
 
 
 Notes
@@ -31,27 +32,31 @@ One can find a lot about it in the internet.
 
 **Constants**
 
-- m1:     mass of the cart [kg]
-- m2:     mass of the first pendulum [kg]
-- m3:     mass of the second pendulum [kg]
-- lx:     length of the first pendulum rods [m]
-- iZZ1:   moment of inertia of the first pendulum about its end point [kg*m^2]
-- iZZ2:   moment of inertia of the second pendulum about its end point [kg*m^2]
-- g:      acceleration due to gravity [m/s^2]
+- :math:`m_1`: mass of the cart [kg]
+- :math:`m_2`: mass of the first pendulum [kg]
+- :math:`m_3`: mass of the second pendulum [kg]
+- :math:`l_x`: length of the first pendulum rods [m]
+- :math:`i_{ZZ1}`: moment of inertia of the first pendulum about its end point
+  [kg*m^2]
+- :math:`i_{ZZ2}`: moment of inertia of the second pendulum about its end point
+  [kg*m^2]
+- :math:`g`: acceleration due to gravity [m/s^2]
 
 **States**
 
-- q1:           position of the cart along the X axis [m]
-- q2:           angle of the first pendulum with respect to the vertical [rad]
-- q3:           angle of the second pendulum with respect to the first [rad]
-- u1:           speed of the cart along the X axis [m/s]
-- u2:           angular speed of the first pendulum [rad/s]
-- u3:           angular speed of the second pendulum [rad/s]
-- h1, h2, h3:   auxiliary states
+- :math:`q_1`: position of the cart along the X axis [m]
+- :math:`q_2`: angle of the first pendulum with respect to the vertical [rad]
+- :math:`q_3`: angle of the second pendulum with respect to the first [rad]
+- :math:`u_1`: speed of the cart along the X axis [m/s]
+- :math:`u_2`: angular speed of the first pendulum [rad/s]
+- :math:`u_3`: angular speed of the second pendulum [rad/s]
+
 
 **Specifieds**
 
-- F:      force applied to the cart [N]
+- :math:`F`: force applied to the cart [N]
+- :math:`h_1, h_2, h_3` : needed to enforce the constraints on the
+  accelerations of at the end of the motion.
 
 """
 import os
@@ -59,12 +64,14 @@ import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 from opty import Problem
+from opty.utils import MathJaxRepr
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import patches
 
 # %%
-# Generate the equations of motion of the system.
+# Equations of Motion, Kane's Method
+# ----------------------------------
 N, A1, A2 = sm.symbols('N A1, A2', cls=me.ReferenceFrame)
 t = me.dynamicsymbols._t
 O, P1, P2, P3 = sm.symbols('O P1 P2 P3', cls=me.Point)
@@ -110,15 +117,20 @@ fr, frstar = KM.kanes_equations(bodies, loads=loads)
 eom = kd.col_join(fr + frstar)
 
 # %%
-# add the auxiliary eoms for h1, h2, h3
+# add the auxiliary eoms for h1, h2, h3, so
+# :math:`\dfrac{d^2}{dt^2}q_i(\textrm{duration}) = 0` can be enforced.
 eom = eom.col_join(sm.Matrix([h1 - u1.diff(t), h2 - u2.diff(t),
-                h3 - u3.diff(t)]))
-sm.pprint(sm.trigsimp(eom))
+                   h3 - u3.diff(t)]))
+eom = sm.simplify(eom)
+MathJaxRepr(eom)
 # %%
+# Set Up the Optimization Problem and Solve It
+# --------------------------------------------
+#
 # Define various objects to be use in the optimization problem.
 h = sm.symbols('h')
 
-state_symbols = tuple((*q_ind, *u_ind, h1, h2, h3))
+state_symbols = tuple((*q_ind, *u_ind))
 constant_symbols = (lx, m1, m2, m3, g, iZZ1, iZZ2)
 specified_symbols = (F,)
 
@@ -144,6 +156,7 @@ def obj(free):
     """Minimize h, the time interval between nodes."""
     return free[-1]
 
+
 def obj_grad(free):
     grad = np.zeros_like(free)
     grad[-1] = 1.0
@@ -152,36 +165,30 @@ def obj_grad(free):
 
 # %%
 # Set the initial and final states to form the instance constraints.
-initial_state_constraints = {
-    q1: 0.0,
-    q2: -np.pi/2.0,
-    q3: -np.pi/2.0,
-    u1: 0.0,
-    u2: 0.0,
-    u3: 0.0,
-}
 
-final_state_constraints = {
-    q2: target_angle,
-    q3: target_angle,
-    u1: 0.0,
-    u2: 0.0,
-    u3: 0.0,
-    h1: 0.0,
-    h2: 0.0,
-    h3: 0.0,
-}
-
-instance_constraints = (tuple(xi.subs({t: 0}) - xi_val for xi, xi_val in
-                              initial_state_constraints.items()) +
-                        tuple(xi.subs({t: duration}) - xi_val for xi, xi_val in
-                              final_state_constraints.items()))
+instance_constraints = (
+    q1.func(0.0),
+    q2.func(0.0) + np.pi/2.0,
+    q3.func(0.0) + np.pi/2.0,
+    u1.func(0.0),
+    u2.func(0.0),
+    u3.func(0.0),
+    q2.func(duration) - target_angle,
+    q3.func(duration) - target_angle,
+    u1.func(duration),
+    u2.func(duration),
+    u3.func(duration),
+    h1.func(duration),
+    h2.func(duration),
+    h3.func(duration),
+)
 
 # %%
 # Bounding h > 0 helps avoid 'solutions' with h < 0.
-bounds = {F: (-50.0, 50.0),
-          q1: (-5.0, 5.0),
-          h: (0.0, 1.0)
+bounds = {
+    F: (-50.0, 50.0),
+    q1: (-5.0, 5.0),
+    h: (0.0, 1.0),
 }
 
 # %%
@@ -218,12 +225,10 @@ if os.path.exists(fname):
     solution = np.loadtxt(fname)
 else:
     # Find the optimal solution as no stored solution available.
-    for _ in range(3):
-        solution, info = prob.solve(initial_guess)
-        initial_guess = solution
-        print('Message from optimizer:', info['status_msg'])
-        print('Iterations needed', len(prob.obj_value))
-        print(f"Objective value {solution[-1]: .3e}")
+    solution, info = prob.solve(initial_guess)
+    print('Message from optimizer:', info['status_msg'])
+    print('Iterations needed', len(prob.obj_value))
+    print(f"Objective value {solution[-1]: .3e}")
 
 # %%
 # Plot the accuracy of the solution.
@@ -231,10 +236,11 @@ _ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the state trajectories.
-_ = prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution, show_bounds=True)
 
 # %%
-# animate the solution.
+# Animate the Solution
+# --------------------
 
 state_sol, _, _, h_var = prob.parse_free(solution)
 state_sol1 = state_sol.T[::4, :]
@@ -303,8 +309,10 @@ def animate_pendulum(time, P1_x, P1_y, P2_x, P2_y):
     ax.add_patch(recht)
     return fig, ax, line1, line2, recht
 
-duration = (num_nodes - 1) * solution[-1] *4
+
+duration = (num_nodes - 1) * solution[-1] * 4
 times = np.linspace(0.0, duration, num_nodes)
+
 
 def animate(i):
     message = (f'running time {times[i]: .2f} sec')
@@ -320,9 +328,11 @@ def animate(i):
     line2.set_data(wert_x, wert_y)
     return line1, line2,
 
+
 # %%
 # A frame from the animation.
 fig, ax, line1, line2, recht = animate_pendulum(times, P1_x, P1_y, P2_x, P2_y)
+
 
 # sphinx_gallery_thumbnail_number = 4
 _ = animate(50)
