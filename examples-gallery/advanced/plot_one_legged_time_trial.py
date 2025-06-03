@@ -733,8 +733,6 @@ else:
                          layout='compressed')
     _ = problem.plot_trajectories(initial_guess, axes=axes)
 
-    # Solve the Optimal Control Problem
-    # ---------------------------------
     solution, info = problem.solve(initial_guess)
 
     print(info['status_msg'])
