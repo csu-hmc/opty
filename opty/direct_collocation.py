@@ -595,9 +595,14 @@ class Problem(cyipopt.Problem):
 
         if self.collocator.num_known_input_trajectories > 0:
             for knw_sym in self.collocator.known_input_trajectories:
-                trajectories = np.vstack(
-                    (trajectories,
-                     self.collocator.known_trajectory_map[knw_sym]))
+                try:
+                    trajectories = np.vstack(
+                        (trajectories,
+                        self.collocator.known_trajectory_map[knw_sym]))
+                except ValueError:
+                    trajectories = np.vstack(
+                        (trajectories,
+                        self.collocator.known_trajectory_map[knw_sym](vector)))
 
         if self.collocator.num_unknown_input_trajectories > 0:
             # NOTE : input_traj should be in the same order as
@@ -992,11 +997,13 @@ class ConstraintCollocator(object):
             optimization variables.
         known_trajectory_map : dictionary, optional
             A dictionary that maps the non-state SymPy functions of time to
-            ndarrays of floats of ``shape(N,)``. Any time varying parameters in
-            the equations of motion not provided in this dictionary will become
-            free trajectories optimization variables. If solving a variable
-            duration problem, note that the values here are fixed at each node
-            and will not scale with a varying time interval.
+            ndarrays of floats of ``shape(N,)`` or functions that generate
+            ndarrays of floats given the free optimization vector as an input.
+            Any time varying parameters in the equations of motion not provided
+            in this dictionary will become free trajectories optimization
+            variables. If solving a variable duration problem, note that the
+            values here are fixed at each node and will not scale with a
+            varying time interval.
         instance_constraints : iterable of SymPy expressions, optional
             These expressions are for constraints on the states at specific
             times. They can be expressions with any state instance and any of
@@ -1077,13 +1084,13 @@ class ConstraintCollocator(object):
         self._backend = backend
 
         self._sort_parameters()
-        self._check_known_trajectories()
         self._sort_trajectories()
         self._num_free = ((self.num_states +
                            self.num_unknown_input_trajectories) *
                           self.num_collocation_nodes +
                           self.num_unknown_parameters +
                           int(self._variable_duration))
+        self._check_known_trajectories()
 
         self.integration_method = integration_method
 
@@ -1122,6 +1129,14 @@ class ConstraintCollocator(object):
         Type: tuple
         """
         return self._current_known_discrete_specified_symbols
+    
+    @property
+    def current_known_discrete_state_varying_specified_symbols(self):
+        """
+        The symbols for the current discrete specified inputs.
+        Type: tuple
+        """
+        return self._current_known_discrete_state_varying_specified_symbols
 
     @property
     def current_unknown_discrete_specified_symbols(self):
@@ -1180,6 +1195,14 @@ class ConstraintCollocator(object):
         Type: tuple
         """
         return self._known_input_trajectories
+    
+    @property
+    def known_state_varying_input_trajectories(self):
+        """
+        The known input trajectories symbols that vary with state.
+        Type: tuple
+        """
+        return self._known_state_varying_input_trajectories
 
     @property
     def known_parameters(self):
@@ -1220,6 +1243,14 @@ class ConstraintCollocator(object):
         Type: tuple
         """
         return self._next_known_discrete_specified_symbols
+    
+    @property
+    def next_known_discrete_state_varying_specified_symbols(self):
+        """
+        The symbols for the next discrete specified inputs.
+        Type: tuple
+        """
+        return self._next_known_discrete_state_varying_specified_symbols
 
     @property
     def next_discrete_specified_symbols(self):
@@ -1532,6 +1563,8 @@ class ConstraintCollocator(object):
         N = self.num_collocation_nodes
 
         for k, v in self.known_trajectory_map.items():
+            if isinstance(v, type(lambda x: x)):
+                v = v(np.ones(self.num_free))
             if len(v) != N:
                 msg = 'The known parameter {} is not length {}.'
                 raise ValueError(msg.format(k, N))
@@ -1561,7 +1594,18 @@ class ConstraintCollocator(object):
         self._unknown_input_trajectories = res[2]
         self._num_unknown_input_trajectories = res[3]
 
-        self._input_trajectories = res[0] + res[2]
+        # Split the known input trajectories into those that vary with state
+        # and those that do not.
+        self._known_state_varying_input_trajectories = \
+            tuple([s for s in res[0] if s.args[0] != self.time_symbol])
+        self._num_known_state_varying_input_trajectories = \
+            len(self.known_state_varying_input_trajectories)
+        
+        kit = {k for k in self.known_input_trajectories
+                if k not in self.known_state_varying_input_trajectories}
+        self._known_input_trajectories = tuple(kit)
+
+        self._input_trajectories = res[0] + res[2] #+ self.known_state_varying_input_trajectories
         self._num_input_trajectories = len(self.input_trajectories)
 
     def _discrete_symbols(self):
@@ -1593,7 +1637,6 @@ class ConstraintCollocator(object):
         next_discrete_specified_symbols : tuple of sympy.Symbols
             The m symbols representing the system's (ith + 1) specified
             inputs.
-
         """
 
         # The previus, current, and next states.
@@ -1614,6 +1657,16 @@ class ConstraintCollocator(object):
         self._next_known_discrete_specified_symbols = \
             tuple([sm.Symbol(f.__class__.__name__ + 'n', real=True)
                    for f in self.known_input_trajectories])
+        
+        # The current and next known state varying input trajectories.
+        current_state_disc_sub = dict(zip(self.state_symbols, self.current_discrete_state_symbols))
+        next_state_disc_sub = dict(zip(self.state_symbols, self.next_discrete_state_symbols))
+        self._current_known_discrete_state_varying_specified_symbols = \
+            tuple([f.subs(current_state_disc_sub)
+                   for f in self.known_state_varying_input_trajectories])
+        self._next_known_discrete_state_varying_specified_symbols = \
+            tuple([f.subs(next_state_disc_sub)
+                   for f in self.known_state_varying_input_trajectories])
 
         # The current and next unknown input trajectories.
         self._current_unknown_discrete_specified_symbols = \
@@ -1625,9 +1678,11 @@ class ConstraintCollocator(object):
 
         self._current_discrete_specified_symbols = (
             self.current_known_discrete_specified_symbols +
+            self.current_known_discrete_state_varying_specified_symbols +
             self.current_unknown_discrete_specified_symbols)
         self._next_discrete_specified_symbols = (
             self.next_known_discrete_specified_symbols +
+            self.next_known_discrete_state_varying_specified_symbols +
             self.next_unknown_discrete_specified_symbols)
 
     def _discretize_eom(self):
@@ -1651,18 +1706,15 @@ class ConstraintCollocator(object):
         ui = self.current_discrete_specified_symbols
         un = self.next_discrete_specified_symbols
 
+
         h = self.time_interval_symbol
 
         if self.integration_method == 'backward euler':
-
             deriv_sub = {d: (i - p) / h for d, i, p in zip(xd, xi, xp)}
-
             func_sub = dict(zip(x + u, xi + ui))
-
             self._discrete_eom = me.msubs(self.eom, deriv_sub, func_sub)
 
         elif self.integration_method == 'midpoint':
-
             xdot_sub = {d: (n - i) / h for d, i, n in zip(xd, xi, xn)}
             x_sub = {d: (i + n) / 2 for d, i, n in zip(x, xi, xn)}
             u_sub = {d: (i + n) / 2 for d, i, n in zip(u, ui, un)}
@@ -2336,7 +2388,7 @@ class ConstraintCollocator(object):
         self._multi_arg_con_jac_func = constraints_jacobian
 
     @staticmethod
-    def _merge_fixed_free(syms, fixed, free, typ):
+    def _merge_fixed_free(syms, fixed, free, typ, free_op_vals):
         """Returns an array with the fixed and free values combined. This just
         takes the known and unknown values and combines them for the function
         evaluation.
@@ -2360,7 +2412,10 @@ class ConstraintCollocator(object):
         # syms is order as known (fixed) then unknown (free)
         for i, s in enumerate(syms):
             if s in fixed.keys():
-                merged.append(fixed[s])
+                if isinstance(fixed[s], type(lambda x: x)):
+                    merged.append(fixed[s](free_op_vals))
+                else:
+                    merged.append(fixed[s])
             else:
                 if typ == 'traj' and len(free.shape) == 1:
                     merged.append(free)
@@ -2380,17 +2435,26 @@ class ConstraintCollocator(object):
             constraint functions or the Jacobian of the contraint functions.
             i.e. the output of _gen_multi_arg_con_func or
             _gen_multi_arg_con_jac_func.
+        typ : string
+            ``'con'`` or ``'jac'`` for constraints or Jacobian of the
+            constraints, respectively.
 
         Returns
         -------
         func : function
-            A function which returns constraint values given the system's
-            free optimization variables.
+            A function which returns constraint values given the system's free
+            optimization variables, has signature f(free), where free is
+            ndarray, shape(nN + qN + r + s, ).
 
         """
 
         def constraints(free):
+            """
+            Parameters
+            ==========
+            free : ndarray, shape(nN + qN + r + s, )
 
+            """
             if self._variable_duration:
                 (free_states, free_specified, free_constants,
                  time_interval) = parse_free(
@@ -2407,11 +2471,12 @@ class ConstraintCollocator(object):
 
             all_specified = self._merge_fixed_free(self.input_trajectories,
                                                    self.known_trajectory_map,
-                                                   free_specified, 'traj')
+                                                   free_specified, 'traj',
+                                                   free)
 
             all_constants = self._merge_fixed_free(self.parameters,
                                                    self.known_parameter_map,
-                                                   free_constants, 'par')
+                                                   free_constants, 'par', free)
 
             eom_con_vals = func(free_states, all_specified, all_constants,
                                 time_interval)
