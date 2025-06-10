@@ -1118,6 +1118,14 @@ class ConstraintCollocator(object):
         Type: tuple
         """
         return self._current_known_discrete_specified_symbols
+    
+    @property
+    def current_known_discrete_state_varying_specified_symbols(self):
+        """
+        The symbols for the current discrete specified inputs.
+        Type: tuple
+        """
+        return self._current_known_discrete_state_varying_specified_symbols
 
     @property
     def current_unknown_discrete_specified_symbols(self):
@@ -1176,6 +1184,14 @@ class ConstraintCollocator(object):
         Type: tuple
         """
         return self._known_input_trajectories
+    
+    @property
+    def known_state_varying_input_trajectories(self):
+        """
+        The known input trajectories symbols that vary with state.
+        Type: tuple
+        """
+        return self._known_state_varying_input_trajectories
 
     @property
     def known_parameters(self):
@@ -1216,6 +1232,14 @@ class ConstraintCollocator(object):
         Type: tuple
         """
         return self._next_known_discrete_specified_symbols
+    
+    @property
+    def next_known_discrete_state_varying_specified_symbols(self):
+        """
+        The symbols for the next discrete specified inputs.
+        Type: tuple
+        """
+        return self._next_known_discrete_state_varying_specified_symbols
 
     @property
     def next_discrete_specified_symbols(self):
@@ -1559,7 +1583,18 @@ class ConstraintCollocator(object):
         self._unknown_input_trajectories = res[2]
         self._num_unknown_input_trajectories = res[3]
 
-        self._input_trajectories = res[0] + res[2]
+        # Split the known input trajectories into those that vary with state
+        # and those that do not.
+        self._known_state_varying_input_trajectories = \
+            tuple([s for s in res[0] if s.args[0] != self.time_symbol])
+        self._num_known_state_varying_input_trajectories = \
+            len(self.known_state_varying_input_trajectories)
+        
+        kit = {k for k in self.known_input_trajectories
+                if k not in self.known_state_varying_input_trajectories}
+        self._known_input_trajectories = tuple(kit)
+
+        self._input_trajectories = res[0] + res[2] #+ self.known_state_varying_input_trajectories
         self._num_input_trajectories = len(self.input_trajectories)
 
     def _discrete_symbols(self):
@@ -1591,7 +1626,6 @@ class ConstraintCollocator(object):
         next_discrete_specified_symbols : tuple of sympy.Symbols
             The m symbols representing the system's (ith + 1) specified
             inputs.
-
         """
 
         # The previus, current, and next states.
@@ -1612,6 +1646,16 @@ class ConstraintCollocator(object):
         self._next_known_discrete_specified_symbols = \
             tuple([sm.Symbol(f.__class__.__name__ + 'n', real=True)
                    for f in self.known_input_trajectories])
+        
+        # The current and next known state varying input trajectories.
+        current_state_disc_sub = dict(zip(self.state_symbols, self.current_discrete_state_symbols))
+        next_state_disc_sub = dict(zip(self.state_symbols, self.next_discrete_state_symbols))
+        self._current_known_discrete_state_varying_specified_symbols = \
+            tuple([f.subs(current_state_disc_sub)
+                   for f in self.known_state_varying_input_trajectories])
+        self._next_known_discrete_state_varying_specified_symbols = \
+            tuple([f.subs(next_state_disc_sub)
+                   for f in self.known_state_varying_input_trajectories])
 
         # The current and next unknown input trajectories.
         self._current_unknown_discrete_specified_symbols = \
@@ -1623,9 +1667,11 @@ class ConstraintCollocator(object):
 
         self._current_discrete_specified_symbols = (
             self.current_known_discrete_specified_symbols +
+            self.current_known_discrete_state_varying_specified_symbols +
             self.current_unknown_discrete_specified_symbols)
         self._next_discrete_specified_symbols = (
             self.next_known_discrete_specified_symbols +
+            self.next_known_discrete_state_varying_specified_symbols +
             self.next_unknown_discrete_specified_symbols)
 
     def _discretize_eom(self):
@@ -1649,18 +1695,15 @@ class ConstraintCollocator(object):
         ui = self.current_discrete_specified_symbols
         un = self.next_discrete_specified_symbols
 
+
         h = self.time_interval_symbol
 
         if self.integration_method == 'backward euler':
-
             deriv_sub = {d: (i - p) / h for d, i, p in zip(xd, xi, xp)}
-
             func_sub = dict(zip(x + u, xi + ui))
-
             self._discrete_eom = me.msubs(self.eom, deriv_sub, func_sub)
 
         elif self.integration_method == 'midpoint':
-
             xdot_sub = {d: (n - i) / h for d, i, n in zip(xd, xi, xn)}
             x_sub = {d: (i + n) / 2 for d, i, n in zip(x, xi, xn)}
             u_sub = {d: (i + n) / 2 for d, i, n in zip(u, ui, un)}

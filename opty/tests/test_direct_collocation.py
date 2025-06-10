@@ -15,7 +15,6 @@ from ..utils import (create_objective_function, sort_sympy, parse_free,
 
 
 def test_implicit_known_traj():
-
     m, g, h = sym.symbols('m, g, h', real=True, nonnegative=True)
     x, v, f, = mech.dynamicsymbols('x, v, f', real=True)
 
@@ -30,7 +29,7 @@ def test_implicit_known_traj():
 
     N = 20
 
-    xp = np.linspace(0.0, 1.0, num=N)
+    xp_ = np.linspace(0.0, 1.0, num=N)
     thetap = np.linspace(0.0, 10.0, num=N)
 
     def calc_theta(free):
@@ -45,7 +44,9 @@ def test_implicit_known_traj():
 
         """
         x = free[0:N]
-        return np.interp(x, xp, thetap)
+        #TODO: xp becomes the symbol xp from constraint collocator instead of the numpy array from above
+        # perhaps xp variable name clashes with the symbol xp in the collocator?
+        return np.interp(x, xp_, thetap)
 
     def calc_dthetadx(free):
         x = free[0:N]
@@ -61,6 +62,24 @@ def test_implicit_known_traj():
                               theta: calc_theta},
         time_symbol=mech.dynamicsymbols._t,
     )
+
+    # Check the state variying symbols are caught by _sort_trajectories.
+    assert col.known_state_varying_input_trajectories == (theta.diff(x), theta)
+    
+    # Check the discrete state variying symbols are handled correctly in _discrete_symbols.
+    xi = col.current_discrete_state_symbols[0]
+    fi = col.current_discrete_specified_symbols[2]
+    thetai = sym.Function('theta')(xi)
+    assert col._current_discrete_specified_symbols == (thetai.diff(xi), thetai, fi,)
+
+    # Check _discretize_eom
+    xp, vp = col.previous_discrete_state_symbols
+    vi = col.current_discrete_state_symbols[1]
+    discrete_eom = sym.Matrix([
+        (xi-xp)/h - vi,
+        m*(vi-vp)/h - fi + m*g*sym.sin(thetai),
+    ])
+    assert col.discrete_eom == discrete_eom
 
     all_specified = col._merge_fixed_free(
         col.input_trajectories,  # symbols (dthetadx, theta, f)
