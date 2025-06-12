@@ -627,7 +627,8 @@ class Problem(cyipopt.Problem):
         return axes
 
     @_optional_plt_dep
-    def plot_constraint_violations(self, vector, axes=None, subplots=False):
+    def plot_constraint_violations(self, vector, axes=None, subplots=False,
+                                   show_range=False):
         """Returns an axis with the state constraint violations plotted versus
         node number and the instance constraints as a bar graph.
 
@@ -644,6 +645,11 @@ class Problem(cyipopt.Problem):
             for each equation of motion. The default is False. If a user wants
             to provide the axes, it is recommended to run once without
             providing axes, to see how many are needed.
+        show_range : boolean, optional.
+            If True and if ``eom_bounds`` are given, and if
+            ``subplots`` is True the range of the bounded equations of motion
+            will be shown. Otherwise the violations of the bounds will be
+            shown. Default is False.
 
         Returns
         =======
@@ -663,8 +669,8 @@ class Problem(cyipopt.Problem):
         - s : number of unknown time intervals
 
         If ``eom_bounds`` are given as :math:`a \leq eom \leq b` and
-        ``subplots = True``, the values of the respective eoms are plotted and
-        their bounds are shown as dashed lines.
+        ``subplots = True``, and ``show_range`` is True the values of the
+        respective eoms are plotted and their bounds are shown as dashed lines.
 
         if ``eom_bounds`` are given and ``subplots = False``, the eom
         violations are plotted. The violations are calculated as follows:
@@ -798,7 +804,7 @@ class Problem(cyipopt.Problem):
                 axes[0].set_xlabel('Node Number')
                 axes[0].set_ylabel('EoM violations')
 
-        else:
+        elif subplots is True and show_range is True:
             for i in range(self.collocator.num_eom):
                 if ((self.eom_bounds is not None) and
                     (i in self.eom_bounds.keys())):
@@ -823,6 +829,46 @@ class Problem(cyipopt.Problem):
             else:
                 axes[0].set_title((f'Constraint violations \n'
                                                  f'Values of bounded EoMs'))
+
+        elif subplots is True and show_range is False:
+            for i in range(self.collocator.num_eom):
+                if ((self.eom_bounds is not None) and
+                    (i in self.eom_bounds.keys())):
+
+                    left = self.eom_bounds[i][0]
+                    right = self.eom_bounds[i][1]
+                    for ii in range(N - 1):
+                        if eom_violations[i, ii] < left:
+                            eom_violations[i, ii] = (eom_violations[i, ii] -
+                                                     left)
+                        elif eom_violations[i, ii] > right:
+                            eom_violations[i, ii] = (eom_violations[i, ii] -
+                                                     right)
+                        else:
+                            eom_violations[i, ii] = 0.0
+                    axes[i].plot(con_nodes, eom_violations[i])
+                    axes[i].set_ylabel(f'Eq. {str(i)} \n violation',
+                                       fontsize=9)
+                    #axes[i].axhline(self.eom_bounds[i][0], color='C1', lw=1.0,
+                    #                 linestyle='--')
+                    #axes[i].axhline(self.eom_bounds[i][1], color='C1', lw=1.0,
+                    #                   linestyle='--')
+
+
+                else:
+                    axes[i].plot(con_nodes, eom_violations[i])
+                    axes[i].set_ylabel(f'Eq. {str(i)} \n violation',
+                                       fontsize=9)
+                if i < self.collocator.num_eom - 1:
+                    axes[i].set_xticklabels([])
+            axes[num_eom_plots-1].set_xlabel('Node Number')
+            if self.eom_bounds is None:
+                axes[0].set_title('Constraint violations')
+            else:
+                axes[0].set_title((f'Constraint violations \n'
+                                                 f'Values of bounded EoMs'))
+        else:
+            raise ValueError('Something went wrong with the subplots.')
 
 
         if self.collocator.instance_constraints is not None:
