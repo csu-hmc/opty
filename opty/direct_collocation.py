@@ -650,6 +650,9 @@ class Problem(cyipopt.Problem):
             ``subplots`` is True the range of the bounded equations of motion
             will be shown. Otherwise the violations of the bounds will be
             shown. Default is False.
+            If number of equations of motion is larger than one and subplots is
+            False, only the violations are plotted, regardless of the value
+            of ``show_range``.
 
         Returns
         =======
@@ -679,21 +682,14 @@ class Problem(cyipopt.Problem):
         - eom - b if eom > b
         - 0 otherwise.
 
-        If only one eom is given and and eom bounds are given, then
-        ``subplots`` is set to ``True``.
-
         """
-        # This is done to make the cases below simpler.
-        if self.collocator.num_eom == 1:
-            subplots = True
-
         bars_per_plot = None
         rotation = -45
 
-        if subplots:
-            figsize = 1.25
-        else:
+        if subplots is False or self.collocator.num_eom == 1:
             figsize = 1.75
+        else:
+            figsize = 1.25
 
         if not isinstance(figsize, float):
             raise ValueError('figsize given must be a float.')
@@ -750,23 +746,6 @@ class Problem(cyipopt.Problem):
         instance_violations = con_violations[len(eom_violations):]
         eom_violations = eom_violations.reshape((self.collocator.num_eom,
                                                  N - 1))
-        # If an eom has bounds a < eom < b and if subplots is False, this will
-        # be displayed for each  node:
-        # eom - a if eom < a
-        # eom - b if eom > b
-        # zero otherwise.
-        if self.eom_bounds is not None and not subplots:
-            for k in self.eom_bounds.keys():
-                left = self.eom_bounds[k][0]
-                right = self.eom_bounds[k][1]
-                for i in range(N - 1):
-                    if eom_violations[k, i] < left:
-                        eom_violations[k, i] = eom_violations[k, i] - left
-                    elif eom_violations[k, i] > right:
-                        eom_violations[k, i] = eom_violations[k, i] - right
-                    else:
-                        eom_violations[k, i] = 0.0
-
         con_nodes = range(1, self.collocator.num_collocation_nodes)
 
         if axes is None:
@@ -784,25 +763,44 @@ class Problem(cyipopt.Problem):
             num_eom_plots = len(axes) - num_plots
 
         axes = np.asarray(axes).ravel()
-
         if subplots is False or self.collocator.num_eom == 1:
-            axes[0].plot(con_nodes, eom_violations.T)
             if self.eom_bounds is None:
+                axes[0].plot(con_nodes, eom_violations.T)
                 axes[0].set_title('Constraint violations')
                 axes[0].set_xlabel('Node Number')
                 axes[0].set_ylabel('EoM violation')
-            elif self.collocator.num_eom == 1:
-                axes[0].set_title('Constraint violations')
+            elif self.collocator.num_eom == 1 and show_range is True:
+                axes[0].plot(con_nodes, eom_violations[0])
+                axes[0].set_title('Value of Bounded EoM')
                 axes[0].set_xlabel('Node Number')
                 axes[0].set_ylabel('EoM value')
                 axes[0].axhline(self.eom_bounds[0][0], color='C1', lw=1.0,
                                  linestyle='--')
                 axes[0].axhline(self.eom_bounds[0][1], color='C1', lw=1.0,
                                 linestyle='--')
+            # if subplots is False and more than one EoM is present, only the
+            # violations are plotted, not the values of the EoMs, rwgardless of
+            # the value of show_range.
             else:
-                axes[0].set_title('Constraint violations')
+                print('here we are')
+                for i in range(self.collocator.num_eom):
+                    if i in self.eom_bounds.keys():
+                        left = self.eom_bounds[i][0]
+                        right = self.eom_bounds[i][1]
+                        for ii in range(N - 1):
+                            if eom_violations[i, ii] < left:
+                                eom_violations[i, ii] = (eom_violations[i, ii]
+                                                         - left)
+                            elif eom_violations[i, ii] > right:
+                                eom_violations[i, ii] = (eom_violations[i, ii]
+                                                         - right)
+                            else:
+                                eom_violations[i, ii] = 0.0
+                axes[0].plot(con_nodes, eom_violations.T)
+                axes[0].set_ylabel('EoM violation', fontsize=9)
                 axes[0].set_xlabel('Node Number')
-                axes[0].set_ylabel('EoM violations')
+                axes[0].set_title('Constraint violations')
+
 
         elif subplots is True and show_range is True:
             for i in range(self.collocator.num_eom):
@@ -849,11 +847,6 @@ class Problem(cyipopt.Problem):
                     axes[i].plot(con_nodes, eom_violations[i])
                     axes[i].set_ylabel(f'Eq. {str(i)} \n violation',
                                        fontsize=9)
-                    #axes[i].axhline(self.eom_bounds[i][0], color='C1', lw=1.0,
-                    #                 linestyle='--')
-                    #axes[i].axhline(self.eom_bounds[i][1], color='C1', lw=1.0,
-                    #                   linestyle='--')
-
 
                 else:
                     axes[i].plot(con_nodes, eom_violations[i])
@@ -862,13 +855,9 @@ class Problem(cyipopt.Problem):
                 if i < self.collocator.num_eom - 1:
                     axes[i].set_xticklabels([])
             axes[num_eom_plots-1].set_xlabel('Node Number')
-            if self.eom_bounds is None:
-                axes[0].set_title('Constraint violations')
-            else:
-                axes[0].set_title((f'Constraint violations \n'
-                                                 f'Values of bounded EoMs'))
+            axes[0].set_title('Constraint violations')
         else:
-            raise ValueError('Something went wrong with the subplots.')
+            raise ValueError('Something wrong with EOM constraints.')
 
 
         if self.collocator.instance_constraints is not None:
