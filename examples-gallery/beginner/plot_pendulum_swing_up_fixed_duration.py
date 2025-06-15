@@ -103,9 +103,9 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
 initial_guess = prob.create_linear_initial_guess()
 # %%
 # Plot initial guesss created by the method.
-#ax = prob.plot_trajectories(initial_guess)
-#ax[0].set_title('Initial Guesses for \n State Trajectories ')
-# %%
+# ax = prob.plot_trajectories(initial_guess)
+# ax[0].set_title('Initial Guesses for \n State Trajectories ')
+#
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
 print(info['status_msg'])
