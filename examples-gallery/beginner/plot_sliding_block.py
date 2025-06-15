@@ -188,8 +188,8 @@ for selection in (0, 1):
 
     initial_guess = prob.create_linear_initial_guess()
     # Plot the initial guess
-#    ax = prob.plot_trajectories(initial_guess)
-#    ax[0].set_title(f'Initial guesses of \n State Variables')
+    achsen = prob.plot_trajectories(initial_guess)
+    achsen[0].set_title(f'Initial guesses of \n State Variables')
     solution, info = prob.solve(initial_guess)
     solution_list.append(solution)
     info_list.append(info)
