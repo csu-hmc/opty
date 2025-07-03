@@ -191,7 +191,7 @@ prob = Problem(
     instance_constraints=instance_constraints,
     bounds=bounds,
     time_symbol=t,
-    backend='cython',
+    backend='numpy',
 )
 
 fname = f'plot_find_points_{num_nodes}_nodes_solution.csv'
