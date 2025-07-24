@@ -1716,7 +1716,11 @@ class ConstraintCollocator(object):
                     raise ValueError(msg.format(
                         func, time_idx, self.num_collocation_nodes - 1))
             else:
-                time_value = func.args[0]
+                # NOTE : This is a SymPy float and causes a slowdown in the
+                # following NumPy calculations if not coerced to a normal
+                # float.
+                time_value = float(func.args[0])
+                # TODO : This could likely use self.time_vector().
                 time_vector = np.linspace(0.0, duration, num=N)
                 time_idx = np.argmin(np.abs(time_vector - time_value))
             free_index = determine_free_index(time_idx,
