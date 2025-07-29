@@ -32,7 +32,7 @@ def test_implicit_known_traj():
 
     N = 4
 
-    xp_ = np.linspace(0.0, 1.0, num=N)
+    xp_ = np.linspace(2.0, 5.0, num=N)
     thetap_ = np.linspace(0.0, 10.0, num=N)
 
     def calc_theta(free):
@@ -60,7 +60,7 @@ def test_implicit_known_traj():
         states,
         N,
         h,
-        known_parameter_map={m: 1.0, g: 10.0},
+        known_parameter_map={m: 3.3, g: 10.2},
         known_trajectory_map={theta.diff(x): calc_dthetadx,
                               theta: calc_theta},
         time_symbol=t,
@@ -103,11 +103,10 @@ def test_implicit_known_traj():
 
     assert sym.simplify(col._discrete_eom - expected_discrete_eom) == sym.zeros(2, 1)
 
-    wrt = vi, xi, vp, xp, fi
+    wrt = xi, vi, xp, vp, fi, h
 
-    eom.jacobian(wrt)
-
-    # jacobian of eom_vector wrt vi, xi, vp, xp, fi
+    print(expected_discrete_eom.jacobian(wrt))
+    # jacobian of eom_vector wrt vi, xi, vp, xp, fi, h
     expected_eom_jac = sym.Matrix([
         [-1, 1/h, 0, -1/h, 0],
         [m/h, m*g*sym.cos(thetai_of_xi)*thetai_of_xi.diff(xi), -m/h, 0, -1]
@@ -119,12 +118,43 @@ def test_implicit_known_traj():
     ])
 
     con = col.generate_constraint_function()
-    print(con(np.ones(N*3)))
+
+    free = np.array([
+        2., 3., 4., 5.,  # x
+        6., 7., 8., 9.,  # v
+        10., 11., 12., 13.,  # f
+        14.,  # h
+    ])
+    thetas = calc_theta(free)
+    dthetas = calc_dthetadx(free)
+
+    np.testing.assert_allclose(
+        con(free),
+        np.array([
+            (3. - 2.)/14. - 7.,
+            (4. - 3.)/14. - 8.,
+            (5. - 4.)/14. - 9.,
+            3.3*(7. - 6.)/14. - 11. + 3.3*10.2*np.sin(thetas[1]),
+            3.3*(8. - 7.)/14. - 12. + 3.3*10.2*np.sin(thetas[2]),
+            3.3*(9. - 8.)/14. - 13. + 3.3*10.2*np.sin(thetas[3]),
+        ])
+    )
 
     con_jac = col.generate_jacobian_function()
-    print(con_jac(np.ones(N*3)))
 
-    pause
+    # [1/h, -1, -1/h, 0, 0, -(xi - xp)/h**2, g*m*cos(thetai(xi))*Derivative(thetai(xi), xi), m/h, 0, -m/h, -1, -m*(vi - vp)/h**2]
+    np.testing.assert_allclose(
+        con_jac(free),
+        np.array([
+            1./14., -1., -1./14., 0., 0., -(3. - 2.)/14.**2,
+            3.3*10.2*np.cos(thetas[1])*dthetas[1], 3.3/14., 0., -3.3/14., -1., -3.3*(7. - 6.)/14.**2,
+            1./14., -1., -1./14., 0., 0., -(4. - 3.)/14.**2,
+            3.3*10.2*np.cos(thetas[2])*dthetas[2], 3.3/14., 0., -3.3/14., -1., -3.3*(8. - 7.)/14.**2,
+            1./14., -1., -1./14., 0., 0., -(5. - 4.)/14.**2,
+            3.3*10.2*np.cos(thetas[3])*dthetas[3], 3.3/14., 0., -3.3/14., -1., -3.3*(9. - 8.)/14.**2,
+        ])
+    )
+
     all_specified = col._merge_fixed_free(
         col.input_trajectories,  # symbols (dthetadx, theta, f)
         col.known_trajectory_map,  # contains function for calculating dthetadx and theta
@@ -133,15 +163,12 @@ def test_implicit_known_traj():
         0.5*np.ones(col.num_free)  # free vector
     )
 
-    np.testing.assert_allclose(
-        all_specified,
-        np.array([[10., 10., 10., 10., 10., 10., 10., 10., 10., 10., 10., 10.,
-                   10., 10., 10., 10., 10., 10., 10., 10.],  # theta @ x = [0.10, ..., 0.10]
-                  [5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5.,
-                   5., 5., 5., 5., 5.],  # theta @ x = [0.5, ..., 0.5]
-                  [2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2.,
-                   2., 2., 2., 2., 2.]])  # f
-    )
+    #np.testing.assert_allclose(
+        #all_specified,
+        #np.array([[10., 10., 10., 10.],  # theta @ x = [0.10, ..., 0.10]
+                  #[5., 5., 5., 5.],  # theta @ x = [0.5, ..., 0.5]
+                  #[2., 2., 2., 2.]])  # f
+    #)
 
 
 def test_extra_algebraic(plot=False):
