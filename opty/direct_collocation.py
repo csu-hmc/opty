@@ -1621,13 +1621,30 @@ class ConstraintCollocator(object):
             tuple([sm.Symbol(f.__class__.__name__ + 'n', real=True)
                    for f in self.state_symbols])
 
+        def convert_input_func(f, idx_lab):
+            if isinstance(f, sm.core.function.Derivative):  # dr(x(t))/d(x(t))
+                var, (wrt, order) = f.args
+                fi = sm.Symbol('d' + var.__class__.__name__ + idx_lab +
+                               '_d' + wrt.__class__.__name__ + idx_lab,
+                               real=True)
+            elif f.args[0] != self.time_symbol:  # r(x(t))
+                di = sm.Symbol(f.args[0].__class__.__name__ + idx_lab,
+                               real=True)
+                fi = sm.Function(f.__class__.__name__ + idx_lab, real=True)(di)
+                fi_repl = sm.Symbol(f.__class__.__name__ + idx_lab, real=True)
+            else:  # r(t)
+                fi = sm.Symbol(f.__class__.__name__ + idx_lab, real=True)
+            return fi
+
         # The current and next known input trajectories.
-        self._current_known_discrete_specified_symbols = \
-            tuple([sm.Symbol(f.__class__.__name__ + 'i', real=True)
-                   for f in self.known_input_trajectories])
-        self._next_known_discrete_specified_symbols = \
-            tuple([sm.Symbol(f.__class__.__name__ + 'n', real=True)
-                   for f in self.known_input_trajectories])
+        current_known = []
+        for f in self.known_input_trajectories:
+            current_known.append(convert_input_func(f, 'i'))
+        self._current_known_discrete_specified_symbols = tuple(current_known)
+        next_known = []
+        for f in self.known_input_trajectories:
+            next_known.append(convert_input_func(f, 'n'))
+        self._next_known_discrete_specified_symbols = tuple(next_known)
 
         # The current and next unknown input trajectories.
         self._current_unknown_discrete_specified_symbols = \
@@ -1866,9 +1883,25 @@ class ConstraintCollocator(object):
             adjacent_start = 1
             adjacent_stop = None
 
+        if self.implicit_derivative_repl:
+            repl = {}
+            for var in self._current_known_discrete_specified_symbols:
+                if isinstance(var, sm.Function) and var.args[0] != self.time_symbol:
+                    repl[var] = sm.Symbol(var.__class__.__name__ +
+                                          str(var.args[0]), real=True)
+            discrete_eom = me.msubs(self.discrete_eom, repl)
+            swapped_args = []
+            for a in args:
+                if a in repl:
+                    a = repl[a]
+                swapped_args.append(a)
+            args = swapped_args
+        else:
+            discrete_eom = self.discrete_eom
+
         if self._backend == 'cython':
             logging.info('Compiling the constraint function.')
-            f = ufuncify_matrix(args, self.discrete_eom,
+            f = ufuncify_matrix(args, discrete_eom,
                                 const=constant_syms + (h_sym,),
                                 tmp_dir=self.tmp_dir, parallel=self.parallel,
                                 show_compile_output=self.show_compile_output)
@@ -2252,6 +2285,32 @@ class ConstraintCollocator(object):
                                                   wrt_matrix.T)
         elif self._backend == 'numpy':
             symbolic_partials = discrete_eom_matrix.jacobian(wrt_matrix.T)
+
+        if self.implicit_derivative_repl:
+            repl = {}
+            for f in self._current_known_discrete_specified_symbols:
+                if (isinstance(f, sm.Function) and f.args[0] !=
+                    self.time_symbol):
+                    repl[f.diff()] = sm.Symbol('d' + f.__class__.__name__ +
+                                               '_d' + str(f.args[0]),
+                                               real=True)
+                    repl[f] = sm.Symbol(f.__class__.__name__ + str(f.args[0]),
+                                        real=True)
+            # TODO : also need to replace the expressions in the common sub
+            # expressions.
+            sub_exprs = symbolic_partials[0]
+            simp_mat = me.msubs(symbolic_partials[1][0], repl)
+            new_subexprs = []
+            for expr_pair in sub_exprs:
+                new_subexprs.append((expr_pair[0], me.msubs(expr_pair[1], repl)))
+            symbolic_partials = (new_subexprs, [simp_mat])
+
+            swapped_args = []
+            for a in args:
+                if a in repl:
+                    a = repl[a]
+                swapped_args.append(a)
+            args = swapped_args
 
         # This generates a numerical function that evaluates the matrix of
         # partial derivatives. This function returns the non-zero elements

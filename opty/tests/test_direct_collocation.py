@@ -30,10 +30,10 @@ def test_implicit_known_traj():
         m*v.diff() - f + m*g*sym.sin(theta),
     ])
 
-    N = 20
+    N = 4
 
-    xp = np.linspace(0.0, 1.0, num=N)
-    thetap = np.linspace(0.0, 10.0, num=N)
+    xp_ = np.linspace(0.0, 1.0, num=N)
+    thetap_ = np.linspace(0.0, 10.0, num=N)
 
     def calc_theta(free):
         """
@@ -46,10 +46,12 @@ def test_implicit_known_traj():
         theta : ndarray, shape(N, )
 
         """
+        print('Executing calc_theta')
         x = free[0:N]
-        return np.interp(x, xp, thetap)
+        return np.interp(x, xp_, thetap_)
 
     def calc_dthetadx(free):
+        print('Executing calc_dthetadx')
         x = free[0:N]
         return 10.0*np.ones_like(x)
 
@@ -76,12 +78,17 @@ def test_implicit_known_traj():
     assert col._num_input_trajectories == 3
     assert col.implicit_derivative_repl == {theta.diff(x): dthetadx}
 
-    thetai_of_xi = sym.Function('thetai', real=True)(sym.Symbol('xi', real=True))
+    thetai_of_xi = sym.Function('thetai', real=True)(sym.Symbol('xi',
+                                                                real=True))
+    thetan_of_xn = sym.Function('thetan', real=True)(sym.Symbol('xn',
+                                                                real=True))
+    dthetai_dxi = sym.Symbol('dthetai_dxi', real=True)
+    dthetan_dxn = sym.Symbol('dthetan_dxn', real=True)
     # _discrete_symbols()
-    assert col._current_known_discrete_specified_symbols == (thetai_of_xi, )
-    assert col._next_known_discrete_specified_symbols == (
-            sm.Function('thetap', real=True)(sm.Symbol('xp', real=True)),
-    )
+    assert col._current_known_discrete_specified_symbols == (dthetai_dxi,
+                                                             thetai_of_xi,)
+    assert col._next_known_discrete_specified_symbols == (dthetan_dxn,
+                                                          thetan_of_xn,)
     # _discretize_eom()
     # The implicit function of time must be a SymPy Function in the discrete
     # EoM, so that the Jacobian will apply the chain rule and generate the new
@@ -94,6 +101,8 @@ def test_implicit_known_traj():
         m*(vi - vp)/h - fi + m*g*sym.sin(thetai_of_xi),
     ])
 
+    assert sym.simplify(col._discrete_eom - expected_discrete_eom) == sym.zeros(2, 1)
+
     wrt = vi, xi, vp, xp, fi
 
     eom.jacobian(wrt)
@@ -104,8 +113,18 @@ def test_implicit_known_traj():
         [m/h, m*g*sym.cos(thetai_of_xi)*thetai_of_xi.diff(xi), -m/h, 0, -1]
     ])
 
-    pause
+    expected_eom_jac_repl = sym.Matrix([
+        [-1, 1/h, 0, -1/h, 0],
+        [m/h, m*g*sym.cos(thetai_of_xi)*dthetai_dxi, -m/h, 0, -1]
+    ])
 
+    con = col.generate_constraint_function()
+    print(con(np.ones(N*3)))
+
+    con_jac = col.generate_jacobian_function()
+    print(con_jac(np.ones(N*3)))
+
+    pause
     all_specified = col._merge_fixed_free(
         col.input_trajectories,  # symbols (dthetadx, theta, f)
         col.known_trajectory_map,  # contains function for calculating dthetadx and theta
