@@ -2286,7 +2286,21 @@ class ConstraintCollocator(object):
         elif self._backend == 'numpy':
             symbolic_partials = discrete_eom_matrix.jacobian(wrt_matrix.T)
 
+        def postprocess(r, e):
+            repl = {}
+            new_r = []
+            for pair in r:
+                if isinstance(pair[1], sm.Function):
+                    repl[pair[0]] = pair[1]
+                if isinstance(pair[1], sm.Derivative):
+                    new_r.append((pair[0], pair[1].xreplace(repl)))
+                else:
+                    new_r.append((pair[0], pair[1]))
+            return new_r, e
+
+
         if self.implicit_derivative_repl:
+            symbolic_partials = postprocess(*symbolic_partials)
             repl = {}
             for f in self._current_known_discrete_specified_symbols:
                 if (isinstance(f, sm.Function) and f.args[0] !=
