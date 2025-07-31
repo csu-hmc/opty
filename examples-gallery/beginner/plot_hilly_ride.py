@@ -30,12 +30,10 @@ from opty import Problem
 # - :math:`x(t)`: horizontal coordinate
 # - :math:`y(t)`: vertical coordinate
 # - :math:`p(t)`: propulsion power
-# - :math:`theta(t)`: slope angle
-m, g, h = sm.symbols('m, g, h', real=True, nonnegative=True)
+# - :math:`\theta(t)`: slope angle
+m, g, h = sm.symbols('m, g, h', real=True, positive=True)
 s, v, x, y, p = me.dynamicsymbols('s, v, x, y, p', real=True)
-#theta = me.dynamicsymbols('theta')
 theta = sm.Function('theta')(x)
-
 
 states = (x, y, s, v)
 
@@ -54,13 +52,14 @@ N = 101
 # the slope is then also a function of the linear distances. The following code
 # creates an elevation profile that simulates having a smooth slope.
 # :math:`\theta(x(t))`.
-amp = 10.0
+amp = 60.0
 omega = 2*np.pi/500.0  # one period every 500 meters
 xp = np.linspace(-250.0, 1250.0, num=1501)
 yp = amp*np.sin(omega*xp)
 thetap = np.atan(amp*omega*np.cos(omega*xp))
 dthetadx = -amp*omega**2*np.sin(omega*xp)/(amp**2*omega**2*np.cos(omega*xp)**2
                                            + 1)
+
 fig, axes = plt.subplots(3, sharex=True)
 axes[0].plot(xp, yp)
 axes[0].set_ylabel(r'$y$ [m]')
@@ -135,6 +134,7 @@ instance_constraint = (
 bounds = {
     h: (0.0, 2.0),
     p: (0.0, 1000.0),
+    v: (0.0, np.inf),
 }
 
 # %%
@@ -151,7 +151,7 @@ prob = Problem(
     known_parameter_map={m: 100.0, g: 9.81},
     known_trajectory_map={
         theta.diff(x): calc_dthetadx,
-        theta: calc_theta
+        theta: calc_theta,
     },
     time_symbol=me.dynamicsymbols._t,
     instance_constraints=instance_constraint,
