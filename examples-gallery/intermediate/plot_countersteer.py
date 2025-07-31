@@ -57,36 +57,29 @@ m, I1, I2, I3 = sm.symbols('m, I1, I2, I3', real=True)
 # input is the steering angle :math:`\delta`.
 theta, omega = me.dynamicsymbols('theta, omega', real=True)
 x, y, psi = me.dynamicsymbols('x, y, psi', real=True)
-delta, beta = me.dynamicsymbols('delta, beta', real=True)
+delta = me.dynamicsymbols('delta', real=True)
 t = me.dynamicsymbols._t
 
 # %%
 # The first two differential equations are the essential single degree of
 # freedom dynamics followed by the differential equations to track :math:`x,y`
-# and :math:`\psi`. Both :math:`\delta` and :math:`\beta=\dot{\delta}` are
-# present as inputs to the dynamics. In the optimal control problem, both of
-# these input trajectories are sought with the constraint that
-# :math:`\beta=\dot{\delta}` holds. To manage this with opty, add a
-# differential equation that ensures steering angle and steering rate variables
-# are related by time differentiation and make :math:`\delta` a pseudo state
-# variable with the highest derivative :math:`\beta` being the single unknown
-# input trajectory.
+# and :math:`\psi`. Both :math:`\delta` and :math:`\dot{\delta}` are
+# present as inputs to the dynamics.
 eom = sm.Matrix([
     theta.diff(t) - omega,
     (I1 + m*h**2)*omega.diff(t) +
     (I3 - I2 - m*h**2)*(v*sm.tan(delta)/b)**2*sm.sin(theta)*sm.cos(theta) -
     m*g*h*sm.sin(theta) +
-    m*h*sm.cos(theta)*(a*v/b/sm.cos(delta)**2*beta +
+    m*h*sm.cos(theta)*(a*v/b/sm.cos(delta)**2*delta.diff(t) +
                        v**2/v*sm.tan(delta)),
     x.diff(t) - v*sm.cos(psi),
     y.diff(t) - v*sm.sin(psi),
     psi.diff(t) - v/b*sm.tan(delta),
-    delta.diff(t) - beta,
 ])
 MathJaxRepr(eom)
 
 # %%
-state_symbols = (theta, omega, x, y, psi, delta)
+state_symbols = (theta, omega, x, y, psi)
 MathJaxRepr(state_symbols)
 
 # %%
@@ -107,10 +100,10 @@ par_map = {
 # Define the optimal control problem
 # ----------------------------------
 #
-# Instance constraints can be set on any of the state variables. The goal is to
-# transition from cruising at a steady state in balance equilibrium to steady
-# state in balance equilibrium with a 90 degree change in heading, i.e. make a
-# right turn.
+# Instance constraints can be set on any of the state variables or input
+# variables. The goal is to transition from cruising at a steady state in
+# balance equilibrium to steady state in balance equilibrium with a 90 degree
+# change in heading, i.e. make a right turn.
 num_nodes = 201
 dt = sm.symbols('Delta_t', real=True)
 start = 0*dt
@@ -150,13 +143,11 @@ def gradient(free):
 # %%
 # Add some physical limits to the states and inputs. Given that the steering is
 # massless in this model, the solution will be governed by how fast the model
-# can move. The limits on steer angular rate and roll angular rate will dictate
-# the form of solution.
+# can move. The limits on roll angular rate will dictate the form of solution.
 bounds = {
     psi: (np.deg2rad(-360.0), np.deg2rad(360.0)),
     theta: (np.deg2rad(-90.0), np.deg2rad(90.0)),
     delta: (np.deg2rad(-90.0), np.deg2rad(90.0)),
-    beta: (np.deg2rad(-200.0), np.deg2rad(200.0)),
     omega: (np.deg2rad(-100.0), np.deg2rad(100.0)),
     dt: (0.001, 0.5),
 }
@@ -196,13 +187,14 @@ _ = prob.plot_objective_value()
 xs, us, ps, dt_val = prob.parse_free(solution)
 
 
-def bicycle_points(x):
+def bicycle_points(x, u):
     """Return x, y, z coordinates of points that draw the bicycle model.
 
     Parameters
     ==========
     x : array_like, shape(n, N)
         n state trajectories over N time steps.
+    u : array_like, shape(2, N)
 
     Returns
     =======
@@ -214,7 +206,8 @@ def bicycle_points(x):
 
     for i, xi in enumerate(x.T):
 
-        theta, omega, x, y, psi, delta = xi
+        theta, omega, x, y, psi = xi
+        delta = u[1, i]
 
         rear_contact = np.array([x, y, 0.0])
         com_on_ground = rear_contact + np.array([par_map[a]*np.cos(psi),
@@ -238,7 +231,7 @@ def bicycle_points(x):
     return coordinates
 
 
-coordinates = bicycle_points(xs)
+coordinates = bicycle_points(xs, us)
 
 
 # %%
