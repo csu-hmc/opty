@@ -32,8 +32,11 @@ def test_implicit_known_traj():
 
     N = 4
 
-    xp_ = np.linspace(2.0, 5.0, num=N)
-    thetap_ = np.linspace(0.0, 10.0, num=N)
+    x0, xf = 2.0, 5.0
+    theta0, thetaf = 0.0, 10.0
+    xs = np.linspace(x0, xf, num=N)
+    thetas = np.linspace(theta0, thetaf, num=N)
+    slope = (thetaf - theta0)/(xf - x0)
 
     def calc_theta(free):
         """
@@ -48,18 +51,19 @@ def test_implicit_known_traj():
         """
         print('Executing calc_theta')
         x = free[0:N]
-        return np.interp(x, xp_, thetap_)
+        return np.interp(x, xs, thetas)
 
     def calc_dthetadx(free):
         print('Executing calc_dthetadx')
         x = free[0:N]
-        return 10.0*np.ones_like(x)
+        #return slope*np.ones_like(x)
+        return np.array([3.9, 1.2, -5.6, 12.3])
 
     col = ConstraintCollocator(
         eom,
         states,
         N,
-        h,
+        h,  # variable
         known_parameter_map={m: 3.3, g: 10.2},
         known_trajectory_map={theta.diff(x): calc_dthetadx,
                               theta: calc_theta},
@@ -69,21 +73,23 @@ def test_implicit_known_traj():
     col.state_derivative_symbols == (x, v)
 
     # _sort_trajectories()
-    # TODO : Should these have dthetadx or theta.diff(x)
     assert col._known_input_trajectories == (theta.diff(x), theta)
     assert col._num_known_input_trajectories == 2
     assert col._unknown_input_trajectories == (f,)
     assert col._num_unknown_input_trajectories == 1
     assert col._input_trajectories == (theta.diff(x), theta, f)
     assert col._num_input_trajectories == 3
+    # TODO : I don't think dthetadx is ever used, so maybe this should just be
+    # a boolean flag.
     assert col.implicit_derivative_repl == {theta.diff(x): dthetadx}
 
-    thetai_of_xi = sym.Function('thetai', real=True)(sym.Symbol('xi',
-                                                                real=True))
-    thetan_of_xn = sym.Function('thetan', real=True)(sym.Symbol('xn',
-                                                                real=True))
+    thetai_of_xi = sym.Function('thetai', real=True)(
+        sym.Symbol('xi', real=True))
+    thetan_of_xn = sym.Function('thetan', real=True)(
+        sym.Symbol('xn', real=True))
     dthetai_dxi = sym.Symbol('dthetai_dxi', real=True)
     dthetan_dxn = sym.Symbol('dthetan_dxn', real=True)
+
     # _discrete_symbols()
     assert col._current_known_discrete_specified_symbols == (dthetai_dxi,
                                                              thetai_of_xi,)
@@ -101,20 +107,26 @@ def test_implicit_known_traj():
         m*(vi - vp)/h - fi + m*g*sym.sin(thetai_of_xi),
     ])
 
-    assert sym.simplify(col._discrete_eom - expected_discrete_eom) == sym.zeros(2, 1)
+    assert sym.simplify(col._discrete_eom -
+                        expected_discrete_eom) == sym.zeros(2, 1)
 
-    wrt = xi, vi, xp, vp, fi, h
-
-    print(expected_discrete_eom.jacobian(wrt))
-    # jacobian of eom_vector wrt vi, xi, vp, xp, fi, h
+    # jacobian of eom_vector wrt xi, vi, xp, vp, fi, h
     expected_eom_jac = sym.Matrix([
-        [-1, 1/h, 0, -1/h, 0],
-        [m/h, m*g*sym.cos(thetai_of_xi)*thetai_of_xi.diff(xi), -m/h, 0, -1]
+        [1/h, -1, -1/h, 0, 0, -(xi - xp)/h**2],
+        [m*g*sym.cos(thetai_of_xi)*thetai_of_xi.diff(xi), m/h, 0, -m/h, -1,
+         -m*(vi - vp)/h**2]
     ])
 
-    expected_eom_jac_repl = sym.Matrix([
-        [-1, 1/h, 0, -1/h, 0],
-        [m/h, m*g*sym.cos(thetai_of_xi)*dthetai_dxi, -m/h, 0, -1]
+    wrt = xi, vi, xp, vp, fi, h
+    assert sym.simplify(col._discrete_eom.jacobian(wrt) -
+                        expected_eom_jac) == sym.zeros(2, 6)
+
+    # TODO : figure out a way to check this (currently this is produced
+    # internally in a method of Collocator).
+    expected_eom_jac_after_repl = sym.Matrix([
+        [1/h, -1, -1/h, 0, 0, -(xi - xp)/h**2],
+        [m*g*sym.cos(thetai_of_xi)*dthetai_dxi, m/h, 0, -m/h, -1,
+         -m*(vi - vp)/h**2]
     ])
 
     con = col.generate_constraint_function()
@@ -142,16 +154,18 @@ def test_implicit_known_traj():
 
     con_jac = col.generate_jacobian_function()
 
-    # [1/h, -1, -1/h, 0, 0, -(xi - xp)/h**2, g*m*cos(thetai(xi))*Derivative(thetai(xi), xi), m/h, 0, -m/h, -1, -m*(vi - vp)/h**2]
     np.testing.assert_allclose(
         con_jac(free),
         np.array([
             1./14., -1., -1./14., 0., 0., -(3. - 2.)/14.**2,
-            3.3*10.2*np.cos(thetas[1])*dthetas[1], 3.3/14., 0., -3.3/14., -1., -3.3*(7. - 6.)/14.**2,
+            3.3*10.2*np.cos(thetas[1])*dthetas[1], 3.3/14., 0., -3.3/14., -1.,
+            -3.3*(7. - 6.)/14.**2,
             1./14., -1., -1./14., 0., 0., -(4. - 3.)/14.**2,
-            3.3*10.2*np.cos(thetas[2])*dthetas[2], 3.3/14., 0., -3.3/14., -1., -3.3*(8. - 7.)/14.**2,
+            3.3*10.2*np.cos(thetas[2])*dthetas[2], 3.3/14., 0., -3.3/14., -1.,
+            -3.3*(8. - 7.)/14.**2,
             1./14., -1., -1./14., 0., 0., -(5. - 4.)/14.**2,
-            3.3*10.2*np.cos(thetas[3])*dthetas[3], 3.3/14., 0., -3.3/14., -1., -3.3*(9. - 8.)/14.**2,
+            3.3*10.2*np.cos(thetas[3])*dthetas[3], 3.3/14., 0., -3.3/14., -1.,
+            -3.3*(9. - 8.)/14.**2,
         ])
     )
 
