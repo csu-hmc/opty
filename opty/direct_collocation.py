@@ -280,25 +280,36 @@ class Problem(cyipopt.Problem):
         Raises
         ------
         ValueError
-            If the lower bound for variable is greater than its upper bound,
-            ``opty`` may not break, but the solution will likely not be
-            correct. Hence a ValueError is raised in such as case.
+            If the lower bound for a variable or for an equation of motion is
+            greater than its upper bound, ``opty`` may not break, but the
+            solution will likely not be correct. Hence a ValueError is raised
+            in such as case.
 
             If the initial guess for any variable is outside its bounds,
             a ValueError is raised.
 
         """
+        errors1 = []
+        errors2 = []
+        if self.eom_bounds is not None:
+            # check for reversed bounds
+            for key in self.eom_bounds.keys():
+                if self.eom_bounds[key][0] > self.eom_bounds[key][1]:
+                    errors1.append(key)
+
         if self.bounds is not None:
-            errors = []
             # check for reversed bounds
             for key in self.bounds.keys():
                 if self.bounds[key][0] > self.bounds[key][1]:
-                    errors.append(key)
-            if len(errors) > 0:
+                    errors2.append(key)
+
+        errors = errors1 + errors2
+        if len(errors) > 0:
                 msg = (f'The lower bound(s) for {errors} is (are) greater than'
                        f' the upper bound(s).')
                 raise ValueError(msg)
 
+        if self.bounds is not None:
             violating_variables = []
 
             if self.collocator._variable_duration:
@@ -1748,7 +1759,11 @@ class ConstraintCollocator(object):
                     raise ValueError(msg.format(
                         func, time_idx, self.num_collocation_nodes - 1))
             else:
-                time_value = func.args[0]
+                # NOTE : This is a SymPy float and causes a slowdown in the
+                # following NumPy calculations if not coerced to a normal
+                # float.
+                time_value = float(func.args[0])
+                # TODO : This could likely use self.time_vector().
                 time_vector = np.linspace(0.0, duration, num=N)
                 time_idx = np.argmin(np.abs(time_vector - time_value))
             free_index = determine_free_index(time_idx,

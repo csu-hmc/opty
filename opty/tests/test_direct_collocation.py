@@ -2378,6 +2378,29 @@ def test_check_bounds_conflict():
     with raises(ValueError):
         prob.check_bounds_conflict(initial_guess)
 
+    # check for reversed eom_bounds
+    eom_bounds = {0: (-1.0, 1.0),
+                  1: (1.0, -1.0),
+                  }
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        eom_bounds=eom_bounds,
+        time_symbol=t,
+        backend='numpy'
+    )
+
+    initial_guess = np.zeros(prob.num_free)
+    with raises(ValueError):
+        prob.check_bounds_conflict(initial_guess)
+
+
     # check for values outside the bounds
     bounds[z] = (-1.0, 1.0)
     bounds[uz] = (-1.0, 1.0)
