@@ -2,7 +2,7 @@
 Hilly Ride
 ==========
 
-Simulation of a particle subject to the force or gravity and air drag as it
+Simulation of a particle subject to the force of gravity and air drag as it
 traverses and elevation profile with a specified slope to reach the end in
 minimal time.
 
@@ -30,35 +30,42 @@ from opty import Problem
 # - :math:`x(t)`: horizontal coordinate
 # - :math:`y(t)`: vertical coordinate
 # - :math:`p(t)`: propulsion power
-# - :math:`\theta(t)`: slope angle
-m, g, h = sm.symbols('m, g, h', real=True, positive=True)
-s, v, x, y, p = me.dynamicsymbols('s, v, x, y, p', real=True)
+# - :math:`e(t)`: propulsion energy
+# - :math:`\theta(x(t))`: slope angle
+#
+# Note that the slope angle :math:`\theta` is made a function of :math:`x(t)`
+# instead of simply :math:`t`. Numerical functions that generate
+# :math:`\theta(x(t))` and :math:`\frac{d\theta}{dx}` will be supplied to
+# incorporate this known trajectory into the equations of motion.
+m, g, h = sm.symbols('m, g, h', real=True)
+s, v, x, y, p, e = me.dynamicsymbols('s, v, x, y, p, e', real=True)
 theta = sm.Function('theta')(x)
 
-states = (x, y, s, v)
+states = (x, y, s, v, e)
 
 eom = sm.Matrix([
     x.diff() - v*sm.cos(theta),
     y.diff() - v*sm.sin(theta),
     s.diff() - v,
     m*v.diff() - p/v + m*g*sm.sin(theta) + v**2/3,
+    e.diff() - p,
 ])
 
 N = 101
 
 # %%
-# The elevation profile is often derived from measurements of a road surface.
-# If a series of elevation values at specified linear distances are available,
-# the slope is then also a function of the linear distances. The following code
-# creates an elevation profile that simulates having a smooth slope.
-# :math:`\theta(x(t))`.
+# The elevation profile for such a problem may be derived from measurements of
+# a road surface. If a series of elevation values at specified linear distances
+# are available, the slope is then also a function of the linear distances. The
+# following code creates an elevation profile that simulates having a smooth
+# slope.
 amp = 60.0
 omega = 2*np.pi/500.0  # one period every 500 meters
-xp = np.linspace(-250.0, 1250.0, num=1501)
+xp = np.linspace(-250.0, 1250.0, num=3001)
 yp = amp*np.sin(omega*xp)
 thetap = np.atan(amp*omega*np.cos(omega*xp))
-dthetadx = -amp*omega**2*np.sin(omega*xp)/(amp**2*omega**2*np.cos(omega*xp)**2
-                                           + 1)
+dthetadx = -amp*omega**2*np.sin(omega*xp)/(
+    amp**2*omega**2*np.cos(omega*xp)**2 + 1)
 
 fig, axes = plt.subplots(3, sharex=True)
 axes[0].plot(xp, yp)
@@ -68,7 +75,6 @@ axes[1].set_ylabel(r'$\theta$ [deg]')
 axes[2].plot(xp, np.rad2deg(dthetadx))
 axes[2].set_ylabel(r'$\frac{d\theta}{dx}$ [deg/m]')
 axes[2].set_xlabel(r'$x$ [m]')
-
 
 # %%
 # The following function outputs the slope at all values of x using
@@ -120,6 +126,7 @@ def obj_grad(free):
 
 t0, tf = 0*h, (N - 1)*h
 sf = 1000.0  # meters
+ef = 150000.0  # joules
 
 instance_constraint = (
     x.func(t0),
@@ -127,14 +134,17 @@ instance_constraint = (
     s.func(t0),
     v.func(t0),
     s.func(tf) - sf,
+    e.func(t0),
+    #e.func(tf) - ef,
 )
 
 # %%
 # Limit the power and make sure the time step is positive.
 bounds = {
-    h: (0.0, 2.0),
+    h: (0.0, 6.0),
     p: (0.0, 1000.0),
     v: (0.0, np.inf),
+    #e: (0.0, ef),
 }
 
 # %%
@@ -148,7 +158,10 @@ prob = Problem(
     states,
     N,
     h,
-    known_parameter_map={m: 100.0, g: 9.81},
+    known_parameter_map={
+        m: 100.0,  # kg
+        g: 9.81,  # m/s/s
+    },
     known_trajectory_map={
         theta.diff(x): calc_dthetadx,
         theta: calc_theta,
@@ -158,7 +171,9 @@ prob = Problem(
     bounds=bounds,
 )
 
-prob.add_option('derivative_test', 'first-order')
+#prob.add_option('derivative_test', 'first-order')
+#prob.add_option('derivative_test_perturbation', 1e-9)
+prob.add_option('max_iter', 10000)
 
 # %%
 # Provide linear initial guesses for each variable.
@@ -167,7 +182,8 @@ initial_guess[0*N:1*N] = np.linspace(0.0, sf, num=N)  # x
 initial_guess[1*N:2*N] = np.zeros(N)  # y
 initial_guess[2*N:3*N] = np.linspace(0.0, sf, num=N)  # s
 initial_guess[3*N:4*N] = 10.0*np.ones(N)  # v
-initial_guess[4*N:5*N] = 500.0*np.ones(N)  # p
+initial_guess[4*N:5*N] = np.linspace(0.0, ef, num=N)  # e
+initial_guess[5*N:6*N] = 500.0*np.ones(N)  # p
 initial_guess[-1] = 0.1  # h
 
 _ = prob.plot_trajectories(initial_guess)
