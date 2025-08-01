@@ -16,8 +16,8 @@ from ..utils import (create_objective_function, sort_sympy, parse_free,
 
 def test_implicit_known_traj():
 
-    m, g, h = sym.symbols('m, g, h', real=True, nonnegative=True)
-    x, v, f, = mech.dynamicsymbols('x, v, f', real=True)
+    m, g, h = sym.symbols('m, g, h', real=True)
+    x, v, f, s = mech.dynamicsymbols('x, v, f, s', real=True)
     t = mech.dynamicsymbols._t
 
     theta = sym.Function('theta')(x)
@@ -26,7 +26,7 @@ def test_implicit_known_traj():
     states = (x, v)
 
     eom = sym.Matrix([
-        x.diff() - v,
+        x.diff() - v - s,
         m*v.diff() - f + m*g*sym.sin(theta),
     ])
 
@@ -65,24 +65,29 @@ def test_implicit_known_traj():
         N,
         h,  # variable
         known_parameter_map={m: 3.3, g: 10.2},
-        known_trajectory_map={theta.diff(x): calc_dthetadx,
-                              theta: calc_theta},
+        known_trajectory_map={
+            theta.diff(x): calc_dthetadx,
+            s: np.array([121., 122., 123., 124.]),
+            theta: calc_theta,
+        },
         time_symbol=t,
     )
 
-    col.state_derivative_symbols == (x, v)
+    assert col.state_derivative_symbols == (x.diff(t), v.diff(t))
 
     # _sort_trajectories()
-    assert col._known_input_trajectories == (theta.diff(x), theta)
-    assert col._num_known_input_trajectories == 2
-    assert col._unknown_input_trajectories == (f,)
-    assert col._num_unknown_input_trajectories == 1
-    assert col._input_trajectories == (theta.diff(x), theta, f)
-    assert col._num_input_trajectories == 3
+    assert col.known_input_trajectories == (theta.diff(x), s, theta)
+    assert col.num_known_input_trajectories == 3
+    assert col.unknown_input_trajectories == (f,)
+    assert col.num_unknown_input_trajectories == 1
+    assert col.input_trajectories == (theta.diff(x), s, theta, f)
+    assert col.num_input_trajectories == 4
     # TODO : I don't think dthetadx is ever used, so maybe this should just be
     # a boolean flag.
     assert col.implicit_derivative_repl == {theta.diff(x): dthetadx}
 
+    xi, xp, vi, vp, fi, si, sn = sym.symbols('xi, xp, vi, vp, fi, si, sn',
+                                             real=True)
     thetai_of_xi = sym.Function('thetai', real=True)(
         sym.Symbol('xi', real=True))
     thetan_of_xn = sym.Function('thetan', real=True)(
@@ -91,19 +96,16 @@ def test_implicit_known_traj():
     dthetan_dxn = sym.Symbol('dthetan_dxn', real=True)
 
     # _discrete_symbols()
-    assert col._current_known_discrete_specified_symbols == (dthetai_dxi,
-                                                             thetai_of_xi,)
-    assert col._next_known_discrete_specified_symbols == (dthetan_dxn,
-                                                          thetan_of_xn,)
+    assert col.current_known_discrete_specified_symbols == (dthetai_dxi, si,
+                                                            thetai_of_xi,)
+    assert col.next_known_discrete_specified_symbols == (dthetan_dxn, sn,
+                                                         thetan_of_xn,)
     # _discretize_eom()
     # The implicit function of time must be a SymPy Function in the discrete
     # EoM, so that the Jacobian will apply the chain rule and generate the new
     # unevaluated derivatives.
-    xi, vi = col.current_discrete_state_symbols
-    xp, vp = col.previous_discrete_state_symbols
-    fi, = col.current_unknown_discrete_specified_symbols
     expected_discrete_eom = sym.Matrix([
-        (xi - xp)/h - vi,
+        (xi - xp)/h - vi - si,
         m*(vi - vp)/h - fi + m*g*sym.sin(thetai_of_xi),
     ])
 
@@ -143,9 +145,9 @@ def test_implicit_known_traj():
     np.testing.assert_allclose(
         con(free),
         np.array([
-            (3. - 2.)/14. - 7.,
-            (4. - 3.)/14. - 8.,
-            (5. - 4.)/14. - 9.,
+            (3. - 2.)/14. - 7. - 122.,
+            (4. - 3.)/14. - 8. - 123.,
+            (5. - 4.)/14. - 9. - 124.,
             3.3*(7. - 6.)/14. - 11. + 3.3*10.2*np.sin(thetas[1]),
             3.3*(8. - 7.)/14. - 12. + 3.3*10.2*np.sin(thetas[2]),
             3.3*(9. - 8.)/14. - 13. + 3.3*10.2*np.sin(thetas[3]),
