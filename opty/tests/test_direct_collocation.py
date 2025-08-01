@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from collections import OrderedDict
 
 import numpy as np
@@ -75,6 +73,8 @@ def test_implicit_known_traj():
 
     assert col.state_derivative_symbols == (x.diff(t), v.diff(t))
 
+    assert col._deriv_in_knw_traj
+
     # _sort_trajectories()
     assert col.known_input_trajectories == (theta.diff(x), s, theta)
     assert col.num_known_input_trajectories == 3
@@ -82,9 +82,6 @@ def test_implicit_known_traj():
     assert col.num_unknown_input_trajectories == 1
     assert col.input_trajectories == (theta.diff(x), s, theta, f)
     assert col.num_input_trajectories == 4
-    # TODO : I don't think dthetadx is ever used, so maybe this should just be
-    # a boolean flag.
-    assert col.implicit_derivative_repl == {theta.diff(x): dthetadx}
 
     xi, xp, vi, vp, fi, si, sn = sym.symbols('xi, xp, vi, vp, fi, si, sn',
                                              real=True)

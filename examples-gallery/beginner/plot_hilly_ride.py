@@ -18,6 +18,7 @@ import sympy as sm
 import sympy.physics.mechanics as me
 import matplotlib.pyplot as plt
 from opty import Problem
+import matplotlib.animation as animation
 
 # %%
 # Define the variables and equations of motion.
@@ -51,7 +52,7 @@ eom = sm.Matrix([
     e.diff() - p,
 ])
 
-N = 101
+N = 201
 
 # %%
 # The elevation profile for such a problem may be derived from measurements of
@@ -141,10 +142,10 @@ instance_constraint = (
 # %%
 # Limit the power and make sure the time step is positive.
 bounds = {
-    h: (0.0, 6.0),
+    h: (0.0, 10.0),
     p: (0.0, 1000.0),
     v: (0.0, np.inf),
-    #e: (0.0, ef),
+    e: (0.0, ef),
 }
 
 # %%
@@ -169,11 +170,13 @@ prob = Problem(
     time_symbol=me.dynamicsymbols._t,
     instance_constraints=instance_constraint,
     bounds=bounds,
+    integration_method='midpoint',
+    #backend='numpy',
 )
 
 #prob.add_option('derivative_test', 'first-order')
 #prob.add_option('derivative_test_perturbation', 1e-9)
-prob.add_option('max_iter', 10000)
+#prob.add_option('max_iter', 10000)
 
 # %%
 # Provide linear initial guesses for each variable.
@@ -207,8 +210,17 @@ xs, rs, ps, dh = prob.parse_free(solution)
 
 fig, ax = plt.subplots()
 ax.plot(xs[0], xs[1])
+dot, = ax.plot(xs[0, 0], xs[1, 0], marker='o', markersize=10)
 ax.set_aspect('equal')
 ax.set_ylabel(r'$y$ [m]')
 ax.set_xlabel(r'$x$ [m]')
+
+
+def animate(i):
+    xi, yi = xs[0, i], xs[1, i]
+    dot.set_data([xi], [yi])
+
+
+ani = animation.FuncAnimation(fig, animate, range(0, N, 4))
 
 plt.show()

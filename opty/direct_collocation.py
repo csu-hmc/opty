@@ -1092,7 +1092,7 @@ class ConstraintCollocator(object):
                           int(self._variable_duration))
         self._check_known_trajectories()
 
-        self.integration_method = integration_method
+        self._integration_method = integration_method
 
         self._discrete_symbols()
         self._discretize_eom()
@@ -1461,6 +1461,7 @@ class ConstraintCollocator(object):
             raise ValueError(msg.format(method))
         else:
             self._integration_method = method
+        self._discretize_eom()
 
     @staticmethod
     def _parse_inputs(all_syms, known_syms):
@@ -1557,27 +1558,23 @@ class ConstraintCollocator(object):
         # TODO : Add tests for time symbols that are not `t`.
         time_varying_symbols = me.find_dynamicsymbols(self.eom)
         state_related = states.union(states_derivatives)
+
+        # non_states can contain func(t), Derivative(func(t), t) or func(x(t))
+        # TODO : Might the eom contain Derivative(func(x(t)), x(t))?
         non_states = time_varying_symbols.difference(state_related)
+
         if sm.Matrix(list(non_states)).has(sm.Derivative):
             msg = ('Too few state variables provided for state time '
                    'derivatives found in equations of motion.')
             raise ValueError(msg)
 
-        # non_states may contain the a Function('?')(state)
-        implicit_funcs_of_time = []
-        # NOTE : Do we support implicit functions of more than one state
-        # variable?
-        self.implicit_derivative_repl = {}
-        for thing in non_states.copy():
-            if thing.args == (self.time_symbol,):  # explicit functions of time
+        # check if any of the non_states are implicit functions of time
+        self._deriv_in_knw_traj = False
+        for specified in non_states.copy():
+            if specified.args == (self.time_symbol,):  # explicit func of time
                 pass
-            else:  # is implicit function of time
-                implicit_funcs_of_time.append(thing)
-                # TODO : Pass on assumptions from thing?
-                deriv_var = sm.Function('d' + thing.name + '_d' +
-                                        thing.args[0].name)(self.time_symbol)
-                #non_states.add(deriv_var)
-                self.implicit_derivative_repl[thing.diff(thing.args[0])] = deriv_var
+            else:  # implicit func of time
+                self._deriv_in_knw_traj = True
 
         res = self._parse_inputs(non_states,
                                  self.known_trajectory_map.keys())
@@ -1634,7 +1631,7 @@ class ConstraintCollocator(object):
                    for f in self.state_symbols])
 
         def convert_input_func(f, idx_lab):
-            if isinstance(f, sm.core.function.Derivative):  # dr(x(t))/d(x(t))
+            if isinstance(f, sm.Derivative):  # dr(x(t))/d(x(t))
                 var, (wrt, order) = f.args
                 fi = sm.Symbol('d' + var.__class__.__name__ + idx_lab +
                                '_d' + wrt.__class__.__name__ + idx_lab,
@@ -1899,9 +1896,13 @@ class ConstraintCollocator(object):
             adjacent_start = 1
             adjacent_stop = None
 
-        if self.implicit_derivative_repl:
+        if self._deriv_in_knw_traj:
             repl = {}
             for var in self.current_known_discrete_specified_symbols:
+                if isinstance(var, sm.Function) and var.args[0] != self.time_symbol:
+                    repl[var] = sm.Symbol(var.__class__.__name__ +
+                                          str(var.args[0]), real=True)
+            for var in self.next_known_discrete_specified_symbols:
                 if isinstance(var, sm.Function) and var.args[0] != self.time_symbol:
                     repl[var] = sm.Symbol(var.__class__.__name__ +
                                           str(var.args[0]), real=True)
@@ -1922,7 +1923,7 @@ class ConstraintCollocator(object):
                                 tmp_dir=self.tmp_dir, parallel=self.parallel,
                                 show_compile_output=self.show_compile_output)
         elif self._backend == 'numpy':
-            f = lambdify_matrix(args, self.discrete_eom)
+            f = lambdify_matrix(args, discrete_eom)
 
         def constraints(state_values, specified_values, constant_values,
                         interval_value):
@@ -2314,11 +2315,9 @@ class ConstraintCollocator(object):
                     new_r.append((pair[0], pair[1]))
             return new_r, e
 
-
-        if self.implicit_derivative_repl:
-            symbolic_partials = postprocess(*symbolic_partials)
+        if self._deriv_in_knw_traj:
             repl = {}
-            for f in self._current_known_discrete_specified_symbols:
+            for f in self.current_known_discrete_specified_symbols:
                 if (isinstance(f, sm.Function) and f.args[0] !=
                     self.time_symbol):
                     repl[f.diff()] = sm.Symbol('d' + f.__class__.__name__ +
@@ -2326,14 +2325,25 @@ class ConstraintCollocator(object):
                                                real=True)
                     repl[f] = sm.Symbol(f.__class__.__name__ + str(f.args[0]),
                                         real=True)
-            # TODO : also need to replace the expressions in the common sub
-            # expressions.
-            sub_exprs = symbolic_partials[0]
-            simp_mat = me.msubs(symbolic_partials[1][0], repl)
-            new_subexprs = []
-            for expr_pair in sub_exprs:
-                new_subexprs.append((expr_pair[0], me.msubs(expr_pair[1], repl)))
-            symbolic_partials = (new_subexprs, [simp_mat])
+            for f in self.next_known_discrete_specified_symbols:
+                if (isinstance(f, sm.Function) and f.args[0] !=
+                    self.time_symbol):
+                    repl[f.diff()] = sm.Symbol('d' + f.__class__.__name__ +
+                                               '_d' + str(f.args[0]),
+                                               real=True)
+                    repl[f] = sm.Symbol(f.__class__.__name__ + str(f.args[0]),
+                                        real=True)
+            if self._backend == 'cython':
+                symbolic_partials = postprocess(*symbolic_partials)
+                sub_exprs = symbolic_partials[0]
+                simp_mat = me.msubs(symbolic_partials[1][0], repl)
+                new_subexprs = []
+                for expr_pair in sub_exprs:
+                    new_subexprs.append((expr_pair[0], me.msubs(expr_pair[1],
+                                                                repl)))
+                symbolic_partials = (new_subexprs, [simp_mat])
+            else:
+                symbolic_partials = me.msubs(symbolic_partials, repl)
 
             swapped_args = []
             for a in args:
