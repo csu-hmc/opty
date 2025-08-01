@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from collections import OrderedDict
 
 import numpy as np
@@ -12,6 +10,179 @@ from pytest import raises
 from ..direct_collocation import Problem, ConstraintCollocator
 from ..utils import (create_objective_function, sort_sympy, parse_free,
                      _coo_matrix)
+
+
+def test_implicit_known_traj():
+
+    m, g, h = sym.symbols('m, g, h', real=True)
+    x, v, f, s = mech.dynamicsymbols('x, v, f, s', real=True)
+    t = mech.dynamicsymbols._t
+
+    theta = sym.Function('theta')(x)
+    dthetadx = sym.Function('dtheta_dx')(t)
+
+    states = (x, v)
+
+    eom = sym.Matrix([
+        x.diff() - v - s,
+        m*v.diff() - f + m*g*sym.sin(theta),
+    ])
+
+    N = 4
+
+    x0, xf = 2.0, 5.0
+    theta0, thetaf = 0.0, 10.0
+    xs = np.linspace(x0, xf, num=N)
+    thetas = np.linspace(theta0, thetaf, num=N)
+    slope = (thetaf - theta0)/(xf - x0)
+
+    def calc_theta(free):
+        """
+        Parameters
+        ==========
+        free : ndarray, shape(nN + qN + r + s, )
+
+        Returns
+        =======
+        theta : ndarray, shape(N, )
+
+        """
+        print('Executing calc_theta')
+        x = free[0:N]
+        return np.interp(x, xs, thetas)
+
+    def calc_dthetadx(free):
+        print('Executing calc_dthetadx')
+        x = free[0:N]
+        #return slope*np.ones_like(x)
+        return np.array([3.9, 1.2, -5.6, 12.3])
+
+    col = ConstraintCollocator(
+        eom,
+        states,
+        N,
+        h,  # variable
+        known_parameter_map={m: 3.3, g: 10.2},
+        known_trajectory_map={
+            theta.diff(x): calc_dthetadx,
+            s: np.array([121., 122., 123., 124.]),
+            theta: calc_theta,
+        },
+        time_symbol=t,
+    )
+
+    assert col.state_derivative_symbols == (x.diff(t), v.diff(t))
+
+    assert col._deriv_in_knw_traj
+
+    # _sort_trajectories()
+    assert col.known_input_trajectories == (theta.diff(x), s, theta)
+    assert col.num_known_input_trajectories == 3
+    assert col.unknown_input_trajectories == (f,)
+    assert col.num_unknown_input_trajectories == 1
+    assert col.input_trajectories == (theta.diff(x), s, theta, f)
+    assert col.num_input_trajectories == 4
+
+    xi, xp, vi, vp, fi, si, sn = sym.symbols('xi, xp, vi, vp, fi, si, sn',
+                                             real=True)
+    thetai_of_xi = sym.Function('thetai', real=True)(
+        sym.Symbol('xi', real=True))
+    thetan_of_xn = sym.Function('thetan', real=True)(
+        sym.Symbol('xn', real=True))
+    dthetai_dxi = sym.Symbol('dthetai_dxi', real=True)
+    dthetan_dxn = sym.Symbol('dthetan_dxn', real=True)
+
+    # _discrete_symbols()
+    assert col.current_known_discrete_specified_symbols == (dthetai_dxi, si,
+                                                            thetai_of_xi,)
+    assert col.next_known_discrete_specified_symbols == (dthetan_dxn, sn,
+                                                         thetan_of_xn,)
+    # _discretize_eom()
+    # The implicit function of time must be a SymPy Function in the discrete
+    # EoM, so that the Jacobian will apply the chain rule and generate the new
+    # unevaluated derivatives.
+    expected_discrete_eom = sym.Matrix([
+        (xi - xp)/h - vi - si,
+        m*(vi - vp)/h - fi + m*g*sym.sin(thetai_of_xi),
+    ])
+
+    assert sym.simplify(col._discrete_eom -
+                        expected_discrete_eom) == sym.zeros(2, 1)
+
+    # jacobian of eom_vector wrt xi, vi, xp, vp, fi, h
+    expected_eom_jac = sym.Matrix([
+        [1/h, -1, -1/h, 0, 0, -(xi - xp)/h**2],
+        [m*g*sym.cos(thetai_of_xi)*thetai_of_xi.diff(xi), m/h, 0, -m/h, -1,
+         -m*(vi - vp)/h**2]
+    ])
+
+    wrt = xi, vi, xp, vp, fi, h
+    assert sym.simplify(col._discrete_eom.jacobian(wrt) -
+                        expected_eom_jac) == sym.zeros(2, 6)
+
+    # TODO : figure out a way to check this (currently this is produced
+    # internally in a method of Collocator).
+    expected_eom_jac_after_repl = sym.Matrix([
+        [1/h, -1, -1/h, 0, 0, -(xi - xp)/h**2],
+        [m*g*sym.cos(thetai_of_xi)*dthetai_dxi, m/h, 0, -m/h, -1,
+         -m*(vi - vp)/h**2]
+    ])
+
+    con = col.generate_constraint_function()
+
+    free = np.array([
+        2., 3., 4., 5.,  # x
+        6., 7., 8., 9.,  # v
+        10., 11., 12., 13.,  # f
+        14.,  # h
+    ])
+    thetas = calc_theta(free)
+    dthetas = calc_dthetadx(free)
+
+    np.testing.assert_allclose(
+        con(free),
+        np.array([
+            (3. - 2.)/14. - 7. - 122.,
+            (4. - 3.)/14. - 8. - 123.,
+            (5. - 4.)/14. - 9. - 124.,
+            3.3*(7. - 6.)/14. - 11. + 3.3*10.2*np.sin(thetas[1]),
+            3.3*(8. - 7.)/14. - 12. + 3.3*10.2*np.sin(thetas[2]),
+            3.3*(9. - 8.)/14. - 13. + 3.3*10.2*np.sin(thetas[3]),
+        ])
+    )
+
+    con_jac = col.generate_jacobian_function()
+
+    np.testing.assert_allclose(
+        con_jac(free),
+        np.array([
+            1./14., -1., -1./14., 0., 0., -(3. - 2.)/14.**2,
+            3.3*10.2*np.cos(thetas[1])*dthetas[1], 3.3/14., 0., -3.3/14., -1.,
+            -3.3*(7. - 6.)/14.**2,
+            1./14., -1., -1./14., 0., 0., -(4. - 3.)/14.**2,
+            3.3*10.2*np.cos(thetas[2])*dthetas[2], 3.3/14., 0., -3.3/14., -1.,
+            -3.3*(8. - 7.)/14.**2,
+            1./14., -1., -1./14., 0., 0., -(5. - 4.)/14.**2,
+            3.3*10.2*np.cos(thetas[3])*dthetas[3], 3.3/14., 0., -3.3/14., -1.,
+            -3.3*(9. - 8.)/14.**2,
+        ])
+    )
+
+    all_specified = col._merge_fixed_free(
+        col.input_trajectories,  # symbols (dthetadx, s, theta, f)
+        col.known_trajectory_map,  # contains functions for dthetadx and theta
+        2.0*np.ones(N),  # values of f (free inputs)
+        'traj',
+        5.0*np.ones(col.num_free)  # free vector
+    )
+
+    np.testing.assert_allclose(
+        all_specified,
+        np.array([[3.9,   1.2,  -5.6,  12.3],  # dthetadx
+                  [121., 122., 123., 124.],  # s
+                  [10., 10., 10., 10.],  # theta
+                  [2., 2., 2., 2.]])  # f
+    )
 
 
 def test_extra_algebraic(plot=False):
@@ -358,6 +529,8 @@ class TestConstraintCollocator():
     def test_gen_multi_arg_con_func_midpoint(self):
 
         self.collocator.integration_method = 'midpoint'
+        self.collocator._discrete_symbols()
+        self.collocator._discretize_eom()
         self.collocator._gen_multi_arg_con_func()
 
         # Make sure the parameters are in the correct order.
@@ -445,6 +618,8 @@ class TestConstraintCollocator():
     def test_gen_multi_arg_con_jac_func_midpoint(self):
 
         self.collocator.integration_method = 'midpoint'
+        self.collocator._discrete_symbols()
+        self.collocator._discretize_eom()
         self.collocator._gen_multi_arg_con_jac_func()
 
         # Make sure the parameters are in the correct order.
@@ -749,6 +924,7 @@ class TestConstraintCollocatorUnknownTrajectories():
     def test_gen_multi_arg_con_jac_func_midpoint(self):
 
         self.collocator.integration_method = 'midpoint'
+        self.collocator._discretize_eom()
         self.collocator._gen_multi_arg_con_jac_func()
 
         # Make sure the parameters are in the correct order.
@@ -866,9 +1042,10 @@ def test_merge_fixed_free_parameters():
     all_syms = m, c, k
     known = {m: 1.0, c: 2.0}
     unknown = np.array([3.0])
+    free = np.ones(10)
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'par')
+                                                    unknown, 'par', free)
 
     expected = np.array([1.0, 2.0, 3.0])
 
@@ -880,7 +1057,7 @@ def test_merge_fixed_free_parameters():
     unknown = np.array([3.0, 4.0])
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'par')
+                                                    unknown, 'par', free)
 
     expected = np.array([1.0, 2.0, 3.0, 4.0])
 
@@ -896,9 +1073,10 @@ def test_merge_fixed_free_trajectories():
     all_syms = f, k
     known = {f: np.array([1.0, 2.0])}
     unknown = np.array([3.0, 4.0])
+    free = np.ones(10)
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'traj')
+                                                    unknown, 'traj', free)
 
     expected = np.array([[1.0, 2.0],
                          [3.0, 4.0]])
@@ -914,7 +1092,7 @@ def test_merge_fixed_free_trajectories():
                         [7.0, 8.0]])
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'traj')
+                                                    unknown, 'traj', free)
 
     expected = np.array([[1.0, 2.0],
                          [3.0, 4.0],
