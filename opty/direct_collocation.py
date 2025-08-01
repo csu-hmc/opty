@@ -1547,6 +1547,11 @@ class ConstraintCollocator(object):
         time_varying_symbols = me.find_dynamicsymbols(self.eom)
         state_related = states.union(states_derivatives)
         non_states = time_varying_symbols.difference(state_related)
+        if sm.Matrix(list(non_states)).has(sm.Derivative):
+            msg = ('Too few state variables provided for state time '
+                   'derivatives found in equations of motion.')
+            raise ValueError(msg)
+
         # non_states may contain the a Function('?')(state)
         implicit_funcs_of_time = []
         # NOTE : Do we support implicit functions of more than one state
@@ -1562,10 +1567,6 @@ class ConstraintCollocator(object):
                                         thing.args[0].name)(self.time_symbol)
                 #non_states.add(deriv_var)
                 self.implicit_derivative_repl[thing.diff(thing.args[0])] = deriv_var
-        if sm.Matrix(list(non_states)).has(sm.Derivative):
-            msg = ('Too few state variables provided for state time '
-                   'derivatives found in equations of motion.')
-            raise ValueError(msg)
 
         res = self._parse_inputs(non_states,
                                  self.known_trajectory_map.keys())
