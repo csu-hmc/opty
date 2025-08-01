@@ -172,19 +172,20 @@ def test_implicit_known_traj():
     )
 
     all_specified = col._merge_fixed_free(
-        col.input_trajectories,  # symbols (dthetadx, theta, f)
-        col.known_trajectory_map,  # contains function for calculating dthetadx and theta
+        col.input_trajectories,  # symbols (dthetadx, s, theta, f)
+        col.known_trajectory_map,  # contains functions for dthetadx and theta
         2.0*np.ones(N),  # values of f (free inputs)
         'traj',
-        0.5*np.ones(col.num_free)  # free vector
+        5.0*np.ones(col.num_free)  # free vector
     )
 
-    #np.testing.assert_allclose(
-        #all_specified,
-        #np.array([[10., 10., 10., 10.],  # theta @ x = [0.10, ..., 0.10]
-                  #[5., 5., 5., 5.],  # theta @ x = [0.5, ..., 0.5]
-                  #[2., 2., 2., 2.]])  # f
-    #)
+    np.testing.assert_allclose(
+        all_specified,
+        np.array([[3.9,   1.2,  -5.6,  12.3],  # dthetadx
+                  [121., 122., 123., 124.],  # s
+                  [10., 10., 10., 10.],  # theta
+                  [2., 2., 2., 2.]])  # f
+    )
 
 
 def test_extra_algebraic(plot=False):
@@ -531,6 +532,8 @@ class TestConstraintCollocator():
     def test_gen_multi_arg_con_func_midpoint(self):
 
         self.collocator.integration_method = 'midpoint'
+        self.collocator._discrete_symbols()
+        self.collocator._discretize_eom()
         self.collocator._gen_multi_arg_con_func()
 
         # Make sure the parameters are in the correct order.
@@ -618,6 +621,8 @@ class TestConstraintCollocator():
     def test_gen_multi_arg_con_jac_func_midpoint(self):
 
         self.collocator.integration_method = 'midpoint'
+        self.collocator._discrete_symbols()
+        self.collocator._discretize_eom()
         self.collocator._gen_multi_arg_con_jac_func()
 
         # Make sure the parameters are in the correct order.
@@ -922,6 +927,7 @@ class TestConstraintCollocatorUnknownTrajectories():
     def test_gen_multi_arg_con_jac_func_midpoint(self):
 
         self.collocator.integration_method = 'midpoint'
+        self.collocator._discretize_eom()
         self.collocator._gen_multi_arg_con_jac_func()
 
         # Make sure the parameters are in the correct order.

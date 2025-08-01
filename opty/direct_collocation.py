@@ -1886,7 +1886,7 @@ class ConstraintCollocator(object):
 
         if self.implicit_derivative_repl:
             repl = {}
-            for var in self._current_known_discrete_specified_symbols:
+            for var in self.current_known_discrete_specified_symbols:
                 if isinstance(var, sm.Function) and var.args[0] != self.time_symbol:
                     repl[var] = sm.Symbol(var.__class__.__name__ +
                                           str(var.args[0]), real=True)
