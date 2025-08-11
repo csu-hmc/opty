@@ -3,8 +3,8 @@ Hilly Ride
 ==========
 
 Simulation of a particle subject to the force of gravity and air drag as it
-traverses and elevation profile with a specified slope to reach the end in
-minimal time.
+traverses an elevation profile with a specified numerical shape to reach the
+course end in minimal time.
 
 Objectives
 ----------
@@ -17,22 +17,22 @@ import numpy as np
 import sympy as sm
 import sympy.physics.mechanics as me
 import matplotlib.pyplot as plt
-from opty import Problem
 import matplotlib.animation as animation
+from opty import Problem
 
 # %%
 # Define the variables and equations of motion.
 #
-# - :math:`m`: particle mass
-# - :math:`g`: acceleration due to gravity
-# - :math:`h`: time step
-# - :math:`s(t)`: distance traveled along elevation profile
-# - :math:`v(t)`: longitudinal speed
-# - :math:`x(t)`: horizontal coordinate
-# - :math:`y(t)`: vertical coordinate
-# - :math:`p(t)`: propulsion power
-# - :math:`e(t)`: propulsion energy
-# - :math:`\theta(x(t))`: slope angle
+# - :math:`m`: particle mass [kg]
+# - :math:`g`: acceleration due to gravity [m/s/s]
+# - :math:`h`: time step [s]
+# - :math:`s(t)`: distance traveled along elevation profile [m]
+# - :math:`v(t)`: longitudinal speed [m/s]
+# - :math:`x(t)`: horizontal coordinate [m]
+# - :math:`y(t)`: vertical coordinate [m]
+# - :math:`p(t)`: propulsion power [W]
+# - :math:`e(t)`: propulsion energy [J]
+# - :math:`\theta(x(t))`: slope angle [rad]
 #
 # Note that the slope angle :math:`\theta` is made a function of :math:`x(t)`
 # instead of simply :math:`t`. Numerical functions that generate
@@ -76,6 +76,7 @@ axes[1].set_ylabel(r'$\theta$ [deg]')
 axes[2].plot(xp, np.rad2deg(dthetadx))
 axes[2].set_ylabel(r'$\frac{d\theta}{dx}$ [deg/m]')
 axes[2].set_xlabel(r'$x$ [m]')
+
 
 # %%
 # The following function outputs the slope at all values of x using
@@ -136,7 +137,6 @@ instance_constraint = (
     v.func(t0),
     s.func(tf) - sf,
     e.func(t0),
-    #e.func(tf) - ef,
 )
 
 # %%
@@ -171,12 +171,7 @@ prob = Problem(
     instance_constraints=instance_constraint,
     bounds=bounds,
     integration_method='midpoint',
-    #backend='numpy',
 )
-
-#prob.add_option('derivative_test', 'first-order')
-#prob.add_option('derivative_test_perturbation', 1e-9)
-#prob.add_option('max_iter', 10000)
 
 # %%
 # Provide linear initial guesses for each variable.
@@ -192,7 +187,7 @@ initial_guess[-1] = 0.1  # h
 _ = prob.plot_trajectories(initial_guess)
 
 # %%
-# Solve the probem.
+# Solve the problem.
 solution, info = prob.solve(initial_guess)
 
 _ = prob.plot_objective_value()
@@ -206,6 +201,7 @@ _ = prob.plot_constraint_violations(solution)
 _ = prob.plot_trajectories(solution)
 
 # %%
+# Animation of the particle traversing the profile:
 xs, rs, ps, dh = prob.parse_free(solution)
 
 fig, ax = plt.subplots()
