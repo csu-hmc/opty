@@ -1834,6 +1834,26 @@ class ConstraintCollocator(object):
 
         return wrapped
 
+    def _create_function_replacements(self):
+
+        repl = {}
+
+        for f in self.current_known_discrete_specified_symbols:
+            if (isinstance(f, sm.Function) and f.args[0] != self.time_symbol):
+                repl[f.diff()] = sm.Symbol('d' + f.__class__.__name__ + '_d' +
+                                           str(f.args[0]), real=True)
+                repl[f] = sm.Symbol(f.__class__.__name__ + str(f.args[0]),
+                                    real=True)
+
+        for f in self.next_known_discrete_specified_symbols:
+            if (isinstance(f, sm.Function) and f.args[0] != self.time_symbol):
+                repl[f.diff()] = sm.Symbol('d' + f.__class__.__name__ + '_d' +
+                                           str(f.args[0]), real=True)
+                repl[f] = sm.Symbol(f.__class__.__name__ + str(f.args[0]),
+                                    real=True)
+
+        return repl
+
     def _gen_multi_arg_con_func(self):
         """Instantiates a function that evaluates the constraints given all of
         the arguments of the functions, i.e. not just the free optimization
@@ -1897,22 +1917,9 @@ class ConstraintCollocator(object):
             adjacent_stop = None
 
         if self._deriv_in_knw_traj:
-            repl = {}
-            for var in self.current_known_discrete_specified_symbols:
-                if isinstance(var, sm.Function) and var.args[0] != self.time_symbol:
-                    repl[var] = sm.Symbol(var.__class__.__name__ +
-                                          str(var.args[0]), real=True)
-            for var in self.next_known_discrete_specified_symbols:
-                if isinstance(var, sm.Function) and var.args[0] != self.time_symbol:
-                    repl[var] = sm.Symbol(var.__class__.__name__ +
-                                          str(var.args[0]), real=True)
+            repl = self._create_function_replacements()
             discrete_eom = me.msubs(self.discrete_eom, repl)
-            swapped_args = []
-            for a in args:
-                if a in repl:
-                    a = repl[a]
-                swapped_args.append(a)
-            args = swapped_args
+            args = [repl[a] if a in repl else a for a in args]
         else:
             discrete_eom = self.discrete_eom
 
@@ -2304,6 +2311,13 @@ class ConstraintCollocator(object):
             symbolic_partials = discrete_eom_matrix.jacobian(wrt_matrix.T)
 
         def postprocess(r, e):
+            """cse will create such replacements:
+            (x0, x(t))
+            (x1, Derivative(x0, t))
+            but this makes it difficult to replace the derivatives with simple
+            symbols, so this post process puts the arguments back into the
+            derivative.
+            """
             repl = {}
             new_r = []
             for pair in r:
@@ -2316,23 +2330,7 @@ class ConstraintCollocator(object):
             return new_r, e
 
         if self._deriv_in_knw_traj:
-            repl = {}
-            for f in self.current_known_discrete_specified_symbols:
-                if (isinstance(f, sm.Function) and f.args[0] !=
-                    self.time_symbol):
-                    repl[f.diff()] = sm.Symbol('d' + f.__class__.__name__ +
-                                               '_d' + str(f.args[0]),
-                                               real=True)
-                    repl[f] = sm.Symbol(f.__class__.__name__ + str(f.args[0]),
-                                        real=True)
-            for f in self.next_known_discrete_specified_symbols:
-                if (isinstance(f, sm.Function) and f.args[0] !=
-                    self.time_symbol):
-                    repl[f.diff()] = sm.Symbol('d' + f.__class__.__name__ +
-                                               '_d' + str(f.args[0]),
-                                               real=True)
-                    repl[f] = sm.Symbol(f.__class__.__name__ + str(f.args[0]),
-                                        real=True)
+            repl = self._create_function_replacements()
             if self._backend == 'cython':
                 symbolic_partials = postprocess(*symbolic_partials)
                 sub_exprs = symbolic_partials[0]
@@ -2345,12 +2343,7 @@ class ConstraintCollocator(object):
             else:
                 symbolic_partials = me.msubs(symbolic_partials, repl)
 
-            swapped_args = []
-            for a in args:
-                if a in repl:
-                    a = repl[a]
-                swapped_args.append(a)
-            args = swapped_args
+            args = [repl[a] if a in repl else a for a in args]
 
         # This generates a numerical function that evaluates the matrix of
         # partial derivatives. This function returns the non-zero elements
@@ -2365,7 +2358,7 @@ class ConstraintCollocator(object):
             eval_partials = lambdify_matrix(args, symbolic_partials)
 
         if (isinstance(symbolic_partials, tuple) and
-            len(symbolic_partials) == 2):
+                len(symbolic_partials) == 2):
             num_rows = symbolic_partials[1][0].shape[0]
             num_cols = symbolic_partials[1][0].shape[1]
         else:

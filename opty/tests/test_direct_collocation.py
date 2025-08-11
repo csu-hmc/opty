@@ -83,8 +83,8 @@ def test_implicit_known_traj():
     assert col.input_trajectories == (theta.diff(x), s, theta, f)
     assert col.num_input_trajectories == 4
 
-    xi, xp, vi, vp, fi, si, sn = sym.symbols('xi, xp, vi, vp, fi, si, sn',
-                                             real=True)
+    xi, xp, xn, vi, vp, fi, si, sn = sym.symbols('xi, xp, xn, vi, vp, fi, si, sn',
+                                                 real=True)
     thetai_of_xi = sym.Function('thetai', real=True)(
         sym.Symbol('xi', real=True))
     thetan_of_xn = sym.Function('thetan', real=True)(
@@ -97,6 +97,14 @@ def test_implicit_known_traj():
                                                             thetai_of_xi,)
     assert col.next_known_discrete_specified_symbols == (dthetan_dxn, sn,
                                                          thetan_of_xn,)
+
+    assert col._create_function_replacements() == {
+        thetai_of_xi.diff(xi): dthetai_dxi,
+        thetai_of_xi: sym.Symbol('thetaixi', real=True),
+        thetan_of_xn.diff(xn): dthetan_dxn,
+        thetan_of_xn: sym.Symbol('thetanxn', real=True),
+    }
+
     # _discretize_eom()
     # The implicit function of time must be a SymPy Function in the discrete
     # EoM, so that the Jacobian will apply the chain rule and generate the new
