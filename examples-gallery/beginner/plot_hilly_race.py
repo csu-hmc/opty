@@ -1,5 +1,5 @@
 """
-Hilly Ride
+Hilly Race
 ==========
 
 Simulation of a particle subject to the force of gravity and air drag as it
