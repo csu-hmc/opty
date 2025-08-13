@@ -227,10 +227,50 @@ def test_implicit_known_traj():
             [2., 2., 2., 2.]])  # f
     )
 
-    # TODO : Raise error if both theta(x) and theta(v) are provided, theta
-    # can't independently be a function of different variables.
+    # Raise an error if theta(x, v) is provided, not yet supported.
+    eom = sym.Matrix([
+        x.diff() - v - s + r*omega_of_v,
+        m*v.diff() - f + m*g*sym.sin(theta_of_x_v),
+    ])
+    with raises(ValueError):
+        col = ConstraintCollocator(
+            eom,
+            states,
+            N,
+            h,
+            known_parameter_map={r: 7.1, m: 3.3, g: 10.2},
+            known_trajectory_map={
+                omega_of_v.diff(v): calc_domega_dv,
+                omega_of_v: calc_omega_v,
+                s: np.array([121., 122., 123., 124.]),
+                theta_of_x_v: calc_theta_x,
+                theta_of_x_v.diff(x): calc_dtheta_dx,
+            },
+            time_symbol=t,
+        )
 
-    # TODO : Raise an error if theta(x, v) is provided, not yet supported.
+    # Raise error if both theta(x) and theta(v) are provided, theta can't
+    # independently be a function of different variables.
+    eom = sym.Matrix([
+        x.diff() - v - s + r*theta_of_v,
+        m*v.diff() - f + m*g*sym.sin(theta_of_x),
+    ])
+    with raises(ValueError):
+        col = ConstraintCollocator(
+            eom,
+            states,
+            N,
+            h,
+            known_parameter_map={r: 7.1, m: 3.3, g: 10.2},
+            known_trajectory_map={
+                theta_of_v.diff(v): calc_domega_dv,
+                theta_of_v: calc_omega_v,
+                s: np.array([121., 122., 123., 124.]),
+                theta_of_x: calc_theta_x,
+                theta_of_x.diff(x): calc_dtheta_dx,
+            },
+            time_symbol=t,
+        )
 
 
 def test_extra_algebraic(plot=False):

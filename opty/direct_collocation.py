@@ -1573,8 +1573,17 @@ class ConstraintCollocator(object):
         for specified in non_states.copy():
             if specified.args == (self.time_symbol,):  # explicit func of time
                 pass
+            elif len(specified.args) > 1:
+                msg = f'{specified} is a function of more than one variable.'
+                raise ValueError(msg)
             else:  # implicit func of time
                 self._deriv_in_knw_traj = True
+
+        fnames = [f.name for f in non_states]
+        if len(fnames) != len(set(fnames)):
+            msg = ('Repeated input trajectory variable fnames not allowed: '
+                   f'{fnames}')
+            raise ValueError(msg)
 
         res = self._parse_inputs(non_states,
                                  self.known_trajectory_map.keys())
