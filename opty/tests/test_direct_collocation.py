@@ -14,18 +14,20 @@ from ..utils import (create_objective_function, sort_sympy, parse_free,
 
 def test_implicit_known_traj():
 
-    m, g, h = sym.symbols('m, g, h', real=True)
+    m, g, r, h = sym.symbols('m, g, r, h', real=True)
     x, v, f, s = mech.dynamicsymbols('x, v, f, s', real=True)
     t = mech.dynamicsymbols._t
 
-    theta = sym.Function('theta')(x)
-    dthetadx = sym.Function('dtheta_dx')(t)
+    theta_of_x = sym.Function('theta', real=True)(x)
+    theta_of_v = sym.Function('theta', real=True)(v)
+    theta_of_x_v = sym.Function('theta', real=True)(x, v)
+    omega_of_v = sym.Function('omega', real=True)(v)
 
     states = (x, v)
 
     eom = sym.Matrix([
-        x.diff() - v - s,
-        m*v.diff() - f + m*g*sym.sin(theta),
+        x.diff() - v - s + r*omega_of_v,
+        m*v.diff() - f + m*g*sym.sin(theta_of_x),
     ])
 
     N = 4
@@ -34,39 +36,39 @@ def test_implicit_known_traj():
     theta0, thetaf = 0.0, 10.0
     xs = np.linspace(x0, xf, num=N)
     thetas = np.linspace(theta0, thetaf, num=N)
-    slope = (thetaf - theta0)/(xf - x0)
+    # slope = (thetaf - theta0)/(xf - x0)
 
-    def calc_theta(free):
-        """
-        Parameters
-        ==========
-        free : ndarray, shape(nN + qN + r + s, )
-
-        Returns
-        =======
-        theta : ndarray, shape(N, )
-
-        """
-        print('Executing calc_theta')
+    def calc_theta_x(free):
+        print('Executing calc_theta_x')
         x = free[0:N]
         return np.interp(x, xs, thetas)
 
-    def calc_dthetadx(free):
-        print('Executing calc_dthetadx')
-        x = free[0:N]
-        #return slope*np.ones_like(x)
+    def calc_dtheta_dx(free):
+        print('Executing calc_dtheta_dx')
+        # x = free[0:N]
+        # return slope*np.ones_like(x)
         return np.array([3.9, 1.2, -5.6, 12.3])
+
+    def calc_omega_v(free):
+        print('Executing calc_omega_v')
+        return np.array([-0.01, -0.98, 3.45, 27.45])
+
+    def calc_domega_dv(free):
+        print('Executing calc_domega_dv')
+        return np.array([0.1, 8.9, -43.4, -2.5])
 
     col = ConstraintCollocator(
         eom,
         states,
         N,
         h,  # variable
-        known_parameter_map={m: 3.3, g: 10.2},
+        known_parameter_map={r: 7.1, m: 3.3, g: 10.2},
         known_trajectory_map={
-            theta.diff(x): calc_dthetadx,
+            omega_of_v.diff(v): calc_domega_dv,
+            omega_of_v: calc_omega_v,
             s: np.array([121., 122., 123., 124.]),
-            theta: calc_theta,
+            theta_of_x: calc_theta_x,
+            theta_of_x.diff(x): calc_dtheta_dx,
         },
         time_symbol=t,
     )
@@ -76,33 +78,59 @@ def test_implicit_known_traj():
     assert col._deriv_in_knw_traj
 
     # _sort_trajectories()
-    assert col.known_input_trajectories == (theta.diff(x), s, theta)
-    assert col.num_known_input_trajectories == 3
+    assert col.known_input_trajectories == (omega_of_v.diff(v), omega_of_v, s,
+                                            theta_of_x, theta_of_x.diff(x))
+    assert col.num_known_input_trajectories == 5
     assert col.unknown_input_trajectories == (f,)
     assert col.num_unknown_input_trajectories == 1
-    assert col.input_trajectories == (theta.diff(x), s, theta, f)
-    assert col.num_input_trajectories == 4
+    assert col.input_trajectories == (omega_of_v.diff(v), omega_of_v, s,
+                                      theta_of_x, theta_of_x.diff(x), f)
+    assert col.num_input_trajectories == 6
 
-    xi, xp, xn, vi, vp, fi, si, sn = sym.symbols('xi, xp, xn, vi, vp, fi, si, sn',
-                                                 real=True)
+    xi, xp, xn, vi, vp, vn, fi, si, sn = sym.symbols(
+        'xi, xp, xn, vi, vp, vn, fi, si, sn', real=True)
+
     thetai_of_xi = sym.Function('thetai', real=True)(
         sym.Symbol('xi', real=True))
     thetan_of_xn = sym.Function('thetan', real=True)(
         sym.Symbol('xn', real=True))
+    omegai_of_vi = sym.Function('omegai', real=True)(
+        sym.Symbol('vi', real=True))
+    omegan_of_vn = sym.Function('omegan', real=True)(
+        sym.Symbol('vn', real=True))
+
     dthetai_dxi = sym.Symbol('dthetai_dxi', real=True)
     dthetan_dxn = sym.Symbol('dthetan_dxn', real=True)
+    domegai_dvi = sym.Symbol('domegai_dvi', real=True)
+    domegan_dvn = sym.Symbol('domegan_dvn', real=True)
 
     # _discrete_symbols()
-    assert col.current_known_discrete_specified_symbols == (dthetai_dxi, si,
-                                                            thetai_of_xi,)
-    assert col.next_known_discrete_specified_symbols == (dthetan_dxn, sn,
-                                                         thetan_of_xn,)
+    assert col.current_known_discrete_specified_symbols == (
+        domegai_dvi,
+        omegai_of_vi,
+        si,
+        thetai_of_xi,
+        dthetai_dxi,
+    )
+    assert col.next_known_discrete_specified_symbols == (
+        domegan_dvn,
+        omegan_of_vn,
+        sn,
+        thetan_of_xn,
+        dthetan_dxn,
+    )
 
+    # For backward Euler and midpoint only the current and next input
+    # trajectories are used (not the previous).
     assert col._create_function_replacements() == {
         thetai_of_xi.diff(xi): dthetai_dxi,
         thetai_of_xi: sym.Symbol('thetaixi', real=True),
         thetan_of_xn.diff(xn): dthetan_dxn,
         thetan_of_xn: sym.Symbol('thetanxn', real=True),
+        omegai_of_vi.diff(vi): domegai_dvi,
+        omegai_of_vi: sym.Symbol('omegaivi', real=True),
+        omegan_of_vn.diff(vn): domegan_dvn,
+        omegan_of_vn: sym.Symbol('omeganvn', real=True),
     }
 
     # _discretize_eom()
@@ -110,7 +138,7 @@ def test_implicit_known_traj():
     # EoM, so that the Jacobian will apply the chain rule and generate the new
     # unevaluated derivatives.
     expected_discrete_eom = sym.Matrix([
-        (xi - xp)/h - vi - si,
+        (xi - xp)/h - vi - si + r*omegai_of_vi,
         m*(vi - vp)/h - fi + m*g*sym.sin(thetai_of_xi),
     ])
 
@@ -119,7 +147,7 @@ def test_implicit_known_traj():
 
     # jacobian of eom_vector wrt xi, vi, xp, vp, fi, h
     expected_eom_jac = sym.Matrix([
-        [1/h, -1, -1/h, 0, 0, -(xi - xp)/h**2],
+        [1/h, -1 + r*omegai_of_vi.diff(vi), -1/h, 0, 0, -(xi - xp)/h**2],
         [m*g*sym.cos(thetai_of_xi)*thetai_of_xi.diff(xi), m/h, 0, -m/h, -1,
          -m*(vi - vp)/h**2]
     ])
@@ -131,7 +159,7 @@ def test_implicit_known_traj():
     # TODO : figure out a way to check this (currently this is produced
     # internally in a method of Collocator).
     expected_eom_jac_after_repl = sym.Matrix([
-        [1/h, -1, -1/h, 0, 0, -(xi - xp)/h**2],
+        [1/h, -1 + r*domegai_dvi, -1/h, 0, 0, -(xi - xp)/h**2],
         [m*g*sym.cos(thetai_of_xi)*dthetai_dxi, m/h, 0, -m/h, -1,
          -m*(vi - vp)/h**2]
     ])
@@ -144,15 +172,17 @@ def test_implicit_known_traj():
         10., 11., 12., 13.,  # f
         14.,  # h
     ])
-    thetas = calc_theta(free)
-    dthetas = calc_dthetadx(free)
+    thetas = calc_theta_x(free)
+    dthetas = calc_dtheta_dx(free)
+    omegas = calc_omega_v(free)
+    domegas = calc_domega_dv(free)
 
     np.testing.assert_allclose(
         con(free),
         np.array([
-            (3. - 2.)/14. - 7. - 122.,
-            (4. - 3.)/14. - 8. - 123.,
-            (5. - 4.)/14. - 9. - 124.,
+            (3. - 2.)/14. - 7. - 122. + 7.1*omegas[1],
+            (4. - 3.)/14. - 8. - 123. + 7.1*omegas[2],
+            (5. - 4.)/14. - 9. - 124. + 7.1*omegas[3],
             3.3*(7. - 6.)/14. - 11. + 3.3*10.2*np.sin(thetas[1]),
             3.3*(8. - 7.)/14. - 12. + 3.3*10.2*np.sin(thetas[2]),
             3.3*(9. - 8.)/14. - 13. + 3.3*10.2*np.sin(thetas[3]),
@@ -164,21 +194,23 @@ def test_implicit_known_traj():
     np.testing.assert_allclose(
         con_jac(free),
         np.array([
-            1./14., -1., -1./14., 0., 0., -(3. - 2.)/14.**2,
+            1./14., -1. + 7.1*domegas[1], -1./14., 0., 0., -(3. - 2.)/14.**2,
             3.3*10.2*np.cos(thetas[1])*dthetas[1], 3.3/14., 0., -3.3/14., -1.,
             -3.3*(7. - 6.)/14.**2,
-            1./14., -1., -1./14., 0., 0., -(4. - 3.)/14.**2,
+            1./14., -1. + 7.1*domegas[2], -1./14., 0., 0., -(4. - 3.)/14.**2,
             3.3*10.2*np.cos(thetas[2])*dthetas[2], 3.3/14., 0., -3.3/14., -1.,
             -3.3*(8. - 7.)/14.**2,
-            1./14., -1., -1./14., 0., 0., -(5. - 4.)/14.**2,
+            1./14., -1. + 7.1*domegas[3], -1./14., 0., 0., -(5. - 4.)/14.**2,
             3.3*10.2*np.cos(thetas[3])*dthetas[3], 3.3/14., 0., -3.3/14., -1.,
             -3.3*(9. - 8.)/14.**2,
         ])
     )
 
     all_specified = col._merge_fixed_free(
-        col.input_trajectories,  # symbols (dthetadx, s, theta, f)
-        col.known_trajectory_map,  # contains functions for dthetadx and theta
+        # symbols (domegadv, omega, s, theta, dthetadx, f)
+        col.input_trajectories,
+        # contains functions for domegadv, omega, dthetadx, and theta
+        col.known_trajectory_map,
         2.0*np.ones(N),  # values of f (free inputs)
         'traj',
         5.0*np.ones(col.num_free)  # free vector
@@ -186,11 +218,19 @@ def test_implicit_known_traj():
 
     np.testing.assert_allclose(
         all_specified,
-        np.array([[3.9,   1.2,  -5.6,  12.3],  # dthetadx
-                  [121., 122., 123., 124.],  # s
-                  [10., 10., 10., 10.],  # theta
-                  [2., 2., 2., 2.]])  # f
+        np.array([
+            [0.1, 8.9, -43.4, -2.5],  # domegadv
+            [-0.01, -0.98, 3.45, 27.45],  # omega
+            [121., 122., 123., 124.],  # s
+            [10., 10., 10., 10.],  # theta
+            [3.9,   1.2,  -5.6,  12.3],  # dthetadx
+            [2., 2., 2., 2.]])  # f
     )
+
+    # TODO : Raise error if both theta(x) and theta(v) are provided, theta
+    # can't independently be a function of different variables.
+
+    # TODO : Raise an error if theta(x, v) is provided, not yet supported.
 
 
 def test_extra_algebraic(plot=False):
