@@ -19,6 +19,7 @@ import sympy.physics.mechanics as me
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from opty import Problem
+from opty.utils import MathJaxRepr
 
 # %%
 # Define the variables and equations of motion.
@@ -51,16 +52,19 @@ eom = sm.Matrix([
     m*v.diff() - p/v + m*g*sm.sin(theta) + v**2/3,
     e.diff() - p,
 ])
-
-N = 201
+MathJaxRepr(eom)
 
 # %%
+# In the equations of motion, :math:`\theta(x(t))` is included and will be
+# specified as a known trajectory. When the Jacobian of the NLP constraint
+# function is generated, :math:`\frac{d \theta}{dx}` will be required.
+#
 # The elevation profile for such a problem may be derived from measurements of
 # a road surface. If a series of elevation values at specified linear distances
 # are available, the slope is then also a function of the linear distances. The
 # following code creates an elevation profile that simulates having a smooth
 # slope.
-amp = 60.0
+amp = 50.0
 omega = 2*np.pi/500.0  # one period every 500 meters
 xp = np.linspace(-250.0, 1250.0, num=3001)
 yp = amp*np.sin(omega*xp)
@@ -77,12 +81,14 @@ axes[2].plot(xp, np.rad2deg(dthetadx))
 axes[2].set_ylabel(r'$\frac{d\theta}{dx}$ [deg/m]')
 axes[2].set_xlabel(r'$x$ [m]')
 
-
 # %%
 # The following function outputs the slope at all values of x using
 # interpolation. The only input to this function should be the optimization
 # free vector and the output should be an array of values for :math:`\theta`,
 # one value for each node.
+N = 201
+
+
 def calc_theta(free):
     """
     Parameters
@@ -128,7 +134,7 @@ def obj_grad(free):
 
 t0, tf = 0*h, (N - 1)*h
 sf = 1000.0  # meters
-ef = 150000.0  # joules
+ef = 120000.0  # joules
 
 instance_constraint = (
     x.func(t0),
