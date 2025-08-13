@@ -57,6 +57,8 @@ def test_implicit_known_traj():
         print('Executing calc_domega_dv')
         return np.array([0.1, 8.9, -43.4, -2.5])
 
+    # this checked backward Euler w/ cython backend, and the hilly ride checks
+    # midpoint w/ numpy backend
     col = ConstraintCollocator(
         eom,
         states,

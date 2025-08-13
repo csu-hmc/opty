@@ -4,12 +4,12 @@ Hilly Ride
 
 Simulation of a particle subject to the force of gravity and air drag as it
 traverses an elevation profile with a specified numerical shape to reach the
-course end in minimal time.
+course finish line in minimal time.
 
 Objectives
 ----------
 
-- Demonstrate generating a known trajectory via a numerical function.
+- Demonstrate generating a known trajectory via numerical functions.
 - Show how interpolation can be used to generated a specified input.
 
 """
@@ -55,37 +55,38 @@ eom = sm.Matrix([
 MathJaxRepr(eom)
 
 # %%
-# In the equations of motion, :math:`\theta(x(t))` is included and will be
+# In the equations of motion, :math:`\theta(x(t))` is present and will be
 # specified as a known trajectory. When the Jacobian of the NLP constraint
-# function is generated, :math:`\frac{d \theta}{dx}` will be required.
+# function is generated, :math:`\frac{d \theta}{dx}` will also be required, so
+# it will also be specified as a known trajectory.
 #
-# The elevation profile for such a problem may be derived from measurements of
+# The elevation profile of a race course is often derived from measurements of
 # a road surface. If a series of elevation values at specified linear distances
 # are available, the slope is then also a function of the linear distances. The
-# following code creates an elevation profile that simulates having a smooth
-# slope.
+# following code creates an elevation profile that simulates data collected
+# from a road surface, albeit artificially smooth.
 amp = 50.0
 omega = 2*np.pi/500.0  # one period every 500 meters
-xp = np.linspace(-250.0, 1250.0, num=3001)
-yp = amp*np.sin(omega*xp)
-thetap = np.atan(amp*omega*np.cos(omega*xp))
-dthetadx = -amp*omega**2*np.sin(omega*xp)/(
-    amp**2*omega**2*np.cos(omega*xp)**2 + 1)
+x_meas = np.linspace(-250.0, 1250.0, num=3001)  # extend beyond expected range
+y_meas = amp*np.sin(omega*x_meas)
+theta_meas = np.atan(amp*omega*np.cos(omega*x_meas))
+dthetadx_meas = -amp*omega**2*np.sin(omega*x_meas)/(
+    amp**2*omega**2*np.cos(omega*x_meas)**2 + 1)
 
 fig, axes = plt.subplots(3, sharex=True)
-axes[0].plot(xp, yp)
+axes[0].plot(x_meas, y_meas)
 axes[0].set_ylabel(r'$y$ [m]')
-axes[1].plot(xp, np.rad2deg(thetap))
+axes[1].plot(x_meas, np.rad2deg(theta_meas))
 axes[1].set_ylabel(r'$\theta$ [deg]')
-axes[2].plot(xp, np.rad2deg(dthetadx))
+axes[2].plot(x_meas, np.rad2deg(dthetadx_meas))
 axes[2].set_ylabel(r'$\frac{d\theta}{dx}$ [deg/m]')
-axes[2].set_xlabel(r'$x$ [m]')
+_ = axes[2].set_xlabel(r'$x$ [m]')
 
 # %%
-# The following function outputs the slope at all values of x using
-# interpolation. The only input to this function should be the optimization
-# free vector and the output should be an array of values for :math:`\theta`,
-# one value for each node.
+# The following functions output the slope and its derivative with respect to
+# :math:`x(t)` at all values of :math:`x(t)` using interpolation. The only
+# input to these functionshould be the optimization free vector and the output
+# should be an array of values for :math:`\theta(t)`, one value for each node.
 N = 201
 
 
@@ -101,7 +102,7 @@ def calc_theta(free):
 
     """
     x = free[0:N]
-    return np.interp(x, xp, thetap)
+    return np.interp(x, x_meas, theta_meas)
 
 
 def calc_dthetadx(free):
@@ -116,7 +117,7 @@ def calc_dthetadx(free):
 
     """
     x = free[0:N]
-    return np.interp(x, xp, dthetadx)
+    return np.interp(x, x_meas, dthetadx_meas)
 
 
 # %%
@@ -132,6 +133,8 @@ def obj_grad(free):
     return grad
 
 
+# %%
+# Start from a zero motion state and set the race duration to 1 kilometer.
 t0, tf = 0*h, (N - 1)*h
 sf = 1000.0  # meters
 ef = 120000.0  # joules
@@ -141,12 +144,12 @@ instance_constraint = (
     y.func(t0),
     s.func(t0),
     v.func(t0),
-    s.func(tf) - sf,
     e.func(t0),
+    s.func(tf) - sf,
 )
 
 # %%
-# Limit the power and make sure the time step is positive.
+# Limit the power and energy and make sure the speed and time step is positive.
 bounds = {
     h: (0.0, 10.0),
     p: (0.0, 1000.0),
@@ -155,9 +158,10 @@ bounds = {
 }
 
 # %%
-# The slope angle :math:`\theta` is set as a known trajectory and the
-# ``calc_theta`` function is provided to generate the array of :math:`\theta`
-# values dynamically during the optimization iterations.
+# The slope angle :math:`\theta` and its derivative :math:`\frac{d\theta}{dx}`
+# are set as a known trajectories and the functions ``calc_theta`` and
+# ``calc_dthetadx`` functions are provided to generate the array of values
+# dynamically during the optimization iterations.
 prob = Problem(
     obj,
     obj_grad,
@@ -170,17 +174,18 @@ prob = Problem(
         g: 9.81,  # m/s/s
     },
     known_trajectory_map={
-        theta.diff(x): calc_dthetadx,
-        theta: calc_theta,
+        theta.diff(x): calc_dthetadx,  # rad/m
+        theta: calc_theta,  # rad
     },
     time_symbol=me.dynamicsymbols._t,
     instance_constraints=instance_constraint,
     bounds=bounds,
     integration_method='midpoint',
+    backend='numpy',
 )
 
 # %%
-# Provide linear initial guesses for each variable.
+# Provide a linear initial guesses for each variable.
 initial_guess = np.random.random(prob.num_free)
 initial_guess[0*N:1*N] = np.linspace(0.0, sf, num=N)  # x
 initial_guess[1*N:2*N] = np.zeros(N)  # y
@@ -199,11 +204,11 @@ solution, info = prob.solve(initial_guess)
 _ = prob.plot_objective_value()
 
 # %%
-# Constraint violations:
+# Plot the constraint violations.
 _ = prob.plot_constraint_violations(solution)
 
 # %%
-# State and input trajectories:
+# Plot the state and input solution trajectories.
 _ = prob.plot_trajectories(solution)
 
 # %%
