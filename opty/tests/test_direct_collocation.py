@@ -2122,6 +2122,7 @@ def test_check_bounds_conflict():
     """Test to ensure that the method of Problem, bounds_conflict_initial_guess
     raises a ValueError when the initial guesses violates the bounds.
     Then the test that the kwarg respect_bounds works as expected in solve.
+    Test if invalid keys in the eom_bound are detected.
     """
 
     x, y, z, ux, uy, uz = mech.dynamicsymbols('x y z ux uy uz')
@@ -2219,6 +2220,22 @@ def test_check_bounds_conflict():
     with raises(ValueError):
         prob.check_bounds_conflict(initial_guess)
 
+    # check for invalid keys in eom_bounds
+    eom_bounds_bad = {0: (-1.0, 1.0) , 6: (0.0, 1.0), 'bad': (0.0, 1.0)}
+
+    with raises(ValueError):
+        prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            known_parameter_map=par_map,
+            eom_bounds=eom_bounds_bad,
+            time_symbol=t,
+            backend='numpy'
+        )
 
     # check for values outside the bounds
     bounds[z] = (-1.0, 1.0)

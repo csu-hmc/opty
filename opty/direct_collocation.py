@@ -185,6 +185,17 @@ class Problem(cyipopt.Problem):
             parallel, show_compile_output=show_compile_output, backend=backend)
 
         self.bounds = bounds
+
+        # Check that the keys of eom_bounds correspond to equations of motion
+        if eom_bounds is not None:
+            key_list = []
+            for key in eom_bounds.keys():
+                if key not in range(len(equations_of_motion)):
+                    key_list.append(key)
+            if len(key_list) > 0:
+                raise ValueError(f'Keys {key_list} in eom_bounds do not '
+                                 'correspond to equations of motion.')
+
         self.eom_bounds = eom_bounds
         self.obj = obj
         self.obj_grad = obj_grad
