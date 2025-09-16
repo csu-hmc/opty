@@ -35,7 +35,7 @@ properties are in :download:`JasonYeadonMeas.txt`.
 from opty import Problem
 from opty.utils import sum_of_sines, MathJaxRepr
 from scipy.integrate import odeint
-#from symmeplot.matplotlib import Scene3D
+from symmeplot.matplotlib import Scene3D
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sm
