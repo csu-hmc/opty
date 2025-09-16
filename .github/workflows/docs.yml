@@ -37,6 +37,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Build Docs
         run: |
+          conda remove --force sympy
+          python -m pip install git+https://github.com/sympy/sympy.git#egg=sympy
           cd docs
           # fail on any warnings
           make html SPHINXOPTS="-W"
