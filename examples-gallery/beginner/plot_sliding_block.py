@@ -167,7 +167,7 @@ for selection in (0, 1):
               final_state_constraints.items())
     )
 
-    bounds = {F: (-15., 15.),
+    bounds = {F: (-10., 15.),
               x: (initial_state_constraints[x], final_state_constraints[x]),
               ux: (0., 100)}
     if selection == 0:
@@ -186,6 +186,10 @@ for selection in (0, 1):
         backend='numpy',
     )
 
+    initial_guess = prob.create_linear_initial_guess()
+    # Plot the initial guess
+    achsen = prob.plot_trajectories(initial_guess)
+    achsen[0].set_title(f'Initial guesses of \n State Variables')
     solution, info = prob.solve(initial_guess)
     solution_list.append(solution)
     info_list.append(info)
