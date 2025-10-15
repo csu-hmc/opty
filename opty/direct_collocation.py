@@ -146,9 +146,13 @@ class Problem(cyipopt.Problem):
         ==========
         obj : function
             Returns the value of the objective function given the free vector.
+            The call signature can be ``obj(free)`` or ``obj(self, free)``
+            where ``self`` is the problem instance and ``free`` is an array.
         obj_grad : function
             Returns the gradient of the objective function given the free
-            vector.
+            vector. The call signature can be ``obj_grad(free)`` or
+            ``obj_grad(self, free)`` where ``self`` is the problem instance and
+            ``free`` is an array.
         SPLIT
         bounds : dictionary, optional
             This dictionary should contain a mapping from any of the symbolic
@@ -197,6 +201,14 @@ class Problem(cyipopt.Problem):
                                  'correspond to equations of motion.')
 
         self.eom_bounds = eom_bounds
+        self._obj_num_args = obj.__code__.co_argcount
+        self._obj_grad_num_args = obj_grad.__code__.co_argcount
+        if self._obj_num_args not in [1, 2]:
+            raise ValueError('The objective function can only have one or two'
+                             ' arguments.')
+        if self._obj_grad_num_args not in [1, 2]:
+            raise ValueError('The gradient function can only have one or two'
+                             ' arguments.')
         self.obj = obj
         self.obj_grad = obj_grad
         self.con = self.collocator.generate_constraint_function()
@@ -442,7 +454,9 @@ class Problem(cyipopt.Problem):
         - s : number of unknown time intervals
 
         """
-        return self.obj(free)
+        args = (self, free)
+        start = 2 - self._obj_num_args
+        return self.obj(*args[start:])
 
     def gradient(self, free):
         """Returns the value of the gradient of the objective function given a
@@ -468,8 +482,9 @@ class Problem(cyipopt.Problem):
         - s : number of unknown time intervals
 
         """
-        # This should return a column vector.
-        return self.obj_grad(free)
+        args = (self, free)
+        start = 2 - self._obj_grad_num_args
+        return self.obj_grad(*args[start:])
 
     def constraints(self, free):
         """Returns the value of the constraint functions given a solution to
