@@ -1242,13 +1242,6 @@ class ConstraintCollocator(object):
         """
         return self._known_trajectory_map
 
-    @property
-    def known_trajectory_symbols(self):
-        """
-        The known trajectory symbols.
-        Type: (m-q)-tuple
-        """
-        return self._known_trajectory_symbols
 
     @property
     def next_known_discrete_specified_symbols(self):
@@ -1344,7 +1337,7 @@ class ConstraintCollocator(object):
     @property
     def num_known_input_trajectories(self):
         """
-        The number of known trajectories = len(known_trajectory_symbols).
+        The number of known trajectories = len(known_input_trajectories).
         Type: int
         """
         return self._num_known_input_trajectories
