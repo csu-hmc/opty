@@ -9,6 +9,8 @@ Objectives
 - Show how to use the NumPy backend which solves the problem without needing
   just-in-time C compilation.
 - Demonstrate plotting the constraint violations as subplots.
+- Show how to access the problem's attributes and methods inside the objective
+  and gradient functions.
 
 Introduction
 ------------
@@ -59,15 +61,17 @@ par_map = {
 
 
 # %%
-# Specify the objective function and it's gradient.
-def obj(free):
+# Specify the objective function and it's gradient. In this case, make the
+# problem instance the first argument and it is available to use inside the
+# these functions.
+def obj(prob, free):
     """Minimize the sum of the squares of the control torque."""
-    T, h = free[2*num_nodes:-1], free[-1]
+    _, T, _, h = prob.parse_free(free)
     return h*np.sum(T**2)
 
 
-def obj_grad(free):
-    T, h = free[2*num_nodes:-1], free[-1]
+def obj_grad(prob, free):
+    _, T, _, h = prob.parse_free(free)
     grad = np.zeros_like(free)
     grad[2*num_nodes:-1] = 2.0*h*T
     grad[-1] = np.sum(T**2)
@@ -95,22 +99,17 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, h,
                backend='numpy')
 
 # %%
-# Use existing solution if available else pick a reasonable initial guess
-# and solve the problem.
+# Use existing solution if available else pick a reasonable initial guess and
+# solve the problem. Use approximately zero as an initial guess to avoid
+# divide-by-zero, and solve the problem.
 fname = f'pendulum_swing_up_variable_duration_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
-    # Solution exists.
     solution = np.loadtxt(fname)
 else:
-    # Use approximately zero as an initial guess to  avoid divide-by-zero,
-    # and solve the problem.
-    initial_guess = 1e-10*np.ones(prob.num_free)
-    # Find the optimal solution.
-    for _ in range(2):
-        solution, info = prob.solve(initial_guess)
-        initial_guess = solution
-        print(info['status_msg'])
-        print(info['obj_val'])
+    initial_guess = np.full(prob.num_free, 1e-10)
+    solution, info = prob.solve(initial_guess)
+    print(info['status_msg'])
+    print(info['obj_val'])
 
 # %%
 # Plot the optimal state and input trajectories.
