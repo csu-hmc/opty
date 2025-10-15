@@ -146,9 +146,13 @@ class Problem(cyipopt.Problem):
         ==========
         obj : function
             Returns the value of the objective function given the free vector.
+            The call signature can be ``obj(free)`` or ``obj(self, free)``
+            where ``self`` is the problem instance and ``free`` is an array.
         obj_grad : function
             Returns the gradient of the objective function given the free
-            vector.
+            vector. The call signature can be ``obj_grad(free)`` or
+            ``obj_grad(self, free)`` where ``self`` is the problem instance and
+            ``free`` is an array.
         SPLIT
         bounds : dictionary, optional
             This dictionary should contain a mapping from any of the symbolic
