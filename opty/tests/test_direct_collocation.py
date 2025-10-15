@@ -2147,8 +2147,11 @@ def test_duplicate_state_symbols():
     t0, tf = 0.0, 1.0
     interval_value = tf/(num_nodes - 1)
 
-    def obj(free):
-        Fx = free[2*num_nodes:3*num_nodes]
+    # tests the ability to expose the problem inside the objective
+    def obj(prob, free):
+        Fx_ = free[2*num_nodes:3*num_nodes]
+        _, Fx, _ = prob.parse_free(free)
+        np.testing.assert_allclose(Fx, Fx_)
         return interval_value*np.sum(Fx**2)
 
     def obj_grad(free):
