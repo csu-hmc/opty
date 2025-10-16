@@ -813,7 +813,6 @@ class Problem(cyipopt.Problem):
             # violations are plotted, not the values of the EoMs, rwgardless of
             # the value of show_range.
             else:
-                print('here we are')
                 for i in range(self.collocator.num_eom):
                     if i in self.eom_bounds.keys():
                         left = self.eom_bounds[i][0]

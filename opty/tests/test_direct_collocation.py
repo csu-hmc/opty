@@ -2665,3 +2665,114 @@ def test_check_bounds_conflict():
 
     initial_guess = np.zeros(prob.num_free)
     prob.check_bounds_conflict(initial_guess)
+
+
+def test_eom_bounds(plot=True):
+    """
+    Test whether the eom bounds are displayed correctly depending on the
+    options chosen in the plot_constraint_violations method.
+
+    The system is the simple swing up pendulum with fixed time
+    """
+
+    duration = 10.0  # seconds
+    num_nodes = 501
+    interval_value = duration/(num_nodes - 1)
+
+    I, m, g, d, t = sym.symbols('I, m, g, d, t')
+    theta, omega, T = sym.symbols('theta, omega, T', cls=sym.Function)
+
+    state_symbols = (theta(t), omega(t))
+    constant_symbols = (I, m, g, d)
+    specified_symbols = (T(t),)
+
+    eom = sym.Matrix([theta(t).diff() - omega(t),
+                     I*omega(t).diff() + m*g*d*sym.sin(theta(t)) - T(t)])
+
+    # Specify the known system parameters.
+    par_map = {
+        I: 1.0,
+        m: 1.0,
+        g: 9.81,
+        d: 1.0,
+    }
+
+    obj_func = sym.Integral(T(t)**2, t)
+    obj, obj_grad = create_objective_function(obj_func, state_symbols,
+                                              specified_symbols, tuple(),
+                                              num_nodes,
+                                              interval_value,
+                                            time_symbol=t)
+
+    target_angle = np.pi  # radians
+    instance_constraints = (
+        theta(0.0),
+        theta(duration) - target_angle,
+        omega(0.0),
+        omega(duration),
+    )
+
+    bounds = {T(t): (-2.0, 2.0)}
+    eom_bounds = None
+
+    # Create an optimization problem.
+    prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes,
+                   interval_value,
+                   known_parameter_map=par_map,
+                   instance_constraints=instance_constraints,
+                   bounds=bounds,
+                   eom_bounds=eom_bounds,
+                   time_symbol=t,
+                   backend='numpy',
+    )
+
+    initial_guess = np.random.randn(prob.num_free)
+
+    solution, _ = prob.solve(initial_guess)
+
+    # Plot the constraint violations. With different eom_bounds, different
+    # settings of the kwargs to plot_constraint_violations.
+    if plot:
+        ax = prob.plot_constraint_violations(solution, show_range=True)
+        ax[0].set_title('One plot of all eom violations, '
+                        'no eom_bounds available')
+
+        prob.eom_bounds = {0:(-0.5, 0.5),
+                           1:(-1.0, 1.0)}
+
+        ax = prob.plot_constraint_violations(solution, subplots=True,
+                                             show_range=True)
+        ax[0].set_title('Separate subplots of eom violations, bounds shown')
+
+        prob.eom_bounds = {0:(1.0, 2.0),
+                           1:(-1.0, 1.0)}
+
+        ax = prob.plot_constraint_violations(solution, subplots=True,
+                                             show_range=True)
+        ax[0].set_title(f'Separate subplots of eom violations, bounds shown, '
+                        f' \n Eq0 violates bounds')
+
+        prob.eom_bounds = {0:(-np.inf, 2.0),
+                           1:(-1.0, np.inf)}
+
+        ax = prob.plot_constraint_violations(solution, subplots=True,
+                                             show_range=True)
+        ax[0].set_title(f'Separate subplots of eom violations, bounds shown, '
+                        f'\n only finite bounds are shown')
+
+        prob.eom_bounds = {0:(-0.5, 2.0),
+                           1:(-1.0, 1.0)}
+
+        ax = prob.plot_constraint_violations(solution, subplots=True,
+                                             show_range=False)
+        ax[0].set_title(f'Separate subplots of eom violations, no bounds shown'
+                        f'\n Only violations shown')
+
+        prob.eom_bounds = {0:(-0.5, -0.25),
+                           1:(0.25, 0.5)}
+        ax = prob.plot_constraint_violations(solution, show_range=True)
+        ax[0].set_title(f'Only one plot of eom violations, no bounds shown, \n'
+                        f'Violations shown')
+
+    else:
+        pass
