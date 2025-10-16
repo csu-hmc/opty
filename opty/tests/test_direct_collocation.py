@@ -2147,8 +2147,11 @@ def test_duplicate_state_symbols():
     t0, tf = 0.0, 1.0
     interval_value = tf/(num_nodes - 1)
 
-    def obj(free):
-        Fx = free[2*num_nodes:3*num_nodes]
+    # tests the ability to expose the problem inside the objective
+    def obj(prob, free):
+        Fx_ = free[2*num_nodes:3*num_nodes]
+        _, Fx, _ = prob.parse_free(free)
+        np.testing.assert_allclose(Fx, Fx_)
         return interval_value*np.sum(Fx**2)
 
     def obj_grad(free):
@@ -2390,6 +2393,7 @@ def test_check_bounds_conflict():
     """Test to ensure that the method of Problem, bounds_conflict_initial_guess
     raises a ValueError when the initial guesses violates the bounds.
     Then the test that the kwarg respect_bounds works as expected in solve.
+    Test if invalid keys in the eom_bound are detected.
     """
 
     x, y, z, ux, uy, uz = mech.dynamicsymbols('x y z ux uy uz')
@@ -2487,6 +2491,22 @@ def test_check_bounds_conflict():
     with raises(ValueError):
         prob.check_bounds_conflict(initial_guess)
 
+    # check for invalid keys in eom_bounds
+    eom_bounds_bad = {0: (-1.0, 1.0) , 6: (0.0, 1.0), 'bad': (0.0, 1.0)}
+
+    with raises(ValueError):
+        prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            known_parameter_map=par_map,
+            eom_bounds=eom_bounds_bad,
+            time_symbol=t,
+            backend='numpy'
+        )
 
     # check for values outside the bounds
     bounds[z] = (-1.0, 1.0)

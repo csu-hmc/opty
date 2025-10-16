@@ -85,7 +85,7 @@ _ = axes[2].set_xlabel(r'$x$ [m]')
 # %%
 # The following functions output the slope and its derivative with respect to
 # :math:`x(t)` at all values of :math:`x(t)` using interpolation. The only
-# input to these functionshould be the optimization free vector and the output
+# input to these functions should be the optimization free vector and the output
 # should be an array of values for :math:`\theta(t)`, one value for each node.
 N = 201
 

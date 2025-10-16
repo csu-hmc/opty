@@ -146,9 +146,13 @@ class Problem(cyipopt.Problem):
         ==========
         obj : function
             Returns the value of the objective function given the free vector.
+            The call signature can be ``obj(free)`` or ``obj(self, free)``
+            where ``self`` is the problem instance and ``free`` is an array.
         obj_grad : function
             Returns the gradient of the objective function given the free
-            vector.
+            vector. The call signature can be ``obj_grad(free)`` or
+            ``obj_grad(self, free)`` where ``self`` is the problem instance and
+            ``free`` is an array.
         SPLIT
         bounds : dictionary, optional
             This dictionary should contain a mapping from any of the symbolic
@@ -185,7 +189,26 @@ class Problem(cyipopt.Problem):
             parallel, show_compile_output=show_compile_output, backend=backend)
 
         self.bounds = bounds
+
+        # Check that the keys of eom_bounds correspond to equations of motion
+        if eom_bounds is not None:
+            key_list = []
+            for key in eom_bounds.keys():
+                if key not in range(len(equations_of_motion)):
+                    key_list.append(key)
+            if len(key_list) > 0:
+                raise ValueError(f'Keys {key_list} in eom_bounds do not '
+                                 'correspond to equations of motion.')
+
         self.eom_bounds = eom_bounds
+        self._obj_num_args = obj.__code__.co_argcount
+        self._obj_grad_num_args = obj_grad.__code__.co_argcount
+        if self._obj_num_args not in [1, 2]:
+            raise ValueError('The objective function can only have one or two'
+                             ' arguments.')
+        if self._obj_grad_num_args not in [1, 2]:
+            raise ValueError('The gradient function can only have one or two'
+                             ' arguments.')
         self.obj = obj
         self.obj_grad = obj_grad
         self.con = self.collocator.generate_constraint_function()
@@ -431,7 +454,9 @@ class Problem(cyipopt.Problem):
         - s : number of unknown time intervals
 
         """
-        return self.obj(free)
+        args = (self, free)
+        start = 2 - self._obj_num_args
+        return self.obj(*args[start:])
 
     def gradient(self, free):
         """Returns the value of the gradient of the objective function given a
@@ -457,8 +482,9 @@ class Problem(cyipopt.Problem):
         - s : number of unknown time intervals
 
         """
-        # This should return a column vector.
-        return self.obj_grad(free)
+        args = (self, free)
+        start = 2 - self._obj_grad_num_args
+        return self.obj_grad(*args[start:])
 
     def constraints(self, free):
         """Returns the value of the constraint functions given a solution to
@@ -1216,13 +1242,6 @@ class ConstraintCollocator(object):
         """
         return self._known_trajectory_map
 
-    @property
-    def known_trajectory_symbols(self):
-        """
-        The known trajectory symbols.
-        Type: (m-q)-tuple
-        """
-        return self._known_trajectory_symbols
 
     @property
     def next_known_discrete_specified_symbols(self):
@@ -1318,7 +1337,7 @@ class ConstraintCollocator(object):
     @property
     def num_known_input_trajectories(self):
         """
-        The number of known trajectories = len(known_trajectory_symbols).
+        The number of known trajectories = len(known_input_trajectories).
         Type: int
         """
         return self._num_known_input_trajectories
