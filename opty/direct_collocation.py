@@ -201,8 +201,14 @@ class Problem(cyipopt.Problem):
                                  'correspond to equations of motion.')
 
         self.eom_bounds = eom_bounds
-        self._obj_num_args = obj.__code__.co_argcount
-        self._obj_grad_num_args = obj_grad.__code__.co_argcount
+        # This only counts the explicit args in the function signature, not the
+        # kwargs. See: https://stackoverflow.com/a/61941161
+        self._obj_num_args = (obj.__code__.co_argcount -
+                              (0 if obj.__defaults__ is None else
+                               len(obj.__defaults__)))
+        self._obj_grad_num_args = (obj_grad.__code__.co_argcount -
+                                   (0 if obj_grad.__defaults__ is None else
+                                    len(obj_grad.__defaults__)))
         if self._obj_num_args not in [1, 2]:
             raise ValueError('The objective function can only have one or two'
                              ' arguments.')
