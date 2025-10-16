@@ -52,6 +52,7 @@ jobs:
           conda-remove-defaults: "true"
           environment-file: opty-dev-env.yml
           python-version: ${{ matrix.python-version }}
+          miniforge-version: latest
       - name: Install openmp
         if: runner.os == 'Linux'
         run: |
