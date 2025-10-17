@@ -344,6 +344,55 @@ def test_extra_algebraic(plot=False):
     if plot:
         prob.plot_trajectories(solution)
 
+        # Plot the constraint violations. With different eom_bounds, different
+        # settings of the kwargs to plot_constraint_violations.
+        # 2nd test with 5 bounds, balance with 2 bounds on eoms.
+        ax = prob.plot_constraint_violations(solution, show_range=True)
+        ax[0].set_title('One plot of all eom violations, '
+                        'no eom_bounds available')
+
+        prob.eom_bounds = {0:(-0.5, 0.5),
+                           1:(-1.0, 1.0),
+                           2:(-2.0, 2.0),
+                           3:(-2.0, 2.0),
+                           4:(-0.1, 0.1)}
+        ax = prob.plot_constraint_violations(solution, subplots=True,
+                                             show_range=True)
+        ax[0].set_title('Separate subplots of eom violations, bounds shown')
+
+        # Balance checks only with two bounds on the eoms
+        # ===============================================
+
+        prob.eom_bounds = {0:(1.0, 2.0),
+                           1:(-1.0, 1.0)}
+        ax = prob.plot_constraint_violations(solution, subplots=True,
+                                             show_range=True)
+        ax[0].set_title(f'Separate subplots of eom violations, bounds shown, '
+                        f' \n Eq0 violates bounds')
+
+        prob.eom_bounds = {0:(-np.inf, 2.0),
+                           1:(-1.0, np.inf)}
+        ax = prob.plot_constraint_violations(solution, subplots=True,
+                                             show_range=True)
+        ax[0].set_title(f'Separate subplots of eom violations, bounds shown, '
+                        f'\n only finite bounds are shown')
+
+        prob.eom_bounds = {0:(-0.5, 2.0),
+                           1:(0.5, 1.0)}
+        ax = prob.plot_constraint_violations(solution, subplots=True,
+                                             show_range=False)
+        ax[0].set_title(f'Separate subplots of eom violations, no bounds shown'
+                        f'\n Only violations shown')
+
+        prob.eom_bounds = {0:(-0.5, -0.25),
+                           1:(0.25, 0.5)}
+        ax = prob.plot_constraint_violations(solution, show_range=True)
+        ax[0].set_title(f'Only one plot of eom violations, no bounds shown, \n'
+                        f'Violations shown')
+
+    else:
+        pass
+
 
 def test_pendulum():
 
