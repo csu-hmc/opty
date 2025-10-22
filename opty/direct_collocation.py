@@ -946,7 +946,7 @@ class Problem(cyipopt.Problem):
         except KeyError:
             raise ValueError(f'{var} not an unknown in this problem.')
 
-    def extract_value(self, var, free=None):
+    def extract_values(self, var, free=None):
         """Returns the numerical values of the variable.
 
         Parameters

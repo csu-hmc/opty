@@ -2050,21 +2050,21 @@ def test_prob_parse_free():
                                initial_guess[idx_dct[b][0]:idx_dct[b][1]])
 
     np.testing.assert_allclose(states[0],
-                               prob.extract_value(x1, initial_guess))
+                               prob.extract_values(x1, initial_guess))
     np.testing.assert_allclose(states[1],
-                               prob.extract_value(x2, initial_guess))
+                               prob.extract_values(x2, initial_guess))
     np.testing.assert_allclose(states[2],
-                               prob.extract_value(ux1, initial_guess))
+                               prob.extract_values(ux1, initial_guess))
     np.testing.assert_allclose(states[3],
-                               prob.extract_value(ux2, initial_guess))
+                               prob.extract_values(ux2, initial_guess))
     np.testing.assert_allclose(controls[0],
-                               prob.extract_value(u1, initial_guess))
+                               prob.extract_values(u1, initial_guess))
     np.testing.assert_allclose(controls[1],
-                               prob.extract_value(u2, initial_guess))
+                               prob.extract_values(u2, initial_guess))
     np.testing.assert_allclose(constants[0],
-                               prob.extract_value(a, initial_guess))
+                               prob.extract_values(a, initial_guess))
     np.testing.assert_allclose(constants[1],
-                               prob.extract_value(b, initial_guess))
+                               prob.extract_values(b, initial_guess))
 
     # test with variable interval_value
     interval_value = h
@@ -2110,9 +2110,9 @@ def test_prob_parse_free():
     assert idx_dct[h] == (68, 69)
     np.testing.assert_allclose(initial_guess[idx_dct[h][0]:idx_dct[h][1]],
                                timeu)
-    np.testing.assert_allclose(prob.extract_value(h, initial_guess), timeu)
+    np.testing.assert_allclose(prob.extract_values(h, initial_guess), timeu)
     with raises(ValueError):
-        prob.extract_value(sym.Symbol('eee'), initial_guess)
+        prob.extract_values(sym.Symbol('eee'), initial_guess)
 
     # check that only 'numpy' and 'cython' backends are accepted as backend
     with raises(ValueError):
