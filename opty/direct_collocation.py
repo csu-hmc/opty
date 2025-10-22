@@ -891,6 +891,38 @@ class Problem(cyipopt.Problem):
             ax.spy(jacobian_matrix)
         return ax
 
+    def _generate_extraction_indices(self):
+        """Returns a dictionary that maps all unknown variables to a tuple of
+        the slice indices needed to extract that variable from the free
+        optimization vector."""
+        d = {}
+
+        N = self.collocator.num_collocation_nodes
+        n = self.collocator.num_states
+        q = self.collocator.num_unknown_input_trajectories
+        r = self.collocator.num_unknown_parameters
+        len_states = n*N
+        len_specifieds = q*N
+        len_both = len_states + len_specifieds
+
+        for var in self.collocator.state_symbols:
+            idx = self.collocator.state_symbols.index(var)
+            d[var] = (idx*N, (idx + 1)*N)
+
+        for var in self.collocator.unknown_input_trajectories:
+            idx = self.collocator.unknown_input_trajectories.index(var)
+            d[var] = (len_states + idx*N, len_states + (idx + 1)*N)
+
+        for var in self.collocator.unknown_parameters:
+            idx = self.collocator.unknown_parameters.index(var)
+            d[var] = (len_both + idx, len_both + idx + 1)
+
+        if self.collocator._variable_duration:
+            d[self.collocator.time_interval_symbol] = (len_both + r,
+                                                       self.num_free)
+
+        return d
+
     def fill_gradient(self, gradient, var, values):
         """Replaces the values in the gradient vector corresponding to the
         variable name.
