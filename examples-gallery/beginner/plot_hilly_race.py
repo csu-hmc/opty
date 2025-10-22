@@ -218,7 +218,7 @@ theta_vals = prob.extract_value(theta, solution)
 fig, ax = plt.subplots()
 ax.plot(x_vals, np.rad2deg(theta_vals))
 ax.set_xlabel(x)
-ax.set_ylabel(theta)
+_ = ax.set_ylabel(theta)
 
 # %%
 # Animation of the particle traversing the profile:
