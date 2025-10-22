@@ -231,6 +231,8 @@ class Problem(cyipopt.Problem):
         self._generate_bound_arrays()
         self._generate_constraint_bound_arrays()
 
+        self._extraction_indices = self._generate_extraction_indices()
+
         super(Problem, self).__init__(n=self.num_free,
                                       m=self.num_constraints,
                                       lb=self.lower_bound,
@@ -923,41 +925,28 @@ class Problem(cyipopt.Problem):
 
         return d
 
-    def fill_gradient(self, gradient, var, values):
-        """Replaces the values in the gradient vector corresponding to the
-        variable name.
+    def fill_free(self, free, var, values):
+        """Replaces the values in a vector shaped the same as the free
+        optimization vector corresponding to the variable name.
 
         Parameters
         ==========
-        gradient : array_like, shape(n*N + q*N + r + s, )
+        free : ndarray, shape(n*N + q*N + r + s, )
+            Vector to replace values in.
         var : Symbol or Function()(time)
-            One of the known or unknown variables in the problem.
+            One of the unknown optimization variables in the problem.
         values : ndarray, shape(N,) or float
-            Numerical values, arrays must be in order of the state indices.
+            Numerical values to insert, arrays must be in order of monotonic
+            time.
 
         """
-        N = self.collocator.num_collocation_nodes
-        n = self.collocator.num_states
-        q = self.collocator.num_unknown_input_trajectories
-        len_states = n*N
-        len_specifieds = q*N
-        len_both = len_states + len_specifieds
-        if var in self.collocator.state_symbols:
-            idx = self.collocator.state_symbols.index(var)
-            gradient[idx*N:(idx + 1)*N] = values
-        elif var in self.collocator.unknown_input_trajectories:
-            idx = self.collocator.unknown_input_trajectories.index(var)
-            gradient[len_states + idx*N:len_states + (idx + 1)*N] = values
-        elif var in self.collocator.unknown_parameters:
-            idx = self.collocator.unknown_parameters.index(var)
-            gradient[len_both + idx*N:len_both + (idx + 1)*N] = values
-        elif (self.collocator._variable_duration and
-              var == self.collocator.time_interval_symbol):
-            gradient[-1] = values
-        else:
+        d = self._extraction_indices
+        try:
+            free[d[var][0]:d[var][1]] = values
+        except KeyError:
             raise ValueError(f'{var} not an unknown in this problem.')
 
-    def extract_var(self, var, free=None):
+    def extract_value(self, var, free=None):
         """Returns the numerical values of the variable.
 
         Parameters
@@ -977,30 +966,21 @@ class Problem(cyipopt.Problem):
         if var in self.collocator.known_parameter_map:
             return self.collocator.known_parameter_map[var]
         elif var in self.collocator.known_trajectory_map:
-            return self.collocator.known_trajectory_map[var]
-        else:
-            N = self.collocator.num_collocation_nodes
-            n = self.collocator.num_states
-            q = self.collocator.num_unknown_input_trajectories
-            len_states = n*N
-            len_specifieds = q*N
-            len_both = len_states + len_specifieds
-            if var in self.collocator.state_symbols and free is not None:
-                idx = self.collocator.state_symbols.index(var)
-                return free[idx*N:(idx + 1)*N]
-            elif (var in self.collocator.unknown_input_trajectories and free is
-                  not None):
-                idx = self.collocator.unknown_input_trajectories.index(var)
-                return free[len_states + idx*N:len_states + (idx + 1)*N]
-            elif (var in self.collocator.unknown_parameters and free is not
-                  None):
-                idx = self.collocator.unknown_parameters.index(var)
-                return free[len_both + idx*N:len_both + (idx + 1)*N]
-            elif (self.collocator._variable_duration and
-                  var == self.collocator.time_interval_symbol and
-                  free is not None):
-                return free[-1]
+            val = self.collocator.known_trajectory_map[var]
+            if isinstance(val, type(lambda x: x)):
+                # TODO : Needs unit test for this path.
+                if free is None:
+                    raise ValueError('free vector required for functions in '
+                                     'known trajectory map')
+                else:
+                    return val(free)
             else:
+                return val
+        else:
+            d = self._extraction_indices
+            try:
+                return free[d[var][0]:d[var][1]]
+            except KeyError:
                 raise ValueError(f'{var} not present in this problem.')
 
     def parse_free(self, free):
