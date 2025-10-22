@@ -65,7 +65,7 @@ par_map = {
 # Specify the objective function and it's gradient. In this case, make the
 # problem instance the first argument and it is available to use inside the
 # these functions. This shows how to use ``.parse_free()``,
-# ``.extract_value()``, and ``.fill_free()`` to manage the numerical vectors.
+# ``.extract_values()``, and ``.fill_free()`` to manage the numerical vectors.
 def obj(prob, free):
     """Minimize the sum of the squares of the control torque."""
     _, T_vals, _, h_val = prob.parse_free(free)
@@ -73,8 +73,8 @@ def obj(prob, free):
 
 
 def obj_grad(prob, free):
-    T_vals = prob.extract_value(T(t), free=free)
-    h_val = prob.extract_value(h, free=free)
+    T_vals = prob.extract_values(T(t), free=free)
+    h_val = prob.extract_values(h, free=free)
     grad = np.zeros_like(free)
     prob.fill_free(grad, T(t), 2.0*h_val*T_vals)
     prob.fill_free(grad, h, np.sum(T_vals**2))
