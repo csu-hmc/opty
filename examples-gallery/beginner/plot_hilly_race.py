@@ -222,7 +222,7 @@ _ = ax.set_ylabel(theta)
 
 # %%
 # Animation of the particle traversing the profile:
-# sphinx_gallery_thumbnail_number = 6
+# sphinx_gallery_thumbnail_number = 7
 xs, rs, ps, dh = prob.parse_free(solution)
 
 fig, ax = plt.subplots()
