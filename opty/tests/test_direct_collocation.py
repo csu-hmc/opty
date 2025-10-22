@@ -1922,7 +1922,7 @@ def test_for_algebraic_eoms():
 
     # This will test that a ValueError is raised.
     with raises(ValueError) as excinfo:
-        prob = Problem(
+        Problem(
             obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
             known_parameter_map=par_map,
             instance_constraints=instance_constraints,
@@ -1963,10 +1963,10 @@ def test_prob_parse_free():
     # equations of motion.
     # (No meaning, just for testing)
     eom = sym.Matrix([
-            -x1.diff(t) + ux1,
-            -x2.diff(t) + ux2,
-            -ux1.diff(t) + a*u1,
-            -ux2.diff(t) + b*u2,
+        -x1.diff(t) + ux1,
+        -x2.diff(t) + ux2,
+        -ux1.diff(t) + a*u1,
+        -ux2.diff(t) + b*u2,
     ])
 
     # Set up and Solve the Optimization Problem
@@ -1996,31 +1996,80 @@ def test_prob_parse_free():
 
     # Create the optimization problem and set any options.
     prob = Problem(
-            obj,
-            obj_grad,
-            eom,
-            state_symbols,
-            num_nodes,
-            interval_value,
-            instance_constraints=instance_constraints,
-)
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        instance_constraints=instance_constraints,
+        backend='numpy',
+    )
 
     # Give some estimates for the trajectory.
     initial_guess = np.random.rand(prob.num_free)
     initial_guess1 = initial_guess
 
     # check whether same results.
-    statesu, controlsu, constantsu = parse_free(initial_guess1,
-            len(state_symbols), len(control_symbols), num_nodes)
+    statesu, controlsu, constantsu = parse_free(
+        initial_guess1, len(state_symbols), len(control_symbols), num_nodes)
 
     states, controls, constants = prob.parse_free(initial_guess)
     np.testing.assert_allclose(states, statesu)
     np.testing.assert_allclose(controls, controlsu)
     np.testing.assert_allclose(constants, constantsu)
 
+    # test whether all indices are generated correctly
+    idx_dct = prob._generate_extraction_indices()
+    expected_idx_dct = {
+        x1: (0, 11),
+        x2: (11, 22),
+        ux1: (22, 33),
+        ux2: (33, 44),
+        u1: (44, 55),
+        u2: (55, 66),
+        a: (66, 67),
+        b: (67, 68),
+    }
+    assert idx_dct == expected_idx_dct
+    np.testing.assert_allclose(states[0],
+                               initial_guess[idx_dct[x1][0]:idx_dct[x1][1]])
+    np.testing.assert_allclose(states[1],
+                               initial_guess[idx_dct[x2][0]:idx_dct[x2][1]])
+    np.testing.assert_allclose(states[2],
+                               initial_guess[idx_dct[ux1][0]:idx_dct[ux1][1]])
+    np.testing.assert_allclose(states[3],
+                               initial_guess[idx_dct[ux2][0]:idx_dct[ux2][1]])
+    np.testing.assert_allclose(controls[0],
+                               initial_guess[idx_dct[u1][0]:idx_dct[u1][1]])
+    np.testing.assert_allclose(controls[1],
+                               initial_guess[idx_dct[u2][0]:idx_dct[u2][1]])
+    np.testing.assert_allclose(constants[0],
+                               initial_guess[idx_dct[a][0]:idx_dct[a][1]])
+    np.testing.assert_allclose(constants[1],
+                               initial_guess[idx_dct[b][0]:idx_dct[b][1]])
+
+    np.testing.assert_allclose(states[0],
+                               prob.extract_value(x1, initial_guess))
+    np.testing.assert_allclose(states[1],
+                               prob.extract_value(x2, initial_guess))
+    np.testing.assert_allclose(states[2],
+                               prob.extract_value(ux1, initial_guess))
+    np.testing.assert_allclose(states[3],
+                               prob.extract_value(ux2, initial_guess))
+    np.testing.assert_allclose(controls[0],
+                               prob.extract_value(u1, initial_guess))
+    np.testing.assert_allclose(controls[1],
+                               prob.extract_value(u2, initial_guess))
+    np.testing.assert_allclose(constants[0],
+                               prob.extract_value(a, initial_guess))
+    np.testing.assert_allclose(constants[1],
+                               prob.extract_value(b, initial_guess))
+
     # test with variable interval_value
     interval_value = h
     t0, tf = 0.0, (num_nodes - 1)*interval_value
+
     def obj(free):
         return sum([free[i]**2 for i in range(2*num_nodes)])
 
@@ -2031,29 +2080,39 @@ def test_prob_parse_free():
 
     # Create the optimization problem and set any options.
     prob = Problem(
-            obj,
-            obj_grad,
-            eom,
-            state_symbols,
-            num_nodes,
-            interval_value,
-            instance_constraints=instance_constraints,
-)
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        instance_constraints=instance_constraints,
+        backend='numpy',
+    )
 
     # Give some estimates for the trajectory.
     initial_guess = np.random.rand(prob.num_free)
     initial_guess1 = initial_guess
 
     # check whether same results.
-    statesu, controlsu, constantsu, timeu = parse_free(initial_guess1,
-        len(state_symbols), len(control_symbols),
-        num_nodes, variable_duration=True)
+    statesu, controlsu, constantsu, timeu = parse_free(
+        initial_guess1, len(state_symbols), len(control_symbols), num_nodes,
+        variable_duration=True)
 
     states, controls, constants, times = prob.parse_free(initial_guess)
     np.testing.assert_allclose(states, statesu)
     np.testing.assert_allclose(controls, controlsu)
     np.testing.assert_allclose(constants, constantsu)
     np.testing.assert_allclose(timeu, times)
+
+    # check that the variable length value is correctly returned
+    idx_dct = prob._generate_extraction_indices()
+    assert idx_dct[h] == (68, 69)
+    np.testing.assert_allclose(initial_guess[idx_dct[h][0]:idx_dct[h][1]],
+                               timeu)
+    np.testing.assert_allclose(prob.extract_value(h, initial_guess), timeu)
+    with raises(ValueError):
+        prob.extract_value(sym.Symbol('eee'), initial_guess)
 
     # check that only 'numpy' and 'cython' backends are accepted as backend
     with raises(ValueError):
@@ -2067,6 +2126,7 @@ def test_prob_parse_free():
             time_symbol=t,
             backend='nonsensical',
         )
+
 
 def test_one_eom_only():
     """

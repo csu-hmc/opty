@@ -231,6 +231,8 @@ class Problem(cyipopt.Problem):
         self._generate_bound_arrays()
         self._generate_constraint_bound_arrays()
 
+        self._extraction_indices = self._generate_extraction_indices()
+
         super(Problem, self).__init__(n=self.num_free,
                                       m=self.num_constraints,
                                       lb=self.lower_bound,
@@ -890,6 +892,96 @@ class Problem(cyipopt.Problem):
             fig, ax = plt.subplots()
             ax.spy(jacobian_matrix)
         return ax
+
+    def _generate_extraction_indices(self):
+        """Returns a dictionary that maps all unknown variables to a tuple of
+        the slice indices needed to extract that variable from the free
+        optimization vector."""
+        d = {}
+
+        N = self.collocator.num_collocation_nodes
+        n = self.collocator.num_states
+        q = self.collocator.num_unknown_input_trajectories
+        r = self.collocator.num_unknown_parameters
+        len_states = n*N
+        len_specifieds = q*N
+        len_both = len_states + len_specifieds
+
+        for var in self.collocator.state_symbols:
+            idx = self.collocator.state_symbols.index(var)
+            d[var] = (idx*N, (idx + 1)*N)
+
+        for var in self.collocator.unknown_input_trajectories:
+            idx = self.collocator.unknown_input_trajectories.index(var)
+            d[var] = (len_states + idx*N, len_states + (idx + 1)*N)
+
+        for var in self.collocator.unknown_parameters:
+            idx = self.collocator.unknown_parameters.index(var)
+            d[var] = (len_both + idx, len_both + idx + 1)
+
+        if self.collocator._variable_duration:
+            d[self.collocator.time_interval_symbol] = (len_both + r,
+                                                       self.num_free)
+
+        return d
+
+    def fill_free(self, free, var, values):
+        """Replaces the values in a vector shaped the same as the free
+        optimization vector corresponding to the variable name.
+
+        Parameters
+        ==========
+        free : ndarray, shape(n*N + q*N + r + s, )
+            Vector to replace values in.
+        var : Symbol or Function()(time)
+            One of the unknown optimization variables in the problem.
+        values : ndarray, shape(N,) or float
+            Numerical values to insert, arrays must be in order of monotonic
+            time.
+
+        """
+        d = self._extraction_indices
+        try:
+            free[d[var][0]:d[var][1]] = values
+        except KeyError:
+            raise ValueError(f'{var} not an unknown in this problem.')
+
+    def extract_value(self, var, free=None):
+        """Returns the numerical values of the variable.
+
+        Parameters
+        ==========
+        var : Symbol or Function()(time)
+            One of the known or unknown variables in the problem.
+        free : ndarray, shape(n*N + q*N + r + s)
+            The free optimization vector of the system, required if var is an
+            unknown optimization variable.
+
+        Returns
+        =======
+        values : ndarray, shape(N,) or float
+            The numerical value of the variable.
+
+        """
+        if var in self.collocator.known_parameter_map:
+            return self.collocator.known_parameter_map[var]
+        elif var in self.collocator.known_trajectory_map:
+            val = self.collocator.known_trajectory_map[var]
+            if isinstance(val, type(lambda x: x)):
+                # TODO : Needs unit test for this path.
+                if free is None:
+                    raise ValueError('free vector required for functions in '
+                                     'known trajectory map')
+                else:
+                    return val(free)
+            else:
+                return val
+        else:
+            d = self._extraction_indices
+            try:
+                return free[d[var][0]:d[var][1]]
+            except KeyError:
+                raise ValueError(f'{var} not present in this problem.')
 
     def parse_free(self, free):
         """Parses the free parameters vector and returns it's components.
