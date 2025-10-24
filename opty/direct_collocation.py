@@ -17,6 +17,8 @@ from .utils import (ufuncify_matrix, lambdify_matrix, parse_free,
 
 __all__ = ['Problem', 'ConstraintCollocator']
 
+logger = logging.getLogger(__name__)
+
 
 class _DocInherit(object):
     """
@@ -218,9 +220,9 @@ class Problem(cyipopt.Problem):
         self.obj = obj
         self.obj_grad = obj_grad
         self.con = self.collocator.generate_constraint_function()
-        logging.info('Constraint function generated.')
+        logger.info('Constraint function generated.')
         self.con_jac = self.collocator.generate_jacobian_function()
-        logging.info('Jacobian function generated.')
+        logger.info('Jacobian function generated.')
 
         self.con_jac_rows, self.con_jac_cols = \
             self.collocator.jacobian_indices()
@@ -1807,7 +1809,7 @@ class ConstraintCollocator(object):
             The column vector of the discretized equations of motion.
 
         """
-        logging.info('Discretizing the equations of motion.')
+        logger.info('Discretizing the equations of motion.')
         x = self.state_symbols
         xd = self.state_derivative_symbols
         u = self.input_trajectories
@@ -2051,7 +2053,7 @@ class ConstraintCollocator(object):
             discrete_eom = self.discrete_eom
 
         if self._backend == 'cython':
-            logging.info('Compiling the constraint function.')
+            logger.info('Compiling the constraint function.')
             f = ufuncify_matrix(args, discrete_eom,
                                 const=constant_syms + (h_sym,),
                                 tmp_dir=self.tmp_dir, parallel=self.parallel,
@@ -2428,7 +2430,7 @@ class ConstraintCollocator(object):
 
         # This creates a matrix with all of the symbolic partial derivatives
         # necessary to compute the full Jacobian.
-        logging.info('Differentiating the constraint function.')
+        logger.info('Differentiating the constraint function.')
         discrete_eom_matrix = sm.ImmutableDenseMatrix(self.discrete_eom)
         wrt_matrix = sm.ImmutableDenseMatrix([list(wrt)])
         if self._backend == 'cython':
@@ -2476,7 +2478,7 @@ class ConstraintCollocator(object):
         # partial derivatives. This function returns the non-zero elements
         # needed to build the sparse constraint Jacobian.
         if self._backend == 'cython':
-            logging.info('Compiling the Jacobian function.')
+            logger.info('Compiling the Jacobian function.')
             eval_partials = ufuncify_matrix(args, symbolic_partials,
                                             const=constant_syms + (h_sym,),
                                             tmp_dir=self.tmp_dir,
@@ -2683,13 +2685,13 @@ class ConstraintCollocator(object):
     def generate_constraint_function(self):
         """Returns a function which evaluates the constraints given the
         array of free optimization variables."""
-        logging.info('Generating constraint function.')
+        logger.info('Generating constraint function.')
         self._gen_multi_arg_con_func()
         return self._wrap_constraint_funcs(self._multi_arg_con_func, 'con')
 
     def generate_jacobian_function(self):
         """Returns a function which evaluates the Jacobian of the
         constraints given the array of free optimization variables."""
-        logging.info('Generating jacobian function.')
+        logger.info('Generating jacobian function.')
         self._gen_multi_arg_con_jac_func()
         return self._wrap_constraint_funcs(self._multi_arg_con_jac_func, 'jac')
