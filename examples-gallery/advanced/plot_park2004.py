@@ -39,6 +39,7 @@ from symmeplot.matplotlib import Scene3D
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sm
+import sympy.physics.control as ctrl
 
 from model_park2004 import PlanarStandingHumanOnMovingPlatform
 
@@ -53,6 +54,25 @@ h = PlanarStandingHumanOnMovingPlatform(unscaled_gain=0.5)
 h.derive()
 eom = h.first_order_implicit()
 MathJaxRepr(sm.simplify(eom))
+
+# %% Generate Stability Constraints
+# ---------------------------------
+#
+A, B, C, D = h.closed_loop_state_space()
+d1, d2, d3, d4, d5, d6, d7, d8 = sm.symbols('d1, d2, d3, d4, d5, d6, d7, d8',
+                                            real=True)
+A_ = sm.Matrix([[0, 0, 1, 0],
+                [0, 0, 0, 1],
+                [d1, d2, d3, d4],
+                [d5, d6, d7, d8]])
+B_ = sm.ones(4, 2)
+C_ = sm.eye(4)
+D_ = sm.zeros(*B_.shape)
+ss = ctrl.StateSpace(A_, B_, C_, D_)
+ineq = ss.get_asymptotic_stability_conditions()
+constraints = [expr.lhs.subs(dict(zip(A_[8:], A[8:])))
+               for expr in ineq]  # all should be > zero
+eom = eom.col_join(sm.Matrix(constraints))
 
 # %%
 # Simulate Measurement Data
@@ -151,6 +171,12 @@ prob = Problem(
     bounds=bounds,
     time_symbol=h.time,
     integration_method='midpoint',
+    eom_bounds={
+        4: (0.0, np.inf),
+        5: (0.0, np.inf),
+        6: (0.0, np.inf),
+        7: (0.0, np.inf),
+    }
 )
 
 # %%
