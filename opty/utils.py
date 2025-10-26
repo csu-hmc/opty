@@ -808,7 +808,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
                 # so I don't delete the directory on Windows.
                 if sys.platform != "win32":
                     shutil.rmtree(codedir)
-=======
+
         sys.path.append(codedir)
         for filename, code in files.items():
             with open(filename, 'w') as f:
@@ -862,7 +862,6 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
             # so I don't delete the directory on Windows.
             if sys.platform != "win32":
                 shutil.rmtree(codedir)
->>>>>>> master
 
     return getattr(cython_module, d['routine_name'] + '_loop')
 
