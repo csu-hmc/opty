@@ -1,4 +1,11 @@
-include README.rst
-include LICENSE
-include CHANGELOG.rst
 include AUTHORS
+include CHANGELOG.rst
+include LICENSE
+include README.rst
+include docs/conf.py
+include docs/Makefile
+include docs/make.bat
+include docs/*.rst
+exclude docs/sg_execution_times.rst
+recursive-exclude docs/examples/ *
+recursive-include examples-gallery/ plot_*.py *.csv *.npy *.rst *.svg *.txt *.yml

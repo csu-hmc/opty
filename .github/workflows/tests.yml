@@ -1,0 +1,76 @@
+name: Build and Test
+
+on: [push, pull_request]
+
+# cancels prior builds for this workflow when new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and run tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15-intel, macos-latest, windows-latest]
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        # test all python versions on ubuntu, but only latest two on mac and
+        # windows
+        exclude:
+          - os: macos-15-intel
+            python-version: '3.9'
+          - os: macos-15-intel
+            python-version: '3.10'
+          - os: macos-15-intel
+            python-version: '3.11'
+          - os: macos-latest
+            python-version: '3.9'
+          - os: macos-latest
+            python-version: '3.10'
+          - os: macos-latest
+            python-version: '3.11'
+          - os: windows-latest
+            python-version: '3.9'
+          - os: windows-latest
+            python-version: '3.10'
+          - os: windows-latest
+            python-version: '3.11'
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - name: Checkout Opty
+        uses: actions/checkout@v4
+      - name: Setup Conda environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          channels: conda-forge
+          conda-remove-defaults: "true"
+          environment-file: opty-dev-env.yml
+          python-version: ${{ matrix.python-version }}
+          miniforge-version: latest
+      - name: Install openmp
+        if: runner.os == 'Linux'
+        run: |
+          conda list
+          conda install libgomp
+      - name: Test with pytest
+        run: |
+          conda list
+          pytest --cov=opty opty/
+      - name: Install Opty and test import
+        run: |
+          python -m pip install --no-deps --no-build-isolation .
+          conda list
+          python -c "import opty"
+      - name: Run an example
+        run: |
+          python examples/vyasarayani2011.py
+      # This example only seems to work on the linux builds, it should fail
+      # gracefully otherwise.
+      - name: Run an openmp example
+        run: |
+          python examples/parallel_example.py

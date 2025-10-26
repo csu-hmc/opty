@@ -12,10 +12,10 @@ Contents
 .. toctree::
    :maxdepth: 2
 
-   index
    theory
-   examples
+   examples/index.rst
    api
+   references
 
 .. include:: ../README.rst
 

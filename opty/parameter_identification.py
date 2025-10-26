@@ -1,7 +1,12 @@
 #!/usr/bin/env python
 
 import numpy as np
-from scipy.interpolate import interp1d
+try:
+    from scipy.interpolate import interp1d
+except ImportError:
+    has_scipy = False
+else:
+    has_scipy = True
 
 from .utils import parse_free
 
@@ -70,6 +75,9 @@ def objective_function(free, num_dis_points, num_states, dis_period,
     compared to the model output at the discretization time points.
 
     """
+    if not has_scipy:
+        raise ImportError('SciPy must be installed to use objective_function.')
+
     M, o = y_measured.shape
     N, n = num_dis_points, num_states
 
@@ -121,6 +129,8 @@ def objective_function_gradient(free, num_dis_points, num_states,
     output_equations() is more than a simple selection.
 
     """
+    if not has_scipy:
+        raise ImportError('SciPy must be installed to use objective_function.')
 
     M, o = y_measured.shape
     N, n = num_dis_points, num_states

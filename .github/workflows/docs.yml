@@ -1,0 +1,43 @@
+name: Build Docs
+
+on: [push, pull_request]
+
+env:
+  ONGITHUB: true
+
+# cancels prior builds for this workflow when new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and run tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        # NOTE : build with the oldest supported Python here and latest
+        # supported on RTDs, to try to avoid examples not being tested for all
+        # Python versions we support.
+        python-version: ['3.9']
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - name: Checkout Opty
+        uses: actions/checkout@v4
+      - name: Setup Conda environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          environment-file: opty-dev-env.yml
+          activate-environment: opty-dev
+          python-version: ${{ matrix.python-version }}
+          miniforge-version: latest
+      - name: Build Docs
+        run: |
+          cd docs
+          # fail on any warnings
+          make html SPHINXOPTS="-W"
