@@ -19,6 +19,7 @@ import locale
 
 import numpy as np
 import sympy as sm
+from sympy.utilities._compilation import compilation as pycompilation
 import sympy.physics.mechanics as me
 from sympy.utilities.iterables import numbered_symbols
 from sympy.printing.c import C99CodePrinter
@@ -218,7 +219,6 @@ def _forward_jacobian(expr, wrt):
     return (list(required_replacements.items()),
             [replaced_jacobian.xreplace(unrequired_replacements)])
 
-from sympy.utilities._compilation import compilation as pycompilation
 
 
 def building_docs():
@@ -778,7 +778,8 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     cython_module, info = pycompilation.compile_link_import_strings(
         sources,
         compile_kwargs={
-            "std": 'c99',
+            # NOTE : Failed to recognize M_PI if the std is c99, but gnu adds # it.
+            "std": 'gnu99',
             "include_dirs": [np.get_include()],
             'flags': options},
         link_kwargs={'flags': options},
