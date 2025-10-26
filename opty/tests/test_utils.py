@@ -4,6 +4,7 @@ import pytest
 import numpy as np
 from numpy import testing
 import sympy as sym
+from sympy.utilities._compilation.util import CompileError
 try:
     from scipy import sparse
 except ImportError:
@@ -267,10 +268,10 @@ def test_ufuncify_matrix():
 
     n = 10000
 
-    a_vals = np.random.random(n)
-    b_vals = np.random.random(n)
+    a_vals = np.abs(np.random.random(n))
+    b_vals = np.abs(np.random.random(n))
     c_vals = np.abs(np.random.random(n))
-    c_val = np.random.random(1)[0]
+    c_val = np.abs(np.random.random(1))[0]
 
     def eval_matrix_loop_numpy(a_vals, b_vals, c_vals):
         """Since the number of matrix elements are typically much smaller
@@ -330,7 +331,8 @@ def test_ufuncify_matrix():
 
     # NOTE : Will not compile due to d_{badsym} being an invalid C variable
     # name.
-    with pytest.raises(ImportError) as error:
+    # opty's compilation will raise an ImportError
+    with pytest.raises((ImportError, CompileError)) as error:
         utils.ufuncify_matrix((a, b, d), sym_mat.xreplace({c: d}))
 
     assert error.match("double d_{badsym}")

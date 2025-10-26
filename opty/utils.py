@@ -8,6 +8,7 @@ import subprocess
 import importlib
 from functools import wraps
 import warnings
+import logging
 from distutils.ccompiler import new_compiler
 from distutils.errors import CompileError
 from distutils.sysconfig import customize_compiler
@@ -18,6 +19,7 @@ import locale
 
 import numpy as np
 import sympy as sm
+from sympy.utilities._compilation import compilation as pycompilation
 import sympy.physics.mechanics as me
 from sympy.utilities.iterables import numbered_symbols
 from sympy.printing.c import C99CodePrinter
@@ -216,6 +218,7 @@ def _forward_jacobian(expr, wrt):
 
     return (list(required_replacements.items()),
             [replaced_jacobian.xreplace(unrequired_replacements)])
+
 
 
 def building_docs():
@@ -461,17 +464,12 @@ def sort_sympy(seq):
 _c_template = """\
 {win_math_def}
 #include <math.h>
-#include "{file_prefix}_h.h"
 
 void {routine_name}(double matrix[{matrix_output_size}],
 {input_args})
 {{
 {eval_code}
 }}
-"""
-
-_h_template = """\
-void {routine_name}(double matrix[{matrix_output_size}], {input_args});
 """
 
 _cython_template = """\
@@ -482,9 +480,7 @@ from cython.parallel import prange
 cimport numpy as np
 cimport cython
 
-cdef extern from "{file_prefix}_h.h"{head_gil}:
-    void {routine_name}(double matrix[{matrix_output_size}],
-{input_args})
+cdef extern void c_{routine_name} "{routine_name}" (double matrix[{matrix_output_size}], {input_args}){head_gil}
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -499,7 +495,7 @@ def {routine_name}_loop(matrix,
     cdef int i
 
     for i in {loop_sig}:
-        {routine_name}(&matrix_memview[i, 0],
+        c_{routine_name}(&matrix_memview[i, 0],
 {indexed_input_args})
 
     return matrix.reshape(n, {num_rows}, {num_cols})
@@ -766,67 +762,94 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
 
     files = {}
     files[d['file_prefix'] + '_c.c'] = _c_template.format(**d)
-    files[d['file_prefix'] + '_h.h'] = _h_template.format(**d)
     files[d['file_prefix'] + '.pyx'] = _cython_template.format(**d)
     files[d['file_prefix'] + '_setup.py'] = _setup_template.format(**d)
 
-    workingdir = os.getcwd()
-    os.chdir(codedir)
+    logger.info('opty:Compiling with sympy.utilities._compilation module.')
+    sources = [
+        (d['file_prefix'] + '_c.c', files[d['file_prefix'] + '_c.c']),
+        (d['file_prefix'] + '.pyx', files[d['file_prefix'] + '.pyx']),
+    ]
 
-    try:
-        sys.path.append(codedir)
-        for filename, code in files.items():
-            with open(filename, 'w') as f:
-                f.write(code)
-        cmd = [sys.executable, d['file_prefix'] + '_setup.py', 'build_ext',
-               '--inplace']
-        # NOTE : This may not always work on Windows (seems to be dependent on
-        # how Python is invoked). There is explanation in
-        # https://github.com/python/cpython/issues/105312 but it is not crystal
-        # clear what the solution is.
-        # device_encoding() takes: 0: stdin, 1: stdout, 2: stderr
-        # device_encoding() always returns UTF-8 on Unix but will return
-        # different encodings on Windows and only if it is "attached to a
-        # terminal".
-        # locale.getencoding() tries to guess the encoding
-        if sys.platform == 'win32':
-            try:  # Python >=  3.11
-                encoding = locale.getencoding()
-            except AttributeError:  # Python < 3.11
-                encoding = locale.getlocale()[1]
-        else:
-            encoding = None
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True,
-                                  encoding=encoding)
-        # On Windows this can raise a UnicodeDecodeError, but only in the
-        # subprocess.
-        except UnicodeDecodeError:
-            stdout = 'STDOUT not captured, decoding error.'
-            stderr = 'STDERR not captured, decoding error.'
-        else:
-            stdout = proc.stdout
-            stderr = proc.stderr
+    options = []
+    if parallel:
+        options += ['-fopenmp']
 
-        if show_compile_output:
-            print(stdout)
-            print(stderr)
-        try:
-            cython_module = importlib.import_module(d['file_prefix'])
-        except ImportError as error:
-            msg = ('Unable to import the compiled Cython module {}, '
-                   'compilation likely failed. STDERR output from '
-                   'compilation:\n{}')
-            raise ImportError(msg.format(d['file_prefix'], stderr)) from error
-    finally:
-        module_counter += 1
-        sys.path.remove(codedir)
-        os.chdir(workingdir)
-        if tmp_dir is None:
-            # NOTE : I can't figure out how to get rmtree to work on Windows,
-            # so I don't delete the directory on Windows.
-            if sys.platform != "win32":
-                shutil.rmtree(codedir)
+    cython_module, info = pycompilation.compile_link_import_strings(
+        sources,
+        compile_kwargs={
+            # NOTE : Failed to recognize M_PI if the std is c99, so gnu99.
+            # std dialects:
+            # https://gcc.gnu.org/onlinedocs/gcc/C-Dialect-Options.html
+            "std": 'c99' if sys.platform == 'darwin' else 'gnu99',
+            "include_dirs": [np.get_include()],
+            'flags': options,
+            'preferred_vendor': 'llvm' if sys.platform == 'darwin' else 'gnu'},
+        link_kwargs={'flags': options},
+        build_dir=codedir)
+
+        ###raise RuntimeError("SymPy's compilation failed.")
+        ###logging.info("opty:Compiling with Opty's compilation functions.")
+        ###workingdir = os.getcwd()
+        ###os.chdir(codedir)
+###
+        ###try:
+            ###sys.path.append(codedir)
+            ###for filename, code in files.items():
+                ###with open(filename, 'w') as f:
+                    ###f.write(code)
+            ###cmd = [sys.executable, d['file_prefix'] + '_setup.py', 'build_ext',
+                   ###'--inplace']
+            ###subprocess.call(cmd, stderr=subprocess.STDOUT,
+                            ###stdout=subprocess.PIPE)
+            ###cython_module = importlib.import_module(d['file_prefix'])
+            #### NOTE : This may not always work on Windows (seems to be dependent
+            #### on how Python is invoked). There is explanation in
+            #### https://github.com/python/cpython/issues/105312 but it is not
+            #### crystal clear what the solution is.
+            #### device_encoding() takes: 0: stdin, 1: stdout, 2: stderr
+            #### device_encoding() always returns UTF-8 on Unix but will return
+            #### different encodings on Windows and only if it is "attached to a
+            #### terminal".
+            #### locale.getencoding() tries to guess the encoding
+            ###if sys.platform == 'win32':
+                ###try:  # Python >=  3.11
+                    ###encoding = locale.getencoding()
+                ###except AttributeError:  # Python < 3.11
+                    ###encoding = locale.getlocale()[1]
+            ###else:
+                ###encoding = None
+            ###try:
+                ###proc = subprocess.run(cmd, capture_output=True, text=True,
+                                      ###encoding=encoding)
+            #### On Windows this can raise a UnicodeDecodeError, but only in the
+            #### subprocess.
+            ###except UnicodeDecodeError:
+                ###stdout = 'STDOUT not captured, decoding error.'
+                ###stderr = 'STDERR not captured, decoding error.'
+            ###else:
+                ###stdout = proc.stdout
+                ###stderr = proc.stderr
+###
+            ###if show_compile_output:
+                ###print(stdout)
+                ###print(stderr)
+            ###try:
+                ###cython_module = importlib.import_module(d['file_prefix'])
+            ###except ImportError as error:
+                ###msg = ('Unable to import the compiled Cython module {}, '
+                       ###'compilation likely failed. STDERR output from '
+                       ###'compilation:\n{}')
+                ###raise ImportError(msg.format(d['file_prefix'], stderr)) from error
+        ###finally:
+            ###module_counter += 1
+            ###sys.path.remove(codedir)
+            ###os.chdir(workingdir)
+            ###if tmp_dir is None:
+                #### NOTE : I can't figure out how to get rmtree to work on
+                #### Windows, so I don't delete the directory on Windows.
+                ###if sys.platform != "win32":
+                    ###shutil.rmtree(codedir)
 
     return getattr(cython_module, d['routine_name'] + '_loop')
 
