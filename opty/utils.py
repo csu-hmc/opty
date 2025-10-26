@@ -781,7 +781,8 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
             # NOTE : Failed to recognize M_PI if the std is c99, but gnu adds # it.
             "std": 'gnu99',
             "include_dirs": [np.get_include()],
-            'flags': options},
+            'flags': options,
+            'preferred_vendor': 'llvm' if os.name == 'darwin' else 'gnu'},
         link_kwargs={'flags': options},
         build_dir=codedir)
 
