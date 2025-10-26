@@ -781,7 +781,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
             # NOTE : Failed to recognize M_PI if the std is c99, so gnu99.
             # std dialects:
             # https://gcc.gnu.org/onlinedocs/gcc/C-Dialect-Options.html
-            "std": 'gnu99',
+            "std": 'c++11' if sys.platform == 'darwin' else 'gnu99',
             "include_dirs": [np.get_include()],
             'flags': options,
             'preferred_vendor': 'llvm' if sys.platform == 'darwin' else 'gnu'},
