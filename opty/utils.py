@@ -778,11 +778,13 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     cython_module, info = pycompilation.compile_link_import_strings(
         sources,
         compile_kwargs={
-            # NOTE : Failed to recognize M_PI if the std is c99, but gnu adds # it.
+            # NOTE : Failed to recognize M_PI if the std is c99, so gnu99.
+            # std dialects:
+            # https://gcc.gnu.org/onlinedocs/gcc/C-Dialect-Options.html
             "std": 'gnu99',
             "include_dirs": [np.get_include()],
             'flags': options,
-            'preferred_vendor': 'llvm' if os.name == 'darwin' else 'gnu'},
+            'preferred_vendor': 'llvm' if sys.platform == 'darwin' else 'gnu'},
         link_kwargs={'flags': options},
         build_dir=codedir)
 
