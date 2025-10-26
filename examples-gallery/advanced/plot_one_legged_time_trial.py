@@ -23,6 +23,7 @@ import numpy as np
 import sympy as sm
 import sympy.physics.biomechanics as bm
 import sympy.physics.mechanics as me
+import os
 
 # %%
 # Coordinates
@@ -702,45 +703,47 @@ problem = Problem(
     instance_constraints=instance_constraints,
     time_symbol=t,
     bounds=bounds,
+    backend='numpy',
 )
 problem.add_option('nlp_scaling_method', 'gradient-based')
 problem.add_option('max_iter', 1000)
 
-initial_guess = 0.5*np.ones(problem.num_free)
+fname = f'one_legded_time_trial_{num_nodes}_nodes_solution.csv'
+if os.path.exists(fname):
+    solution = np.loadtxt(fname)
+else:
+    initial_guess = 0.5*np.ones(problem.num_free)
 
-q1_guess = np.linspace(0.0, -crank_revs*2*np.pi, num=num_nodes)
-q2_guess = np.linspace(0.0, crank_revs*2*np.pi, num=num_nodes)
+    q1_guess = np.linspace(0.0, -crank_revs*2*np.pi, num=num_nodes)
+    q2_guess = np.linspace(0.0, crank_revs*2*np.pi, num=num_nodes)
 
-u1_guess = np.linspace(0.0, -40.0, num=num_nodes)
-u1_guess[num_nodes//2:] = -20.0
-u2_guess = np.linspace(0.0, 40.0, num=num_nodes)
-u2_guess[num_nodes//2:] = 20.0
+    u1_guess = np.linspace(0.0, -40.0, num=num_nodes)
+    u1_guess[num_nodes//2:] = -20.0
+    u2_guess = np.linspace(0.0, 40.0, num=num_nodes)
+    u2_guess[num_nodes//2:] = 20.0
 
-initial_guess[0*num_nodes:1*num_nodes] = q1_guess
-initial_guess[1*num_nodes:2*num_nodes] = q2_guess
-initial_guess[4*num_nodes:5*num_nodes] = u1_guess
-initial_guess[5*num_nodes:6*num_nodes] = u2_guess
-initial_guess[-1] = 0.02
+    initial_guess[0*num_nodes:1*num_nodes] = q1_guess
+    initial_guess[1*num_nodes:2*num_nodes] = q2_guess
+    initial_guess[4*num_nodes:5*num_nodes] = u1_guess
+    initial_guess[5*num_nodes:6*num_nodes] = u2_guess
+    initial_guess[-1] = 0.02
 
-fig, axes = plt.subplots(16, 1, sharex=True,
+    fig, axes = plt.subplots(16, 1, sharex=True,
                          figsize=(6.4, 0.8*16),
                          layout='compressed')
-_ = problem.plot_trajectories(initial_guess, axes=axes)
+    _ = problem.plot_trajectories(initial_guess, axes=axes)
 
-# %%
-# Solve the Optimal Control Problem
-# ---------------------------------
-solution, info = problem.solve(initial_guess)
+    solution, info = problem.solve(initial_guess)
+
+    print(info['status_msg'])
+    xs, us, ps, h_val = problem.parse_free(solution)
+    print('Optimal value h = {:1.3f} s:'.format(h_val))
+    _ = problem.plot_objective_value()
 xs, us, ps, h_val = problem.parse_free(solution)
-print(info['status_msg'])
-print('Optimal value h = {:1.3f} s:'.format(h_val))
-
 # %%
 # Plot the Solution
 # -----------------
-_ = problem.plot_objective_value()
 
-# %%
 fig, axes = plt.subplots(3, 1, figsize=(12.8, 10),
                          layout='constrained')
 _ = problem.plot_constraint_violations(solution, axes=axes)
@@ -867,8 +870,8 @@ def animate(i):
     title_text.set_text('Time = {:1.2f} s'.format(i*h_val))
 
 
-ani = animation.FuncAnimation(fig, animate, range(0, num_nodes, 4),
-                              interval=int(h_val*4000))
+ani = animation.FuncAnimation(fig, animate, range(0, num_nodes, 6),
+                              interval=int(h_val*6000))
 
 if __name__ == "__main__":
     plt.show()
