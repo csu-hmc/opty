@@ -785,6 +785,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
             link_kwargs={'flags': options},
             build_dir=codedir)
     except:
+        raise RuntimeError("SymPy's compilation failed.")
         logging.info("opty:Compiling with Opty's compilation functions.")
         workingdir = os.getcwd()
         os.chdir(codedir)
