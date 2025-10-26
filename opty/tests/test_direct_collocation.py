@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from collections import OrderedDict
 
 import numpy as np
@@ -12,6 +10,269 @@ from pytest import raises
 from ..direct_collocation import Problem, ConstraintCollocator
 from ..utils import (create_objective_function, sort_sympy, parse_free,
                      _coo_matrix)
+
+
+def test_implicit_known_traj():
+
+    m, g, r, h = sym.symbols('m, g, r, h', real=True)
+    x, v, f, s = mech.dynamicsymbols('x, v, f, s', real=True)
+    t = mech.dynamicsymbols._t
+
+    theta_of_x = sym.Function('theta', real=True)(x)
+    theta_of_v = sym.Function('theta', real=True)(v)
+    theta_of_x_v = sym.Function('theta', real=True)(x, v)
+    omega_of_v = sym.Function('omega', real=True)(v)
+
+    states = (x, v)
+
+    eom = sym.Matrix([
+        x.diff() - v - s + r*omega_of_v,
+        m*v.diff() - f + m*g*sym.sin(theta_of_x),
+    ])
+
+    N = 4
+
+    x0, xf = 2.0, 5.0
+    theta0, thetaf = 0.0, 10.0
+    xs = np.linspace(x0, xf, num=N)
+    thetas = np.linspace(theta0, thetaf, num=N)
+    # slope = (thetaf - theta0)/(xf - x0)
+
+    def calc_theta_x(free):
+        print('Executing calc_theta_x')
+        x = free[0:N]
+        return np.interp(x, xs, thetas)
+
+    def calc_dtheta_dx(free):
+        print('Executing calc_dtheta_dx')
+        # x = free[0:N]
+        # return slope*np.ones_like(x)
+        return np.array([3.9, 1.2, -5.6, 12.3])
+
+    def calc_omega_v(free):
+        print('Executing calc_omega_v')
+        return np.array([-0.01, -0.98, 3.45, 27.45])
+
+    def calc_domega_dv(free):
+        print('Executing calc_domega_dv')
+        return np.array([0.1, 8.9, -43.4, -2.5])
+
+    # this checked backward Euler w/ cython backend, and the hilly ride checks
+    # midpoint w/ numpy backend
+    col = ConstraintCollocator(
+        eom,
+        states,
+        N,
+        h,  # variable
+        known_parameter_map={r: 7.1, m: 3.3, g: 10.2},
+        known_trajectory_map={
+            omega_of_v.diff(v): calc_domega_dv,
+            omega_of_v: calc_omega_v,
+            s: np.array([121., 122., 123., 124.]),
+            theta_of_x: calc_theta_x,
+            theta_of_x.diff(x): calc_dtheta_dx,
+        },
+        time_symbol=t,
+    )
+
+    assert col.state_derivative_symbols == (x.diff(t), v.diff(t))
+
+    assert col._deriv_in_knw_traj
+
+    # _sort_trajectories()
+    assert col.known_input_trajectories == (omega_of_v.diff(v), omega_of_v, s,
+                                            theta_of_x, theta_of_x.diff(x))
+    assert col.num_known_input_trajectories == 5
+    assert col.unknown_input_trajectories == (f,)
+    assert col.num_unknown_input_trajectories == 1
+    assert col.input_trajectories == (omega_of_v.diff(v), omega_of_v, s,
+                                      theta_of_x, theta_of_x.diff(x), f)
+    assert col.num_input_trajectories == 6
+
+    xi, xp, xn, vi, vp, vn, fi, si, sn = sym.symbols(
+        'xi, xp, xn, vi, vp, vn, fi, si, sn', real=True)
+
+    thetai_of_xi = sym.Function('thetai', real=True)(
+        sym.Symbol('xi', real=True))
+    thetan_of_xn = sym.Function('thetan', real=True)(
+        sym.Symbol('xn', real=True))
+    omegai_of_vi = sym.Function('omegai', real=True)(
+        sym.Symbol('vi', real=True))
+    omegan_of_vn = sym.Function('omegan', real=True)(
+        sym.Symbol('vn', real=True))
+
+    dthetai_dxi = sym.Symbol('dthetai_dxi', real=True)
+    dthetan_dxn = sym.Symbol('dthetan_dxn', real=True)
+    domegai_dvi = sym.Symbol('domegai_dvi', real=True)
+    domegan_dvn = sym.Symbol('domegan_dvn', real=True)
+
+    # _discrete_symbols()
+    assert col.current_known_discrete_specified_symbols == (
+        domegai_dvi,
+        omegai_of_vi,
+        si,
+        thetai_of_xi,
+        dthetai_dxi,
+    )
+    assert col.next_known_discrete_specified_symbols == (
+        domegan_dvn,
+        omegan_of_vn,
+        sn,
+        thetan_of_xn,
+        dthetan_dxn,
+    )
+
+    # For backward Euler and midpoint only the current and next input
+    # trajectories are used (not the previous).
+    assert col._create_function_replacements() == {
+        thetai_of_xi.diff(xi): dthetai_dxi,
+        thetai_of_xi: sym.Symbol('thetaixi', real=True),
+        thetan_of_xn.diff(xn): dthetan_dxn,
+        thetan_of_xn: sym.Symbol('thetanxn', real=True),
+        omegai_of_vi.diff(vi): domegai_dvi,
+        omegai_of_vi: sym.Symbol('omegaivi', real=True),
+        omegan_of_vn.diff(vn): domegan_dvn,
+        omegan_of_vn: sym.Symbol('omeganvn', real=True),
+    }
+
+    # _discretize_eom()
+    # The implicit function of time must be a SymPy Function in the discrete
+    # EoM, so that the Jacobian will apply the chain rule and generate the new
+    # unevaluated derivatives.
+    expected_discrete_eom = sym.Matrix([
+        (xi - xp)/h - vi - si + r*omegai_of_vi,
+        m*(vi - vp)/h - fi + m*g*sym.sin(thetai_of_xi),
+    ])
+
+    assert sym.simplify(col._discrete_eom -
+                        expected_discrete_eom) == sym.zeros(2, 1)
+
+    # jacobian of eom_vector wrt xi, vi, xp, vp, fi, h
+    expected_eom_jac = sym.Matrix([
+        [1/h, -1 + r*omegai_of_vi.diff(vi), -1/h, 0, 0, -(xi - xp)/h**2],
+        [m*g*sym.cos(thetai_of_xi)*thetai_of_xi.diff(xi), m/h, 0, -m/h, -1,
+         -m*(vi - vp)/h**2]
+    ])
+
+    wrt = xi, vi, xp, vp, fi, h
+    assert sym.simplify(col._discrete_eom.jacobian(wrt) -
+                        expected_eom_jac) == sym.zeros(2, 6)
+
+    # TODO : figure out a way to check this (currently this is produced
+    # internally in a method of Collocator).
+    expected_eom_jac_after_repl = sym.Matrix([
+        [1/h, -1 + r*domegai_dvi, -1/h, 0, 0, -(xi - xp)/h**2],
+        [m*g*sym.cos(thetai_of_xi)*dthetai_dxi, m/h, 0, -m/h, -1,
+         -m*(vi - vp)/h**2]
+    ])
+
+    con = col.generate_constraint_function()
+
+    free = np.array([
+        2., 3., 4., 5.,  # x
+        6., 7., 8., 9.,  # v
+        10., 11., 12., 13.,  # f
+        14.,  # h
+    ])
+    thetas = calc_theta_x(free)
+    dthetas = calc_dtheta_dx(free)
+    omegas = calc_omega_v(free)
+    domegas = calc_domega_dv(free)
+
+    np.testing.assert_allclose(
+        con(free),
+        np.array([
+            (3. - 2.)/14. - 7. - 122. + 7.1*omegas[1],
+            (4. - 3.)/14. - 8. - 123. + 7.1*omegas[2],
+            (5. - 4.)/14. - 9. - 124. + 7.1*omegas[3],
+            3.3*(7. - 6.)/14. - 11. + 3.3*10.2*np.sin(thetas[1]),
+            3.3*(8. - 7.)/14. - 12. + 3.3*10.2*np.sin(thetas[2]),
+            3.3*(9. - 8.)/14. - 13. + 3.3*10.2*np.sin(thetas[3]),
+        ])
+    )
+
+    con_jac = col.generate_jacobian_function()
+
+    np.testing.assert_allclose(
+        con_jac(free),
+        np.array([
+            1./14., -1. + 7.1*domegas[1], -1./14., 0., 0., -(3. - 2.)/14.**2,
+            3.3*10.2*np.cos(thetas[1])*dthetas[1], 3.3/14., 0., -3.3/14., -1.,
+            -3.3*(7. - 6.)/14.**2,
+            1./14., -1. + 7.1*domegas[2], -1./14., 0., 0., -(4. - 3.)/14.**2,
+            3.3*10.2*np.cos(thetas[2])*dthetas[2], 3.3/14., 0., -3.3/14., -1.,
+            -3.3*(8. - 7.)/14.**2,
+            1./14., -1. + 7.1*domegas[3], -1./14., 0., 0., -(5. - 4.)/14.**2,
+            3.3*10.2*np.cos(thetas[3])*dthetas[3], 3.3/14., 0., -3.3/14., -1.,
+            -3.3*(9. - 8.)/14.**2,
+        ])
+    )
+
+    all_specified = col._merge_fixed_free(
+        # symbols (domegadv, omega, s, theta, dthetadx, f)
+        col.input_trajectories,
+        # contains functions for domegadv, omega, dthetadx, and theta
+        col.known_trajectory_map,
+        2.0*np.ones(N),  # values of f (free inputs)
+        'traj',
+        5.0*np.ones(col.num_free)  # free vector
+    )
+
+    np.testing.assert_allclose(
+        all_specified,
+        np.array([
+            [0.1, 8.9, -43.4, -2.5],  # domegadv
+            [-0.01, -0.98, 3.45, 27.45],  # omega
+            [121., 122., 123., 124.],  # s
+            [10., 10., 10., 10.],  # theta
+            [3.9,   1.2,  -5.6,  12.3],  # dthetadx
+            [2., 2., 2., 2.]])  # f
+    )
+
+    # Raise an error if theta(x, v) is provided, not yet supported.
+    eom = sym.Matrix([
+        x.diff() - v - s + r*omega_of_v,
+        m*v.diff() - f + m*g*sym.sin(theta_of_x_v),
+    ])
+    with raises(ValueError):
+        col = ConstraintCollocator(
+            eom,
+            states,
+            N,
+            h,
+            known_parameter_map={r: 7.1, m: 3.3, g: 10.2},
+            known_trajectory_map={
+                omega_of_v.diff(v): calc_domega_dv,
+                omega_of_v: calc_omega_v,
+                s: np.array([121., 122., 123., 124.]),
+                theta_of_x_v: calc_theta_x,
+                theta_of_x_v.diff(x): calc_dtheta_dx,
+            },
+            time_symbol=t,
+        )
+
+    # Raise error if both theta(x) and theta(v) are provided, theta can't
+    # independently be a function of different variables.
+    eom = sym.Matrix([
+        x.diff() - v - s + r*theta_of_v,
+        m*v.diff() - f + m*g*sym.sin(theta_of_x),
+    ])
+    with raises(ValueError):
+        col = ConstraintCollocator(
+            eom,
+            states,
+            N,
+            h,
+            known_parameter_map={r: 7.1, m: 3.3, g: 10.2},
+            known_trajectory_map={
+                theta_of_v.diff(v): calc_domega_dv,
+                theta_of_v: calc_omega_v,
+                s: np.array([121., 122., 123., 124.]),
+                theta_of_x: calc_theta_x,
+                theta_of_x.diff(x): calc_dtheta_dx,
+            },
+            time_symbol=t,
+        )
 
 
 def test_extra_algebraic(plot=False):
@@ -358,6 +619,8 @@ class TestConstraintCollocator():
     def test_gen_multi_arg_con_func_midpoint(self):
 
         self.collocator.integration_method = 'midpoint'
+        self.collocator._discrete_symbols()
+        self.collocator._discretize_eom()
         self.collocator._gen_multi_arg_con_func()
 
         # Make sure the parameters are in the correct order.
@@ -445,6 +708,8 @@ class TestConstraintCollocator():
     def test_gen_multi_arg_con_jac_func_midpoint(self):
 
         self.collocator.integration_method = 'midpoint'
+        self.collocator._discrete_symbols()
+        self.collocator._discretize_eom()
         self.collocator._gen_multi_arg_con_jac_func()
 
         # Make sure the parameters are in the correct order.
@@ -749,6 +1014,7 @@ class TestConstraintCollocatorUnknownTrajectories():
     def test_gen_multi_arg_con_jac_func_midpoint(self):
 
         self.collocator.integration_method = 'midpoint'
+        self.collocator._discretize_eom()
         self.collocator._gen_multi_arg_con_jac_func()
 
         # Make sure the parameters are in the correct order.
@@ -866,9 +1132,10 @@ def test_merge_fixed_free_parameters():
     all_syms = m, c, k
     known = {m: 1.0, c: 2.0}
     unknown = np.array([3.0])
+    free = np.ones(10)
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'par')
+                                                    unknown, 'par', free)
 
     expected = np.array([1.0, 2.0, 3.0])
 
@@ -880,7 +1147,7 @@ def test_merge_fixed_free_parameters():
     unknown = np.array([3.0, 4.0])
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'par')
+                                                    unknown, 'par', free)
 
     expected = np.array([1.0, 2.0, 3.0, 4.0])
 
@@ -896,9 +1163,10 @@ def test_merge_fixed_free_trajectories():
     all_syms = f, k
     known = {f: np.array([1.0, 2.0])}
     unknown = np.array([3.0, 4.0])
+    free = np.ones(10)
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'traj')
+                                                    unknown, 'traj', free)
 
     expected = np.array([[1.0, 2.0],
                          [3.0, 4.0]])
@@ -914,7 +1182,7 @@ def test_merge_fixed_free_trajectories():
                         [7.0, 8.0]])
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'traj')
+                                                    unknown, 'traj', free)
 
     expected = np.array([[1.0, 2.0],
                          [3.0, 4.0],
@@ -1654,7 +1922,7 @@ def test_for_algebraic_eoms():
 
     # This will test that a ValueError is raised.
     with raises(ValueError) as excinfo:
-        prob = Problem(
+        Problem(
             obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
             known_parameter_map=par_map,
             instance_constraints=instance_constraints,
@@ -1695,10 +1963,10 @@ def test_prob_parse_free():
     # equations of motion.
     # (No meaning, just for testing)
     eom = sym.Matrix([
-            -x1.diff(t) + ux1,
-            -x2.diff(t) + ux2,
-            -ux1.diff(t) + a*u1,
-            -ux2.diff(t) + b*u2,
+        -x1.diff(t) + ux1,
+        -x2.diff(t) + ux2,
+        -ux1.diff(t) + a*u1,
+        -ux2.diff(t) + b*u2,
     ])
 
     # Set up and Solve the Optimization Problem
@@ -1728,31 +1996,80 @@ def test_prob_parse_free():
 
     # Create the optimization problem and set any options.
     prob = Problem(
-            obj,
-            obj_grad,
-            eom,
-            state_symbols,
-            num_nodes,
-            interval_value,
-            instance_constraints=instance_constraints,
-)
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        instance_constraints=instance_constraints,
+        backend='numpy',
+    )
 
     # Give some estimates for the trajectory.
     initial_guess = np.random.rand(prob.num_free)
     initial_guess1 = initial_guess
 
     # check whether same results.
-    statesu, controlsu, constantsu = parse_free(initial_guess1,
-            len(state_symbols), len(control_symbols), num_nodes)
+    statesu, controlsu, constantsu = parse_free(
+        initial_guess1, len(state_symbols), len(control_symbols), num_nodes)
 
     states, controls, constants = prob.parse_free(initial_guess)
     np.testing.assert_allclose(states, statesu)
     np.testing.assert_allclose(controls, controlsu)
     np.testing.assert_allclose(constants, constantsu)
 
+    # test whether all indices are generated correctly
+    idx_dct = prob._generate_extraction_indices()
+    expected_idx_dct = {
+        x1: (0, 11),
+        x2: (11, 22),
+        ux1: (22, 33),
+        ux2: (33, 44),
+        u1: (44, 55),
+        u2: (55, 66),
+        a: (66, 67),
+        b: (67, 68),
+    }
+    assert idx_dct == expected_idx_dct
+    np.testing.assert_allclose(states[0],
+                               initial_guess[idx_dct[x1][0]:idx_dct[x1][1]])
+    np.testing.assert_allclose(states[1],
+                               initial_guess[idx_dct[x2][0]:idx_dct[x2][1]])
+    np.testing.assert_allclose(states[2],
+                               initial_guess[idx_dct[ux1][0]:idx_dct[ux1][1]])
+    np.testing.assert_allclose(states[3],
+                               initial_guess[idx_dct[ux2][0]:idx_dct[ux2][1]])
+    np.testing.assert_allclose(controls[0],
+                               initial_guess[idx_dct[u1][0]:idx_dct[u1][1]])
+    np.testing.assert_allclose(controls[1],
+                               initial_guess[idx_dct[u2][0]:idx_dct[u2][1]])
+    np.testing.assert_allclose(constants[0],
+                               initial_guess[idx_dct[a][0]:idx_dct[a][1]])
+    np.testing.assert_allclose(constants[1],
+                               initial_guess[idx_dct[b][0]:idx_dct[b][1]])
+
+    np.testing.assert_allclose(states[0],
+                               prob.extract_values(x1, initial_guess))
+    np.testing.assert_allclose(states[1],
+                               prob.extract_values(x2, initial_guess))
+    np.testing.assert_allclose(states[2],
+                               prob.extract_values(ux1, initial_guess))
+    np.testing.assert_allclose(states[3],
+                               prob.extract_values(ux2, initial_guess))
+    np.testing.assert_allclose(controls[0],
+                               prob.extract_values(u1, initial_guess))
+    np.testing.assert_allclose(controls[1],
+                               prob.extract_values(u2, initial_guess))
+    np.testing.assert_allclose(constants[0],
+                               prob.extract_values(a, initial_guess))
+    np.testing.assert_allclose(constants[1],
+                               prob.extract_values(b, initial_guess))
+
     # test with variable interval_value
     interval_value = h
     t0, tf = 0.0, (num_nodes - 1)*interval_value
+
     def obj(free):
         return sum([free[i]**2 for i in range(2*num_nodes)])
 
@@ -1763,29 +2080,39 @@ def test_prob_parse_free():
 
     # Create the optimization problem and set any options.
     prob = Problem(
-            obj,
-            obj_grad,
-            eom,
-            state_symbols,
-            num_nodes,
-            interval_value,
-            instance_constraints=instance_constraints,
-)
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        instance_constraints=instance_constraints,
+        backend='numpy',
+    )
 
     # Give some estimates for the trajectory.
     initial_guess = np.random.rand(prob.num_free)
     initial_guess1 = initial_guess
 
     # check whether same results.
-    statesu, controlsu, constantsu, timeu = parse_free(initial_guess1,
-        len(state_symbols), len(control_symbols),
-        num_nodes, variable_duration=True)
+    statesu, controlsu, constantsu, timeu = parse_free(
+        initial_guess1, len(state_symbols), len(control_symbols), num_nodes,
+        variable_duration=True)
 
     states, controls, constants, times = prob.parse_free(initial_guess)
     np.testing.assert_allclose(states, statesu)
     np.testing.assert_allclose(controls, controlsu)
     np.testing.assert_allclose(constants, constantsu)
     np.testing.assert_allclose(timeu, times)
+
+    # check that the variable length value is correctly returned
+    idx_dct = prob._generate_extraction_indices()
+    assert idx_dct[h] == (68, 69)
+    np.testing.assert_allclose(initial_guess[idx_dct[h][0]:idx_dct[h][1]],
+                               timeu)
+    np.testing.assert_allclose(prob.extract_values(h, initial_guess), timeu)
+    with raises(ValueError):
+        prob.extract_values(sym.Symbol('eee'), initial_guess)
 
     # check that only 'numpy' and 'cython' backends are accepted as backend
     with raises(ValueError):
@@ -1799,6 +2126,7 @@ def test_prob_parse_free():
             time_symbol=t,
             backend='nonsensical',
         )
+
 
 def test_one_eom_only():
     """
@@ -1879,8 +2207,11 @@ def test_duplicate_state_symbols():
     t0, tf = 0.0, 1.0
     interval_value = tf/(num_nodes - 1)
 
-    def obj(free):
-        Fx = free[2*num_nodes:3*num_nodes]
+    # tests the ability to expose the problem inside the objective
+    def obj(prob, free, can_have_kwargs=None):
+        Fx_ = free[2*num_nodes:3*num_nodes]
+        _, Fx, _ = prob.parse_free(free)
+        np.testing.assert_allclose(Fx, Fx_)
         return interval_value*np.sum(Fx**2)
 
     def obj_grad(free):
@@ -2122,6 +2453,7 @@ def test_check_bounds_conflict():
     """Test to ensure that the method of Problem, bounds_conflict_initial_guess
     raises a ValueError when the initial guesses violates the bounds.
     Then the test that the kwarg respect_bounds works as expected in solve.
+    Test if invalid keys in the eom_bound are detected.
     """
 
     x, y, z, ux, uy, uz = mech.dynamicsymbols('x y z ux uy uz')
@@ -2219,6 +2551,22 @@ def test_check_bounds_conflict():
     with raises(ValueError):
         prob.check_bounds_conflict(initial_guess)
 
+    # check for invalid keys in eom_bounds
+    eom_bounds_bad = {0: (-1.0, 1.0) , 6: (0.0, 1.0), 'bad': (0.0, 1.0)}
+
+    with raises(ValueError):
+        prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            known_parameter_map=par_map,
+            eom_bounds=eom_bounds_bad,
+            time_symbol=t,
+            backend='numpy'
+        )
 
     # check for values outside the bounds
     bounds[z] = (-1.0, 1.0)

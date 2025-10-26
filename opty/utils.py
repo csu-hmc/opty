@@ -30,6 +30,8 @@ __all__ = [
     'create_objective_function',
 ]
 
+logger = logging.getLogger(__name__)
+
 
 def _coo_matrix(jac_vals, row_idxs, col_idxs):
     """Quick and dirty replacement for scipy.sparse.coo_matrix."""
@@ -125,7 +127,7 @@ def _forward_jacobian(expr, wrt):
     expr_to_replacement_cache = {}
     replacement_to_reduced_expr_cache = {}
 
-    logging.info('Adding expression nodes to cache...')
+    logger.info('Adding expression nodes to cache...')
     start = timer()
     replacements, reduced_exprs = sm.cse(expr.args[2], replacement_symbols)
     for replacement_symbol, reduced_subexpr in replacements:
@@ -138,7 +140,7 @@ def _forward_jacobian(expr, wrt):
         for node in reduced_expr:
             _ = add_to_cache(node)
     finish = timer()
-    logging.info(f'Completed in {finish - start:.2f}s')
+    logger.info(f'Completed in {finish - start:.2f}s')
 
     reduced_matrix = sm.ImmutableDenseMatrix(reduced_exprs).xreplace(
         expr_to_replacement_cache)
@@ -152,7 +154,7 @@ def _forward_jacobian(expr, wrt):
         absolute_derivative_mapping[wrt_symbol] = sm.ImmutableDenseMatrix(
             [absolute_derivative])
 
-    logging.info('Differentiating expression nodes...')
+    logger.info('Differentiating expression nodes...')
     start = timer()
     zeros = sm.ImmutableDenseMatrix.zeros(1, len(wrt))
     for symbol, subexpr in replacements:
@@ -170,9 +172,9 @@ def _forward_jacobian(expr, wrt):
     replaced_jacobian = sm.ImmutableDenseMatrix.vstack(*[
         absolute_derivative_mapping[e] for e in reduced_matrix])
     finish = timer()
-    logging.info(f'Completed in {finish - start:.2f}s')
+    logger.info(f'Completed in {finish - start:.2f}s')
 
-    logging.info('Determining required replacements...')
+    logger.info('Determining required replacements...')
     start = timer()
     required_replacement_symbols = set()
     stack = [entry for entry in replaced_jacobian if entry.free_symbols]
@@ -187,7 +189,7 @@ def _forward_jacobian(expr, wrt):
                 stack.append(child)
         required_replacement_symbols.add(entry)
     finish = timer()
-    logging.info(f'Completed in {finish - start:.2f}s')
+    logger.info(f'Completed in {finish - start:.2f}s')
 
     required_replacements_dense = {
         replacement_symbol: replaced_subexpr
@@ -200,7 +202,7 @@ def _forward_jacobian(expr, wrt):
     for replaced_subexpr in required_replacements_dense.values():
         counter.update(replaced_subexpr.free_symbols)
 
-    logging.info('Substituting required replacements...')
+    logger.info('Substituting required replacements...')
     required_replacements = {}
     unrequired_replacements = {}
     for replacement_symbol, replaced_subexpr in required_replacements_dense.items():
@@ -210,7 +212,7 @@ def _forward_jacobian(expr, wrt):
         else:
             required_replacements[replacement_symbol] = replaced_subexpr.xreplace(unrequired_replacements)
     finish = timer()
-    logging.info(f'Completed in {finish - start:.2f}s')
+    logger.info(f'Completed in {finish - start:.2f}s')
 
     return (list(required_replacements.items()),
             [replaced_jacobian.xreplace(unrequired_replacements)])
