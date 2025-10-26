@@ -5,7 +5,7 @@ Drone Flight
 Objectives
 ----------
 
-- Show the use of quarternions to avoid a possible gimbal lock.
+- Show the use of quaternions to avoid a possible gimbal lock.
 - Show the use of holonomic constraints.
 
 
