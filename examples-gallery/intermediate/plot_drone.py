@@ -1,34 +1,12 @@
-r"""
+"""
 Drone Flight
 ============
-
-Objectives
-----------
-
-- Show the use of quaternions to avoid a possible gimbal lock.
-- Show the use of holonomic constraints.
-
-
-Introduction
-------------
 
 Given a cuboid shaped drone of dimensions l x w x d with propellers at each
 corner in a uniform gravitational field, find the propeller thrust trajectories
 that will take it from a starting point to an ending point and through and
 intermediate point at a specific angular configuration with minimal total
 thrust.
-
-
-Notes
------
-
-Here the holonomic constraint is the enforcement of the quarternion to have
-norm = 1.0. For the use in Kane's method it is converted to a nonholonomic
-constraint, nonholonomic constraint = :math:`\dfrac{d}{dt}`
-(holonomic constraint).
-However, the holonomic constraint is appended to the equations of motion for
-opty.
-
 
 **Constants**
 
@@ -51,7 +29,6 @@ opty.
 
 """
 
-import os
 import sympy as sm
 import sympy.physics.mechanics as me
 import numpy as np
@@ -220,36 +197,30 @@ prob = Problem(obj, obj_grad, eom, state_symbols,
                num_nodes, interval_value,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
-               bounds=bounds, time_symbol=t, backend='numpy')
+               bounds=bounds)
 
 prob.add_option('nlp_scaling_method', 'gradient-based')
 
 # %%
-# Use the solution given if available, else use an initial guess and solve the
-# problem.
-fname =f'drone_{num_nodes}_nodes_solution.csv'
-if os.path.exists(fname):
-    solution = np.loadtxt(fname)
-    time = prob.time_vector()
-else:
-    initial_guess = np.zeros(prob.num_free)
-    xyz_guess = np.linspace(0.0, 10.0, num=num_nodes)
-    initial_guess[0*num_nodes:1*num_nodes] = xyz_guess
-    initial_guess[1*num_nodes:2*num_nodes] = xyz_guess
-    initial_guess[2*num_nodes:3*num_nodes] = xyz_guess
-    initial_guess[-4*num_nodes:] = 10.0  # constant thrust
+# Give a guess of a direct route with constant thrust.
+initial_guess = np.zeros(prob.num_free)
+xyz_guess = np.linspace(0.0, 10.0, num=num_nodes)
+initial_guess[0*num_nodes:1*num_nodes] = xyz_guess
+initial_guess[1*num_nodes:2*num_nodes] = xyz_guess
+initial_guess[2*num_nodes:3*num_nodes] = xyz_guess
+initial_guess[-4*num_nodes:] = 10.0  # constant thrust
 
-    fig, axes = plt.subplots(18, 1, sharex=True,
-                            figsize=(6.4, 0.8*18),
-                            layout='compressed')
-    _ = prob.plot_trajectories(initial_guess, axes=axes)
+fig, axes = plt.subplots(18, 1, sharex=True,
+                         figsize=(6.4, 0.8*18),
+                         layout='compressed')
+_ = prob.plot_trajectories(initial_guess, axes=axes)
 
-    solution, info = prob.solve(initial_guess)
-    time = prob.time_vector()
-    print(info['status_msg'])
-    print(info['obj_val'])
-    _ = prob.plot_objective_value()
-
+# %%
+# Find an optimal solution.
+solution, info = prob.solve(initial_guess)
+time = prob.time_vector()
+print(info['status_msg'])
+print(info['obj_val'])
 
 # %%
 # Plot the optimal state and input trajectories.
@@ -263,6 +234,10 @@ _ = prob.plot_trajectories(solution, axes=axes)
 fig, axes = plt.subplots(5, 1, figsize=(12.8, 10),
                          layout='constrained')
 _ = prob.plot_constraint_violations(solution, axes=axes)
+
+# %%
+# Plot the objective function as a function of optimizer iteration.
+_ = prob.plot_objective_value()
 
 # %%
 # Animate the motion of the drone.
@@ -322,8 +297,8 @@ def animate(i):
     P4_path.set_data_3d(coords[:i, 0, 7], coords[:i, 1, 7], coords[:i, 2, 7])
 
 
-ani = animation.FuncAnimation(fig, animate, range(0, len(time), 3),
-                              interval=int(interval_value*3000))
+ani = animation.FuncAnimation(fig, animate, range(0, len(time), 2),
+                              interval=int(interval_value*2000))
 
 # %%
 # A frame from the animation.
