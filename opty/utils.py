@@ -15,6 +15,7 @@ from collections import Counter
 from timeit import default_timer as timer
 import logging
 import locale
+import hashlib
 
 import numpy as np
 import sympy as sm
@@ -459,6 +460,7 @@ def sort_sympy(seq):
 
 
 _c_template = """\
+// opty_code_hash={eval_code_hash}
 {win_math_def}
 #include <math.h>
 #include "{file_prefix}_h.h"
@@ -675,6 +677,8 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
             file_prefix = '{}_{}'.format(file_prefix_base, module_counter)
             module_counter += 1
 
+    prior_module_number = module_counter - 2
+
     d = {'routine_name': 'eval_matrix',
          'file_prefix': file_prefix,
          'matrix_output_size': matrix_size,
@@ -722,6 +726,17 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
 
     d['eval_code'] = '    ' + '\n    '.join((sub_expr_code + '\n' +
                                              matrix_code).split('\n'))
+
+    # NOTE : It is very unlikely that the contents of evaluation code can be
+    # identical for two different sets of differential equations, so we hash it
+    # and store the hash value in the C file that contains the evaluation code.
+    # TODO : Maybe we should only do this if tmp_dir is not None, as it could
+    # have an undesired computational cost.
+    logger.debug('Calculating cache hash.')
+    hasher = hashlib.new('sha256')
+    hasher.update(d['eval_code'].encode())
+    d['eval_code_hash'] = str(hasher.hexdigest())
+    logger.debug('Done calculating cache hash.')
 
     c_indent = len('void {routine_name}('.format(**d))
     c_arg_spacer = ',\n' + ' ' * c_indent
@@ -772,6 +787,36 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
 
     workingdir = os.getcwd()
     os.chdir(codedir)
+
+    # NOTE : If there are other files present in the directory (will only occur
+    # if a tmp_dir is set) then search through them starting with the most
+    # recent and see if it has a matching hash to the evaluation code generated
+    # here. If a match is found, store the module number.
+    matching_module_num = None
+    for prior_num in reversed(range(prior_module_number + 1)):
+        old_file_prefix = '{}_{}'.format(file_prefix_base, prior_num)
+        logger.info(f'Checking {old_file_prefix} for cached code.')
+        try:
+            with open(old_file_prefix + '_c.c', 'r') as f:
+                if 'opty_code_hash={}'.format(d['eval_code_hash']) in f.read():
+                    matching_module_num = prior_num
+                    logger.info(f'{old_file_prefix} matches!')
+                    break
+        except FileNotFoundError:
+            pass
+
+    # NOTE : If we found a matching C file, then try to simply load that module
+    # instead of compiling a new one. This lets us skip the compile step if we
+    # have not changed anything about the model.
+    if matching_module_num is not None:
+        try:
+            cython_module = importlib.import_module(old_file_prefix)
+        except ImportError:  # false positive, so compile a new one
+            pass
+        else:
+            os.chdir(workingdir)
+            logger.info(f'{old_file_prefix} loaded.')
+            return getattr(cython_module, d['routine_name'] + '_loop')
 
     try:
         sys.path.append(codedir)
