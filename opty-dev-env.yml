@@ -1,6 +1,7 @@
 name: opty-dev
 channels:
   - conda-forge
+  - nodefaults  # make sure we only pull from conda forge
 dependencies:
   # build
   # NOTE : setuptools 80 breaks installing with pip install -e, see
