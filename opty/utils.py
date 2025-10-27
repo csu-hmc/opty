@@ -677,7 +677,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
             file_prefix = '{}_{}'.format(file_prefix_base, module_counter)
             module_counter += 1
 
-    prior_module_number = module_counter - 2
+    prior_module_number = module_counter - 1
 
     d = {'routine_name': 'eval_matrix',
          'file_prefix': file_prefix,
@@ -798,11 +798,14 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         logger.info(f'Checking {old_file_prefix} for cached code.')
         try:
             with open(old_file_prefix + '_c.c', 'r') as f:
-                if 'opty_code_hash={}'.format(d['eval_code_hash']) in f.read():
+                hash_line = f.readline()
+                logger.debug(hash_line)
+                if 'opty_code_hash={}'.format(d['eval_code_hash']) in hash_line:
                     matching_module_num = prior_num
                     logger.info(f'{old_file_prefix} matches!')
                     break
         except FileNotFoundError:
+            logger.debug(f'{old_file_prefix} not found.')
             pass
 
     # NOTE : If we found a matching C file, then try to simply load that module
@@ -842,6 +845,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         else:
             encoding = None
         try:
+            logger.info('Compiling matrix evaluation.')
             proc = subprocess.run(cmd, capture_output=True, text=True,
                                   encoding=encoding)
         # On Windows this can raise a UnicodeDecodeError, but only in the
