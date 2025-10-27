@@ -121,6 +121,8 @@ def _forward_jacobian(expr, wrt):
     replacement_symbols = numbered_symbols(
         prefix='z',
         cls=sm.Symbol,
+        # TODO : free symbols should be able to be passed in to save time in
+        # recomputing
         exclude=expr.free_symbols,
         real=True,
     )
@@ -159,7 +161,7 @@ def _forward_jacobian(expr, wrt):
     start = timer()
     zeros = sm.ImmutableDenseMatrix.zeros(1, len(wrt))
     for symbol, subexpr in replacements:
-        free_symbols = subexpr.free_symbols
+        free_symbols = sm.ordered(subexpr.free_symbols)
         absolute_derivative = zeros
         for free_symbol in free_symbols:
             replacement_symbol, partial_derivative = add_to_cache(
@@ -183,8 +185,8 @@ def _forward_jacobian(expr, wrt):
         entry = stack.pop()
         if entry in required_replacement_symbols or entry in wrt:
             continue
-        children = list(
-            replacement_to_reduced_expr_cache.get(entry, entry).free_symbols)
+        children = list(sm.ordered(
+            replacement_to_reduced_expr_cache.get(entry, entry).free_symbols))
         for child in children:
             if child not in required_replacement_symbols and child not in wrt:
                 stack.append(child)
@@ -199,9 +201,9 @@ def _forward_jacobian(expr, wrt):
         if replacement_symbol in required_replacement_symbols
     }
 
-    counter = Counter(replaced_jacobian.free_symbols)
+    counter = Counter(sm.ordered(replaced_jacobian.free_symbols))
     for replaced_subexpr in required_replacements_dense.values():
-        counter.update(replaced_subexpr.free_symbols)
+        counter.update(sm.ordered(replaced_subexpr.free_symbols))
 
     logger.info('Substituting required replacements...')
     required_replacements = {}
