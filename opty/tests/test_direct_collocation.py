@@ -1,3 +1,6 @@
+import os
+import shutil
+import tempfile
 from collections import OrderedDict
 
 import numpy as np
@@ -408,43 +411,81 @@ def test_pendulum():
     np.testing.assert_allclose(prob._upp_con_bounds, expected_upp_con_bounds)
 
 
-def test_Problem():
+def TestProblem():
 
-    m, c, k, t = sym.symbols('m, c, k, t')
-    x, v, f = [s(t) for s in sym.symbols('x, v, f', cls=sym.Function)]
+    def setup_method(self):
+        self.tmp_dir = tempfile.mkdtemp("opty_cache_test")
+        if os.path.exists(self.tmp_dir):
+            shutil.rmtree(self.tmp_dir)
+        os.mkdir(self.tmp_dir)
 
-    state_symbols = (x, v)
+    def teardown_method(self):
+        if os.path.exists(self.tmp_dir):
+            shutil.rmtree(self.tmp_dir)
 
-    interval_value = 0.01
+    def test_problem(self):
 
-    eom = sym.Matrix([x.diff() - v,
-                      m * v.diff() + c * v + k * x - f])
+        m, c, k, t = sym.symbols('m, c, k, t')
+        x, v, f = [s(t) for s in sym.symbols('x, v, f', cls=sym.Function)]
 
-    prob = Problem(lambda x: 1.0,
-                   lambda x: x,
-                   eom,
-                   state_symbols,
-                   2,
-                   interval_value,
-                   time_symbol=t,
-                   bounds={x: (-10.0, 10.0),
-                           f: (-8.0, 8.0),
-                           m: (-1.0, 1.0),
-                           c: (-0.5, 0.5)})
+        state_symbols = (x, v)
 
-    INF = 10e19
-    expected_lower = np.array([-10.0, -10.0,
-                               -INF, -INF,
-                               -8.0, -8.0,
-                               -0.5, -INF, -1.0])
-    np.testing.assert_allclose(prob.lower_bound, expected_lower)
-    expected_upper = np.array([10.0, 10.0,
-                               INF, INF,
-                               8.0, 8.0,
-                               0.5, INF, 1.0])
-    np.testing.assert_allclose(prob.upper_bound, expected_upper)
+        interval_value = 0.01
 
-    assert prob.collocator.num_instance_constraints == 0
+        eom = sym.Matrix([x.diff() - v,
+                          m * v.diff() + c * v + k * x - f])
+
+        prob = Problem(
+            lambda x: 1.0,
+            lambda x: x,
+            eom,
+            state_symbols,
+            2,
+            interval_value,
+            time_symbol=t,
+            bounds={
+                x: (-10.0, 10.0),
+                f: (-8.0, 8.0),
+                m: (-1.0, 1.0),
+                c: (-0.5, 0.5),
+            },
+            tmp_dir=self.tmp_dir)
+
+        # Only two modules should be generated
+        c_file_list = [f for f in os.listdir(self.tmp_dir) if
+                       f.endswith('_c.c')]
+        assert len(c_file_list) == 2
+
+        INF = 10e19
+        expected_lower = np.array([-10.0, -10.0,
+                                   -INF, -INF,
+                                   -8.0, -8.0,
+                                   -0.5, -INF, -1.0])
+        np.testing.assert_allclose(prob.lower_bound, expected_lower)
+        expected_upper = np.array([10.0, 10.0,
+                                   INF, INF,
+                                   8.0, 8.0,
+                                   0.5, INF, 1.0])
+        np.testing.assert_allclose(prob.upper_bound, expected_upper)
+
+        assert prob.collocator.num_instance_constraints == 0
+
+        # run Problem again to see if the cache worked.
+        prob = Problem(
+            lambda x: 1.0,
+            lambda x: x,
+            eom,
+            state_symbols,
+            4,
+            interval_value,
+            time_symbol=t,
+            tmp_dir=self.tmp_dir,
+        )
+
+        # no more C files should have been generated
+        c_file_list = [f for f in os.listdir(self.tmp_dir) if
+                       f.endswith('_c.c')]
+        assert len(c_file_list) == 2
 
 
 class TestConstraintCollocator():
