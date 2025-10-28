@@ -927,63 +927,58 @@ class Problem(cyipopt.Problem):
 
         return d
 
-    def fill_free(self, free, var, values):
+    def fill_free(self, free, values, *variables):
         """Replaces the values in a vector shaped the same as the free
-        optimization vector corresponding to the variable name.
+        optimization vector corresponding to the variable names.
 
         Parameters
         ==========
         free : ndarray, shape(n*N + q*N + r + s, )
             Vector to replace values in.
-        var : Symbol or Function()(time)
-            One of the unknown optimization variables in the problem.
         values : ndarray, shape(N,) or float
-            Numerical values to insert, arrays must be in order of monotonic
-            time.
+            Numerical values to insert, arrays for each variable must be in
+            order of monotonic time and then stacked in order variables. The
+            shape depends on how many variables and whether they are
+            trajectories or parameters.
+        varables: Symbol or Function()(time)
+            One or more of the unknown optimization variables in the problem.
 
         """
         d = self._extraction_indices
-        try:
-            free[d[var]] = values
-        except KeyError:
-            raise ValueError(f'{var} not an unknown in this problem.')
+        idxs = []
+        for var in variables:
+            try:
+                idxs += d[var]
+            except KeyError:
+                raise ValueError(f'{var} not an unknown in this problem.')
+        free[idxs] = values
 
-    def extract_values(self, var, free=None):
-        """Returns the numerical values of the variable.
+    def extract_values(self, free, *variables):
+        """Returns the numerical values of the free variables.
 
         Parameters
         ==========
-        var : Symbol or Function()(time)
-            One of the known or unknown variables in the problem.
         free : ndarray, shape(n*N + q*N + r + s)
             The free optimization vector of the system, required if var is an
             unknown optimization variable.
+        variables : Symbol or Function()(time), len(d)
+            One or more of the known or unknown variables in the problem.
 
         Returns
         =======
-        values : ndarray, shape(N,) or float
-            The numerical value of the variable.
+        values : ndarray
+            The numerical values of the variables. The shape depends on how
+            many variables and whether they are trajectories or parameters.
 
         """
-        if var in self.collocator.known_parameter_map:
-            return self.collocator.known_parameter_map[var]
-        elif var in self.collocator.known_trajectory_map:
-            val = self.collocator.known_trajectory_map[var]
-            if isinstance(val, type(lambda x: x)):
-                # TODO : Needs unit test for this path.
-                if free is None:
-                    raise ValueError('free vector required for functions in '
-                                     'known trajectory map')
-                else:
-                    return val(free)
-            else:
-                return val
-        else:
-            d = self._extraction_indices
+        d = self._extraction_indices
+        idxs = []
+        for var in variables:
             try:
-                return free[d[var]]
+                idxs += d[var]
             except KeyError:
-                raise ValueError(f'{var} not present in this problem.')
+                raise ValueError(f'{var} not an unknown in this problem.')
+        return free[idxs]
 
     def parse_free(self, free):
         """Parses the free parameters vector and returns it's components.
