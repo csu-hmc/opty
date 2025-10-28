@@ -423,7 +423,10 @@ def test_Problem():
     eom = sym.Matrix([x.diff() - v,
                       m * v.diff() + c * v + k * x - f])
 
-    tmp_dir = tempfile.mkdtemp("opty_cache_test")
+    # NOTE : creating a temporary directory causes isfile test failures.
+    #tmp_dir = tempfile.mkdtemp("opty_cache_test")
+    tmp_dir = "opty_cache_test"
+    os.mkdir(tmp_dir)
 
     prob = Problem(lambda x: 1.0,
                    lambda x: x,
@@ -469,7 +472,6 @@ def test_Problem():
 
     assert not os.path.isfile(os.path.join(tmp_dir, 'ufuncify_matrix_2_c.c'))
     assert not os.path.isfile(os.path.join(tmp_dir, 'ufuncify_matrix_3_c.c'))
-
 
     shutil.rmtree(tmp_dir)
 
