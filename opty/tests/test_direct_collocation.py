@@ -1,3 +1,6 @@
+import os
+import shutil
+import tempfile
 from collections import OrderedDict
 
 import numpy as np
@@ -420,6 +423,8 @@ def test_Problem():
     eom = sym.Matrix([x.diff() - v,
                       m * v.diff() + c * v + k * x - f])
 
+    tmp_dir = tempfile.mkdtemp("opty_cache_test")
+
     prob = Problem(lambda x: 1.0,
                    lambda x: x,
                    eom,
@@ -430,7 +435,13 @@ def test_Problem():
                    bounds={x: (-10.0, 10.0),
                            f: (-8.0, 8.0),
                            m: (-1.0, 1.0),
-                           c: (-0.5, 0.5)})
+                           c: (-0.5, 0.5)},
+                   tmp_dir=tmp_dir)
+
+    # Only two modules should be generated
+    assert os.path.exists(os.path.join(tmp_dir, 'ufuncify_matrix_0_c.c'))
+    assert os.path.exists(os.path.join(tmp_dir, 'ufuncify_matrix_1_c.c'))
+    assert not os.path.exists(os.path.join(tmp_dir, 'ufuncify_matrix_2_c.c'))
 
     INF = 10e19
     expected_lower = np.array([-10.0, -10.0,
@@ -445,6 +456,22 @@ def test_Problem():
     np.testing.assert_allclose(prob.upper_bound, expected_upper)
 
     assert prob.collocator.num_instance_constraints == 0
+
+    # run Problem again to see if the cache worked.
+    prob = Problem(lambda x: 1.0,
+                   lambda x: x,
+                   eom,
+                   state_symbols,
+                   4,
+                   interval_value,
+                   time_symbol=t,
+                   tmp_dir=tmp_dir)
+
+    assert not os.path.exists(os.path.join(tmp_dir, 'ufuncify_matrix_2_c.c'))
+    assert not os.path.exists(os.path.join(tmp_dir, 'ufuncify_matrix_3_c.c'))
+
+
+    shutil.rmtree(tmp_dir)
 
 
 class TestConstraintCollocator():
