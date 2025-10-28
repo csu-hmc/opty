@@ -1153,7 +1153,7 @@ class ConstraintCollocator(object):
             an existing populated directory and the equations of motion have
             not changed relative to prior instantiations of this class, the
             compilation step will be skipped if equivalent compiled modules are
-            already present and cached. This may save signficant computational
+            already present and cached. This may save significant computational
             time when repeatedly using the same set of equations of motion.
         integration_method : string, optional
             The integration method to use, either ``backward euler`` or
