@@ -633,7 +633,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         A matrix of expressions or the output of ``cse()`` of a matrix of
         expressions.
     const : tuple, optional
-        This should include any of the symbols in args that can be constant
+        This should include any of the symbols in args that should be constant
         with respect to the evaluation loop.
     tmp_dir : string, optional
         The path to a directory in which to store the generated files. If None
