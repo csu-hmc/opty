@@ -624,18 +624,22 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     args : iterable of sympy.Symbol
         A list of all symbols in expr in the desired order for the output
         function.
-    expr : sympy.Matrix
-        A matrix of expressions.
+    expr : sympy.Matrix or 2-tuple
+        A matrix of expressions or the output of ``cse()`` of a matrix of
+        expressions.
     const : tuple, optional
-        This should include any of the symbols in args that should be
-        constant with respect to the loop.
+        This should include any of the symbols in args that can be constant
+        with respect to the evaluation loop.
     tmp_dir : string, optional
-        The path to a directory in which to store the generated files. If
-        None then the files will be not be retained after the function is
-        compiled.
+        The path to a directory in which to store the generated files. If None
+        then the files will be not be retained after the function is compiled.
+        If this temporary directory is set to an existing populated directory
+        and ``expr`` has not changed relative to prior executions of this
+        function, the compilation step will be skipped if equivalent compiled
+        modules are already present and cached.
     parallel : boolean, optional
         If True and openmp is installed, the generated code will be
-        parallelized across threads. This is only useful when expr are
+        parallelized across threads. This is only useful when ``expr`` are
         extremely large.
     show_compile_output : boolean, optional
         If True, STDOUT and STDERR of the Cython compilation call will be
@@ -643,15 +647,15 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
 
     """
 
-    # TODO : This is my first ever global variable in Python. It'd probably
-    # be better if this was a class attribute of a Ufuncifier class. And I'm
-    # not sure if this current version counts sequentially.
+    # TODO : This is my first ever global variable in Python. It'd probably be
+    # better if this was a class attribute of a Ufuncifier class. And I'm not
+    # sure if this current version counts sequentially.
     global module_counter
 
     if hasattr(expr, 'shape'):
         num_rows = expr.shape[0]
         num_cols = expr.shape[1]
-    else:
+    else:  # output of cse()
         num_rows = expr[1][0].shape[0]
         num_cols = expr[1][0].shape[1]
 
@@ -736,9 +740,11 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     # have an undesired computational cost.
     logger.debug('Calculating cache hash.')
     hasher = hashlib.new('sha256')
-    hasher.update(d['eval_code'].encode())
+    const_str = 'const=None' if const is None else 'const={}'.format(const)
+    parallel_str = 'parallel={}'.format(parallel)
+    hasher.update((const_str + parallel_str + d['eval_code']).encode())
     d['eval_code_hash'] = str(hasher.hexdigest())
-    logger.debug('Done calculating cache hash.')
+    logger.debug('Done calculating cache hash: {}'.format(d['eval_code_hash']))
 
     c_indent = len('void {routine_name}('.format(**d))
     c_arg_spacer = ',\n' + ' ' * c_indent
@@ -751,6 +757,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     memory_views = []
     for a in args:
         if const is not None and a in const:
+            # TODO : Should these be declared const in C?
             typ = 'double'
             idexy = '{}'
             cython_input_args.append('{} {}'.format(typ, ccode(a)))
@@ -789,6 +796,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
 
     workingdir = os.getcwd()
     os.chdir(codedir)
+    logger.info('Changed directory to {}'.format(codedir))
 
     # NOTE : If there are other files present in the directory (will only occur
     # if a tmp_dir is set) then search through them starting with the most
@@ -801,7 +809,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         try:
             with open(old_file_prefix + '_c.c', 'r') as f:
                 hash_line = f.readline()
-                logger.debug(hash_line)
+                logger.debug(hash_line.strip())
                 if 'opty_code_hash={}'.format(d['eval_code_hash']) in hash_line:
                     matching_module_num = prior_num
                     logger.info(f'{old_file_prefix} matches!')
@@ -817,10 +825,12 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         try:
             cython_module = importlib.import_module(old_file_prefix)
         except ImportError:  # false positive, so compile a new one
+            logger.info(f'Failed to import {old_file_prefix}.')
             pass
         else:
+            logger.info(f'Skipped compile, {old_file_prefix} module loaded.')
             os.chdir(workingdir)
-            logger.info(f'{old_file_prefix} loaded.')
+            logger.info(f'Changed directory to {workingdir}.')
             return getattr(cython_module, d['routine_name'] + '_loop')
 
     try:
@@ -862,8 +872,13 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         if show_compile_output:
             print(stdout)
             print(stderr)
+        else:
+            logger.debug(stdout)
+            logger.debug(stderr)
+
         try:
             cython_module = importlib.import_module(d['file_prefix'])
+            logger.info("Loaded {} module".format(d['file_prefix']))
         except ImportError as error:
             msg = ('Unable to import the compiled Cython module {}, '
                    'compilation likely failed. STDERR output from '
@@ -878,6 +893,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
             # so I don't delete the directory on Windows.
             if sys.platform != "win32":
                 shutil.rmtree(codedir)
+                logger.info('Removed directory {}'.format(codedir))
 
     return getattr(cython_module, d['routine_name'] + '_loop')
 

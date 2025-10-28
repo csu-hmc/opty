@@ -1149,7 +1149,12 @@ class ConstraintCollocator(object):
         tmp_dir : string, optional
             If you want to see the generated Cython and C code for the
             constraint and constraint Jacobian evaluations, pass in a path to a
-            directory here.
+            directory here. Additionally, if this temporary directory is set to
+            an existing populated directory and the equations of motion have
+            not changed relative to prior instantiations of this class, the
+            compilation step will be skipped if equivalent compiled modules are
+            already present and cached. This may save signficant computational
+            time when repeatedly using the same set of equations of motion.
         integration_method : string, optional
             The integration method to use, either ``backward euler`` or
             ``midpoint``.
