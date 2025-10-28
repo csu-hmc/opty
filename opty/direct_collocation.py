@@ -896,9 +896,9 @@ class Problem(cyipopt.Problem):
         return ax
 
     def _generate_extraction_indices(self):
-        """Returns a dictionary that maps all unknown variables to a tuple of
-        the slice indices needed to extract that variable from the free
-        optimization vector."""
+        """Returns a dictionary that maps all unknown variables to a list of
+        indices needed to extract that variable from the free optimization
+        vector."""
         d = {}
 
         N = self.collocator.num_collocation_nodes
@@ -911,19 +911,19 @@ class Problem(cyipopt.Problem):
 
         for var in self.collocator.state_symbols:
             idx = self.collocator.state_symbols.index(var)
-            d[var] = (idx*N, (idx + 1)*N)
+            d[var] = list(range(idx*N, (idx + 1)*N))
 
         for var in self.collocator.unknown_input_trajectories:
             idx = self.collocator.unknown_input_trajectories.index(var)
-            d[var] = (len_states + idx*N, len_states + (idx + 1)*N)
+            d[var] = list(range(len_states + idx*N, len_states + (idx + 1)*N))
 
         for var in self.collocator.unknown_parameters:
             idx = self.collocator.unknown_parameters.index(var)
-            d[var] = (len_both + idx, len_both + idx + 1)
+            d[var] = list(range(len_both + idx, len_both + idx + 1))
 
         if self.collocator._variable_duration:
-            d[self.collocator.time_interval_symbol] = (len_both + r,
-                                                       self.num_free)
+            h = self.collocator.time_interval_symbol
+            d[h] = list(range(len_both + r, self.num_free))
 
         return d
 
@@ -944,7 +944,7 @@ class Problem(cyipopt.Problem):
         """
         d = self._extraction_indices
         try:
-            free[d[var][0]:d[var][1]] = values
+            free[d[var]] = values
         except KeyError:
             raise ValueError(f'{var} not an unknown in this problem.')
 
@@ -981,7 +981,7 @@ class Problem(cyipopt.Problem):
         else:
             d = self._extraction_indices
             try:
-                return free[d[var][0]:d[var][1]]
+                return free[d[var]]
             except KeyError:
                 raise ValueError(f'{var} not present in this problem.')
 
