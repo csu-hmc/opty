@@ -2149,7 +2149,7 @@ def test_prob_parse_free():
     idx_dct = prob._generate_extraction_indices()
     assert idx_dct[h] == [68]
     np.testing.assert_allclose(initial_guess[idx_dct[h]], timeu)
-    np.testing.assert_allclose(prob.extract_values(h, initial_guess), timeu)
+    np.testing.assert_allclose(prob.extract_values(initial_guess, h), timeu)
     with raises(ValueError):
         prob.extract_values(initial_guess, sym.Symbol('eee'))
 
