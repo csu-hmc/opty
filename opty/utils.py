@@ -80,6 +80,11 @@ def ccode(expr, assign_to=None, **settings):
 
 def _forward_jacobian(expr, wrt):
 
+    # NOTE : free_symbols are sets and are not guaranteed to be in the same
+    # order, so sympy.ordered() is used throughout to ensure a deterministic
+    # behavior. This is important for the binary caching to work as it hashes
+    # the generated code string.
+
     def add_to_cache(node):
         if node in expr_to_replacement_cache:
             replacement_symbol = expr_to_replacement_cache[node]
