@@ -411,22 +411,6 @@ def test_pendulum():
     np.testing.assert_allclose(prob._upp_con_bounds, expected_upp_con_bounds)
 
 
-@fixture
-def setup_data(request):
-    # ensures the directory is deleted
-
-    tmp_dir = tempfile.mkdtemp("opty_cache_test")
-    os.mkdir(tmp_dir)
-
-    def finalizer():
-        if os.path.exists(tmp_dir):
-            shutil.rmtree(tmp_dir)
-
-    request.addfinalizer(finalizer)
-
-    return tmp_dir
-
-
 def TestProblem():
 
     def setup_method(self):
