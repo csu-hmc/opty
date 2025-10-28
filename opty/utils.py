@@ -828,11 +828,18 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     # have not changed anything about the model.
     if matching_module_num is not None:
         try:
+            # NOTE : If a script is invoked from the standard Python
+            # interpreter the module is not on the path. So we manually insert
+            # the path to the temporary directory in the path and then remove
+            # it again after import. Oddly, this is not needed for invocation
+            # via IPython. See https://github.com/csu-hmc/opty/issues/509.
+            sys.path.append(codedir)
             cython_module = importlib.import_module(old_file_prefix)
         except ImportError:  # false positive, so compile a new one
             logger.info(f'Failed to import {old_file_prefix}.')
             pass
         else:
+            sys.path.remove(codedir)
             logger.info(f'Skipped compile, {old_file_prefix} module loaded.')
             os.chdir(workingdir)
             logger.info(f'Changed directory to {workingdir}.')
