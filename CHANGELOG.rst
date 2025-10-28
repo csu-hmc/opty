@@ -6,7 +6,8 @@ Version 1.5.0.dev0
   functions every time a Problem is instantiated.
 - Added helper methods to Problem to extract values from and fill values in the
   free optimization vector by symbol name: ``Problem.extract_values()`` &
-  ``Problem.fill_free()``.
+  ``Problem.fill_free()``. Demonstrated in the variable duration pendulum swing
+  up example.
 - The Problem instance can now optionally be accessed in the objective and
   gradient functions. This combined with the methods to extract and fill values
   can ease the manual construction of the objective and gradient.
@@ -23,7 +24,7 @@ Version 1.5.0.dev0
 - Method added to ``Problem`` to compute the time vector:
   ``Problem.time_vector()``.
 - Method added to ``Problem`` to check if a solution respects the bounds and
-  flag to check the initial guess before solving.
+  flag to check the initial guess before solving: ``check_bounds_conflict()``.
 - openmp parallelization now works on Mac.
 - Addressed a performance issue for large number of nodes (1M+) by eliminating
   a SymPy float in the computation.
@@ -42,6 +43,7 @@ Version 1.5.0.dev0
     functions.
   - Car staying within a race course.
   - Approximation of a multiphase problem.
+  - Example of creating algebraic path constraints.
   - Example of solving a minimal time race over a varying elevation that is
     numerically defined.
 
