@@ -1,4 +1,5 @@
 import os
+import pathlib
 import shutil
 import tempfile
 from collections import OrderedDict
@@ -423,9 +424,7 @@ def test_Problem():
     eom = sym.Matrix([x.diff() - v,
                       m * v.diff() + c * v + k * x - f])
 
-    # NOTE : creating a temporary directory causes isfile test failures.
-    #tmp_dir = tempfile.mkdtemp("opty_cache_test")
-    tmp_dir = "opty_cache_test"
+    tmp_dir = tempfile.mkdtemp("opty_cache_test")
     os.mkdir(tmp_dir)
 
     prob = Problem(lambda x: 1.0,
@@ -441,15 +440,9 @@ def test_Problem():
                            c: (-0.5, 0.5)},
                    tmp_dir=tmp_dir)
 
-    print(os.listdir(tmp_dir))
-
     # Only two modules should be generated
-    assert os.path.isfile(os.path.abspath(
-        os.path.join(tmp_dir, 'ufuncify_matrix_0_c.c')))
-    assert os.path.isfile(os.path.abspath(
-        os.path.join(tmp_dir, 'ufuncify_matrix_1_c.c')))
-    assert not os.path.isfile(os.path.abspath(
-        os.path.join(tmp_dir, 'ufuncify_matrix_2_c.c')))
+    c_file_list = [f for f in os.listdir(tmp_dir) if f.endswith('_c.c')]
+    assert len(c_file_list) == 2
 
     INF = 10e19
     expected_lower = np.array([-10.0, -10.0,
@@ -475,12 +468,9 @@ def test_Problem():
                    time_symbol=t,
                    tmp_dir=tmp_dir)
 
-    assert os.path.isfile(os.path.abspath(
-        os.path.join(tmp_dir, 'ufuncify_matrix_0_c.c')))
-    assert os.path.isfile(os.path.abspath(
-        os.path.join(tmp_dir, 'ufuncify_matrix_1_c.c')))
-    assert not os.path.isfile(os.path.abspath(
-        os.path.join(tmp_dir, 'ufuncify_matrix_2_c.c')))
+    # no more C files should have been generated
+    c_file_list = [f for f in os.listdir(tmp_dir) if f.endswith('_c.c')]
+    assert len(c_file_list) == 2
 
     shutil.rmtree(tmp_dir)
 
