@@ -4,9 +4,7 @@ channels:
   - nodefaults  # make sure we only pull from conda forge
 dependencies:
   # build
-  # NOTE : setuptools 80 breaks installing with pip install -e, see
-  # https://github.com/csu-hmc/opty/issues/457
-  - setuptools >=59.6.0,<80
+  - setuptools >=59.6.0
   # run (includes optional run deps)
   - cyipopt >=1.1.0
   - cython >=0.29.28
@@ -23,7 +21,7 @@ dependencies:
   # docs/examples
   - joblib >=0.17.0
   - numpydoc >=1.2
-  - pip >=22.0.2,<24  # upper pin required for the gait2d pip install below
+  - pip >=22.0.2
   - pydy >=0.6.0  # gait2d
   - pyyaml >=5.4.1  # gait2d
   - sphinx >=4.3.2
