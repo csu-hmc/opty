@@ -439,9 +439,9 @@ def test_Problem():
                    tmp_dir=tmp_dir)
 
     # Only two modules should be generated
-    assert os.path.exists(os.path.join(tmp_dir, 'ufuncify_matrix_0_c.c'))
-    assert os.path.exists(os.path.join(tmp_dir, 'ufuncify_matrix_1_c.c'))
-    assert not os.path.exists(os.path.join(tmp_dir, 'ufuncify_matrix_2_c.c'))
+    assert os.path.isfile(os.path.join(tmp_dir, 'ufuncify_matrix_0_c.c'))
+    assert os.path.isfile(os.path.join(tmp_dir, 'ufuncify_matrix_1_c.c'))
+    assert not os.path.isfile(os.path.join(tmp_dir, 'ufuncify_matrix_2_c.c'))
 
     INF = 10e19
     expected_lower = np.array([-10.0, -10.0,
@@ -467,8 +467,8 @@ def test_Problem():
                    time_symbol=t,
                    tmp_dir=tmp_dir)
 
-    assert not os.path.exists(os.path.join(tmp_dir, 'ufuncify_matrix_2_c.c'))
-    assert not os.path.exists(os.path.join(tmp_dir, 'ufuncify_matrix_3_c.c'))
+    assert not os.path.isfile(os.path.join(tmp_dir, 'ufuncify_matrix_2_c.c'))
+    assert not os.path.isfile(os.path.join(tmp_dir, 'ufuncify_matrix_3_c.c'))
 
 
     shutil.rmtree(tmp_dir)
