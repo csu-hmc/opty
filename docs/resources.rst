@@ -2,7 +2,7 @@
 Resources
 =========
 
-Opty emerged from initial work done in the summer of 2024 that sought
+Opty emerged from initial work done in the summer of 2014 that sought
 controller parameter identification solutions for human standing and walking
 which is explained in this report:
 
