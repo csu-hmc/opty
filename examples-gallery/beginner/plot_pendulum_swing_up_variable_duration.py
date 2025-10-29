@@ -73,11 +73,11 @@ def obj(prob, free):
 
 
 def obj_grad(prob, free):
-    T_vals = prob.extract_values(T(t), free=free)
-    h_val = prob.extract_values(h, free=free)
+    T_vals = prob.extract_values(free, T(t))
+    h_val = prob.extract_values(free, h)
     grad = np.zeros_like(free)
-    prob.fill_free(grad, T(t), 2.0*h_val*T_vals)
-    prob.fill_free(grad, h, np.sum(T_vals**2))
+    prob.fill_free(grad, 2.0*h_val*T_vals, T(t))
+    prob.fill_free(grad, np.sum(T_vals**2), h)
     return grad
 
 

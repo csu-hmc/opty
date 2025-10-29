@@ -2063,49 +2063,48 @@ def test_prob_parse_free():
     # test whether all indices are generated correctly
     idx_dct = prob._generate_extraction_indices()
     expected_idx_dct = {
-        x1: (0, 11),
-        x2: (11, 22),
-        ux1: (22, 33),
-        ux2: (33, 44),
-        u1: (44, 55),
-        u2: (55, 66),
-        a: (66, 67),
-        b: (67, 68),
+        x1: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        x2: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
+        ux1: [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+        ux2: [33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43],
+        u1: [44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54],
+        u2: [55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65],
+        a: [66],
+        b: [67],
     }
     assert idx_dct == expected_idx_dct
-    np.testing.assert_allclose(states[0],
-                               initial_guess[idx_dct[x1][0]:idx_dct[x1][1]])
-    np.testing.assert_allclose(states[1],
-                               initial_guess[idx_dct[x2][0]:idx_dct[x2][1]])
-    np.testing.assert_allclose(states[2],
-                               initial_guess[idx_dct[ux1][0]:idx_dct[ux1][1]])
-    np.testing.assert_allclose(states[3],
-                               initial_guess[idx_dct[ux2][0]:idx_dct[ux2][1]])
-    np.testing.assert_allclose(controls[0],
-                               initial_guess[idx_dct[u1][0]:idx_dct[u1][1]])
-    np.testing.assert_allclose(controls[1],
-                               initial_guess[idx_dct[u2][0]:idx_dct[u2][1]])
-    np.testing.assert_allclose(constants[0],
-                               initial_guess[idx_dct[a][0]:idx_dct[a][1]])
-    np.testing.assert_allclose(constants[1],
-                               initial_guess[idx_dct[b][0]:idx_dct[b][1]])
+    np.testing.assert_allclose(states[0], initial_guess[idx_dct[x1]])
+    np.testing.assert_allclose(states[1], initial_guess[idx_dct[x2]])
+    np.testing.assert_allclose(states[2], initial_guess[idx_dct[ux1]])
+    np.testing.assert_allclose(states[3], initial_guess[idx_dct[ux2]])
+    np.testing.assert_allclose(controls[0], initial_guess[idx_dct[u1]])
+    np.testing.assert_allclose(controls[1], initial_guess[idx_dct[u2]])
+    np.testing.assert_allclose(constants[0], initial_guess[idx_dct[a]])
+    np.testing.assert_allclose(constants[1], initial_guess[idx_dct[b]])
 
     np.testing.assert_allclose(states[0],
-                               prob.extract_values(x1, initial_guess))
+                               prob.extract_values(initial_guess, x1))
     np.testing.assert_allclose(states[1],
-                               prob.extract_values(x2, initial_guess))
+                               prob.extract_values(initial_guess, x2))
     np.testing.assert_allclose(states[2],
-                               prob.extract_values(ux1, initial_guess))
+                               prob.extract_values(initial_guess, ux1))
     np.testing.assert_allclose(states[3],
-                               prob.extract_values(ux2, initial_guess))
+                               prob.extract_values(initial_guess, ux2))
     np.testing.assert_allclose(controls[0],
-                               prob.extract_values(u1, initial_guess))
+                               prob.extract_values(initial_guess, u1))
     np.testing.assert_allclose(controls[1],
-                               prob.extract_values(u2, initial_guess))
+                               prob.extract_values(initial_guess, u2))
     np.testing.assert_allclose(constants[0],
-                               prob.extract_values(a, initial_guess))
+                               prob.extract_values(initial_guess, a))
     np.testing.assert_allclose(constants[1],
-                               prob.extract_values(b, initial_guess))
+                               prob.extract_values(initial_guess, b))
+    np.testing.assert_allclose(states.flatten(),
+                               prob.extract_values(initial_guess, x1, x2, ux1,
+                                                   ux2))
+    np.testing.assert_allclose(np.hstack((states[3], states[1], states[0],
+                                          states[2], constants[1])),
+                               prob.extract_values(initial_guess, ux2, x2, x1,
+                                                   ux1, b))
 
     # test with variable interval_value
     interval_value = h
@@ -2148,12 +2147,11 @@ def test_prob_parse_free():
 
     # check that the variable length value is correctly returned
     idx_dct = prob._generate_extraction_indices()
-    assert idx_dct[h] == (68, 69)
-    np.testing.assert_allclose(initial_guess[idx_dct[h][0]:idx_dct[h][1]],
-                               timeu)
-    np.testing.assert_allclose(prob.extract_values(h, initial_guess), timeu)
+    assert idx_dct[h] == [68]
+    np.testing.assert_allclose(initial_guess[idx_dct[h]], timeu)
+    np.testing.assert_allclose(prob.extract_values(initial_guess, h), timeu)
     with raises(ValueError):
-        prob.extract_values(sym.Symbol('eee'), initial_guess)
+        prob.extract_values(initial_guess, sym.Symbol('eee'))
 
     # check that only 'numpy' and 'cython' backends are accepted as backend
     with raises(ValueError):

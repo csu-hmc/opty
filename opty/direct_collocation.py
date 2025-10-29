@@ -896,9 +896,9 @@ class Problem(cyipopt.Problem):
         return ax
 
     def _generate_extraction_indices(self):
-        """Returns a dictionary that maps all unknown variables to a tuple of
-        the slice indices needed to extract that variable from the free
-        optimization vector."""
+        """Returns a dictionary that maps all unknown variables to a list of
+        indices needed to extract that variable from the free optimization
+        vector."""
         d = {}
 
         N = self.collocator.num_collocation_nodes
@@ -911,79 +911,74 @@ class Problem(cyipopt.Problem):
 
         for var in self.collocator.state_symbols:
             idx = self.collocator.state_symbols.index(var)
-            d[var] = (idx*N, (idx + 1)*N)
+            d[var] = list(range(idx*N, (idx + 1)*N))
 
         for var in self.collocator.unknown_input_trajectories:
             idx = self.collocator.unknown_input_trajectories.index(var)
-            d[var] = (len_states + idx*N, len_states + (idx + 1)*N)
+            d[var] = list(range(len_states + idx*N, len_states + (idx + 1)*N))
 
         for var in self.collocator.unknown_parameters:
             idx = self.collocator.unknown_parameters.index(var)
-            d[var] = (len_both + idx, len_both + idx + 1)
+            d[var] = list(range(len_both + idx, len_both + idx + 1))
 
         if self.collocator._variable_duration:
-            d[self.collocator.time_interval_symbol] = (len_both + r,
-                                                       self.num_free)
+            h = self.collocator.time_interval_symbol
+            d[h] = list(range(len_both + r, self.num_free))
 
         return d
 
-    def fill_free(self, free, var, values):
+    def fill_free(self, free, values, *variables):
         """Replaces the values in a vector shaped the same as the free
-        optimization vector corresponding to the variable name.
+        optimization vector corresponding to the variable names.
 
         Parameters
         ==========
         free : ndarray, shape(n*N + q*N + r + s, )
             Vector to replace values in.
-        var : Symbol or Function()(time)
-            One of the unknown optimization variables in the problem.
         values : ndarray, shape(N,) or float
-            Numerical values to insert, arrays must be in order of monotonic
-            time.
+            Numerical values to insert, arrays for each variable must be in
+            order of monotonic time and then stacked in order variables. The
+            shape depends on how many variables and whether they are
+            trajectories or parameters.
+        varables: Symbol or Function()(time)
+            One or more of the unknown optimization variables in the problem.
 
         """
         d = self._extraction_indices
-        try:
-            free[d[var][0]:d[var][1]] = values
-        except KeyError:
-            raise ValueError(f'{var} not an unknown in this problem.')
+        idxs = []
+        for var in variables:
+            try:
+                idxs += d[var]
+            except KeyError:
+                raise ValueError(f'{var} not an unknown in this problem.')
+        free[idxs] = values
 
-    def extract_values(self, var, free=None):
-        """Returns the numerical values of the variable.
+    def extract_values(self, free, *variables):
+        """Returns the numerical values of the free variables.
 
         Parameters
         ==========
-        var : Symbol or Function()(time)
-            One of the known or unknown variables in the problem.
         free : ndarray, shape(n*N + q*N + r + s)
             The free optimization vector of the system, required if var is an
             unknown optimization variable.
+        variables : Symbol or Function()(time), len(d)
+            One or more of the known or unknown variables in the problem.
 
         Returns
         =======
-        values : ndarray, shape(N,) or float
-            The numerical value of the variable.
+        values : ndarray
+            The numerical values of the variables. The shape depends on how
+            many variables and whether they are trajectories or parameters.
 
         """
-        if var in self.collocator.known_parameter_map:
-            return self.collocator.known_parameter_map[var]
-        elif var in self.collocator.known_trajectory_map:
-            val = self.collocator.known_trajectory_map[var]
-            if isinstance(val, type(lambda x: x)):
-                # TODO : Needs unit test for this path.
-                if free is None:
-                    raise ValueError('free vector required for functions in '
-                                     'known trajectory map')
-                else:
-                    return val(free)
-            else:
-                return val
-        else:
-            d = self._extraction_indices
+        d = self._extraction_indices
+        idxs = []
+        for var in variables:
             try:
-                return free[d[var][0]:d[var][1]]
+                idxs += d[var]
             except KeyError:
-                raise ValueError(f'{var} not present in this problem.')
+                raise ValueError(f'{var} not an unknown in this problem.')
+        return free[idxs]
 
     def parse_free(self, free):
         """Parses the free parameters vector and returns it's components.
