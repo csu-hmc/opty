@@ -770,7 +770,7 @@ class Problem(cyipopt.Problem):
                                                  N - 1))
         # TODO : figure out a way to plot the inequality constraint violations
         # don't plot inequality
-        if self.eom_bounds is not None and subplots is False:
+        if self.eom_bounds is not None:
             for k, v in self.eom_bounds.items():
                 eom_violations[k] = np.nan
 
@@ -801,7 +801,7 @@ class Problem(cyipopt.Problem):
         else:
             for i in range(self.collocator.num_eom):
                 if ((self.eom_bounds is not None) and
-                    (i in self.eom_bounds.keys()) and subplots is False):  # don't plot if inequality
+                    (i in self.eom_bounds.keys())):  # don't plot if inequality
                     axes[i].plot(con_nodes, np.nan*np.ones_like(con_nodes))
                     axes[i].set_ylabel(f'Eq. {str(i+1)} \n not shown',
                                        fontsize=9)
