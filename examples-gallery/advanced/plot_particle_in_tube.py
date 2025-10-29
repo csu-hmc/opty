@@ -1,4 +1,3 @@
-# %%
 r"""
 Particle Flight in Tube
 =======================
@@ -9,7 +8,7 @@ Objectives
 - Shows how the introduction of an additional state variable may be used to
   solve a nonlinear equation. A state variable is used as its time derivative
   is needed.
-- Shows the use of inequalities.
+- Shows the use of inequalities constraints.
 
 Introduction
 ------------
@@ -49,29 +48,28 @@ modeled as a circle with its center on the curve, and with radius
 function. This hump function equals one around a vicinity of
 :math:`\textrm{wo}`, determined by :math:`\epsilon`, and zero otherwise.
 
-
 Notes
 -----
 
-- Inequality constraints are of the form:
+Inequality constraints are of the form:
 
-    :math:`a \leq eom \leq b`, with :math:`\textrm{a}` and :math:`\textrm{b}`
-    being ``floats``.
+:math:`a \leq eom \leq b`, with :math:`\textrm{a}` and :math:`\textrm{b}` being
+``floats``.
 
-    If an inequality of the form:
-    :math:`a + f(\textrm{state variables}, \textrm{parameters}) \leq eom
-    \leq b + g(\textrm{state variables}, \textrm{parameters})`
+If an inequality of the form:
 
-    is needed, one rewrites them as two inequalities of the form:
+:math:`a + f(\textrm{state variables}, \textrm{parameters}) \leq eom \leq b +
+g(\textrm{state variables}, \textrm{parameters})`
 
-    :math:`0 \leq eom -f(\textrm{state variables}, \textrm{parameters}) - a <
-    \infty`
+is needed, one rewrites them as two inequalities of the form:
 
-    :math:`-\infty < eom - g(\textrm{state variables}, \textrm{parameters}) - b
-    \leq 0`.
+:math:`0 \leq eom -f(\textrm{state variables}, \textrm{parameters}) - a <
+\infty`
 
-  This was essentially done here.
+:math:`-\infty < eom - g(\textrm{state variables}, \textrm{parameters}) - b
+\leq 0`.
 
+This was essentially done here.
 
 **Constants**
 
@@ -85,7 +83,6 @@ Notes
 - :math:`\textrm{wo}` : parameter of the curve where the gate is located
 - :math:`\epsilon` : small parameter for the hump function
 - :math:`\textrm{steepness}` : determines the steepness of the hump function
-
 
 **States**
 
@@ -153,17 +150,21 @@ eom = kinematical.col_join(fr + frstar)
 # Define some functions to get the distance of the particle from the center
 # curve of the tube.
 def plane(vector, point, x1, x2, x3):
-    """
-    Returns the plane equations, whose normal vector is vector, and the point
-    is in the plane.
+    """Returns the plane equations, whose normal vector is vector, and the
+    point is in the plane.
 
-    - point: given as tuple (p1, p2, p3) in the N frame
-    - vector: given as tuple (n1, n2, n3) in the N frame
-    - x1, x2, x3: symbols of the coordinates in the plane
+    Parameters
+    ==========
+    point : tuple
+        given as tuple (p1, p2, p3) in the N frame
+    vector : tuple
+        given as tuple (n1, n2, n3) in the N frame
+    x1, x2, x3 : Symbol
+        symbols of the coordinates in the plane
 
-    The plane is returned in coordinate form:
+    The plane is returned in coordinate form::
 
-       n1*x1 + n2*x2 + n3*x3 - (n1*p1 + n2*p2 + n3*p3) = 0
+        n1*x1 + n2*x2 + n3*x3 - (n1*p1 + n2*p2 + n3*p3) = 0
 
     """
     p1, p2, p3 = point[0], point[1], point[2]
@@ -171,15 +172,18 @@ def plane(vector, point, x1, x2, x3):
     return n1*x1 + n2*x2 + n3*x3 - (n1*p1 + n2*p2 + n3*p3)
 
 
-# %%
 def intersect(r1, curve, point, x1, x2, x3):
-    """
-    returns a non-linear equation for r1, which, if inserted into curve, gives
-    the point of intersection.
-    curve: given as tuple(f(r, params), g(r, params), g(r, params)),
-        where r is the parameter of the curve, and params is the parameters
-        of the curve
-    point: given as tuple (p1, p2, p3), not on the curve, in N frame.
+    """Returns a non-linear equation for r1, which, if inserted into curve,
+    gives the point of intersection.
+
+    Parameters
+    ==========
+    curve : tuple
+        given as tuple(f(r, params), g(r, params), g(r, params)), where r is
+        the parameter of the curve, and params is the parameters of the curve
+    point : tuple
+        given as tuple (p1, p2, p3), not on the curve, in N frame.
+
     """
     f, g, h = curve[0], curve[1], curve[2]
     fdr, gdr, hdr = f.diff(r), g.diff(r), h.diff(r)
@@ -191,14 +195,18 @@ def intersect(r1, curve, point, x1, x2, x3):
     return intersect_eqn
 
 
-# %%
 def distance(N, r1, curve, point):
-    """
-    returns the distance of the curve to the point
-    curve: given as tuple(f(r, params), g(r, params), g(r, params)),
-        where r is the parameter of the curve, and params is the parameters
-        of the curve, in the N frame.
-    point: given as tuple(p1, p2, p3), not on the curve. in the N frame.
+    """Returns the distance of the curve to the point.
+
+    Parameters
+    ==========
+    curve : tuple
+        given as tuple(f(r, params), g(r, params), g(r, params)), where r is
+        the parameter of the curve, and params is the parameters of the curve,
+        in the N frame.
+    point : tuple
+        given as tuple(p1, p2, p3), not on the curve. in the N frame.
+
     """
     f, g, h = curve[0].subs(r, r1), curve[1].subs(r, r1), curve[2].subs(r, r1)
 
@@ -208,21 +216,23 @@ def distance(N, r1, curve, point):
     dist = (P11 - P21).magnitude()
     return dist
 
+
 # %%
-# Define a differentiable ``hump function``.
-
-
+# Define a differentiable hump function.
 def hump_diff(x, a, b, steepness):
-    """
-    Returns 1 if x is between a and b, and 0 otherwise. The function is smooth
-    and differentiable infinitely often.
+    """Returns 1 if x is between a and b, and 0 otherwise. The function is
+    smooth and differentiable infinitely often.
 
-    Parameters:
-
-    - x: The input value (scalar or array-like).
-    - a: Left edge of the hump.
-    - b: Right edge of the hump.
-    - steepness: The steepness of the hump.
+    Parameters
+    ==========
+    x : float or array_like
+        The input value (scalar or array-like).
+    a : float
+        Left edge of the hump.
+    b : float
+        Right edge of the hump.
+    steepness : float
+        The steepness of the hump.
 
     """
     return 0.5 * (sm.tanh(steepness * (x - a)) - sm.tanh(steepness * (x - b)))
@@ -234,9 +244,8 @@ def hump_diff(x, a, b, steepness):
 # :math:`h_1` is a nonlinear equation for :math:`\textrm{cut}_\textrm{param}`,
 # the parameter for the point on the curve closest to the particle. :math:`h_2`
 # is the distance of the particle from the curve, it can be bound to be less
-# than the radius of the tube.
-# The meaning of :math:`h_3` is explained in the second point of the notes
-# above.
+# than the radius of the tube. The meaning of :math:`h_3` is explained in the
+# second point of the notes above.
 cut_param = me.dynamicsymbols('cut_param', real=True)
 a1, a2, a3 = sm.symbols('a1, a2, a3', real=True)
 x1, x2, x3 = sm.symbols('x1, x2, x3', real=True)
@@ -259,7 +268,7 @@ print(f'the shape of the eoms is {eom.shape}, and they contain '
       f'{sm.count_ops(eom)} operations.')
 
 # %%
-# Set up the Optimization and Solve It
+# Set Up the Optimization and Solve It
 # ------------------------------------
 state_symbols = (x, y, z, vx, vy, vz, cut_param)
 specified_symbols = (Fx, Fy, Fz)
@@ -270,7 +279,6 @@ interval_value = duration/(num_nodes - 1)
 
 # %%
 # Provide some values for the constants.
-
 max_z = 12.0
 
 par_map = {
@@ -290,8 +298,9 @@ par_map = {
 # %%
 # Specify the objective function and form the gradient.
 obj_func = sm.Integral(Fx**2 + Fy**2 + Fz**2, t)
-
 sm.pprint(obj_func)
+
+# %%
 obj, obj_grad = create_objective_function(
     obj_func,
     state_symbols,
@@ -312,13 +321,11 @@ instance_constraints = [
     y.func(0.0) - par_map[a2],
     z.func(0.0),
     cut_param.func(0.0),
-
     x.func(duration) - eval_curve(max_z/par_map[a3], par_map[a1], par_map[a2],
                                   par_map[a3])[0],
     y.func(duration) - eval_curve(max_z/par_map[a3], par_map[a1], par_map[a2],
                                   par_map[a3])[1],
     z.func(duration) - max_z,
-
     vx.func(0.0),
     vy.func(0.0),
     vz.func(0.0),
@@ -328,8 +335,8 @@ instance_constraints = [
 ]
 
 # %%
-# Add some physical limits to the force, other bounds as needed to realize
-# the inequalities.
+# Add some physical limits to the force, other bounds as needed to realize the
+# inequalities.
 grenze = 100.0
 
 bounds = {
@@ -360,48 +367,34 @@ prob = Problem(
 )
 
 # %%
-# If as solution is available, it will be used. Otherwise the problem is
-# solved.
+# Solve the problem, starting with a reasonable initial guess.
+initial_guess = np.ones(prob.num_free)
+x_guess, y_guess, z_guess = eval_curve(np.linspace(0.0, max_z/par_map[a3],
+                                                   num=num_nodes), par_map[a1],
+                                       par_map[a2], par_map[a3])
+initial_guess[0*num_nodes:1*num_nodes] = x_guess
+initial_guess[1*num_nodes:2*num_nodes] = y_guess
+initial_guess[2*num_nodes:3*num_nodes] = z_guess
+initial_guess[6*num_nodes:7*num_nodes] = np.linspace(0.0, max_z/par_map[a3],
+                                                     num_nodes)
+initial_guess[-3*num_nodes:] = 50.0
+
+_ = prob.plot_trajectories(initial_guess, show_bounds=True)
+
+# %%
+# If a solution is available, it will be used as the initial guess.
 fname = f'particle_in_tube_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
-    # Solution is available.
-    solution = np.loadtxt(fname)
+    initial_guess = np.loadtxt(fname)
 
-else:
-    # Solve the problem, starting with a reasonable initial guess.
-    # Switch to ``backend='numpy'`` for faster solving.
-    limit = 3000
-    loops = 2
+par_map[faktor] = 0.25
+solution, info = prob.solve(initial_guess)
+print(info['status_msg'])
+print(info['obj_val'])
 
-    initial_guess = np.ones(prob.num_free)
-    x_guess, y_guess, z_guess = eval_curve(np.linspace(0.0, max_z/par_map[a3],
-                                                       num=num_nodes),
-                                           par_map[a1], par_map[a2],
-                                           par_map[a3])
-    initial_guess[0*num_nodes:1*num_nodes] = x_guess
-    initial_guess[1*num_nodes:2*num_nodes] = y_guess
-    initial_guess[2*num_nodes:3*num_nodes] = z_guess
-    initial_guess[6*num_nodes:7*num_nodes] = np.linspace(0.0, max_z/par_map[a3]
-                                                         , num_nodes)
-    initial_guess[-3*num_nodes:] = 50.0
-    par_map[faktor] = 1.0
-    prob.add_option('max_iter', limit)
-    for _ in range(loops):
-        solution, info = prob.solve(initial_guess)
-        initial_guess = solution
-        print(info['status_msg'])
-        print(info['obj_val'])
-
-    par_map[faktor] = 0.25
-    prob.add_option('max_iter', limit)
-    for _ in range(loops):
-        solution, info = prob.solve(solution)
-        initial_guess = solution
-        print(info['status_msg'])
-        print(info['obj_val'])
-
-    # Plot the objective function as a function of optimizer iteration.
-    _ = prob.plot_objective_value()
+# %%
+# Plot the objective function as a function of optimizer iteration.
+_ = prob.plot_objective_value()
 
 # %%
 # Plot the optimal state and input trajectories.
@@ -429,11 +422,10 @@ coordinates = coordinates.row_join(Pf.pos_from(O).to_matrix(N))
 eval_coords = sm.lambdify((state_symbols, fx, fy, fz, list(par_map.keys())),
                           coordinates, cse=True)
 
-
+# %%
 # This function is to draw the tube which the particle must not leave.
 def frenet_frame(f, g, h, r, num_points=100,
                  tube_radius=par_map[radius] + 0.25):
-    # From the internet
     # Parameterize the curve
     r_vals = r
     f_vals = f(r_vals)
@@ -469,18 +461,23 @@ def frenet_frame(f, g, h, r, num_points=100,
     return np.array(X), np.array(Y), np.array(Z)
 
 
-# this function draws a circle.
+# %%
+# This function draws a circle.
 def plot_3d_circle(ax, center, radius, normal, num_points=100):
-    # Essentially from the internet.
-    """
-    Plots a 3D circle based on the given center, radius, and normal vector.
+    """Plots a 3D circle based on the given center, radius, and normal vector.
 
-    Parameters:
-    - center: The center of the circle (numpy array of shape (3,))
-    - radius: The radius of the circle (scalar)
-    - normal: The normal vector perpendicular to the circle's plane
-      (numpy array of shape (3,))
-    - num_points: The number of points used to plot the circle (default is 100)
+    Parameters
+    ==========
+    center : ndarray
+        The center of the circle (numpy array of shape (3,))
+    radius : float
+        The radius of the circle (scalar)
+    normal : ndarray
+        The normal vector perpendicular to the circle's plane (numpy array of
+        shape (3,))
+    num_points : integer
+        The number of points used to plot the circle (default is 100)
+
     """
     # Generate points on a circle in the xy-plane (z=0)
     theta = np.linspace(0, 2 * np.pi, num_points)
@@ -514,6 +511,7 @@ def plot_3d_circle(ax, center, radius, normal, num_points=100):
     ax.plot(circle_3d[0, :], circle_3d[1, :], circle_3d[2, :], color='blue')
 
 
+# %%
 # Animate the motion of the particle.
 def init():
     fig = plt.figure()
@@ -536,19 +534,23 @@ def init():
 
 fig, ax, line1, line2, pfeil = init()
 
+# %%
 # Define the curve functions
 f = lambda r: eval_curve(r, par_map[a1], par_map[a2], par_map[a3])[0]
 g = lambda r: eval_curve(r, par_map[a1], par_map[a2], par_map[a3])[1]
 h = lambda r: eval_curve(r, par_map[a1], par_map[a2], par_map[a3])[2]
 
+# %%
 # Generate the tube
 curve_param = np.linspace(0, max_z/par_map[a3], 100)
 X, Y, Z = frenet_frame(f, g, h, r=curve_param)
 
+# %%
 # Plot the tube
 ax.plot_surface(X, Y, Z, rstride=1, cstride=1, color='grey', alpha=0.1,
                 edgecolor='red')
 
+# %%
 # Plot the gate, a circle
 center = np.array(eval_curve(1.2, par_map[a1], par_map[a2], par_map[a3]))
 curvedt = [curve[i].diff(r) for i in range(3)]
@@ -594,11 +596,12 @@ ani = animation.FuncAnimation(fig, animate, frames,
                               interval=int(interval_value*10000))
 
 # %%
+# Plot an animation frame.
+# sphinx_gallery_thumbnail_number = 5
 fig, ax, line1, line2, pfeil = init()
 animate(100)
 ax.plot_surface(X, Y, Z, rstride=1, cstride=1, color='grey', alpha=0.1,
                 edgecolor='red')
 plot_3d_circle(ax, center=center, radius=par_map[radius]/3.0, normal=normal)
 
-sphinx_gallery_thumbnail_number = 4
 plt.show()
