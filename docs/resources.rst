@@ -2,6 +2,16 @@
 Resources
 =========
 
+Opty emerged from initial work done in the summer of 2024 that sought
+controller parameter identification solutions for human standing and walking
+which is explained in this report:
+
+J. K. Moore, "NCSRR Visiting Scholar Wrap Up," Aug. 2014.
+https://www.moorepants.info/blog/ncsrr-wrap-up.html
+
+After that initial success, the software was generalized to work with any
+dynamic system described by symbolic differential algebraic equations.
+
 Presentations About Opty
 ========================
 
@@ -41,8 +51,8 @@ Symposium on Computer Simulation in Biomechanics, Uppsala, Sweden, July 25,
    frameborder="0" width="960" height="569" allowfullscreen="true"
    mozallowfullscreen="true" webkitallowfullscreen="true"></iframe>
 
-Publications That Use Opty
-==========================
+Publications About or That Use Opty
+===================================
 
 #. Stahlecker, Peter, "PST Notebooks," 2025.
    https://www.pydy.org/pst-notebooks/
@@ -75,3 +85,5 @@ Publications That Use Opty
 #. J. K. Moore and A. van den Bogert, "opty: Software for trajectory
    optimization and parameter identification using direct collocation," JOSS,
    vol. 3, no. 21, p. 300, Jan. 2018. https://dx.doi.org/10.21105/joss.00300
+#. J. K. Moore, "NCSRR Visiting Scholar Wrap Up," Aug. 2014.
+   https://www.moorepants.info/blog/ncsrr-wrap-up.html
