@@ -19,6 +19,7 @@ dependencies:
   - pytest >=6.2.5
   - pytest-cov >=3.0.0
   # docs/examples
+  - ffmpeg
   - joblib >=0.17.0
   - numpydoc >=1.2
   - pip >=22.0.2
