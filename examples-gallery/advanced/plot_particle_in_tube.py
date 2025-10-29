@@ -513,6 +513,7 @@ def plot_3d_circle(ax, center, radius, normal, num_points=100):
 
 # %%
 # Animate the motion of the particle.
+# sphinx_gallery_thumbnail_number = 5
 def init():
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
@@ -534,24 +535,16 @@ def init():
 
 fig, ax, line1, line2, pfeil = init()
 
-# %%
-# Define the curve functions
 f = lambda r: eval_curve(r, par_map[a1], par_map[a2], par_map[a3])[0]
 g = lambda r: eval_curve(r, par_map[a1], par_map[a2], par_map[a3])[1]
 h = lambda r: eval_curve(r, par_map[a1], par_map[a2], par_map[a3])[2]
 
-# %%
-# Generate the tube
 curve_param = np.linspace(0, max_z/par_map[a3], 100)
 X, Y, Z = frenet_frame(f, g, h, r=curve_param)
 
-# %%
-# Plot the tube
 ax.plot_surface(X, Y, Z, rstride=1, cstride=1, color='grey', alpha=0.1,
                 edgecolor='red')
 
-# %%
-# Plot the gate, a circle
 center = np.array(eval_curve(1.2, par_map[a1], par_map[a2], par_map[a3]))
 curvedt = [curve[i].diff(r) for i in range(3)]
 eval_curvedt = sm.lambdify((r, a1, a2, a3), curvedt, cse=True)
@@ -561,7 +554,6 @@ plot_3d_circle(ax, center=center, radius=par_map[radius]/3.0, normal=normal)
 
 
 def animate(i):
-    global line1, pfeil, line2, koords
     fx1 = input_sol(time[i])[0]
     fy1 = input_sol(time[i])[1]
     fz1 = input_sol(time[i])[2]
@@ -569,12 +561,12 @@ def animate(i):
     coords = eval_coords(state_sol(time[i]), fx1, fy1, fz1,
                          list(par_map.values()))
     line1.set_data_3d([coords[0, 0]], [coords[1, 0]], [coords[2, 0]])
-    pfeil.remove()
-    pfeil = ax.quiver([coords[0, 0]],
-                      [coords[1, 0]], [coords[2, 0]],
-                      [(coords[0, 1]-coords[0, 0])/skale],
-                      [(coords[1, 1]-coords[1, 0])/skale],
-                      [(coords[2, 1]-coords[2, 0])/skale], color='green')
+
+    ax.quiver([coords[0, 0]],
+              [coords[1, 0]], [coords[2, 0]],
+              [(coords[0, 1]-coords[0, 0])/skale],
+              [(coords[1, 1]-coords[1, 0])/skale],
+              [(coords[2, 1]-coords[2, 0])/skale], color='green')
 
     koords = []
     for k in range(i):
@@ -597,7 +589,6 @@ ani = animation.FuncAnimation(fig, animate, frames,
 
 # %%
 # Plot an animation frame.
-# sphinx_gallery_thumbnail_number = 5
 fig, ax, line1, line2, pfeil = init()
 animate(100)
 ax.plot_surface(X, Y, Z, rstride=1, cstride=1, color='grey', alpha=0.1,
