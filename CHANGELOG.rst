@@ -1,31 +1,51 @@
 Version 1.5.0.dev0
 ==================
 
-- Bump dependency minimum versions to match those in Ubuntu 22.04 (Jammy).
+- The compiled binaries are now cached if ``tmp_dir`` is set to a common
+  directory. This saves having to recompile the constraint and Jacobian
+  functions every time a Problem is instantiated.
+- Added helper methods to Problem to extract values from and fill values in the
+  free optimization vector by symbol name: ``Problem.extract_values()`` &
+  ``Problem.fill_free()``. Demonstrated in the variable duration pendulum swing
+  up example.
+- The Problem instance can now optionally be accessed in the objective and
+  gradient functions. This combined with the methods to extract and fill values
+  can ease the manual construction of the objective and gradient.
+- Added the ability to make known trajectories functions of the free
+  optimization variables instead of fixed arrays. The new hilly race example
+  demonstrates this.
 - Support added for providing additional path constraints (equality or
   inequality).
 - New Python (NumPy) backend added to allow low performance use without Cython
   and need for JIT compilation.
-- ``plot_constraint_violations()`` can now optionally plot on subplots for each
-  constraint.
-- ``plot_trajectories()`` can optionally show the bounds.
-- Method added to compute the time vector.
-- Method added to check if a solution respects the bounds and flag to check the
-  initial guess before solving.
+- ``Problem.plot_constraint_violations()`` now has an option to show each
+  equation constraint violation on a single subplot.
+- ``Problem.plot_trajectories()`` can optionally show the trajectory bounds.
+- Method added to ``Problem`` to compute the time vector:
+  ``Problem.time_vector()``.
+- Method added to ``Problem`` to check if a solution respects the bounds and
+  flag to check the initial guess before solving: ``check_bounds_conflict()``.
 - openmp parallelization now works on Mac.
+- Addressed a performance issue for large number of nodes (1M+) by eliminating
+  a SymPy float in the computation.
+- Bump dependency minimum versions to match those in Ubuntu 22.04 (Jammy).
 - Speed of building the examples improved by using the NumPy backend and
   animation frame reduction.
+- Unit tests optionally depend on SciPy.
 - Examples Added:
 
-  - Bicycle countersteer example showing use of inputs consisting of variables
-    and their time derivatives.
-  - Quarter car riding over a bumpy road showing a simultaneous control
+  - [Beginner] Example of creating algebraic path constraints.
+  - [Beginner] Brachistochrone example.
+  - [Beginner] Light diffraction example showing use of smoothened
+    discontinuous functions.
+  - [Beginner] Quarter car riding over a bumpy road showing a simultaneous control
     trajectory and parameter identification solution.
-  - Brachistochrone example.
-  - Light diffraction example showing use of smoothened discontinuous
-    functions.
-  - Car staying within a race course.
-  - Approximation of a multiphase problem.
+  - [Beginner] Example of solving a minimal time race over a varying elevation
+    that is numerically defined.
+  - [Intermediate] Bicycle countersteer example showing use of inputs
+    consisting of variables and their time derivatives.
+  - [Intermediate] Car staying within a race course.
+  - [Intermediate] Approximation of a multiphase problem.
 
 Version 1.4.0
 =============
