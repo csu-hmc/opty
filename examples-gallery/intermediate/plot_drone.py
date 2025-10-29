@@ -113,7 +113,6 @@ sm.pprint(eom)
 duration = 10.0  # seconds
 num_nodes = 301
 interval_value = duration/(num_nodes - 1)
-time = np.linspace(0.0, duration, num=num_nodes)
 
 # %%
 # Provide some values for the constants.
@@ -219,6 +218,7 @@ _ = prob.plot_trajectories(initial_guess, axes=axes)
 # %%
 # Find an optimal solution.
 solution, info = prob.solve(initial_guess)
+time = prob.time_vector()
 print(info['status_msg'])
 print(info['obj_val'])
 

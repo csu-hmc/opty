@@ -70,14 +70,7 @@ duration = (num_nodes - 1)*h
 # Derive the equations of motion using gait2d.
 symbolics = derive.derive_equations_of_motion()
 
-mass_matrix = symbolics[0]
-forcing_vector = symbolics[1]
-constants = symbolics[3]
-coordinates = symbolics[4]
-speeds = symbolics[5]
-specified = symbolics[6]
-
-eom = f_minus_ma(mass_matrix, forcing_vector, coordinates + speeds)
+eom = symbolics.equations_of_motion
 eom.shape
 
 # %%
@@ -96,7 +89,7 @@ sm.count_ops(eom)
 delt = sm.Function('delt', real=True)(time_symbol)
 eom = eom.col_join(sm.Matrix([delt.diff(time_symbol) - 1]))
 
-states = coordinates + speeds + [delt]
+states = symbolics.states + [delt]
 num_states = len(states)
 
 # %%
@@ -108,14 +101,15 @@ num_states = len(states)
 # - left: hip (e), knee (f), ankle (g)
 #
 # Each joint has a joint torque acting between the adjacent bodies.
-qax, qay, qa, qb, qc, qd, qe, qf, qg = coordinates
-uax, uay, ua, ub, uc, ud, ue, uf, ug = speeds
-Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = specified
+qax, qay, qa, qb, qc, qd, qe, qf, qg = symbolics.coordinates
+uax, uay, ua, ub, uc, ud, ue, uf, ug = symbolics.speeds
+Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = symbolics.specifieds
 
 # %%
 # The constants are loaded from a file of realistic geometry, mass, inertia,
 # and foot deformation properties of an adult human.
-par_map = simulate.load_constants(constants, 'human-gait-constants.yml')
+par_map = simulate.load_constants(symbolics.constants,
+                                  'human-gait-constants.yml')
 par_map
 
 # %%
@@ -246,13 +240,14 @@ else:
 # %%
 # Use symmeplot to make an animation of the motion.
 xs, rs, _, h_val = prob.parse_free(solution)
-times = np.linspace(0.0, (num_nodes - 1)*h_val, num=num_nodes)
+times = prob.time_vector(solution=solution)
 
 
 def animate():
 
-    ground, origin, segments = symbolics[8], symbolics[9], symbolics[10]
-    trunk, rthigh, rshank, rfoot, lthigh, lshank, lfoot = segments
+    origin = symbolics.origin
+    ground = symbolics.inertial_frame
+    trunk, rthigh, rshank, rfoot, lthigh, lshank, lfoot = symbolics.segments
 
     fig = plt.figure(figsize=(10.0, 4.0))
 
@@ -290,7 +285,7 @@ def animate():
                        color='tab:green')
 
     # adds CoM and unit vectors for each body segment
-    for seg in segments:
+    for seg in symbolics.segments:
         scene.add_body(seg.rigid_body)
 
     # show ground reaction force vectors at the heels and toes, scaled to
@@ -304,7 +299,7 @@ def animate():
     scene.add_vector(contact_force(lfoot.heel, ground, origin)/600.0,
                      lfoot.heel, color="tab:blue")
 
-    scene.lambdify_system(states + specified + constants)
+    scene.lambdify_system(states + symbolics.specifieds + symbolics.constants)
     gait_cycle = np.vstack((
         xs,  # q, u shape(2n, N)
         np.zeros((3, len(times))),  # Fax, Fay, Ta (hand of god), shape(3, N)
@@ -326,13 +321,13 @@ def animate():
         axis.set_ticks_position("none")
 
     eval_rforce = sm.lambdify(
-        states + specified + constants,
+        states + symbolics.specifieds + symbolics.constants,
         (contact_force(rfoot.toe, ground, origin) +
          contact_force(rfoot.heel, ground, origin)).to_matrix(ground),
         cse=True)
 
     eval_lforce = sm.lambdify(
-        states + specified + constants,
+        states + symbolics.specifieds + symbolics.constants,
         (contact_force(lfoot.toe, ground, origin) +
          contact_force(lfoot.heel, ground, origin)).to_matrix(ground),
         cse=True)
@@ -369,7 +364,7 @@ animation = animate()
 
 # %%
 # Now see what the solution looks like in the Moon's gravitational field.
-g = constants[0]
+g = symbolics.constants[0]
 prob.collocator.known_parameter_map[g] = 1.625  # m/s**2
 prob.collocator.known_parameter_map
 

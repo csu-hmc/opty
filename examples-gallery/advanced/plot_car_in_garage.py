@@ -1,15 +1,14 @@
 # %%
-"""
+r"""
 Park a Car in a Garage
 ======================
 
 Objectives
 ----------
 
-- Shows how additional state variables may be used to realize inequalities,
-  which at present ``opty`` does not support.
-- Shows how a differentiable minimum function in connection with a state
-  variable may be used to 'know' the minimum at all times.
+- Shows how use inequalities in the equations of motion.
+- Shows how a differentiable minimum function in connection with an unknown
+  input trajectory may be used to 'know' the minimum at all times.
 
 
 Introduction
@@ -30,30 +29,31 @@ Detailed Description on how the Objectives are Achieved
 - ``number`` of points evenly spread on the body of the car are considered.
 - the y-coordinates of these points must be above the trough at all times.
 - as it is not clear *a priori* whether the car will drive straight into the
-        garage or back in, the variable ``pmin`` is introduced, which is the
-        lower end of the car. To ackomplish this, a differentialble version
-        of the minimum function is used.
+  garage or back in, the variable ``pmin`` is introduced, which is the
+  lower end of the car. To ackomplish this, a differentiable version
+  of the minimum function is used.
 
 **states**
 
 - :math:`x, y`: coordinates of the front of the car
 - :math:`u_x, u_y`: velocities of the front of the car
-- :math:`q_0, q_f`: orientation of the car and the steering angle of the front axle
+- :math:`q_0, q_f`: orientation of the car and the steering angle of the front
+  axle
 - :math:`u_0, u_f`: angular velocities of the car and the front axle
-- :math:`p_{min}`: the lowest point of the car
-- :math:`p_{y_1}....p_{y_{\\textrm{number}}}`: the y-coordinates of the points on
-        the body of the car
+
 
 **controls**
 
 - :math:`T_f`: steering torque on the front axle
 - :math:`F_b`: driving force on the rear axle
+- :math:`p_{min}`: the lowest point of the car
 
 **parameters**
 
 - :math:`l`: length of the car
 - :math:`m_0, m_b, m_f`: mass of the car, the rear and the front axle
-- :math:`i_{ZZ_0}, i_{ZZ_b}, i_{ZZ_f}`: moments of inertia of the car, the rear and the front axle
+- :math:`i_{ZZ_0}, i_{ZZ_b}, i_{ZZ_f}`: moments of inertia of the car, the
+  rear and the front axle
 - :math:`reibung`: friction coefficient
 - :math:`x_1, x_2, y_{12}`: the shape of the garage
 
@@ -74,18 +74,18 @@ from matplotlib.animation import FuncAnimation
 
 # %%
 # Kane's Equations of Motion
-#---------------------------
+# --------------------------
 
-N, A0, Ab, Af = sm.symbols('N A0 Ab Af', cls= me.ReferenceFrame)
+N, A0, Ab, Af = sm.symbols('N A0 Ab Af', cls=me.ReferenceFrame)
 t = me.dynamicsymbols._t
-O, Pb, Dmc, Pf = sm.symbols('O Pb Dmc Pf', cls= me.Point)
+O, Pb, Dmc, Pf = sm.symbols('O Pb Dmc Pf', cls=me.Point)
 O.set_vel(N, 0)
 
-q0, qf  = me.dynamicsymbols('q_0 q_f')
-u0, uf  = me.dynamicsymbols('u_0 u_f')
-x, y    = me.dynamicsymbols('x y')
-ux, uy  = me.dynamicsymbols('u_x u_y')
-Tf, Fb  = me.dynamicsymbols('T_f F_b')
+q0, qf = me.dynamicsymbols('q_0 q_f')
+u0, uf = me.dynamicsymbols('u_0 u_f')
+x, y = me.dynamicsymbols('x y')
+ux, uy = me.dynamicsymbols('u_x u_y')
+Tf, Fb = me.dynamicsymbols('T_f F_b')
 reibung = sm.symbols('reibung')
 
 l, m0, mb, mf, iZZ0, iZZb, iZZf = sm.symbols('l m0 mb mf iZZ0, iZZb, iZZf')
@@ -111,7 +111,7 @@ Dmc.v2pt_theory(Pf, N, A0)
 prevent_print = 1.
 
 # %%
-# No speed perpendicular to the wheels
+# No speed perpendicular to the wheels.
 vel1 = me.dot(Pb.vel(N), Ab.x) - 0
 vel2 = me.dot(Pf.vel(N), Af.x) - 0
 
@@ -127,7 +127,7 @@ BODY = [body0, bodyb, bodyf]
 FL = [(Pb, Fb * Ab.y), (Af, Tf * N.z), (Dmc, -reibung * Dmc.vel(N))]
 
 kd = sm.Matrix([ux - x.diff(t), uy - y.diff(t), u0 - q0.diff(t),
-                me.dot(rot1- rot, N.z)])
+                me.dot(rot1 - rot, N.z)])
 speed_constr = sm.Matrix([vel1, vel2])
 
 q_ind = [x, y, q0, qf]
@@ -144,25 +144,23 @@ KM = me.KanesMethod(
 
 eom = kd.col_join(fr + frstar)
 eom = eom.col_join(speed_constr)
+print(f'the dynamic part of the equations of motion has {eom.shape} shape')
 
 # %%
-# Define the various differentiable approximations, add the eoms, which
-# constrain the car.
-number = 4
+# Define the various differentiable approximations.
 
-x1, x2, y12 = sm.symbols('x1 x2 y12')
-pmin = me.dynamicsymbols('pmin')
-py = me.dynamicsymbols(f'py:{number}')
 
 def min_diff(a, b, gr):
     # differentiabl approximation of min(a, b)
     # the higher gr the closer the approximation
     return -1/gr * sm.log(sm.exp(-gr * a) + sm.exp(-gr * b))
 
+
 def max_diff(a, b, gr):
     # differentiabl approximation of max(a, b)
     # the higher gr the closer the approximation
     return 1/gr * sm.log(sm.exp(gr * a) + sm.exp(gr * b))
+
 
 def trough(x, a, b, gr):
     # approx zero for x in [a, b]
@@ -170,17 +168,32 @@ def trough(x, a, b, gr):
     # the higher gr the closer the approximation
     return 1/(1 + sm.exp(gr*(x - a))) + 1/(1 + sm.exp(-gr*(x - b)))
 
+
 def step_l_diff(a, b, gr):
     # approx zero for a < b, approx one otherwise
     return 1/(1 + sm.exp(-gr*(a - b)))
+
 
 def step_r_diff(a, b, gr):
     # approx zero for a > b, approx one otherwise
     return 1/(1 + sm.exp(gr*(a - b)))
 
+
 def in_0_1(x):
-    wert = step_l_diff(x, 0, 50) * step_r_diff(x, 1, 50) * (1-trough(x, 0, 1, 50))
+    wert = (step_l_diff(x, 0, 50) * step_r_diff(x, 1, 50)
+            * (1-trough(x, 0, 1, 50)))
     return wert
+
+
+# %%
+# Add the equations of motion which constrain the car.
+# :math:`\delta_p` is the distance of the points on the car to the trough.
+# ``number`` gives the number of points on the body of the car which are
+# considered.
+number = 4
+
+x1, x2, y12 = sm.symbols('x1 x2 y12')
+pmin = me.dynamicsymbols('pmin')
 
 park1y = Pf.pos_from(O).dot(N.y)
 park2y = Pb.pos_from(O).dot(N.y)
@@ -190,16 +203,17 @@ park2x = Pb.pos_from(O).dot(N.x)
 delta_x = np.linspace(park1x, park2x, number)
 delta_y = np.linspace(park1y, park2y, number)
 
+
 delta_p = [delta_y[i] - trough(delta_x[i], x1, x2, 50)*y12
-        for i in range(number)]
+           for i in range(number)]
 
 eom_add = sm.Matrix([
-    *[-py[i] + delta_p[i] for i in range(number)],
+    *[delta_p[i] for i in range(number)],
     -pmin + min_diff(park1y, park2y, 50),
 ])
 eom = eom.col_join(eom_add)
-print(F'the eoms are too large to be printed here. The shape is {eom.shape}'+
-      f' and they contain {sm.count_ops(eom)} operations.')
+print((f'the eoms are too large to be printed here. The shape is {eom.shape}'
+       f' and they contain {sm.count_ops(eom)} operations.'))
 
 # %%
 # Check what the differentiable approximations of max(a, b), min(a, b),
@@ -254,16 +268,15 @@ prevent_print = 1.
 
 # %%
 # Set the Optimization Problem and Solve It
-#------------------------------------------
+# -----------------------------------------
 
-state_symbols     = [x, y, q0, qf, ux, uy, u0, uf, pmin] + py
-laenge            = len(state_symbols)
-constant_symbols  = (l, m0, mb, mf, iZZ0, iZZb, iZZf, reibung)
-specified_symbols = (Fb, Tf)
-unknown_symbols   = ()
+state_symbols = (x, y, q0, qf, ux, uy, u0, uf)
+constant_symbols = (l, m0, mb, mf, iZZ0, iZZb, iZZf, reibung)
+specified_symbols = (Fb, Tf, pmin)
+unknown_symbols = ()
 
 num_nodes = 301
-t0, tf    = 0.0, 5.0
+t0, tf = 0.0, 5.0
 interval_value = (tf - t0) / (num_nodes - 1)
 
 # %%
@@ -294,32 +307,26 @@ obj, obj_grad = create_objective_function(
     time_symbol=t,
 )
 
-initial_state_constraints = {
-        x: 7.5,
-        y: 5.5,
-        q0: np.pi/2.0,
-        qf: 0.5,
-        ux: 0.,
-        uy: 0.,
-        u0: 0.,
-        uf: 0.,
-}
-
-final_state_constraints    = {
-        pmin: 0.5,
-        ux: 0.,
-        x : 0.0 ,
-        uy: 0.,
-}
-
-instance_constraints = tuple(xi.subs({t: t0}) - xi_val for xi, xi_val
-        in initial_state_constraints.items()) + tuple(xi.subs({t: tf}) - xi_val
-        for xi, xi_val in final_state_constraints.items())
+instance_constraints = (
+    x.func(t0) - 7.5,
+    y.func(t0) - 5.5,
+    q0.func(t0) - np.pi/2.0,
+    qf.func(t0) - 0.5,
+    ux.func(t0) - 0.0,
+    uy.func(t0) - 0.0,
+    u0.func(t0) - 0.0,
+    uf.func(t0) - 0.0,
+    pmin.func(tf) - 0.5,
+    x.func(tf) - 0.0,
+    ux.func(tf) - 0.0,
+    uy.func(tf) - 0.0,
+)
 
 grenze = 25.0
 delta = np.pi/4.
 epsilon = 1.e-5
-bounds1 = {
+
+bounds = {
         Fb: (-grenze, grenze),
         Tf: (-grenze, grenze),
         # restrict the steering angle to avoid locking
@@ -329,8 +336,10 @@ bounds1 = {
         y: (0.0, 25),
 }
 
-bounds2 = {py[i]: (0 - epsilon, 100 + epsilon) for i in range(number)}
-bounds = {**bounds1, **bounds2}
+# %%
+# Set the bounds on the equations of motion: The car must always be above the
+# trough.
+eom_bounds = {8 + i: (0, np.inf) for i in range(number)}
 
 prob = Problem(
         obj,
@@ -343,27 +352,29 @@ prob = Problem(
         instance_constraints=instance_constraints,
         bounds=bounds,
         time_symbol=t,
+        eom_bounds=eom_bounds,
+        backend='numpy',
 )
 
 # %%
 fname = f'car_in_garage_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
-        solution = np.loadtxt(fname)
+    solution = np.loadtxt(fname)
 else:
-        # The result of a previous run is used as initial guess, to speed up
-        # the optimization process.
-        initial_guess = np.ones(prob.num_free)
+    # The result of a previous run is used as initial guess, to speed up
+    # the optimization process.
+    initial_guess = np.ones(prob.num_free)
 
-        prob.add_option('max_iter', 1000)
-        for i in range(3):
+    prob.add_option('max_iter', 3000)
+    for i in range(3):
         # Find the optimal solution.
-                solution, info = prob.solve(initial_guess)
-                initial_guess = solution
-                print(f'{i+1} - th iteration')
-                print('message from optimizer:', info['status_msg'])
-                print('Iterations needed',len(prob.obj_value))
-                print(f"objective value {info['obj_val']:.3e} \n")
-                _ = prob.plot_objective_value()
+        solution, info = prob.solve(initial_guess)
+        initial_guess = solution
+        print(f'{i+1} - th iteration')
+        print('message from optimizer:', info['status_msg'])
+        print('Iterations needed', len(prob.obj_value))
+        print(f"objective value {info['obj_val']:.3e} \n")
+        _ = prob.plot_objective_value()
 
 # %%
 # Plot the constraint violations.
@@ -375,24 +386,25 @@ _ = prob.plot_trajectories(solution)
 
 # %%
 # Animate the Car
-#----------------
+# ---------------
 # The green arrow symbolizes the force which opty calculated to drive the car.
 # It is perpendicular to the rear axle.
-fps = 20
+fps = 17
+
 
 def add_point_to_data(line, x, y):
-# to trace the path of the point. Copied from Timo.
+    # to trace the path of the point. Copied from Timo.
     old_x, old_y = line.get_data()
     line.set_data(np.append(old_x, x), np.append(old_y, y))
 
 
 state_vals, input_vals, _ = prob.parse_free(solution)
-t_arr = np.linspace(t0, tf, num_nodes)
+t_arr = prob.time_vector()
 state_sol = CubicSpline(t_arr, state_vals.T)
 input_sol = CubicSpline(t_arr, input_vals.T)
 
 # create additional points for the axles
-Pbl, Pbr, Pfl, Pfr = sm.symbols('Pbl Pbr Pfl Pfr', cls= me.Point)
+Pbl, Pbr, Pfl, Pfr = sm.symbols('Pbl Pbr Pfl Pfr', cls=me.Point)
 
 # end points of the force, length of the axles
 Fbq = me.Point('Fbq')
@@ -413,56 +425,54 @@ for point in (Dmc, Pf, Pbl, Pbr, Pfl, Pfr, Fbq):
 pL, pL_vals = zip(*par_map.items())
 la1 = par_map[l] / 4.                      # length of an axle
 la2 = la1/2.0
-coords_lam = sm.lambdify((*state_symbols, fb, tq, *pL, la), coordinates,
-        cse=True)
+coords_lam = sm.lambdify((*state_symbols, fb, tq, pmin, *pL, la), coordinates,
+                         cse=True)
 
 
 def init():
-# needed to give the picture the right size.
-        xmin, xmax = -10, 11.
-        ymin, ymax = 0.0, 21.
+    # needed to give the picture the right size.
+    xmin, xmax = -10, 11.
+    ymin, ymax = 0.0, 21.
 
-        fig = plt.figure(figsize=(8, 8))
-        ax  = fig.add_subplot(111)
-        ax.set_xlim(xmin, xmax)
-        ax.set_ylim(ymin, ymax)
-        ax.set_aspect('equal')
-        ax.grid()
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111)
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+    ax.set_aspect('equal')
+    ax.grid()
 
-        ax.plot(initial_state_constraints[x], initial_state_constraints[y], 'ro',
-                markersize=10)
-        ax.plot((par_map[x1]-la2, par_map[x1]-la2), (0.0, par_map[y12]-la2),
-                color='black', lw=1.5)
-        ax.plot((par_map[x2]+la2, par_map[x2]+la2), (0.0, par_map[y12]-la2),
-                color='black', lw=1.5)
-        ax.plot((xmin, par_map[x1]-la2), (par_map[y12]-la2, par_map[y12]-la2),
-                color='black', lw=1.5)
-        ax.plot((par_map[x2]+la2, xmax), (par_map[y12]-la2, par_map[y12]-la2),
-                color='black', lw=1.5)
-        ax.plot((par_map[x1]-la2, par_map[x2]+0.25), (0.0, 0.0),
-                color='black', lw=1.5)
+    ax.plot(7.5, 5.5, 'ro', markersize=10)
+    ax.plot((par_map[x1]-la2, par_map[x1]-la2), (0.0, par_map[y12]-la2),
+            color='black', lw=1.5)
+    ax.plot((par_map[x2]+la2, par_map[x2]+la2), (0.0, par_map[y12]-la2),
+            color='black', lw=1.5)
+    ax.plot((xmin, par_map[x1]-la2), (par_map[y12]-la2, par_map[y12]-la2),
+            color='black', lw=1.5)
+    ax.plot((par_map[x2]+la2, xmax), (par_map[y12]-la2, par_map[y12]-la2),
+            color='black', lw=1.5)
+    ax.plot((par_map[x1]-la2, par_map[x2]+0.25), (0.0, 0.0),
+            color='black', lw=1.5)
 
-        ax.fill_between((xmin, par_map[x1]-la2), (par_map[y12]-la2,
-                par_map[y12]-la2), color='grey', alpha=0.5)
-        ax.fill_between((par_map[x2]+la2, xmax), (par_map[y12]-la2,
-                par_map[y12]-la2), color='grey', alpha=0.5)
+    ax.fill_between((xmin, par_map[x1]-la2), (par_map[y12]-la2,
+                    par_map[y12]-la2), color='grey', alpha=0.5)
+    ax.fill_between((par_map[x2]+la2, xmax), (par_map[y12]-la2,
+                    par_map[y12]-la2), color='grey', alpha=0.5)
 
-        ax.annotate('Starting position of the car',
-                xy=(initial_state_constraints[x], initial_state_constraints[y]),
+    ax.annotate('Starting position of the car',
+                xy=(7.5, 5.5),
                 arrowprops=dict(arrowstyle='->',
                                 connectionstyle='arc3, rad=-.2',
                                 lw=0.25, color='blue'),
                 xytext=(0.0, 12.75), fontsize=12, color='red')
 
+    # Initialize the block
+    line1, = ax.plot([], [], color='orange', lw=2)
+    line2, = ax.plot([], [], color='red', lw=2)
+    line3, = ax.plot([], [], color='magenta', lw=2)
+    line4 = ax.quiver([], [], [], [], color='green', scale=35,
+                      width=0.004, headwidth=8)
 
-# Initialize the block
-        line1, = ax.plot([], [], color='orange', lw=2)
-        line2, = ax.plot([], [], color='red', lw=2)
-        line3, = ax.plot([], [], color='magenta', lw=2)
-        line4  = ax.quiver([], [], [], [], color='green', scale=35, width=0.004,
-                headwidth=8)
-
-        return fig, ax, line1, line2, line3, line4
+    return fig, ax, line1, line2, line3, line4
 
 
 # Function to update the plot for each animation frame

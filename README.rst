@@ -65,6 +65,7 @@ Features
 - Solve fixed duration or variable duration problems.
 - Easy specification of bounds on free variables.
 - Easily specify additional "instance" constraints.
+- Supports additional equality and inequality path constraints.
 - Efficient numerical execution of large equations of motion.
 - Automatic parallel execution using openmp if installed.
 - Built with support of sympy.physics.mechanics and PyDy in mind.
@@ -226,11 +227,12 @@ Build the HTML documentation with::
    (opty-dev)$ cd /path/to/opty/docs
    (opty-dev)$ make html
 
-and open the result with your web browser, for example::
+and open the result with your default web browser, for example::
 
-   $ firefox _build/html/index.html
+   $ xdg-open _build/html/index.html
 
-Alternatively, in the windows explorer open ``opyt/docs/_build/html/index.html``.
+Alternatively, in the windows explorer open
+``\path\to\opty\docs\_build\html\index.html``.
 
 Acknowledgements
 ================
