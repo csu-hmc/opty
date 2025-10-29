@@ -562,11 +562,13 @@ def animate(i):
                          list(par_map.values()))
     line1.set_data_3d([coords[0, 0]], [coords[1, 0]], [coords[2, 0]])
 
-    ax.quiver([coords[0, 0]],
-              [coords[1, 0]], [coords[2, 0]],
-              [(coords[0, 1]-coords[0, 0])/skale],
-              [(coords[1, 1]-coords[1, 0])/skale],
-              [(coords[2, 1]-coords[2, 0])/skale], color='green')
+    # hack because Quiver has no way to set the locations.
+    pfeil.remove()
+    pfeil = ax.quiver([coords[0, 0]],
+                      [coords[1, 0]], [coords[2, 0]],
+                      [(coords[0, 1]-coords[0, 0])/skale],
+                      [(coords[1, 1]-coords[1, 0])/skale],
+                      [(coords[2, 1]-coords[2, 0])/skale], color='green')
 
     koords = []
     for k in range(i):
