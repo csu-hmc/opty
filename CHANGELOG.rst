@@ -34,18 +34,18 @@ Version 1.5.0.dev0
 - Unit tests optionally depend on SciPy.
 - Examples Added:
 
-  - Bicycle countersteer example showing use of inputs consisting of variables
-    and their time derivatives.
-  - Quarter car riding over a bumpy road showing a simultaneous control
+  - [Beginner] Example of creating algebraic path constraints.
+  - [Beginner] Brachistochrone example.
+  - [Beginner] Light diffraction example showing use of smoothened
+    discontinuous functions.
+  - [Beginner] Quarter car riding over a bumpy road showing a simultaneous control
     trajectory and parameter identification solution.
-  - Brachistochrone example.
-  - Light diffraction example showing use of smoothened discontinuous
-    functions.
-  - Car staying within a race course.
-  - Approximation of a multiphase problem.
-  - Example of creating algebraic path constraints.
-  - Example of solving a minimal time race over a varying elevation that is
-    numerically defined.
+  - [Beginner] Example of solving a minimal time race over a varying elevation
+    that is numerically defined.
+  - [Intermediate] Bicycle countersteer example showing use of inputs
+    consisting of variables and their time derivatives.
+  - [Intermediate] Car staying within a race course.
+  - [Intermediate] Approximation of a multiphase problem.
 
 Version 1.4.0
 =============
