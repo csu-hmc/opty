@@ -214,7 +214,7 @@ _ = prob.plot_trajectories(solution)
 # %%
 # Plot the slope angle in degrees versus the horizontal distance.
 x_vals = prob.extract_values(solution, x)
-theta_vals = prob.extract_values(solution, theta)
+theta_vals = calc_theta(solution)
 fig, ax = plt.subplots()
 ax.plot(x_vals, np.rad2deg(theta_vals))
 ax.set_xlabel(x)
