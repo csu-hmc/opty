@@ -543,15 +543,16 @@ def init():
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
 
-    line1, = ax.plot([], [], [], marker='o', color='black', markersize=7)
-    line2, = ax.plot([], [], [], color='black', lw=1)
     arrow = Vector3D([0., 0., 0.], [1., 1., 1.], color='green', linewidth=2,
                      mutation_scale=6)
     ax.add_artist(arrow)
 
-    ax.set_xlim(-par_map[a1]-1, par_map[a1]+1)
-    ax.set_ylim(-par_map[a2]-1, par_map[a2]+1)
-    ax.set_zlim(0.0, bounds[z][1]+1)
+    line1, = ax.plot([], [], [], marker='o', color='black', markersize=7)
+    line2, = ax.plot([], [], [], color='black', lw=1)
+
+    ax.set_xlim(-par_map[a1] - 1, par_map[a1] + 1)
+    ax.set_ylim(-par_map[a2] - 1, par_map[a2] + 1)
+    ax.set_zlim(0.0, bounds[z][1] + 1)
 
     ax.set_xlabel(r'$x$ [m]')
     ax.set_ylabel(r'$y$ [m]')
