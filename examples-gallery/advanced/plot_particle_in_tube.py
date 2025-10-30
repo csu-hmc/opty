@@ -104,6 +104,9 @@ from scipy.interpolate import CubicSpline
 from opty import Problem, create_objective_function
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from matplotlib.patches import FancyArrowPatch
+from mpl_toolkits.mplot3d.proj3d import proj_transform
+
 
 # %%
 # Equations of Motion
@@ -511,6 +514,28 @@ def plot_3d_circle(ax, center, radius, normal, num_points=100):
     ax.plot(circle_3d[0, :], circle_3d[1, :], circle_3d[2, :], color='blue')
 
 
+class Vector3D(FancyArrowPatch):
+    """Vector that can be animated in 3D."""
+
+    def __init__(self, xyz_tail, xyz_vec, *args, **kwargs):
+        super().__init__((0, 0), (0, 0), *args, **kwargs)
+        self._xyz_tail = xyz_tail
+        self._xyz_vec = xyz_vec
+
+    def do_3d_projection(self, renderer=None):
+        xs, ys, zs = proj_transform(
+            (self._xyz_tail[0], self._xyz_tail[0] + self._xyz_vec[0]),
+            (self._xyz_tail[1], self._xyz_tail[1] + self._xyz_vec[1]),
+            (self._xyz_tail[2], self._xyz_tail[2] + self._xyz_vec[2]),
+            self.axes.M)
+        self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
+        return min(zs)
+
+    def set_data(self, xyz_tail, xyz_vec):
+        self._xyz_tail = xyz_tail
+        self._xyz_vec = xyz_vec
+
+
 # %%
 # Animate the motion of the particle.
 # sphinx_gallery_thumbnail_number = 5
@@ -520,7 +545,9 @@ def init():
 
     line1, = ax.plot([], [], [], marker='o', color='black', markersize=7)
     line2, = ax.plot([], [], [], color='black', lw=1)
-    pfeil = ax.quiver([], [], [], [], [], [], color='green')
+    arrow = Vector3D([0., 0., 0.], [1., 1., 1.], color='green', linewidth=2,
+                     mutation_scale=6)
+    ax.add_artist(arrow)
 
     ax.set_xlim(-par_map[a1]-1, par_map[a1]+1)
     ax.set_ylim(-par_map[a2]-1, par_map[a2]+1)
@@ -530,10 +557,10 @@ def init():
     ax.set_ylabel(r'$y$ [m]')
     ax.set_zlabel(r'$z$ [m]')
 
-    return fig, ax, line1, line2, pfeil
+    return fig, ax, line1, line2, arrow
 
 
-fig, ax, line1, line2, pfeil = init()
+fig, ax, line1, line2, arrow = init()
 
 f = lambda r: eval_curve(r, par_map[a1], par_map[a2], par_map[a3])[0]
 g = lambda r: eval_curve(r, par_map[a1], par_map[a2], par_map[a3])[1]
@@ -560,15 +587,8 @@ def animate(i):
     skale = 13.0
     coords = eval_coords(state_sol(time[i]), fx1, fy1, fz1,
                          list(par_map.values()))
+    arrow.set_data(coords[:, 0], (coords[:, 1] - coords[:, 0])/skale)
     line1.set_data_3d([coords[0, 0]], [coords[1, 0]], [coords[2, 0]])
-
-    # hack because Quiver has no way to set the locations.
-    pfeil.remove()
-    pfeil = ax.quiver([coords[0, 0]],
-                      [coords[1, 0]], [coords[2, 0]],
-                      [(coords[0, 1]-coords[0, 0])/skale],
-                      [(coords[1, 1]-coords[1, 0])/skale],
-                      [(coords[2, 1]-coords[2, 0])/skale], color='green')
 
     koords = []
     for k in range(i):
@@ -577,6 +597,7 @@ def animate(i):
     line2.set_data_3d([koords[k][0][0] for k in range(i)],
                       [koords[k][1][0] for k in range(i)],
                       [koords[k][2][0] for k in range(i)])
+
 
     ax.set_title(
         f'Running time = {time[i]:.2f} s. \n The small blue circle '
