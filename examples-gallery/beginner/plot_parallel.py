@@ -18,6 +18,7 @@ Objectives
 """
 
 import timeit
+import multiprocessing
 
 import numpy as np
 import sympy as sm
@@ -51,6 +52,12 @@ num = int(4e6)
 args = np.random.random((len(sym_args), num))
 res = np.empty((num, len(u_sub)))
 res.shape
+
+# %%
+# The computer this was run on has the following number of CPU's available for
+# parallel processing. The speed increases shown below grow with the number of
+# CPU's.
+multiprocessing.cpu_count()
 
 # %%
 # Evaluate the expressions for each of the 4 million inputs without
