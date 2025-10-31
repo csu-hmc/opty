@@ -852,7 +852,6 @@ class Problem(cyipopt.Problem):
                 axes[0].set_ylabel('EoM violation', fontsize=9)
                 axes[0].set_xlabel('Node Number')
                 axes[0].set_title('Constraint violations')
-
         elif subplots is True and show_bounds is True:
             for i in range(self.collocator.num_eom):
                 if ((self.eom_bounds is not None) and
@@ -876,7 +875,6 @@ class Problem(cyipopt.Problem):
             else:
                 axes[0].set_title(('Constraint violations \n'
                                    'Values of bounded EoMs'))
-
         elif subplots is True and show_bounds is False:
             for i in range(self.collocator.num_eom):
                 if ((self.eom_bounds is not None) and
@@ -905,8 +903,6 @@ class Problem(cyipopt.Problem):
                     axes[i].set_xticklabels([])
             axes[num_eom_plots-1].set_xlabel('Node Number')
             axes[0].set_title('Constraint violations')
-        else:
-            raise ValueError('Something wrong with EOM constraints.')
 
         if self.collocator.instance_constraints is not None:
             # reduce the instance constraints to 2 digits after the decimal
