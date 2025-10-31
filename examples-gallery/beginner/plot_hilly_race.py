@@ -187,13 +187,13 @@ prob = Problem(
 # %%
 # Provide a linear initial guesses for each variable.
 initial_guess = np.random.random(prob.num_free)
-initial_guess[0*N:1*N] = np.linspace(0.0, sf, num=N)  # x
-initial_guess[1*N:2*N] = np.zeros(N)  # y
-initial_guess[2*N:3*N] = np.linspace(0.0, sf, num=N)  # s
-initial_guess[3*N:4*N] = 10.0*np.ones(N)  # v
-initial_guess[4*N:5*N] = np.linspace(0.0, ef, num=N)  # e
-initial_guess[5*N:6*N] = 500.0*np.ones(N)  # p
-initial_guess[-1] = 0.1  # h
+prob.fill_free(initial_guess, np.linspace(0.0, sf, num=N), x)
+prob.fill_free(initial_guess, np.zeros(N), y)
+prob.fill_free(initial_guess, np.linspace(0.0, sf, num=N), s)
+prob.fill_free(initial_guess, 10.0*np.ones(N), v)
+prob.fill_free(initial_guess, np.linspace(0.0, ef, num=N), e)
+prob.fill_free(initial_guess, 500.0*np.ones(N), p)
+prob.fill_free(initial_guess, 0.1, h)
 
 _ = prob.plot_trajectories(initial_guess)
 
@@ -212,8 +212,17 @@ _ = prob.plot_constraint_violations(solution)
 _ = prob.plot_trajectories(solution)
 
 # %%
+# Plot the slope angle in degrees versus the horizontal distance.
+x_vals = prob.extract_values(solution, x)
+theta_vals = calc_theta(solution)
+fig, ax = plt.subplots()
+ax.plot(x_vals, np.rad2deg(theta_vals))
+ax.set_xlabel(x)
+_ = ax.set_ylabel(theta)
+
+# %%
 # Animation of the particle traversing the profile:
-# sphinx_gallery_thumbnail_number = 6
+# sphinx_gallery_thumbnail_number = 7
 xs, rs, ps, dh = prob.parse_free(solution)
 
 fig, ax = plt.subplots()

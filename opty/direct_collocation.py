@@ -17,6 +17,8 @@ from .utils import (ufuncify_matrix, lambdify_matrix, parse_free,
 
 __all__ = ['Problem', 'ConstraintCollocator']
 
+logger = logging.getLogger(__name__)
+
 
 class _DocInherit(object):
     """
@@ -188,19 +190,20 @@ class Problem(cyipopt.Problem):
             instance_constraints, time_symbol, tmp_dir, integration_method,
             parallel, show_compile_output=show_compile_output, backend=backend)
 
-        self.bounds = bounds
+        self._bounds = bounds
 
         # Check that the keys of eom_bounds correspond to equations of motion
         if eom_bounds is not None:
             key_list = []
             for key in eom_bounds.keys():
-                if key not in range(len(equations_of_motion)):
+                if key not in range(self.collocator.num_eom):
                     key_list.append(key)
             if len(key_list) > 0:
                 raise ValueError(f'Keys {key_list} in eom_bounds do not '
                                  'correspond to equations of motion.')
 
-        self.eom_bounds = eom_bounds
+        self._eom_bounds = eom_bounds
+
         # This only counts the explicit args in the function signature, not the
         # kwargs. See: https://stackoverflow.com/a/61941161
         self._obj_num_args = (obj.__code__.co_argcount -
@@ -218,9 +221,9 @@ class Problem(cyipopt.Problem):
         self.obj = obj
         self.obj_grad = obj_grad
         self.con = self.collocator.generate_constraint_function()
-        logging.info('Constraint function generated.')
+        logger.info('Constraint function generated.')
         self.con_jac = self.collocator.generate_jacobian_function()
-        logging.info('Jacobian function generated.')
+        logger.info('Jacobian function generated.')
 
         self.con_jac_rows, self.con_jac_cols = \
             self.collocator.jacobian_indices()
@@ -231,6 +234,8 @@ class Problem(cyipopt.Problem):
         self._generate_bound_arrays()
         self._generate_constraint_bound_arrays()
 
+        self._extraction_indices = self._generate_extraction_indices()
+
         super(Problem, self).__init__(n=self.num_free,
                                       m=self.num_constraints,
                                       lb=self.lower_bound,
@@ -239,6 +244,18 @@ class Problem(cyipopt.Problem):
                                       cu=self._upp_con_bounds)
 
         self.obj_value = []
+
+    @property
+    def bounds(self):
+        """Returns the bounds dictionary that maps tupples of floats to the
+        unknown variables."""
+        return self._bounds
+
+    @property
+    def eom_bounds(self):
+        """Returns the equation of motion bounds dictionary that maps tupples
+        of floats to the equation of motion index."""
+        return self._eom_bounds
 
     def solve(self, free, lagrange=[], zl=[], zu=[], respect_bounds=False):
         """Returns the optimal solution and an info dictionary.
@@ -977,6 +994,91 @@ class Problem(cyipopt.Problem):
             ax.spy(jacobian_matrix)
         return ax
 
+    def _generate_extraction_indices(self):
+        """Returns a dictionary that maps all unknown variables to a list of
+        indices needed to extract that variable from the free optimization
+        vector."""
+        d = {}
+
+        N = self.collocator.num_collocation_nodes
+        n = self.collocator.num_states
+        q = self.collocator.num_unknown_input_trajectories
+        r = self.collocator.num_unknown_parameters
+        len_states = n*N
+        len_specifieds = q*N
+        len_both = len_states + len_specifieds
+
+        for var in self.collocator.state_symbols:
+            idx = self.collocator.state_symbols.index(var)
+            d[var] = list(range(idx*N, (idx + 1)*N))
+
+        for var in self.collocator.unknown_input_trajectories:
+            idx = self.collocator.unknown_input_trajectories.index(var)
+            d[var] = list(range(len_states + idx*N, len_states + (idx + 1)*N))
+
+        for var in self.collocator.unknown_parameters:
+            idx = self.collocator.unknown_parameters.index(var)
+            d[var] = list(range(len_both + idx, len_both + idx + 1))
+
+        if self.collocator._variable_duration:
+            h = self.collocator.time_interval_symbol
+            d[h] = list(range(len_both + r, self.num_free))
+
+        return d
+
+    def fill_free(self, free, values, *variables):
+        """Replaces the values in a vector shaped the same as the free
+        optimization vector corresponding to the variable names.
+
+        Parameters
+        ==========
+        free : ndarray, shape(n*N + q*N + r + s, )
+            Vector to replace values in.
+        values : ndarray, shape(N,) or float
+            Numerical values to insert, arrays for each variable must be in
+            order of monotonic time and then stacked in order variables. The
+            shape depends on how many variables and whether they are
+            trajectories or parameters.
+        varables: Symbol or Function()(time)
+            One or more of the unknown optimization variables in the problem.
+
+        """
+        d = self._extraction_indices
+        idxs = []
+        for var in variables:
+            try:
+                idxs += d[var]
+            except KeyError:
+                raise ValueError(f'{var} not an unknown in this problem.')
+        free[idxs] = values
+
+    def extract_values(self, free, *variables):
+        """Returns the numerical values of the free variables.
+
+        Parameters
+        ==========
+        free : ndarray, shape(n*N + q*N + r + s)
+            The free optimization vector of the system, required if var is an
+            unknown optimization variable.
+        variables : Symbol or Function()(time), len(d)
+            One or more of the known or unknown variables in the problem.
+
+        Returns
+        =======
+        values : ndarray
+            The numerical values of the variables. The shape depends on how
+            many variables and whether they are trajectories or parameters.
+
+        """
+        d = self._extraction_indices
+        idxs = []
+        for var in variables:
+            try:
+                idxs += d[var]
+            except KeyError:
+                raise ValueError(f'{var} not an unknown in this problem.')
+        return free[idxs]
+
     def parse_free(self, free):
         """Parses the free parameters vector and returns it's components.
 
@@ -1141,7 +1243,12 @@ class ConstraintCollocator(object):
         tmp_dir : string, optional
             If you want to see the generated Cython and C code for the
             constraint and constraint Jacobian evaluations, pass in a path to a
-            directory here.
+            directory here. Additionally, if this temporary directory is set to
+            an existing populated directory and the equations of motion have
+            not changed relative to prior instantiations of this class, the
+            compilation step will be skipped if equivalent compiled modules are
+            already present and cached. This may save significant computational
+            time when repeatedly using the same set of equations of motion.
         integration_method : string, optional
             The integration method to use, either ``backward euler`` or
             ``midpoint``.
@@ -1801,7 +1908,7 @@ class ConstraintCollocator(object):
             The column vector of the discretized equations of motion.
 
         """
-        logging.info('Discretizing the equations of motion.')
+        logger.info('Discretizing the equations of motion.')
         x = self.state_symbols
         xd = self.state_derivative_symbols
         u = self.input_trajectories
@@ -2045,7 +2152,7 @@ class ConstraintCollocator(object):
             discrete_eom = self.discrete_eom
 
         if self._backend == 'cython':
-            logging.info('Compiling the constraint function.')
+            logger.info('Compiling the constraint function.')
             f = ufuncify_matrix(args, discrete_eom,
                                 const=constant_syms + (h_sym,),
                                 tmp_dir=self.tmp_dir, parallel=self.parallel,
@@ -2422,7 +2529,7 @@ class ConstraintCollocator(object):
 
         # This creates a matrix with all of the symbolic partial derivatives
         # necessary to compute the full Jacobian.
-        logging.info('Differentiating the constraint function.')
+        logger.info('Differentiating the constraint function.')
         discrete_eom_matrix = sm.ImmutableDenseMatrix(self.discrete_eom)
         wrt_matrix = sm.ImmutableDenseMatrix([list(wrt)])
         if self._backend == 'cython':
@@ -2470,7 +2577,7 @@ class ConstraintCollocator(object):
         # partial derivatives. This function returns the non-zero elements
         # needed to build the sparse constraint Jacobian.
         if self._backend == 'cython':
-            logging.info('Compiling the Jacobian function.')
+            logger.info('Compiling the Jacobian function.')
             eval_partials = ufuncify_matrix(args, symbolic_partials,
                                             const=constant_syms + (h_sym,),
                                             tmp_dir=self.tmp_dir,
@@ -2677,13 +2784,13 @@ class ConstraintCollocator(object):
     def generate_constraint_function(self):
         """Returns a function which evaluates the constraints given the
         array of free optimization variables."""
-        logging.info('Generating constraint function.')
+        logger.info('Generating constraint function.')
         self._gen_multi_arg_con_func()
         return self._wrap_constraint_funcs(self._multi_arg_con_func, 'con')
 
     def generate_jacobian_function(self):
         """Returns a function which evaluates the Jacobian of the
         constraints given the array of free optimization variables."""
-        logging.info('Generating jacobian function.')
+        logger.info('Generating jacobian function.')
         self._gen_multi_arg_con_jac_func()
         return self._wrap_constraint_funcs(self._multi_arg_con_jac_func, 'jac')

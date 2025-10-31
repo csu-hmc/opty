@@ -10,7 +10,8 @@ Objectives
   just-in-time C compilation.
 - Demonstrate plotting the constraint violations as subplots.
 - Show how to access the problem's attributes and methods inside the objective
-  and gradient functions.
+  and gradient functions to help simplify constructing the objective and
+  gradient values.
 
 Introduction
 ------------
@@ -63,18 +64,20 @@ par_map = {
 # %%
 # Specify the objective function and it's gradient. In this case, make the
 # problem instance the first argument and it is available to use inside the
-# these functions.
+# these functions. This shows how to use ``.parse_free()``,
+# ``.extract_values()``, and ``.fill_free()`` to manage the numerical vectors.
 def obj(prob, free):
     """Minimize the sum of the squares of the control torque."""
-    _, T, _, h = prob.parse_free(free)
-    return h*np.sum(T**2)
+    _, T_vals, _, h_val = prob.parse_free(free)
+    return h_val*np.sum(T_vals**2)
 
 
 def obj_grad(prob, free):
-    _, T, _, h = prob.parse_free(free)
+    T_vals = prob.extract_values(free, T(t))
+    h_val = prob.extract_values(free, h)
     grad = np.zeros_like(free)
-    grad[2*num_nodes:-1] = 2.0*h*T
-    grad[-1] = np.sum(T**2)
+    prob.fill_free(grad, 2.0*h_val*T_vals, T(t))
+    prob.fill_free(grad, np.sum(T_vals**2), h)
     return grad
 
 
