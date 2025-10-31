@@ -1,6 +1,7 @@
 Version 1.5.0.dev0
 ==================
 
+- Support added for Python 3.14.
 - The compiled binaries are now cached if ``tmp_dir`` is set to a common
   directory. This saves having to recompile the constraint and Jacobian
   functions every time a Problem is instantiated.
