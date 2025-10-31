@@ -8,6 +8,7 @@ import sympy as sym
 import sympy.physics.mechanics as mech
 from sympy.physics.mechanics.models import n_link_pendulum_on_cart
 from pytest import raises
+import matplotlib.pyplot as plt
 
 
 from ..direct_collocation import Problem, ConstraintCollocator
@@ -344,6 +345,10 @@ def test_extra_algebraic(plot=False):
     initial_guess = np.zeros(prob.num_free)
     solution, _ = prob.solve(initial_guess)
 
+    with raises(AttributeError):
+        prob.eom_bounds = {0: (-0.5, -0.25),
+                           1: (0.25, 0.5)}
+
     if plot:
         prob.plot_trajectories(solution)
 
@@ -354,6 +359,11 @@ def test_extra_algebraic(plot=False):
         ax[0].set_title('One plot of all eom violations, '
                         'no eom_bounds available')
 
+        eom_bounds = {0: (-0.5, 0.5),
+                      1: (-1.0, 1.0),
+                      2: (-2.0, 2.0),
+                      3: (-2.0, 2.0),
+                      4: (-0.1, 0.1)}
         prob = Problem(
             obj,
             obj_grad,
@@ -363,14 +373,10 @@ def test_extra_algebraic(plot=False):
             interval_value,
             known_parameter_map=par_map,
             instance_constraints=instance_constraints,
+            eom_bounds=eom_bounds,
             time_symbol=t,
             backend='numpy',
         )
-        prob.eom_bounds = {0: (-0.5, 0.5),
-                           1: (-1.0, 1.0),
-                           2: (-2.0, 2.0),
-                           3: (-2.0, 2.0),
-                           4: (-0.1, 0.1)}
         ax = prob.plot_constraint_violations(solution, subplots=True,
                                              show_bounds=True)
         ax[0].set_title('Separate subplots of eom violations, bounds shown')
@@ -378,6 +384,8 @@ def test_extra_algebraic(plot=False):
         # Balance checks only with two bounds on the eoms
         # ===============================================
 
+        eom_bounds = {0: (1.0, 2.0),
+                      1: (-1.0, 1.0)}
         prob = Problem(
             obj,
             obj_grad,
@@ -387,16 +395,17 @@ def test_extra_algebraic(plot=False):
             interval_value,
             known_parameter_map=par_map,
             instance_constraints=instance_constraints,
+            eom_bounds=eom_bounds,
             time_symbol=t,
             backend='numpy',
         )
-        prob.eom_bounds = {0: (1.0, 2.0),
-                           1: (-1.0, 1.0)}
         ax = prob.plot_constraint_violations(solution, subplots=True,
                                              show_bounds=True)
         ax[0].set_title('Separate subplots of eom violations, bounds shown, '
                         ' \n Eq0 violates bounds')
 
+        eom_bounds = {0: (-np.inf, 2.0),
+                      1: (-1.0, np.inf)}
         prob = Problem(
             obj,
             obj_grad,
@@ -406,16 +415,17 @@ def test_extra_algebraic(plot=False):
             interval_value,
             known_parameter_map=par_map,
             instance_constraints=instance_constraints,
+            eom_bounds=eom_bounds,
             time_symbol=t,
             backend='numpy',
         )
-        prob.eom_bounds = {0: (-np.inf, 2.0),
-                           1: (-1.0, np.inf)}
         ax = prob.plot_constraint_violations(solution, subplots=True,
                                              show_bounds=True)
         ax[0].set_title('Separate subplots of eom violations, bounds shown, '
                         '\n only finite bounds are shown')
 
+        eom_bounds = {0: (-0.5, 2.0),
+                      1: (0.5, 1.0)}
         prob = Problem(
             obj,
             obj_grad,
@@ -425,16 +435,17 @@ def test_extra_algebraic(plot=False):
             interval_value,
             known_parameter_map=par_map,
             instance_constraints=instance_constraints,
+            eom_bounds=eom_bounds,
             time_symbol=t,
             backend='numpy',
         )
-        prob.eom_bounds = {0: (-0.5, 2.0),
-                           1: (0.5, 1.0)}
         ax = prob.plot_constraint_violations(solution, subplots=True,
                                              show_bounds=False)
         ax[0].set_title('Separate subplots of eom violations, no bounds shown'
                         '\n Only violations shown')
 
+        eom_bounds = {0: (-0.5, -0.25),
+                      1: (0.25, 0.5)}
         prob = Problem(
             obj,
             obj_grad,
@@ -444,14 +455,14 @@ def test_extra_algebraic(plot=False):
             interval_value,
             known_parameter_map=par_map,
             instance_constraints=instance_constraints,
+            eom_bounds=eom_bounds,
             time_symbol=t,
             backend='numpy',
         )
-        prob.eom_bounds = {0: (-0.5, -0.25),
-                           1: (0.25, 0.5)}
         ax = prob.plot_constraint_violations(solution, show_bounds=True)
         ax[0].set_title('Only one plot of eom violations, no bounds shown, \n'
                         'Violations shown')
+        plt.show()
 
 
 def test_pendulum():
