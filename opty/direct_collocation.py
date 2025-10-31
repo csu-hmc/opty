@@ -190,19 +190,20 @@ class Problem(cyipopt.Problem):
             instance_constraints, time_symbol, tmp_dir, integration_method,
             parallel, show_compile_output=show_compile_output, backend=backend)
 
-        self.bounds = bounds
+        self._bounds = bounds
 
         # Check that the keys of eom_bounds correspond to equations of motion
         if eom_bounds is not None:
             key_list = []
             for key in eom_bounds.keys():
-                if key not in range(len(equations_of_motion)):
+                if key not in range(self.collocator.num_eom):
                     key_list.append(key)
             if len(key_list) > 0:
                 raise ValueError(f'Keys {key_list} in eom_bounds do not '
                                  'correspond to equations of motion.')
 
-        self.eom_bounds = eom_bounds
+        self._eom_bounds = eom_bounds
+
         # This only counts the explicit args in the function signature, not the
         # kwargs. See: https://stackoverflow.com/a/61941161
         self._obj_num_args = (obj.__code__.co_argcount -
@@ -243,6 +244,18 @@ class Problem(cyipopt.Problem):
                                       cu=self._upp_con_bounds)
 
         self.obj_value = []
+
+    @property
+    def bounds(self):
+        """Returns the bounds dictionary that maps tupples of floats to the
+        unknown variables."""
+        return self._bounds
+
+    @property
+    def eom_bounds(self):
+        """Returns the equation of motion bounds dictionary that maps tupples
+        of floats to the equation of motion index."""
+        return self._eom_bounds
 
     def solve(self, free, lagrange=[], zl=[], zu=[], respect_bounds=False):
         """Returns the optimal solution and an info dictionary.
