@@ -1316,8 +1316,16 @@ class Problem(cyipopt.Problem):
                         for i in range(len(times) - 1):
                             start = int(times[i])
                             ende = int(times[i+1])
-                            werte = np.linspace(values[i], values[i+1],
-                                                ende-start)
+                            # TODO : The inputs to linspace must be two floats
+                            # and an integer. The inputs are a mixture of SymPy
+                            # types and floats and thus the input is incorrect
+                            # and does not work universally in all Python
+                            # versions. Forcing conversion is a tempoary fix,
+                            # but this code needs to be better designed not to
+                            # use SymPy types.
+                            werte = np.linspace(float(values[i]),
+                                                float(values[i+1]),
+                                                num=int(ende) - int(start))
                             initial_guess[state_idx*num_nodes+start:
                                           state_idx*num_nodes+ende] = werte
 
