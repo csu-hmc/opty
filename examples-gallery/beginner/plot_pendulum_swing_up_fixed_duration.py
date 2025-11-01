@@ -1,3 +1,4 @@
+# %%
 """
 Fixed Duration Pendulum Swing Up
 ================================
@@ -97,9 +98,13 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
 )
 
 # %%
-# Use a random positive initial guess.
-initial_guess = np.random.randn(prob.num_free)
-
+# Use a linear guess.
+# %%
+initial_guess = prob.create_linear_initial_guess()
+# %%
+# Plot initial guesss created by the method.
+achsen = prob.plot_trajectories(initial_guess)
+_ = achsen[0].set_title('Initial Guesses for \n State Trajectories ')
 # %%
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)

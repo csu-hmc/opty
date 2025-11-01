@@ -2,6 +2,17 @@
 Drone Flight
 ============
 
+Objectives
+----------
+
+- Show how to add extra algebraic contraints (in this case, the quaternion
+  magnitude).
+- Demonstrate automatically generating a linear initial guess between instance
+  constraints.
+
+Introduction
+------------
+
 Given a cuboid shaped drone of dimensions l x w x d with propellers at each
 corner in a uniform gravitational field, find the propeller thrust trajectories
 that will take it from a starting point to an ending point and through and
@@ -203,11 +214,7 @@ prob.add_option('nlp_scaling_method', 'gradient-based')
 
 # %%
 # Give a guess of a direct route with constant thrust.
-initial_guess = np.zeros(prob.num_free)
-xyz_guess = np.linspace(0.0, 10.0, num=num_nodes)
-initial_guess[0*num_nodes:1*num_nodes] = xyz_guess
-initial_guess[1*num_nodes:2*num_nodes] = xyz_guess
-initial_guess[2*num_nodes:3*num_nodes] = xyz_guess
+initial_guess = prob.create_linear_initial_guess()
 initial_guess[-4*num_nodes:] = 10.0  # constant thrust
 
 fig, axes = plt.subplots(18, 1, sharex=True,
