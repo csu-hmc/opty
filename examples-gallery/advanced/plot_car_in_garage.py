@@ -200,9 +200,8 @@ park2y = Pb.pos_from(O).dot(N.y)
 park1x = Pf.pos_from(O).dot(N.x)
 park2x = Pb.pos_from(O).dot(N.x)
 
-delta_x = np.linspace(park1x, park2x, number)
-delta_y = np.linspace(park1y, park2y, number)
-
+delta_x = [park1x + (park2x - park1x)*i/(number - 1) for i in range(number)]
+delta_y = [park1y + (park2y - park1y)*i/(number - 1) for i in range(number)]
 
 delta_p = [delta_y[i] - trough(delta_x[i], x1, x2, 50)*y12
            for i in range(number)]
