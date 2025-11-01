@@ -9,6 +9,8 @@ Version 1.5.0.dev0
   free optimization vector by symbol name: ``Problem.extract_values()`` &
   ``Problem.fill_free()``. Demonstrated in the variable duration pendulum swing
   up example.
+- Added helper method ``Problem.create_linear_initial_guess()`` that generates
+  and initial guess that is linear betwen instance constraints.
 - The Problem instance can now optionally be accessed in the objective and
   gradient functions. This combined with the methods to extract and fill values
   can ease the manual construction of the objective and gradient.
