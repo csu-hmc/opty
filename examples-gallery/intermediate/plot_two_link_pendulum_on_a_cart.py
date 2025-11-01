@@ -1,4 +1,3 @@
-# %%
 r"""
 Upright a Double Pendulum
 =========================
@@ -222,13 +221,14 @@ initial_guess[-1] = 0.01
 # Use stored solution if available, else use initial_guess as given above.
 fname = f'double_pendulum_on_a_cart_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
-    solution = np.loadtxt(fname)
-else:
-    # Find the optimal solution as no stored solution available.
-    solution, info = prob.solve(initial_guess)
-    print('Message from optimizer:', info['status_msg'])
-    print('Iterations needed', len(prob.obj_value))
-    print(f"Objective value {solution[-1]: .3e}")
+    initial_guess = np.loadtxt(fname)
+
+# %%
+# Find the optimal solution as no stored solution available.
+solution, info = prob.solve(initial_guess)
+print('Message from optimizer:', info['status_msg'])
+print('Iterations needed', len(prob.obj_value))
+print(f"Objective value {solution[-1]: .3e}")
 
 # %%
 # Plot the accuracy of the solution.
