@@ -28,7 +28,7 @@ Introduction
 ``opty`` utilizes symbolic descriptions of differential algebraic equations
 expressed with SymPy_ to form the constraints needed to solve optimal control
 and parameter identification problems using the direct collocation method and
-non-linear programming (NLP). In general, if one can express the continuous
+`nonlinear programming`_ (NLP). In general, if one can express the continuous
 first order differential algebraic equations of the system as symbolic
 expressions, ``opty`` will automatically generate a function to efficiently
 evaluate the dynamical constraints and a function that evaluates the sparse
@@ -52,6 +52,7 @@ opty uses its primary dependencies in the following ways:
   solves it using an interior point method.
 
 .. _SymPy: http://www.sympy.org
+.. _nonlinear programming: https://en.wikipedia.org/wiki/Nonlinear_programming
 
 Features
 --------
@@ -66,6 +67,8 @@ Features
 - Easy specification of bounds on free variables.
 - Easily specify additional "instance" constraints.
 - Supports additional equality and inequality path constraints.
+- Variables the in the differential equations can be specified by numerical
+  functions to augment the symbolics.
 - Efficient numerical execution of large equations of motion.
 - Automatic parallel execution using openmp if installed.
 - Built with support of sympy.physics.mechanics and PyDy in mind.
