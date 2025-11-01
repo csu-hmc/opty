@@ -13,7 +13,8 @@ plt = sm.external.import_module('matplotlib.pyplot',
                                 catch=(RuntimeError,))
 
 from .utils import (ufuncify_matrix, lambdify_matrix, parse_free,
-                    _optional_plt_dep, _forward_jacobian, sort_sympy)
+                    _optional_plt_dep, _optional_scipy_dep, _forward_jacobian,
+                    sort_sympy)
 
 __all__ = ['Problem', 'ConstraintCollocator']
 
@@ -969,13 +970,9 @@ class Problem(cyipopt.Problem):
         return ax
 
     @_optional_plt_dep
-    def _plot_jacobian_sparsity(self, ax=None):
-        # TODO : Make this a public method.
-        # %%
-        # Visualize the sparseness of the Jacobian for the non-linear programming
-        # problem.
-
-        # TODO : Figure out how to not depend on scipy if possible.
+    @_optional_scipy_dep
+    def plot_jacobian_sparsity(self, ax=None):
+        """Returns an axis with the sparsity pattern of the NLP Jacobian."""
         from scipy.sparse import coo_matrix
         jac_vals = self.jacobian(np.ones(self.num_free))
         row_idxs, col_idxs = self.jacobianstructure()

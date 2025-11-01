@@ -25,6 +25,7 @@ from sympy.printing.c import C99CodePrinter
 plt = sm.external.import_module('matplotlib.pyplot',
                                 import_kwargs={'fromlist': ['']},
                                 catch=(RuntimeError,))
+scipy = sm.external.import_module('scipy')
 
 __all__ = [
     'parse_free',
@@ -242,6 +243,17 @@ def _optional_plt_dep(func):
     def wrapper(*args, **kwargs):
         if plt is None:
             raise ImportError('Install matplotlib for plotting features.')
+        else:
+            return func(*args, **kwargs)
+    return wrapper
+
+
+def _optional_scipy_dep(func):
+    """Decorator that aborts function/method call if scipy is not installed."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if scipy is None:
+            raise ImportError('Install scipy for this feature.')
         else:
             return func(*args, **kwargs)
     return wrapper
