@@ -8,7 +8,6 @@ import sympy as sym
 import sympy.physics.mechanics as mech
 from sympy.physics.mechanics.models import n_link_pendulum_on_cart
 from pytest import raises
-import matplotlib.pyplot as plt
 
 
 from ..direct_collocation import Problem, ConstraintCollocator
@@ -462,6 +461,10 @@ def test_extra_algebraic(plot=False):
         ax = prob.plot_constraint_violations(solution, show_bounds=True)
         ax[0].set_title('Only one plot of eom violations, no bounds shown, \n'
                         'Violations shown')
+
+        # NOTE :Import is here to avoid a matplotlib import on standard test
+        # runs.
+        import matplotlib.pyplot as plt
         plt.show()
 
 
