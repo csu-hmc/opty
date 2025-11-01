@@ -368,7 +368,7 @@ else:
     _ = prob.plot_objective_value()
 
 # %%
-_ = prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution, subplots=True, show_bounds=True)
 # %%
 # Plot trajectories.
 _ = prob.plot_trajectories(solution, show_bounds=True)

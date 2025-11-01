@@ -19,6 +19,8 @@ Version 1.5.0.dev0
   inequality).
 - New Python (NumPy) backend added to allow low performance use without Cython
   and need for JIT compilation.
+- ``plot_constraint_violations()`` now has an optional argument to show the
+  equation of motion bounds.
 - ``Problem.plot_constraint_violations()`` now has an option to show each
   equation constraint violation on a single subplot.
 - ``Problem.plot_trajectories()`` can optionally show the trajectory bounds.
