@@ -1,5 +1,5 @@
-Version 1.5.0.dev0
-==================
+Version 1.5.0 (2025-11-01)
+==========================
 
 - Support added for Python 3.14.
 - The compiled binaries are now cached if ``tmp_dir`` is set to a common
@@ -30,6 +30,7 @@ Version 1.5.0.dev0
   ``Problem.time_vector()``.
 - Method added to ``Problem`` to check if a solution respects the bounds and
   flag to check the initial guess before solving: ``check_bounds_conflict()``.
+- Added ``Problem.plot_jacobian_sparsity()`` to visualize the NLP Jacobian.
 - openmp parallelization now works on Mac.
 - Addressed a performance issue for large number of nodes (1M+) by eliminating
   a SymPy float in the computation.
@@ -52,8 +53,8 @@ Version 1.5.0.dev0
   - [Intermediate] Car staying within a race course.
   - [Intermediate] Approximation of a multiphase problem.
 
-Version 1.4.0
-=============
+Version 1.4.0 (2025-02-11)
+==========================
 
 - Dropped support for Python 3.8.
 - Added support for Python 3.13.
@@ -100,8 +101,8 @@ Version 1.4.0
   - Sit-to-stand
   - Standing balance control identification
 
-Version 1.3.0
-=============
+Version 1.3.0 (2024-08-05)
+==========================
 
 - Added support for Python 3.12.
 - Added a function that generates a numerical objective function and its
@@ -138,8 +139,8 @@ Version 1.3.0
   names.
 - Switched to pytest for unit testing.
 
-Version 1.2.0
-=============
+Version 1.2.0 (2023-11-28)
+==========================
 
 - Dropped support for Python 2.7, 3.6, & 3.7.
 - Added support for Python 3.9, 3.10, & 3.11.
@@ -152,14 +153,14 @@ Version 1.2.0
 - logging.info() used for providing information to the user.
 - Moved to Github Actions continous integration.
 
-Version 1.1.0
-=============
+Version 1.1.0 (2021-01-09)
+==========================
 
 - Added support for Windows.
 - Drop support for Python 3.5, add support for 3.7 and 3.8.
 
-Version 1.0.0
-=============
+Version 1.0.0 (2018-01-30)
+==========================
 
 - Added JOSS paper.
 - Added theory section to the documentation.
@@ -168,8 +169,8 @@ Version 1.0.0
 - Adjusted the pendulum swing up torque bounds.
 - Updated examples to work with newer dependency versions.
 
-Version 0.2.0
-=============
+Version 0.2.0 (2017-06-04)
+==========================
 
 - Added Sphinx documentation and Read The Docs integration.
 - Added plotting to the Problem class and matplotlib as an optional dependency.
@@ -177,12 +178,12 @@ Version 0.2.0
 - park2004 example now works with both Python 2.7 and 3.5+.
 - Bumped the min dependencies for SymPy and PyDy to 1.0.0 and 0.3.0.
 
-Version 0.1.1
-=============
+Version 0.1.1 (2017-01-29)
+==========================
 
 - Added a MANIFEST.in file.
 
-Version 0.1.0
-=============
+Version 0.1.0 (2017-01-29)
+==========================
 
 - Initial release.
