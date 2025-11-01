@@ -3339,3 +3339,5 @@ def test_linear_initial_guess(plot=False):
         ax = prob.plot_trajectories(initial_guess)
         ax[0].set_title(('State Trajectories B5: state instances in instance'
                          ' constraints'))
+        import matplotlib.pyplot as plt
+        plt.show()
