@@ -69,7 +69,7 @@ amp = 50.0
 omega = 2*np.pi/500.0  # one period every 500 meters
 x_meas = np.linspace(-250.0, 1250.0, num=3001)  # extend beyond expected range
 y_meas = amp*np.sin(omega*x_meas)
-theta_meas = np.atan(amp*omega*np.cos(omega*x_meas))
+theta_meas = np.arctan(amp*omega*np.cos(omega*x_meas))
 dthetadx_meas = -amp*omega**2*np.sin(omega*x_meas)/(
     amp**2*omega**2*np.cos(omega*x_meas)**2 + 1)
 
