@@ -137,10 +137,10 @@ class Identifier():
                                                   set_point, self.gains,
                                                   self.lateral_force)
 
-        start = time.clock()
+        start = time.time()
         self.x = odeint(rhs, self.initial_conditions, self.time, args=args)
         msg = 'Simulation of {} real time seconds took {} CPU seconds to compute.'
-        print(msg.format(self.duration, time.clock() - start))
+        print(msg.format(self.duration, time.time() - start))
 
         self.x_noise = self.x + np.deg2rad(0.25) * np.random.randn(*self.x.shape)
         self.y = pi.output_equations(self.x)
@@ -198,15 +198,15 @@ class Identifier():
 
         self.output_filename = 'ipopt_output.txt'
         if sys.version_info >= (3, 0):
-            self.prob.addOption(b'output_file', self.output_filename.encode())
-            self.prob.addOption(b'print_timing_statistics', b'yes')
+            self.prob.add_option(b'output_file', self.output_filename.encode())
+            self.prob.add_option(b'print_timing_statistics', b'yes')
             # TODO : Not available in general.
             #self.prob.addOption(b'linear_solver', b'ma57')
         else:
-            self.prob.addOption('output_file', self.output_filename)
-            self.prob.addOption('print_timing_statistics', 'yes')
+            self.prob.add_option('output_file', self.output_filename)
+            self.prob.add_option('print_timing_statistics', 'yes')
             # TODO : Not available in general.
-            #self.prob.addOption('linear_solver', 'ma57')
+            #self.prob.add_option('linear_solver', 'ma57')
 
     def optimize(self):
 
