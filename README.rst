@@ -105,7 +105,7 @@ The required dependencies are as follows:
 - cyipopt >= 1.1.0 [with ipopt >= 3.11 (Linux & OSX), >= 3.13 (Windows)]
 - cython >= 0.29.28 [with a `C compiler`_]
 - numpy >= 1.21.5
-- python 3.9-3.14
+- python 3.10-3.14
 - setuptools >= 59.6.0
 - sympy >= 1.9.1
 
