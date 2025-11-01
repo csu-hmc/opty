@@ -187,13 +187,13 @@ prob = Problem(
 # %%
 # Provide a linear initial guesses for each variable.
 initial_guess = np.random.random(prob.num_free)
-prob.fill_free(initial_guess, x, np.linspace(0.0, sf, num=N))
-prob.fill_free(initial_guess, y, np.zeros(N))
-prob.fill_free(initial_guess, s, np.linspace(0.0, sf, num=N))
-prob.fill_free(initial_guess, v, 10.0*np.ones(N))
-prob.fill_free(initial_guess, e,  np.linspace(0.0, ef, num=N))
-prob.fill_free(initial_guess, p, 500.0*np.ones(N))
-prob.fill_free(initial_guess, h, 0.1)
+prob.fill_free(initial_guess, np.linspace(0.0, sf, num=N), x)
+prob.fill_free(initial_guess, np.zeros(N), y)
+prob.fill_free(initial_guess, np.linspace(0.0, sf, num=N), s)
+prob.fill_free(initial_guess, 10.0*np.ones(N), v)
+prob.fill_free(initial_guess, np.linspace(0.0, ef, num=N), e)
+prob.fill_free(initial_guess, 500.0*np.ones(N), p)
+prob.fill_free(initial_guess, 0.1, h)
 
 _ = prob.plot_trajectories(initial_guess)
 
@@ -213,8 +213,8 @@ _ = prob.plot_trajectories(solution)
 
 # %%
 # Plot the slope angle in degrees versus the horizontal distance.
-x_vals = prob.extract_values(x, solution)
-theta_vals = prob.extract_values(theta, solution)
+x_vals = prob.extract_values(solution, x)
+theta_vals = calc_theta(solution)
 fig, ax = plt.subplots()
 ax.plot(x_vals, np.rad2deg(theta_vals))
 ax.set_xlabel(x)
