@@ -63,13 +63,8 @@ par_map = {
 # %%
 # Specify the objective function and it's gradient, in this case it calculates
 # the area under the input torque curve over the simulation.
-obj_func = sm.Integral(T(t)**2, t)
-sm.pprint(obj_func)
-obj, obj_grad = create_objective_function(obj_func, state_symbols,
-                                          specified_symbols, tuple(),
-                                          num_nodes,
-                                          interval_value,
-                                          time_symbol=t)
+obj = sm.Integral(T(t)**2, t)
+sm.pprint(obj)
 
 # %%
 # Specify the symbolic instance constraints, i.e. initial and end conditions,
@@ -89,7 +84,7 @@ bounds = {T(t): (-2.0, 2.0)}
 
 # %%
 # Create an optimization problem.
-prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
+prob = Problem(obj, None, eom, state_symbols, num_nodes, interval_value,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
                bounds=bounds,

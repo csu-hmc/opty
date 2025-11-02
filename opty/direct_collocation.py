@@ -14,7 +14,7 @@ plt = sm.external.import_module('matplotlib.pyplot',
 
 from .utils import (ufuncify_matrix, lambdify_matrix, parse_free,
                     _optional_plt_dep, _optional_scipy_dep, _forward_jacobian,
-                    sort_sympy)
+                    sort_sympy, create_objective_function)
 
 __all__ = ['Problem', 'ConstraintCollocator']
 
@@ -147,15 +147,24 @@ class Problem(cyipopt.Problem):
 
         Parameters
         ==========
-        obj : function
-            Returns the value of the objective function given the free vector.
-            The call signature can be ``obj(free)`` or ``obj(self, free)``
-            where ``self`` is the problem instance and ``free`` is an array.
+        obj : function or expression
+            A function that returns the value of the objective function given
+            the free vector or a symbolic expression representing the scalar
+            objective. The call signature of the function can be ``obj(free)``
+            or ``obj(self, free)`` where ``self`` is the problem instance and
+            ``free`` is an array. If a symbolic expression, it should solely
+            depend on the states, unknown inputs, and unknown parameters. Any
+            known inputs or parameters should be substituted beforehand.
+            Additionally, the objective function can contain non-nested
+            indefinite integrals of time, e.g. ``Integral(f(t)**2, t)``.
+            Variable duration problems are not yet supported for symbolic
+            objectives.
         obj_grad : function
-            Returns the gradient of the objective function given the free
-            vector. The call signature can be ``obj_grad(free)`` or
-            ``obj_grad(self, free)`` where ``self`` is the problem instance and
-            ``free`` is an array.
+            A function that returns the gradient of the objective function
+            given the free vector. The call signature can be ``obj_grad(free)``
+            or ``obj_grad(self, free)`` where ``self`` is the problem instance
+            and ``free`` is an array. If ``obj`` is a SymPy expression,
+            ``obj_grad`` is ignored, pass in ``None`` in that case.
         SPLIT
         bounds : dictionary, optional
             This dictionary should contain a mapping from any of the symbolic
@@ -204,6 +213,9 @@ class Problem(cyipopt.Problem):
                                  'correspond to equations of motion.')
 
         self._eom_bounds = eom_bounds
+
+        if isinstance(obj, sm.Basic) and obj_grad is None:
+            obj, obj_grad = self._handle_symbolic_objective(obj)
 
         # This only counts the explicit args in the function signature, not the
         # kwargs. See: https://stackoverflow.com/a/61941161
@@ -257,6 +269,28 @@ class Problem(cyipopt.Problem):
         """Returns the equation of motion bounds dictionary that maps tupples
         of floats to the equation of motion index."""
         return self._eom_bounds
+
+    def _handle_symbolic_objective(self, symbolic_objective):
+        if self.collocator._variable_duration:
+            msg = ('Symbolic objectives not yet supported for variable time '
+                   'duration problems.')
+            raise ValueError(msg)
+
+        # TODO : Support substituting in the known parameters and known
+        # trajectories.
+
+        obj, grad = create_objective_function(
+            symbolic_objective,
+            self.collocator.state_symbols,
+            self.collocator.unknown_input_trajectories,
+            self.collocator.unknown_parameters,
+            self.collocator.num_collocation_nodes,
+            self.collocator.node_time_interval,
+            integration_method=self.collocator.integration_method,
+            time_symbol=self.collocator.time_symbol,
+        )
+
+        return obj, grad
 
     def solve(self, free, lagrange=[], zl=[], zu=[], respect_bounds=False):
         """Returns the optimal solution and an info dictionary.

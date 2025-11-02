@@ -291,7 +291,6 @@ def test_extra_algebraic(plot=False):
     t = mech.dynamicsymbols._t
 
     states = (x, y, vx, vy)  # n states
-    specifieds = (Fx, Fy, theta)
 
     # M equations of motion
     eom = sym.Matrix([
@@ -309,9 +308,6 @@ def test_extra_algebraic(plot=False):
     dur = interval_value*(num_nodes - 1)
 
     obj_func = sym.Integral(Fx**2 + Fy**2 + theta**2, t)
-    obj, obj_grad = create_objective_function(
-        obj_func, states, specifieds, tuple(), num_nodes,
-        interval_value, time_symbol=t)
 
     instance_constraints = (
         x.func(0.0),
@@ -329,8 +325,8 @@ def test_extra_algebraic(plot=False):
     }
 
     prob = Problem(
-        obj,
-        obj_grad,
+        obj_func,
+        None,
         eom,
         states,
         num_nodes,
@@ -364,8 +360,8 @@ def test_extra_algebraic(plot=False):
                       3: (-2.0, 2.0),
                       4: (-0.1, 0.1)}
         prob = Problem(
-            obj,
-            obj_grad,
+            obj_func,
+            None,
             eom,
             states,
             num_nodes,
@@ -386,8 +382,8 @@ def test_extra_algebraic(plot=False):
         eom_bounds = {0: (1.0, 2.0),
                       1: (-1.0, 1.0)}
         prob = Problem(
-            obj,
-            obj_grad,
+            obj_func,
+            None,
             eom,
             states,
             num_nodes,
@@ -406,8 +402,8 @@ def test_extra_algebraic(plot=False):
         eom_bounds = {0: (-np.inf, 2.0),
                       1: (-1.0, np.inf)}
         prob = Problem(
-            obj,
-            obj_grad,
+            obj_func,
+            None,
             eom,
             states,
             num_nodes,
@@ -426,8 +422,8 @@ def test_extra_algebraic(plot=False):
         eom_bounds = {0: (-0.5, 2.0),
                       1: (0.5, 1.0)}
         prob = Problem(
-            obj,
-            obj_grad,
+            obj_func,
+            None,
             eom,
             states,
             num_nodes,
@@ -446,8 +442,8 @@ def test_extra_algebraic(plot=False):
         eom_bounds = {0: (-0.5, -0.25),
                       1: (0.25, 0.5)}
         prob = Problem(
-            obj,
-            obj_grad,
+            obj_func,
+            None,
             eom,
             states,
             num_nodes,
@@ -2040,6 +2036,7 @@ def test_known_and_unknown_order():
     assert col.parameters == (l1, l0, m3, g, m1, l2, m0, m2)
     assert col.state_symbols == (q0, q1, q2, q3, u0, u1, u2, u3)
 
+
 def test_for_algebraic_eoms():
     """
     If algebraic equations of motion are given to Problem, a ValueError should
@@ -2284,6 +2281,20 @@ def test_prob_parse_free():
             interval_value,
             time_symbol=t,
             backend='nonsensical',
+        )
+
+    # raises because symbolic objectives are not supported for variable time
+    # yet
+    with raises(ValueError):
+        Problem(
+            sym.Integral(u1**2 + u2**2, t),
+            None,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            instance_constraints=instance_constraints,
+            backend='numpy',
         )
 
 
