@@ -243,10 +243,11 @@ Contributing
 For bug reports, feature requests, comments, patches use the GitHub issue
 tracker and/or pull request system.
 
-Contributors (made with `contrib.rocks <https://contrib.rocks>`_):
+.. raw:: html
 
-.. image:: https://contrib.rocks/image?repo=csu-hmc/opty
-   :target: https://github.com/csu-hmc/opty/graphs/contributors
+   <p>opty is built by (made with <a
+   href="https://contrib.rocks">contrib.rocks</a> :</p>
+   <a href="https://github.com/csu-hmc/opty/graphs/contributors"><img src="https://contrib.rocks/image?repo=csu-hmc/opty"></a>
 
 Acknowledgements
 ================
