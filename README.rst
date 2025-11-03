@@ -237,6 +237,17 @@ and open the result with your default web browser, for example::
 Alternatively, in the windows explorer open
 ``\path\to\opty\docs\_build\html\index.html``.
 
+Contributing
+============
+
+For bug reports, feature requests, comments, patches use the GitHub issue
+tracker and/or pull request system.
+
+Contributors (made with `contrib.rocks <https://contrib.rocks>`_):
+
+.. image:: https://contrib.rocks/image?repo=csu-hmc/opty
+   :target: https://github.com/csu-hmc/opty/graphs/contributors
+
 Acknowledgements
 ================
 
