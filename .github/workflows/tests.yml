@@ -57,6 +57,11 @@ jobs:
         run: |
           conda list
           conda install libgomp
+      - name: Install openmp
+        if: runner.os == 'Windows'
+        run: |
+          conda list
+          conda install intel-openmp
       - name: Test with pytest
         run: |
           conda list
