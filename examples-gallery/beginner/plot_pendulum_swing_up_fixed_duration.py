@@ -1,3 +1,4 @@
+# %%
 """
 Fixed Duration Pendulum Swing Up
 ================================
@@ -93,10 +94,8 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
                instance_constraints=instance_constraints,
                bounds=bounds,
                time_symbol=t,
-               backend='numpy',
-)
+               backend='numpy')
 
-# %%
 # Use a random positive initial guess.
 initial_guess = np.random.randn(prob.num_free)
 
@@ -105,6 +104,10 @@ initial_guess = np.random.randn(prob.num_free)
 solution, info = prob.solve(initial_guess)
 print(info['status_msg'])
 print(info['obj_val'])
+
+# %%
+# Plot the sparsity pattern of the Jacobian.
+_ = prob.plot_jacobian_sparsity()
 
 # %%
 # Plot the optimal state and input trajectories.
@@ -133,7 +136,7 @@ time_template = 'time = {:0.1f}s'
 time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
 
 
-# sphinx_gallery_thumbnail_number = 4
+# sphinx_gallery_thumbnail_number = 5
 def init():
     line.set_data([], [])
     time_text.set_text('')

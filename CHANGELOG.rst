@@ -1,34 +1,65 @@
-Version 1.5.0.dev0
+Version 1.6.0.dev0
 ==================
 
-- Bump dependency minimum versions to match those in Ubuntu 22.04 (Jammy).
+- Drop support for Python 3.9.
+
+Version 1.5.0 (2025-11-01)
+==========================
+
+- Support added for Python 3.14.
+- The compiled binaries are now cached if ``tmp_dir`` is set to a common
+  directory. This saves having to recompile the constraint and Jacobian
+  functions every time a Problem is instantiated.
+- Added helper methods to Problem to extract values from and fill values in the
+  free optimization vector by symbol name: ``Problem.extract_values()`` &
+  ``Problem.fill_free()``. Demonstrated in the variable duration pendulum swing
+  up example.
+- Added helper method ``Problem.create_linear_initial_guess()`` that generates
+  and initial guess that is linear betwen instance constraints.
+- The Problem instance can now optionally be accessed in the objective and
+  gradient functions. This combined with the methods to extract and fill values
+  can ease the manual construction of the objective and gradient.
+- Added the ability to make known trajectories functions of the free
+  optimization variables instead of fixed arrays. The new hilly race example
+  demonstrates this.
 - Support added for providing additional path constraints (equality or
   inequality).
 - New Python (NumPy) backend added to allow low performance use without Cython
   and need for JIT compilation.
-- ``plot_constraint_violations()`` can now optionally plot on subplots for each
-  constraint.
-- ``plot_trajectories()`` can optionally show the bounds.
-- Method added to compute the time vector.
-- Method added to check if a solution respects the bounds and flag to check the
-  initial guess before solving.
+- ``plot_constraint_violations()`` now has an optional argument to show the
+  equation of motion bounds.
+- ``Problem.plot_constraint_violations()`` now has an option to show each
+  equation constraint violation on a single subplot.
+- ``Problem.plot_trajectories()`` can optionally show the trajectory bounds.
+- Method added to ``Problem`` to compute the time vector:
+  ``Problem.time_vector()``.
+- Method added to ``Problem`` to check if a solution respects the bounds and
+  flag to check the initial guess before solving: ``check_bounds_conflict()``.
+- Added ``Problem.plot_jacobian_sparsity()`` to visualize the NLP Jacobian.
 - openmp parallelization now works on Mac.
+- Addressed a performance issue for large number of nodes (1M+) by eliminating
+  a SymPy float in the computation.
+- Bump dependency minimum versions to match those in Ubuntu 22.04 (Jammy).
 - Speed of building the examples improved by using the NumPy backend and
   animation frame reduction.
+- Unit tests optionally depend on SciPy.
 - Examples Added:
 
-  - Bicycle countersteer example showing use of inputs consisting of variables
-    and their time derivatives.
-  - Quarter car riding over a bumpy road showing a simultaneous control
+  - [Beginner] Example of creating algebraic path constraints.
+  - [Beginner] Brachistochrone example.
+  - [Beginner] Light diffraction example showing use of smoothened
+    discontinuous functions.
+  - [Beginner] Quarter car riding over a bumpy road showing a simultaneous control
     trajectory and parameter identification solution.
-  - Brachistochrone example.
-  - Light diffraction example showing use of smoothened discontinuous
-    functions.
-  - Car staying within a race course.
-  - Approximation of a multiphase problem.
+  - [Beginner] Example of solving a minimal time race over a varying elevation
+    that is numerically defined.
+  - [Intermediate] Bicycle countersteer example showing use of inputs
+    consisting of variables and their time derivatives.
+  - [Intermediate] Car staying within a race course.
+  - [Intermediate] Approximation of a multiphase problem.
 
-Version 1.4.0
-=============
+Version 1.4.0 (2025-02-11)
+==========================
 
 - Dropped support for Python 3.8.
 - Added support for Python 3.13.
@@ -75,8 +106,8 @@ Version 1.4.0
   - Sit-to-stand
   - Standing balance control identification
 
-Version 1.3.0
-=============
+Version 1.3.0 (2024-08-05)
+==========================
 
 - Added support for Python 3.12.
 - Added a function that generates a numerical objective function and its
@@ -113,8 +144,8 @@ Version 1.3.0
   names.
 - Switched to pytest for unit testing.
 
-Version 1.2.0
-=============
+Version 1.2.0 (2023-11-28)
+==========================
 
 - Dropped support for Python 2.7, 3.6, & 3.7.
 - Added support for Python 3.9, 3.10, & 3.11.
@@ -127,14 +158,14 @@ Version 1.2.0
 - logging.info() used for providing information to the user.
 - Moved to Github Actions continous integration.
 
-Version 1.1.0
-=============
+Version 1.1.0 (2021-01-09)
+==========================
 
 - Added support for Windows.
 - Drop support for Python 3.5, add support for 3.7 and 3.8.
 
-Version 1.0.0
-=============
+Version 1.0.0 (2018-01-30)
+==========================
 
 - Added JOSS paper.
 - Added theory section to the documentation.
@@ -143,8 +174,8 @@ Version 1.0.0
 - Adjusted the pendulum swing up torque bounds.
 - Updated examples to work with newer dependency versions.
 
-Version 0.2.0
-=============
+Version 0.2.0 (2017-06-04)
+==========================
 
 - Added Sphinx documentation and Read The Docs integration.
 - Added plotting to the Problem class and matplotlib as an optional dependency.
@@ -152,12 +183,12 @@ Version 0.2.0
 - park2004 example now works with both Python 2.7 and 3.5+.
 - Bumped the min dependencies for SymPy and PyDy to 1.0.0 and 0.3.0.
 
-Version 0.1.1
-=============
+Version 0.1.1 (2017-01-29)
+==========================
 
 - Added a MANIFEST.in file.
 
-Version 0.1.0
-=============
+Version 0.1.0 (2017-01-29)
+==========================
 
 - Initial release.

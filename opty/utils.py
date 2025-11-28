@@ -15,6 +15,7 @@ from collections import Counter
 from timeit import default_timer as timer
 import logging
 import locale
+import hashlib
 
 import numpy as np
 import sympy as sm
@@ -24,11 +25,14 @@ from sympy.printing.c import C99CodePrinter
 plt = sm.external.import_module('matplotlib.pyplot',
                                 import_kwargs={'fromlist': ['']},
                                 catch=(RuntimeError,))
+scipy = sm.external.import_module('scipy')
 
 __all__ = [
     'parse_free',
     'create_objective_function',
 ]
+
+logger = logging.getLogger(__name__)
 
 
 def _coo_matrix(jac_vals, row_idxs, col_idxs):
@@ -77,6 +81,11 @@ def ccode(expr, assign_to=None, **settings):
 
 def _forward_jacobian(expr, wrt):
 
+    # NOTE : free_symbols are sets and are not guaranteed to be in the same
+    # order, so sympy.ordered() is used throughout to ensure a deterministic
+    # behavior. This is important for the binary caching to work as it hashes
+    # the generated code string.
+
     def add_to_cache(node):
         if node in expr_to_replacement_cache:
             replacement_symbol = expr_to_replacement_cache[node]
@@ -118,6 +127,8 @@ def _forward_jacobian(expr, wrt):
     replacement_symbols = numbered_symbols(
         prefix='z',
         cls=sm.Symbol,
+        # TODO : free symbols should be able to be passed in to save time in
+        # recomputing
         exclude=expr.free_symbols,
         real=True,
     )
@@ -125,7 +136,7 @@ def _forward_jacobian(expr, wrt):
     expr_to_replacement_cache = {}
     replacement_to_reduced_expr_cache = {}
 
-    logging.info('Adding expression nodes to cache...')
+    logger.info('Adding expression nodes to cache...')
     start = timer()
     replacements, reduced_exprs = sm.cse(expr.args[2], replacement_symbols)
     for replacement_symbol, reduced_subexpr in replacements:
@@ -138,7 +149,7 @@ def _forward_jacobian(expr, wrt):
         for node in reduced_expr:
             _ = add_to_cache(node)
     finish = timer()
-    logging.info(f'Completed in {finish - start:.2f}s')
+    logger.info(f'Completed in {finish - start:.2f}s')
 
     reduced_matrix = sm.ImmutableDenseMatrix(reduced_exprs).xreplace(
         expr_to_replacement_cache)
@@ -152,11 +163,11 @@ def _forward_jacobian(expr, wrt):
         absolute_derivative_mapping[wrt_symbol] = sm.ImmutableDenseMatrix(
             [absolute_derivative])
 
-    logging.info('Differentiating expression nodes...')
+    logger.info('Differentiating expression nodes...')
     start = timer()
     zeros = sm.ImmutableDenseMatrix.zeros(1, len(wrt))
     for symbol, subexpr in replacements:
-        free_symbols = subexpr.free_symbols
+        free_symbols = sm.ordered(subexpr.free_symbols)
         absolute_derivative = zeros
         for free_symbol in free_symbols:
             replacement_symbol, partial_derivative = add_to_cache(
@@ -170,9 +181,9 @@ def _forward_jacobian(expr, wrt):
     replaced_jacobian = sm.ImmutableDenseMatrix.vstack(*[
         absolute_derivative_mapping[e] for e in reduced_matrix])
     finish = timer()
-    logging.info(f'Completed in {finish - start:.2f}s')
+    logger.info(f'Completed in {finish - start:.2f}s')
 
-    logging.info('Determining required replacements...')
+    logger.info('Determining required replacements...')
     start = timer()
     required_replacement_symbols = set()
     stack = [entry for entry in replaced_jacobian if entry.free_symbols]
@@ -180,14 +191,14 @@ def _forward_jacobian(expr, wrt):
         entry = stack.pop()
         if entry in required_replacement_symbols or entry in wrt:
             continue
-        children = list(
-            replacement_to_reduced_expr_cache.get(entry, entry).free_symbols)
+        children = list(sm.ordered(
+            replacement_to_reduced_expr_cache.get(entry, entry).free_symbols))
         for child in children:
             if child not in required_replacement_symbols and child not in wrt:
                 stack.append(child)
         required_replacement_symbols.add(entry)
     finish = timer()
-    logging.info(f'Completed in {finish - start:.2f}s')
+    logger.info(f'Completed in {finish - start:.2f}s')
 
     required_replacements_dense = {
         replacement_symbol: replaced_subexpr
@@ -196,11 +207,11 @@ def _forward_jacobian(expr, wrt):
         if replacement_symbol in required_replacement_symbols
     }
 
-    counter = Counter(replaced_jacobian.free_symbols)
+    counter = Counter(sm.ordered(replaced_jacobian.free_symbols))
     for replaced_subexpr in required_replacements_dense.values():
-        counter.update(replaced_subexpr.free_symbols)
+        counter.update(sm.ordered(replaced_subexpr.free_symbols))
 
-    logging.info('Substituting required replacements...')
+    logger.info('Substituting required replacements...')
     required_replacements = {}
     unrequired_replacements = {}
     for replacement_symbol, replaced_subexpr in required_replacements_dense.items():
@@ -210,7 +221,7 @@ def _forward_jacobian(expr, wrt):
         else:
             required_replacements[replacement_symbol] = replaced_subexpr.xreplace(unrequired_replacements)
     finish = timer()
-    logging.info(f'Completed in {finish - start:.2f}s')
+    logger.info(f'Completed in {finish - start:.2f}s')
 
     return (list(required_replacements.items()),
             [replaced_jacobian.xreplace(unrequired_replacements)])
@@ -232,6 +243,17 @@ def _optional_plt_dep(func):
     def wrapper(*args, **kwargs):
         if plt is None:
             raise ImportError('Install matplotlib for plotting features.')
+        else:
+            return func(*args, **kwargs)
+    return wrapper
+
+
+def _optional_scipy_dep(func):
+    """Decorator that aborts function/method call if scipy is not installed."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if scipy is None:
+            raise ImportError('Install scipy for this feature.')
         else:
             return func(*args, **kwargs)
     return wrapper
@@ -457,6 +479,7 @@ def sort_sympy(seq):
 
 
 _c_template = """\
+// opty_code_hash={eval_code_hash}
 {win_math_def}
 #include <math.h>
 #include "{file_prefix}_h.h"
@@ -618,18 +641,22 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     args : iterable of sympy.Symbol
         A list of all symbols in expr in the desired order for the output
         function.
-    expr : sympy.Matrix
-        A matrix of expressions.
+    expr : sympy.Matrix or 2-tuple
+        A matrix of expressions or the output of ``cse()`` of a matrix of
+        expressions.
     const : tuple, optional
-        This should include any of the symbols in args that should be
-        constant with respect to the loop.
+        This should include any of the symbols in args that should be constant
+        with respect to the evaluation loop.
     tmp_dir : string, optional
-        The path to a directory in which to store the generated files. If
-        None then the files will be not be retained after the function is
-        compiled.
+        The path to a directory in which to store the generated files. If None
+        then the files will be not be retained after the function is compiled.
+        If this temporary directory is set to an existing populated directory
+        and ``expr`` has not changed relative to prior executions of this
+        function, the compilation step will be skipped if equivalent compiled
+        modules are already present and cached.
     parallel : boolean, optional
         If True and openmp is installed, the generated code will be
-        parallelized across threads. This is only useful when expr are
+        parallelized across threads. This is only useful when ``expr`` are
         extremely large.
     show_compile_output : boolean, optional
         If True, STDOUT and STDERR of the Cython compilation call will be
@@ -637,15 +664,15 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
 
     """
 
-    # TODO : This is my first ever global variable in Python. It'd probably
-    # be better if this was a class attribute of a Ufuncifier class. And I'm
-    # not sure if this current version counts sequentially.
+    # TODO : This is my first ever global variable in Python. It'd probably be
+    # better if this was a class attribute of a Ufuncifier class. And I'm not
+    # sure if this current version counts sequentially.
     global module_counter
 
     if hasattr(expr, 'shape'):
         num_rows = expr.shape[0]
         num_cols = expr.shape[1]
-    else:
+    else:  # output of cse()
         num_rows = expr[1][0].shape[0]
         num_cols = expr[1][0].shape[1]
 
@@ -672,6 +699,8 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         else:
             file_prefix = '{}_{}'.format(file_prefix_base, module_counter)
             module_counter += 1
+
+    prior_module_number = module_counter - 1
 
     d = {'routine_name': 'eval_matrix',
          'file_prefix': file_prefix,
@@ -721,6 +750,19 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     d['eval_code'] = '    ' + '\n    '.join((sub_expr_code + '\n' +
                                              matrix_code).split('\n'))
 
+    # NOTE : It is very unlikely that the contents of evaluation code can be
+    # identical for two different sets of differential equations, so we hash it
+    # and store the hash value in the C file that contains the evaluation code.
+    # TODO : Maybe we should only do this if tmp_dir is not None, as it could
+    # have an undesired computational cost.
+    logger.debug('Calculating cache hash.')
+    hasher = hashlib.new('sha256')
+    const_str = 'const=None' if const is None else 'const={}'.format(const)
+    parallel_str = 'parallel={}'.format(parallel)
+    hasher.update((const_str + parallel_str + d['eval_code']).encode())
+    d['eval_code_hash'] = str(hasher.hexdigest())
+    logger.debug('Done calculating cache hash: {}'.format(d['eval_code_hash']))
+
     c_indent = len('void {routine_name}('.format(**d))
     c_arg_spacer = ',\n' + ' ' * c_indent
 
@@ -732,6 +774,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     memory_views = []
     for a in args:
         if const is not None and a in const:
+            # TODO : Should these be declared const in C?
             typ = 'double'
             idexy = '{}'
             cython_input_args.append('{} {}'.format(typ, ccode(a)))
@@ -770,6 +813,49 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
 
     workingdir = os.getcwd()
     os.chdir(codedir)
+    logger.info('Changed directory to {}'.format(codedir))
+
+    # NOTE : If there are other files present in the directory (will only occur
+    # if a tmp_dir is set) then search through them starting with the most
+    # recent and see if it has a matching hash to the evaluation code generated
+    # here. If a match is found, store the module number.
+    matching_module_num = None
+    for prior_num in reversed(range(prior_module_number + 1)):
+        old_file_prefix = '{}_{}'.format(file_prefix_base, prior_num)
+        logger.info(f'Checking {old_file_prefix} for cached code.')
+        try:
+            with open(old_file_prefix + '_c.c', 'r') as f:
+                hash_line = f.readline()
+                logger.debug(hash_line.strip())
+                if 'opty_code_hash={}'.format(d['eval_code_hash']) in hash_line:
+                    matching_module_num = prior_num
+                    logger.info(f'{old_file_prefix} matches!')
+                    break
+        except FileNotFoundError:
+            logger.debug(f'{old_file_prefix} not found.')
+            pass
+
+    # NOTE : If we found a matching C file, then try to simply load that module
+    # instead of compiling a new one. This lets us skip the compile step if we
+    # have not changed anything about the model.
+    if matching_module_num is not None:
+        try:
+            # NOTE : If a script is invoked from the standard Python
+            # interpreter the module is not on the path. So we manually insert
+            # the path to the temporary directory in the path and then remove
+            # it again after import. Oddly, this is not needed for invocation
+            # via IPython. See https://github.com/csu-hmc/opty/issues/509.
+            sys.path.append(codedir)
+            cython_module = importlib.import_module(old_file_prefix)
+        except ImportError:  # false positive, so compile a new one
+            logger.info(f'Failed to import {old_file_prefix}.')
+            pass
+        else:
+            sys.path.remove(codedir)
+            logger.info(f'Skipped compile, {old_file_prefix} module loaded.')
+            os.chdir(workingdir)
+            logger.info(f'Changed directory to {workingdir}.')
+            return getattr(cython_module, d['routine_name'] + '_loop')
 
     try:
         sys.path.append(codedir)
@@ -795,6 +881,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         else:
             encoding = None
         try:
+            logger.info('Compiling matrix evaluation.')
             proc = subprocess.run(cmd, capture_output=True, text=True,
                                   encoding=encoding)
         # On Windows this can raise a UnicodeDecodeError, but only in the
@@ -809,8 +896,13 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         if show_compile_output:
             print(stdout)
             print(stderr)
+        else:
+            logger.debug(stdout)
+            logger.debug(stderr)
+
         try:
             cython_module = importlib.import_module(d['file_prefix'])
+            logger.info("Loaded {} module".format(d['file_prefix']))
         except ImportError as error:
             msg = ('Unable to import the compiled Cython module {}, '
                    'compilation likely failed. STDERR output from '
@@ -825,6 +917,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
             # so I don't delete the directory on Windows.
             if sys.platform != "win32":
                 shutil.rmtree(codedir)
+                logger.info('Removed directory {}'.format(codedir))
 
     return getattr(cython_module, d['routine_name'] + '_loop')
 

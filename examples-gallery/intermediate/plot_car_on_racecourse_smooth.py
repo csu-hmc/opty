@@ -185,8 +185,8 @@ park2y = Pb.pos_from(O).dot(N.y)
 park1x = Pf.pos_from(O).dot(N.x)
 park2x = Pb.pos_from(O).dot(N.x)
 
-delta_x = np.linspace(park1x, park2x, number)
-delta_y = np.linspace(park1y, park2y, number)
+delta_x = [park1x + (park2x - park1x)*i/(number - 1) for i in range(number)]
+delta_y = [park1y + (park2y - park1y)*i/(number - 1) for i in range(number)]
 
 # %%
 # Ensure the *number* points along the car are between the lower and the upper
@@ -368,7 +368,7 @@ else:
     _ = prob.plot_objective_value()
 
 # %%
-_ = prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution, subplots=True, show_bounds=True)
 # %%
 # Plot trajectories.
 _ = prob.plot_trajectories(solution, show_bounds=True)

@@ -1,5 +1,6 @@
-#!/usr/bin/env python
-
+import os
+import shutil
+import tempfile
 from collections import OrderedDict
 
 import numpy as np
@@ -12,6 +13,269 @@ from pytest import raises
 from ..direct_collocation import Problem, ConstraintCollocator
 from ..utils import (create_objective_function, sort_sympy, parse_free,
                      _coo_matrix)
+
+
+def test_implicit_known_traj():
+
+    m, g, r, h = sym.symbols('m, g, r, h', real=True)
+    x, v, f, s = mech.dynamicsymbols('x, v, f, s', real=True)
+    t = mech.dynamicsymbols._t
+
+    theta_of_x = sym.Function('theta', real=True)(x)
+    theta_of_v = sym.Function('theta', real=True)(v)
+    theta_of_x_v = sym.Function('theta', real=True)(x, v)
+    omega_of_v = sym.Function('omega', real=True)(v)
+
+    states = (x, v)
+
+    eom = sym.Matrix([
+        x.diff() - v - s + r*omega_of_v,
+        m*v.diff() - f + m*g*sym.sin(theta_of_x),
+    ])
+
+    N = 4
+
+    x0, xf = 2.0, 5.0
+    theta0, thetaf = 0.0, 10.0
+    xs = np.linspace(x0, xf, num=N)
+    thetas = np.linspace(theta0, thetaf, num=N)
+    # slope = (thetaf - theta0)/(xf - x0)
+
+    def calc_theta_x(free):
+        print('Executing calc_theta_x')
+        x = free[0:N]
+        return np.interp(x, xs, thetas)
+
+    def calc_dtheta_dx(free):
+        print('Executing calc_dtheta_dx')
+        # x = free[0:N]
+        # return slope*np.ones_like(x)
+        return np.array([3.9, 1.2, -5.6, 12.3])
+
+    def calc_omega_v(free):
+        print('Executing calc_omega_v')
+        return np.array([-0.01, -0.98, 3.45, 27.45])
+
+    def calc_domega_dv(free):
+        print('Executing calc_domega_dv')
+        return np.array([0.1, 8.9, -43.4, -2.5])
+
+    # this checked backward Euler w/ cython backend, and the hilly ride checks
+    # midpoint w/ numpy backend
+    col = ConstraintCollocator(
+        eom,
+        states,
+        N,
+        h,  # variable
+        known_parameter_map={r: 7.1, m: 3.3, g: 10.2},
+        known_trajectory_map={
+            omega_of_v.diff(v): calc_domega_dv,
+            omega_of_v: calc_omega_v,
+            s: np.array([121., 122., 123., 124.]),
+            theta_of_x: calc_theta_x,
+            theta_of_x.diff(x): calc_dtheta_dx,
+        },
+        time_symbol=t,
+    )
+
+    assert col.state_derivative_symbols == (x.diff(t), v.diff(t))
+
+    assert col._deriv_in_knw_traj
+
+    # _sort_trajectories()
+    assert col.known_input_trajectories == (omega_of_v.diff(v), omega_of_v, s,
+                                            theta_of_x, theta_of_x.diff(x))
+    assert col.num_known_input_trajectories == 5
+    assert col.unknown_input_trajectories == (f,)
+    assert col.num_unknown_input_trajectories == 1
+    assert col.input_trajectories == (omega_of_v.diff(v), omega_of_v, s,
+                                      theta_of_x, theta_of_x.diff(x), f)
+    assert col.num_input_trajectories == 6
+
+    xi, xp, xn, vi, vp, vn, fi, si, sn = sym.symbols(
+        'xi, xp, xn, vi, vp, vn, fi, si, sn', real=True)
+
+    thetai_of_xi = sym.Function('thetai', real=True)(
+        sym.Symbol('xi', real=True))
+    thetan_of_xn = sym.Function('thetan', real=True)(
+        sym.Symbol('xn', real=True))
+    omegai_of_vi = sym.Function('omegai', real=True)(
+        sym.Symbol('vi', real=True))
+    omegan_of_vn = sym.Function('omegan', real=True)(
+        sym.Symbol('vn', real=True))
+
+    dthetai_dxi = sym.Symbol('dthetai_dxi', real=True)
+    dthetan_dxn = sym.Symbol('dthetan_dxn', real=True)
+    domegai_dvi = sym.Symbol('domegai_dvi', real=True)
+    domegan_dvn = sym.Symbol('domegan_dvn', real=True)
+
+    # _discrete_symbols()
+    assert col.current_known_discrete_specified_symbols == (
+        domegai_dvi,
+        omegai_of_vi,
+        si,
+        thetai_of_xi,
+        dthetai_dxi,
+    )
+    assert col.next_known_discrete_specified_symbols == (
+        domegan_dvn,
+        omegan_of_vn,
+        sn,
+        thetan_of_xn,
+        dthetan_dxn,
+    )
+
+    # For backward Euler and midpoint only the current and next input
+    # trajectories are used (not the previous).
+    assert col._create_function_replacements() == {
+        thetai_of_xi.diff(xi): dthetai_dxi,
+        thetai_of_xi: sym.Symbol('thetaixi', real=True),
+        thetan_of_xn.diff(xn): dthetan_dxn,
+        thetan_of_xn: sym.Symbol('thetanxn', real=True),
+        omegai_of_vi.diff(vi): domegai_dvi,
+        omegai_of_vi: sym.Symbol('omegaivi', real=True),
+        omegan_of_vn.diff(vn): domegan_dvn,
+        omegan_of_vn: sym.Symbol('omeganvn', real=True),
+    }
+
+    # _discretize_eom()
+    # The implicit function of time must be a SymPy Function in the discrete
+    # EoM, so that the Jacobian will apply the chain rule and generate the new
+    # unevaluated derivatives.
+    expected_discrete_eom = sym.Matrix([
+        (xi - xp)/h - vi - si + r*omegai_of_vi,
+        m*(vi - vp)/h - fi + m*g*sym.sin(thetai_of_xi),
+    ])
+
+    assert sym.simplify(col._discrete_eom -
+                        expected_discrete_eom) == sym.zeros(2, 1)
+
+    # jacobian of eom_vector wrt xi, vi, xp, vp, fi, h
+    expected_eom_jac = sym.Matrix([
+        [1/h, -1 + r*omegai_of_vi.diff(vi), -1/h, 0, 0, -(xi - xp)/h**2],
+        [m*g*sym.cos(thetai_of_xi)*thetai_of_xi.diff(xi), m/h, 0, -m/h, -1,
+         -m*(vi - vp)/h**2]
+    ])
+
+    wrt = xi, vi, xp, vp, fi, h
+    assert sym.simplify(col._discrete_eom.jacobian(wrt) -
+                        expected_eom_jac) == sym.zeros(2, 6)
+
+    # TODO : figure out a way to check this (currently this is produced
+    # internally in a method of Collocator).
+    expected_eom_jac_after_repl = sym.Matrix([
+        [1/h, -1 + r*domegai_dvi, -1/h, 0, 0, -(xi - xp)/h**2],
+        [m*g*sym.cos(thetai_of_xi)*dthetai_dxi, m/h, 0, -m/h, -1,
+         -m*(vi - vp)/h**2]
+    ])
+
+    con = col.generate_constraint_function()
+
+    free = np.array([
+        2., 3., 4., 5.,  # x
+        6., 7., 8., 9.,  # v
+        10., 11., 12., 13.,  # f
+        14.,  # h
+    ])
+    thetas = calc_theta_x(free)
+    dthetas = calc_dtheta_dx(free)
+    omegas = calc_omega_v(free)
+    domegas = calc_domega_dv(free)
+
+    np.testing.assert_allclose(
+        con(free),
+        np.array([
+            (3. - 2.)/14. - 7. - 122. + 7.1*omegas[1],
+            (4. - 3.)/14. - 8. - 123. + 7.1*omegas[2],
+            (5. - 4.)/14. - 9. - 124. + 7.1*omegas[3],
+            3.3*(7. - 6.)/14. - 11. + 3.3*10.2*np.sin(thetas[1]),
+            3.3*(8. - 7.)/14. - 12. + 3.3*10.2*np.sin(thetas[2]),
+            3.3*(9. - 8.)/14. - 13. + 3.3*10.2*np.sin(thetas[3]),
+        ])
+    )
+
+    con_jac = col.generate_jacobian_function()
+
+    np.testing.assert_allclose(
+        con_jac(free),
+        np.array([
+            1./14., -1. + 7.1*domegas[1], -1./14., 0., 0., -(3. - 2.)/14.**2,
+            3.3*10.2*np.cos(thetas[1])*dthetas[1], 3.3/14., 0., -3.3/14., -1.,
+            -3.3*(7. - 6.)/14.**2,
+            1./14., -1. + 7.1*domegas[2], -1./14., 0., 0., -(4. - 3.)/14.**2,
+            3.3*10.2*np.cos(thetas[2])*dthetas[2], 3.3/14., 0., -3.3/14., -1.,
+            -3.3*(8. - 7.)/14.**2,
+            1./14., -1. + 7.1*domegas[3], -1./14., 0., 0., -(5. - 4.)/14.**2,
+            3.3*10.2*np.cos(thetas[3])*dthetas[3], 3.3/14., 0., -3.3/14., -1.,
+            -3.3*(9. - 8.)/14.**2,
+        ])
+    )
+
+    all_specified = col._merge_fixed_free(
+        # symbols (domegadv, omega, s, theta, dthetadx, f)
+        col.input_trajectories,
+        # contains functions for domegadv, omega, dthetadx, and theta
+        col.known_trajectory_map,
+        2.0*np.ones(N),  # values of f (free inputs)
+        'traj',
+        5.0*np.ones(col.num_free)  # free vector
+    )
+
+    np.testing.assert_allclose(
+        all_specified,
+        np.array([
+            [0.1, 8.9, -43.4, -2.5],  # domegadv
+            [-0.01, -0.98, 3.45, 27.45],  # omega
+            [121., 122., 123., 124.],  # s
+            [10., 10., 10., 10.],  # theta
+            [3.9,   1.2,  -5.6,  12.3],  # dthetadx
+            [2., 2., 2., 2.]])  # f
+    )
+
+    # Raise an error if theta(x, v) is provided, not yet supported.
+    eom = sym.Matrix([
+        x.diff() - v - s + r*omega_of_v,
+        m*v.diff() - f + m*g*sym.sin(theta_of_x_v),
+    ])
+    with raises(ValueError):
+        col = ConstraintCollocator(
+            eom,
+            states,
+            N,
+            h,
+            known_parameter_map={r: 7.1, m: 3.3, g: 10.2},
+            known_trajectory_map={
+                omega_of_v.diff(v): calc_domega_dv,
+                omega_of_v: calc_omega_v,
+                s: np.array([121., 122., 123., 124.]),
+                theta_of_x_v: calc_theta_x,
+                theta_of_x_v.diff(x): calc_dtheta_dx,
+            },
+            time_symbol=t,
+        )
+
+    # Raise error if both theta(x) and theta(v) are provided, theta can't
+    # independently be a function of different variables.
+    eom = sym.Matrix([
+        x.diff() - v - s + r*theta_of_v,
+        m*v.diff() - f + m*g*sym.sin(theta_of_x),
+    ])
+    with raises(ValueError):
+        col = ConstraintCollocator(
+            eom,
+            states,
+            N,
+            h,
+            known_parameter_map={r: 7.1, m: 3.3, g: 10.2},
+            known_trajectory_map={
+                theta_of_v.diff(v): calc_domega_dv,
+                theta_of_v: calc_omega_v,
+                s: np.array([121., 122., 123., 124.]),
+                theta_of_x: calc_theta_x,
+                theta_of_x.diff(x): calc_dtheta_dx,
+            },
+            time_symbol=t,
+        )
 
 
 def test_extra_algebraic(plot=False):
@@ -80,8 +344,128 @@ def test_extra_algebraic(plot=False):
     initial_guess = np.zeros(prob.num_free)
     solution, _ = prob.solve(initial_guess)
 
+    with raises(AttributeError):
+        prob.eom_bounds = {0: (-0.5, -0.25),
+                           1: (0.25, 0.5)}
+
     if plot:
         prob.plot_trajectories(solution)
+
+        # Plot the constraint violations. With different eom_bounds, different
+        # settings of the kwargs to plot_constraint_violations.
+        # 2nd test with 5 bounds, balance with 2 bounds on eoms.
+        ax = prob.plot_constraint_violations(solution, show_bounds=True)
+        ax[0].set_title('One plot of all eom violations, '
+                        'no eom_bounds available')
+
+        eom_bounds = {0: (-0.5, 0.5),
+                      1: (-1.0, 1.0),
+                      2: (-2.0, 2.0),
+                      3: (-2.0, 2.0),
+                      4: (-0.1, 0.1)}
+        prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            states,
+            num_nodes,
+            interval_value,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+            eom_bounds=eom_bounds,
+            time_symbol=t,
+            backend='numpy',
+        )
+        ax = prob.plot_constraint_violations(solution, subplots=True,
+                                             show_bounds=True)
+        ax[0].set_title('Separate subplots of eom violations, bounds shown')
+
+        # Balance checks only with two bounds on the eoms
+        # ===============================================
+
+        eom_bounds = {0: (1.0, 2.0),
+                      1: (-1.0, 1.0)}
+        prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            states,
+            num_nodes,
+            interval_value,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+            eom_bounds=eom_bounds,
+            time_symbol=t,
+            backend='numpy',
+        )
+        ax = prob.plot_constraint_violations(solution, subplots=True,
+                                             show_bounds=True)
+        ax[0].set_title('Separate subplots of eom violations, bounds shown, '
+                        ' \n Eq0 violates bounds')
+
+        eom_bounds = {0: (-np.inf, 2.0),
+                      1: (-1.0, np.inf)}
+        prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            states,
+            num_nodes,
+            interval_value,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+            eom_bounds=eom_bounds,
+            time_symbol=t,
+            backend='numpy',
+        )
+        ax = prob.plot_constraint_violations(solution, subplots=True,
+                                             show_bounds=True)
+        ax[0].set_title('Separate subplots of eom violations, bounds shown, '
+                        '\n only finite bounds are shown')
+
+        eom_bounds = {0: (-0.5, 2.0),
+                      1: (0.5, 1.0)}
+        prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            states,
+            num_nodes,
+            interval_value,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+            eom_bounds=eom_bounds,
+            time_symbol=t,
+            backend='numpy',
+        )
+        ax = prob.plot_constraint_violations(solution, subplots=True,
+                                             show_bounds=False)
+        ax[0].set_title('Separate subplots of eom violations, no bounds shown'
+                        '\n Only violations shown')
+
+        eom_bounds = {0: (-0.5, -0.25),
+                      1: (0.25, 0.5)}
+        prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            states,
+            num_nodes,
+            interval_value,
+            known_parameter_map=par_map,
+            instance_constraints=instance_constraints,
+            eom_bounds=eom_bounds,
+            time_symbol=t,
+            backend='numpy',
+        )
+        ax = prob.plot_constraint_violations(solution, show_bounds=True)
+        ax[0].set_title('Only one plot of eom violations, no bounds shown, \n'
+                        'Violations shown')
+
+        # NOTE :Import is here to avoid a matplotlib import on standard test
+        # runs.
+        import matplotlib.pyplot as plt
+        plt.show()
 
 
 def test_pendulum():
@@ -147,43 +531,81 @@ def test_pendulum():
     np.testing.assert_allclose(prob._upp_con_bounds, expected_upp_con_bounds)
 
 
-def test_Problem():
+def TestProblem():
 
-    m, c, k, t = sym.symbols('m, c, k, t')
-    x, v, f = [s(t) for s in sym.symbols('x, v, f', cls=sym.Function)]
+    def setup_method(self):
+        self.tmp_dir = tempfile.mkdtemp("opty_cache_test")
+        if os.path.exists(self.tmp_dir):
+            shutil.rmtree(self.tmp_dir)
+        os.mkdir(self.tmp_dir)
 
-    state_symbols = (x, v)
+    def teardown_method(self):
+        if os.path.exists(self.tmp_dir):
+            shutil.rmtree(self.tmp_dir)
 
-    interval_value = 0.01
+    def test_problem(self):
 
-    eom = sym.Matrix([x.diff() - v,
-                      m * v.diff() + c * v + k * x - f])
+        m, c, k, t = sym.symbols('m, c, k, t')
+        x, v, f = [s(t) for s in sym.symbols('x, v, f', cls=sym.Function)]
 
-    prob = Problem(lambda x: 1.0,
-                   lambda x: x,
-                   eom,
-                   state_symbols,
-                   2,
-                   interval_value,
-                   time_symbol=t,
-                   bounds={x: (-10.0, 10.0),
-                           f: (-8.0, 8.0),
-                           m: (-1.0, 1.0),
-                           c: (-0.5, 0.5)})
+        state_symbols = (x, v)
 
-    INF = 10e19
-    expected_lower = np.array([-10.0, -10.0,
-                               -INF, -INF,
-                               -8.0, -8.0,
-                               -0.5, -INF, -1.0])
-    np.testing.assert_allclose(prob.lower_bound, expected_lower)
-    expected_upper = np.array([10.0, 10.0,
-                               INF, INF,
-                               8.0, 8.0,
-                               0.5, INF, 1.0])
-    np.testing.assert_allclose(prob.upper_bound, expected_upper)
+        interval_value = 0.01
 
-    assert prob.collocator.num_instance_constraints == 0
+        eom = sym.Matrix([x.diff() - v,
+                          m * v.diff() + c * v + k * x - f])
+
+        prob = Problem(
+            lambda x: 1.0,
+            lambda x: x,
+            eom,
+            state_symbols,
+            2,
+            interval_value,
+            time_symbol=t,
+            bounds={
+                x: (-10.0, 10.0),
+                f: (-8.0, 8.0),
+                m: (-1.0, 1.0),
+                c: (-0.5, 0.5),
+            },
+            tmp_dir=self.tmp_dir)
+
+        # Only two modules should be generated
+        c_file_list = [f for f in os.listdir(self.tmp_dir) if
+                       f.endswith('_c.c')]
+        assert len(c_file_list) == 2
+
+        INF = 10e19
+        expected_lower = np.array([-10.0, -10.0,
+                                   -INF, -INF,
+                                   -8.0, -8.0,
+                                   -0.5, -INF, -1.0])
+        np.testing.assert_allclose(prob.lower_bound, expected_lower)
+        expected_upper = np.array([10.0, 10.0,
+                                   INF, INF,
+                                   8.0, 8.0,
+                                   0.5, INF, 1.0])
+        np.testing.assert_allclose(prob.upper_bound, expected_upper)
+
+        assert prob.collocator.num_instance_constraints == 0
+
+        # run Problem again to see if the cache worked.
+        prob = Problem(
+            lambda x: 1.0,
+            lambda x: x,
+            eom,
+            state_symbols,
+            4,
+            interval_value,
+            time_symbol=t,
+            tmp_dir=self.tmp_dir,
+        )
+
+        # no more C files should have been generated
+        c_file_list = [f for f in os.listdir(self.tmp_dir) if
+                       f.endswith('_c.c')]
+        assert len(c_file_list) == 2
 
 
 class TestConstraintCollocator():
@@ -358,6 +780,8 @@ class TestConstraintCollocator():
     def test_gen_multi_arg_con_func_midpoint(self):
 
         self.collocator.integration_method = 'midpoint'
+        self.collocator._discrete_symbols()
+        self.collocator._discretize_eom()
         self.collocator._gen_multi_arg_con_func()
 
         # Make sure the parameters are in the correct order.
@@ -445,6 +869,8 @@ class TestConstraintCollocator():
     def test_gen_multi_arg_con_jac_func_midpoint(self):
 
         self.collocator.integration_method = 'midpoint'
+        self.collocator._discrete_symbols()
+        self.collocator._discretize_eom()
         self.collocator._gen_multi_arg_con_jac_func()
 
         # Make sure the parameters are in the correct order.
@@ -749,6 +1175,7 @@ class TestConstraintCollocatorUnknownTrajectories():
     def test_gen_multi_arg_con_jac_func_midpoint(self):
 
         self.collocator.integration_method = 'midpoint'
+        self.collocator._discretize_eom()
         self.collocator._gen_multi_arg_con_jac_func()
 
         # Make sure the parameters are in the correct order.
@@ -866,9 +1293,10 @@ def test_merge_fixed_free_parameters():
     all_syms = m, c, k
     known = {m: 1.0, c: 2.0}
     unknown = np.array([3.0])
+    free = np.ones(10)
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'par')
+                                                    unknown, 'par', free)
 
     expected = np.array([1.0, 2.0, 3.0])
 
@@ -880,7 +1308,7 @@ def test_merge_fixed_free_parameters():
     unknown = np.array([3.0, 4.0])
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'par')
+                                                    unknown, 'par', free)
 
     expected = np.array([1.0, 2.0, 3.0, 4.0])
 
@@ -896,9 +1324,10 @@ def test_merge_fixed_free_trajectories():
     all_syms = f, k
     known = {f: np.array([1.0, 2.0])}
     unknown = np.array([3.0, 4.0])
+    free = np.ones(10)
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'traj')
+                                                    unknown, 'traj', free)
 
     expected = np.array([[1.0, 2.0],
                          [3.0, 4.0]])
@@ -914,7 +1343,7 @@ def test_merge_fixed_free_trajectories():
                         [7.0, 8.0]])
 
     merged = ConstraintCollocator._merge_fixed_free(all_syms, known,
-                                                    unknown, 'traj')
+                                                    unknown, 'traj', free)
 
     expected = np.array([[1.0, 2.0],
                          [3.0, 4.0],
@@ -1654,7 +2083,7 @@ def test_for_algebraic_eoms():
 
     # This will test that a ValueError is raised.
     with raises(ValueError) as excinfo:
-        prob = Problem(
+        Problem(
             obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
             known_parameter_map=par_map,
             instance_constraints=instance_constraints,
@@ -1695,10 +2124,10 @@ def test_prob_parse_free():
     # equations of motion.
     # (No meaning, just for testing)
     eom = sym.Matrix([
-            -x1.diff(t) + ux1,
-            -x2.diff(t) + ux2,
-            -ux1.diff(t) + a*u1,
-            -ux2.diff(t) + b*u2,
+        -x1.diff(t) + ux1,
+        -x2.diff(t) + ux2,
+        -ux1.diff(t) + a*u1,
+        -ux2.diff(t) + b*u2,
     ])
 
     # Set up and Solve the Optimization Problem
@@ -1728,31 +2157,79 @@ def test_prob_parse_free():
 
     # Create the optimization problem and set any options.
     prob = Problem(
-            obj,
-            obj_grad,
-            eom,
-            state_symbols,
-            num_nodes,
-            interval_value,
-            instance_constraints=instance_constraints,
-)
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        instance_constraints=instance_constraints,
+        backend='numpy',
+    )
 
     # Give some estimates for the trajectory.
     initial_guess = np.random.rand(prob.num_free)
     initial_guess1 = initial_guess
 
     # check whether same results.
-    statesu, controlsu, constantsu = parse_free(initial_guess1,
-            len(state_symbols), len(control_symbols), num_nodes)
+    statesu, controlsu, constantsu = parse_free(
+        initial_guess1, len(state_symbols), len(control_symbols), num_nodes)
 
     states, controls, constants = prob.parse_free(initial_guess)
     np.testing.assert_allclose(states, statesu)
     np.testing.assert_allclose(controls, controlsu)
     np.testing.assert_allclose(constants, constantsu)
 
+    # test whether all indices are generated correctly
+    idx_dct = prob._generate_extraction_indices()
+    expected_idx_dct = {
+        x1: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        x2: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
+        ux1: [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+        ux2: [33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43],
+        u1: [44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54],
+        u2: [55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65],
+        a: [66],
+        b: [67],
+    }
+    assert idx_dct == expected_idx_dct
+    np.testing.assert_allclose(states[0], initial_guess[idx_dct[x1]])
+    np.testing.assert_allclose(states[1], initial_guess[idx_dct[x2]])
+    np.testing.assert_allclose(states[2], initial_guess[idx_dct[ux1]])
+    np.testing.assert_allclose(states[3], initial_guess[idx_dct[ux2]])
+    np.testing.assert_allclose(controls[0], initial_guess[idx_dct[u1]])
+    np.testing.assert_allclose(controls[1], initial_guess[idx_dct[u2]])
+    np.testing.assert_allclose(constants[0], initial_guess[idx_dct[a]])
+    np.testing.assert_allclose(constants[1], initial_guess[idx_dct[b]])
+
+    np.testing.assert_allclose(states[0],
+                               prob.extract_values(initial_guess, x1))
+    np.testing.assert_allclose(states[1],
+                               prob.extract_values(initial_guess, x2))
+    np.testing.assert_allclose(states[2],
+                               prob.extract_values(initial_guess, ux1))
+    np.testing.assert_allclose(states[3],
+                               prob.extract_values(initial_guess, ux2))
+    np.testing.assert_allclose(controls[0],
+                               prob.extract_values(initial_guess, u1))
+    np.testing.assert_allclose(controls[1],
+                               prob.extract_values(initial_guess, u2))
+    np.testing.assert_allclose(constants[0],
+                               prob.extract_values(initial_guess, a))
+    np.testing.assert_allclose(constants[1],
+                               prob.extract_values(initial_guess, b))
+    np.testing.assert_allclose(states.flatten(),
+                               prob.extract_values(initial_guess, x1, x2, ux1,
+                                                   ux2))
+    np.testing.assert_allclose(np.hstack((states[3], states[1], states[0],
+                                          states[2], constants[1])),
+                               prob.extract_values(initial_guess, ux2, x2, x1,
+                                                   ux1, b))
+
     # test with variable interval_value
     interval_value = h
     t0, tf = 0.0, (num_nodes - 1)*interval_value
+
     def obj(free):
         return sum([free[i]**2 for i in range(2*num_nodes)])
 
@@ -1763,29 +2240,38 @@ def test_prob_parse_free():
 
     # Create the optimization problem and set any options.
     prob = Problem(
-            obj,
-            obj_grad,
-            eom,
-            state_symbols,
-            num_nodes,
-            interval_value,
-            instance_constraints=instance_constraints,
-)
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        instance_constraints=instance_constraints,
+        backend='numpy',
+    )
 
     # Give some estimates for the trajectory.
     initial_guess = np.random.rand(prob.num_free)
     initial_guess1 = initial_guess
 
     # check whether same results.
-    statesu, controlsu, constantsu, timeu = parse_free(initial_guess1,
-        len(state_symbols), len(control_symbols),
-        num_nodes, variable_duration=True)
+    statesu, controlsu, constantsu, timeu = parse_free(
+        initial_guess1, len(state_symbols), len(control_symbols), num_nodes,
+        variable_duration=True)
 
     states, controls, constants, times = prob.parse_free(initial_guess)
     np.testing.assert_allclose(states, statesu)
     np.testing.assert_allclose(controls, controlsu)
     np.testing.assert_allclose(constants, constantsu)
     np.testing.assert_allclose(timeu, times)
+
+    # check that the variable length value is correctly returned
+    idx_dct = prob._generate_extraction_indices()
+    assert idx_dct[h] == [68]
+    np.testing.assert_allclose(initial_guess[idx_dct[h]], timeu)
+    np.testing.assert_allclose(prob.extract_values(initial_guess, h), timeu)
+    with raises(ValueError):
+        prob.extract_values(initial_guess, sym.Symbol('eee'))
 
     # check that only 'numpy' and 'cython' backends are accepted as backend
     with raises(ValueError):
@@ -1799,6 +2285,7 @@ def test_prob_parse_free():
             time_symbol=t,
             backend='nonsensical',
         )
+
 
 def test_one_eom_only():
     """
@@ -1879,8 +2366,11 @@ def test_duplicate_state_symbols():
     t0, tf = 0.0, 1.0
     interval_value = tf/(num_nodes - 1)
 
-    def obj(free):
-        Fx = free[2*num_nodes:3*num_nodes]
+    # tests the ability to expose the problem inside the objective
+    def obj(prob, free, can_have_kwargs=None):
+        Fx_ = free[2*num_nodes:3*num_nodes]
+        _, Fx, _ = prob.parse_free(free)
+        np.testing.assert_allclose(Fx, Fx_)
         return interval_value*np.sum(Fx**2)
 
     def obj_grad(free):
@@ -2122,6 +2612,7 @@ def test_check_bounds_conflict():
     """Test to ensure that the method of Problem, bounds_conflict_initial_guess
     raises a ValueError when the initial guesses violates the bounds.
     Then the test that the kwarg respect_bounds works as expected in solve.
+    Test if invalid keys in the eom_bound are detected.
     """
 
     x, y, z, ux, uy, uz = mech.dynamicsymbols('x y z ux uy uz')
@@ -2219,6 +2710,22 @@ def test_check_bounds_conflict():
     with raises(ValueError):
         prob.check_bounds_conflict(initial_guess)
 
+    # check for invalid keys in eom_bounds
+    eom_bounds_bad = {0: (-1.0, 1.0) , 6: (0.0, 1.0), 'bad': (0.0, 1.0)}
+
+    with raises(ValueError):
+        prob = Problem(
+            obj,
+            obj_grad,
+            eom,
+            state_symbols,
+            num_nodes,
+            interval_value,
+            known_parameter_map=par_map,
+            eom_bounds=eom_bounds_bad,
+            time_symbol=t,
+            backend='numpy'
+        )
 
     # check for values outside the bounds
     bounds[z] = (-1.0, 1.0)
@@ -2377,3 +2884,580 @@ def test_check_bounds_conflict():
 
     initial_guess = np.zeros(prob.num_free)
     prob.check_bounds_conflict(initial_guess)
+
+def test_linear_initial_guess(plot=False):
+    """Test to check if the initial guess is created correctly. If plot=True,
+    the initial guesses are plotted."""
+
+    x, y, ux, uy = mech.dynamicsymbols('x y ux uy')
+    u1, u2 = mech.dynamicsymbols('u1 u2')
+    a1, a2 = sym.symbols('a1 a2')
+    b1, b2 = sym.symbols('b1 b2')
+    t = mech.dynamicsymbols._t
+
+    # just random eoms, no physical meaning.
+    eom = sym.Matrix([
+        -x.diff(t) + a1,
+        -ux.diff(t) + u1 * b1,
+        -y.diff(t) + a1,
+        -uy.diff(t) + a2 * u2 + b2,
+    ])
+
+    state_symbols = (x, y, ux, uy)
+    par_map = {b1: 1.0,
+               b2: 2.0,
+               }
+    num_nodes = 61
+
+    # A: CONSTANT TIME INTERVAL
+    # A0: no bounds, no instance constraints
+    t0, t1, t2, tf = 0.0, 2.0, 4.0, 6.0
+    interval_value = tf/(num_nodes - 1)
+
+    def obj(free):
+        Fx = free[0*num_nodes:3*num_nodes]
+        return interval_value*np.sum(Fx**2)
+
+    def obj_grad(free):
+        grad = np.zeros_like(free)
+        grad[0: 2*num_nodes] = 2.0*free[0:2*num_nodes]*interval_value
+        return grad
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    expected_guess = np.zeros(prob.num_free)
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax =prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories A0: no bounds, no instance'
+                        ' constraints'))
+
+    # A1: no bounds
+
+    instance_constraints = (
+        x.func(t0),
+        y.func(t0) - 2.0,
+        ux.func(t0) - 5.0,
+
+        x.func(t1) - 1.5*b1,
+        y.func(t1) - 4.0,
+        ux.func(t1) - 1.0+b2,
+        uy.func(t1) - 4.5,
+
+        x.func(t2) + 2.0,
+        y.func(t2),
+
+        x.func(tf),
+        ux.func(tf),
+    )
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    # Set the expected initial guess
+    expected_guess = np.zeros(prob.num_free)
+    duration = (num_nodes-1)*interval_value
+    # x - guess
+    start = round(t0/duration*num_nodes)
+    ende = round(t1/duration*num_nodes)
+    werte = np.linspace(0.0, 1.5*par_map[b1], ende-start)
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
+    start = round(t1/duration*num_nodes)
+    ende = round(t2/duration*num_nodes)
+    werte = np.linspace(1.5*par_map[b1], -2.0, ende-start)
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
+    start = round(t2/duration*num_nodes)
+    ende = round(tf/duration*num_nodes)
+    werte = np.linspace(-2.0, 0.0, ende-start)
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
+     # y - guess
+    start = round(t0/duration*num_nodes)
+    ende = round(t1/duration*num_nodes)
+    werte = np.linspace(2.0, 4.0, ende-start)
+    expected_guess[1*num_nodes+start:1*num_nodes+ende] = werte
+    start = round(t1/duration*num_nodes)
+    ende = round(t2/duration*num_nodes)
+    werte = np.linspace(4.0, 0.0, ende-start)
+    expected_guess[1*num_nodes+start:1*num_nodes+ende] = werte
+    # ux - guess
+    start = round(t0/duration*num_nodes)
+    ende = round(t1/duration*num_nodes)
+    werte = np.linspace(5.0, 1.0-par_map[b2], ende-start)
+    expected_guess[2*num_nodes+start:2*num_nodes+ende] = werte
+    start = round(t1/duration*num_nodes)
+    ende = round(tf/duration*num_nodes)
+    werte = np.linspace(1.0-par_map[b2], 0.0, ende-start)
+    expected_guess[2*num_nodes+start:2*num_nodes+ende] = werte
+    # uy - guess
+    expected_guess[3*num_nodes:4*num_nodes] = 4.5
+    # u1 - guess
+    expected_guess[4*num_nodes:5*num_nodes] = 0.0
+    # u2 - guess
+    expected_guess[5*num_nodes:6*num_nodes] = 0.0
+    # a1 - guess
+    expected_guess[6*num_nodes] = 0.0
+    # a2 - guess
+    expected_guess[6*num_nodes+1] = 0.0
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories A1: no bounds'))
+
+    # A2 normal
+
+    bounds= {
+        a1: (-1.0, 10.0),
+        a2: (-1.0, 12.0),
+
+        u1: (-10.0, 1.0),
+        u2: (-1.0, 10.0),
+
+        x: (-5.0, 5.0 ),
+        ux: (-1.0, 1.0),
+        y: (-4.0, 4.0),
+        uy: (-1.0, 1.0),
+    }
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    # Set new expected guesses as bounds are present
+    # u1 - guess
+    expected_guess[4*num_nodes:5*num_nodes] = -9.0/2.0
+    # u2 - guess
+    expected_guess[5*num_nodes:6*num_nodes] = 9.0/2.0
+    # a1 - guess
+    expected_guess[6*num_nodes] = 9/2
+    # a2 - guess
+    expected_guess[6*num_nodes+1] = 11.0/2.0
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories A2 normal'))
+
+    # A3: np.inf, -np.inf in bounds
+    bounds[a1] = (-np.inf, 10.0)
+    bounds[a2] = (-10.0, np.inf)
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    expected_guess[6*num_nodes] = 10.0
+    expected_guess[6*num_nodes+1] = -10.0
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories A3: np.inf, -np.inf in bounds'))
+
+    # A4: no bounds
+    expected_guess[4*num_nodes: 5*num_nodes] = 0.0
+    expected_guess[5*num_nodes: 6*num_nodes] = 0.0
+    expected_guess[6*num_nodes] = 0.0
+    expected_guess[6*num_nodes+1] = 0.0
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories A4: no bounds'))
+
+
+    # A5: state instances in instance_constraints
+    instance_constraints = (
+        x.func(t0) - 3.0 + ux.func(tf),
+        y.func(t0) - 2.0,
+        ux.func(t0) - 5.0,
+
+        x.func(t1) - 1.5*b1,
+        y.func(t1) - 4.0,
+        ux.func(t1) - 1.0+b2,
+        uy.func(t1) - 4.5,
+
+        x.func(t2) + 2.0,
+        y.func(t2),
+
+        x.func(tf),
+        ux.func(tf),
+    )
+
+    start = round(t0/duration*num_nodes)
+    ende = round(t1/duration*num_nodes)
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = 0.0
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories A5: state instances in instance'
+                         ' constraints'))
+
+
+    # ========================================================================
+    # B: VARIABLE TIME INTERVAL
+    # B0: no bounds no instances
+    h = sym.symbols('h')
+    t00, t10, t20 = 0.0, int(num_nodes/3)*h, int(2*num_nodes/3)*h
+    tf0 = (num_nodes - 1)*h
+    interval_value = h
+
+    def obj(free):
+        Fx = free[0*num_nodes:3*num_nodes]
+        return free[-1]*np.sum(Fx**2)
+
+    def obj_grad(free):
+        grad = np.zeros_like(free)
+        grad[0: 2*num_nodes] = 2.0*free[0:2*num_nodes]*free[-1]
+        return grad
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    expected_guess = np.zeros(prob.num_free)
+    expected_guess[-1] = 1.0 / (num_nodes-1)
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories B0: no bounds, no instance',
+                         ' constraints'))
+
+    initial_guess = prob.create_linear_initial_guess(end_time=2.0)
+    expected_guess[-1] = 2.0 / (num_nodes-1)
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories B0: no bounds, no instance'
+                         ' constraints, end_time=2.0'))
+
+    # B1: no bounds
+    instance_constraints = (
+        x.func(t00),
+        y.func(t00),
+        ux.func(t00) - 5.0,
+
+        x.func(t10) - 1.5*b1,
+        y.func(t10) - 4.0,
+        ux.func(t10) - 1.0+b2,
+        uy.func(t10) - 4.5,
+
+        x.func(t20),
+        y.func(t20) - 3.0,
+
+        x.func(tf0) + 1.0,
+        ux.func(tf0) + 5.0,
+    )
+
+    # Set the expected initial guess
+    expected_guess = np.zeros(prob.num_free)
+    t0, t1, t2 = int(0.0), int(num_nodes/3), int(2*num_nodes/3)
+    tf = int(num_nodes - 1)
+
+    # x - guess
+    start = t0
+    ende = t1
+    werte = np.linspace(0.0, 1.5*par_map[b1], ende-start)
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
+    start = t1
+    ende = t2
+    werte = np.linspace(1.5*par_map[b1], 0.0, ende-start)
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
+    start = t2
+    ende = tf
+    werte = np.linspace(0.0, -1.0, ende-start)
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = werte
+     # y - guess
+    start = t0
+    ende = t1
+    werte = np.linspace(0.0, 4.0, ende-start)
+    expected_guess[1*num_nodes+start:1*num_nodes+ende] = werte
+    start = t1
+    ende = t2
+    werte = np.linspace(4.0, 3.0, ende-start)
+    expected_guess[1*num_nodes+start:1*num_nodes+ende] = werte
+    # ux - guess
+    start = t0
+    ende = t1
+    werte = np.linspace(5.0, 1.0-par_map[b2], ende-start)
+    expected_guess[2*num_nodes+start:2*num_nodes+ende] = werte
+    start = t1
+    ende = tf
+    werte = np.linspace(1.0-par_map[b2], -5.0, ende-start)
+    expected_guess[2*num_nodes+start:2*num_nodes+ende] = werte
+    # uy - guess
+    expected_guess[3*num_nodes:4*num_nodes] = 4.5
+    # u1 - guess
+    expected_guess[4*num_nodes:5*num_nodes] = 0
+    # u2 - guess
+    expected_guess[5*num_nodes:6*num_nodes] = 0
+    # a1 - guess
+    expected_guess[6*num_nodes] = 0
+    # a2 - guess
+    expected_guess[6*num_nodes+1] = 0
+    # h - guess
+    expected_guess[-1] = 1.0 / (num_nodes-1)
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title('State Trajectories B1: no bounds')
+
+
+    initial_guess = prob.create_linear_initial_guess(end_time=3.0)
+    expected_guess[-1] = 3.0 / (num_nodes-1)
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title('State Trajectories B1: no bounds, end_time=3.0')
+
+
+
+    # B2 normal
+    bounds= {
+        a1: (-1.0, 10.0),
+        a2: (-1.0, 12.0),
+
+        u1: (-10.0, 1.0),
+        u2: (-1.0, 10.0),
+
+        x: (-5.0, 5.0 ),
+        ux: (-1.0, 1.0),
+        y: (-4.0, 4.0),
+        uy: (-1.0, 1.0),
+        h: (1.0, 2.0),
+    }
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    # Set new expected guesses as bounds are present
+    # u1 - guess
+    expected_guess[4*num_nodes:5*num_nodes] = -9.0/2.0
+    # u2 - guess
+    expected_guess[5*num_nodes:6*num_nodes] = 9.0/2.0
+    # a1 - guess
+    expected_guess[6*num_nodes] = 9/2
+    # a2 - guess
+    expected_guess[6*num_nodes+1] = 11.0/2.0
+    # h - guess
+    expected_guess[-1] = 1.5
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title('State Trajectories B2 normal')
+
+    initial_guess = prob.create_linear_initial_guess(end_time=4.0)
+    # as bound for h is given, end_time has no effect.
+    expected_guess[-1] = 1.5
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories B2 normal, end_time = 4.0',
+                        'ignored as bounds are available'))
+
+
+    # B3: np.inf, -np.inf in bounds
+    bounds[a1] = (-np.inf, 10.0)
+    bounds[a2] = (-10.0, np.inf)
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        bounds=bounds,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    expected_guess[6*num_nodes] = 10.0
+    expected_guess[6*num_nodes+1] = -10.0
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories B3: np.inf, -np.inf in bounds'))
+
+    # B4: no bounds
+    expected_guess[4*num_nodes: 5*num_nodes] = 0.0
+    expected_guess[5*num_nodes: 6*num_nodes] = 0.0
+    expected_guess[6*num_nodes] = 0.0
+    expected_guess[6*num_nodes+1] = 0.0
+    expected_guess[-1] = 1.0 / (num_nodes-1)
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        backend='numpy',
+        )
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title('State Trajectories B4: no bounds')
+
+    # B5: state instances in instance_constraints
+    instance_constraints = (
+        x.func(t00) - 3.0 + ux.func(tf0),
+        y.func(t00),
+        ux.func(t00) - 5.0,
+
+        x.func(t10) - 1.5*b1,
+        y.func(t10) - 4.0,
+        ux.func(t10) - 1.0+b2,
+        uy.func(t10) - 4.5,
+
+        x.func(t20),
+        y.func(t20) - 3.0,
+
+        x.func(tf0)+ 1.0,
+        ux.func(tf0)+ 5.0,
+    )
+
+    start = t0
+    ende = t1
+    expected_guess[0*num_nodes+start:0*num_nodes+ende] = 0.0
+
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        backend='numpy',
+    )
+
+    initial_guess = prob.create_linear_initial_guess()
+    np.testing.assert_allclose(initial_guess, expected_guess)
+    if plot:
+        ax = prob.plot_trajectories(initial_guess)
+        ax[0].set_title(('State Trajectories B5: state instances in instance'
+                         ' constraints'))
+        import matplotlib.pyplot as plt
+        plt.show()

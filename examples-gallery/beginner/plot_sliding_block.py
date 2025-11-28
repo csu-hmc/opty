@@ -167,7 +167,7 @@ for selection in (0, 1):
               final_state_constraints.items())
     )
 
-    bounds = {F: (-15., 15.),
+    bounds = {F: (-10., 15.),
               x: (initial_state_constraints[x], final_state_constraints[x]),
               ux: (0., 100)}
     if selection == 0:

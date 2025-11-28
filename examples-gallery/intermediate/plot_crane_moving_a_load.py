@@ -230,22 +230,23 @@ i7 = [0.01]
 initial_guess = np.array(i1 + i2 + i3 + i4 + i5 + i6 + i7)
 
 # %%
+# Use the the initial_guess given above and plot it.
+_ = prob.plot_trajectories(initial_guess)
+
+# %%
 # Use the solution of a previous run if available, else the initial guess given
 # above is used to solve the problem.
 fname = f'crane_moving_a_load_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
-    solution = np.loadtxt(fname)
-else:
-    # Use the the initial_guess given above and plot it.
-    _ = prob.plot_trajectories(initial_guess)
+    initial_guess = np.loadtxt(fname)
 
-    # Find the optimal solution.
-
-    solution, info = prob.solve(initial_guess)
-    print('Message from optimizer:', info['status_msg'])
-    _ = prob.plot_objective_value()
-    print('Iterations needed', len(prob.obj_value))
-    print(f"Objective value {solution[-1]: .3e}")
+# %%
+# Find the optimal solution.
+solution, info = prob.solve(initial_guess)
+print('Message from optimizer:', info['status_msg'])
+_ = prob.plot_objective_value()
+print('Iterations needed', len(prob.obj_value))
+print(f"Objective value {solution[-1]: .3e}")
 
 # %%
 # Plot the accuracy of the solution.

@@ -21,7 +21,7 @@ jobs:
         # NOTE : build with the oldest supported Python here and latest
         # supported on RTDs, to try to avoid examples not being tested for all
         # Python versions we support.
-        python-version: ['3.9']
+        python-version: ['3.10']
     defaults:
       run:
         shell: bash -el {0}
@@ -35,6 +35,7 @@ jobs:
           environment-file: opty-dev-env.yml
           activate-environment: opty-dev
           python-version: ${{ matrix.python-version }}
+          miniforge-version: latest
       - name: Build Docs
         run: |
           cd docs
