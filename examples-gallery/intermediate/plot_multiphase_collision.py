@@ -70,8 +70,10 @@ Notes
 import os
 import numpy as np
 import sympy as sm
-from opty import Problem
 import matplotlib.pyplot as plt
+from opty import Problem
+from opty.utils import MathJaxRepr
+
 
 # %%
 # Set Up Good Initial Guess
@@ -123,7 +125,7 @@ eom = sm.Matrix([
     m*vl(t).diff(t) - mu*m*g,
     T(t).diff(t) - (1-step_diff(xr(t), x_impact, steep)),
 ])
-sm.pprint(eom)
+MathJaxRepr(eom)
 
 # %%
 state_symbols = (xr(t), vr(t), xl(t), vl(t), T(t))
@@ -240,7 +242,7 @@ eom = sm.Matrix([
     T(t).diff(t) - (1.0*(1-step_diff(xr(t), x_impact, steep))
                     - 1.0*step_diff(xr(t), x_impact, steep)),
 ])
-sm.pprint(eom)
+MathJaxRepr(eom)
 
 
 # %%
@@ -290,7 +292,7 @@ _ = prob.plot_constraint_violations(solution, subplots=True)
 # %%
 # Find the time of the collision, plot the trajectories and the time of
 # impact.
-ax = prob.plot_trajectories(solution)
+ax = prob.plot_trajectories(solution, show_bounds=True)
 for i in range(6*num_nodes, 7*num_nodes-1):
     try:
         if solution[i+1] < solution[i]:
