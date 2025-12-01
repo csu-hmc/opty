@@ -1189,10 +1189,10 @@ class ConstraintCollocator(object):
                 timeshift_constraints.append(traj_subs.subs(self.time_symbol, i * self.node_time_interval) - 
                                              traj[0].subs(self.time_symbol, i * self.node_time_interval))
                 
-        #if self.instance_constraints is None:
-        #    self.instance_constraints = tuple(timeshift_constraints)
-        #else:
-        self.instance_constraints = tuple(list(self.instance_constraints) + timeshift_constraints)
+        if self.instance_constraints is None:
+            self.instance_constraints = tuple(timeshift_constraints)
+        else:
+            self.instance_constraints = tuple(list(self.instance_constraints) + timeshift_constraints)
         
         
     def _precalc_timshift_input_derivatives(self):
