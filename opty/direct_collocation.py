@@ -1189,10 +1189,10 @@ class ConstraintCollocator(object):
                 timeshift_constraints.append(traj_subs.subs(self.time_symbol, i * self.node_time_interval) - 
                                              traj[0].subs(self.time_symbol, i * self.node_time_interval))
                 
-        if self.instance_constraints is None:
-            self.instance_constraints = tuple(timeshift_constraints)
-        else:
-            self.instance_constraints = tuple(list(self.instance_constraints) + timeshift_constraints)
+        #if self.instance_constraints is None:
+        #    self.instance_constraints = tuple(timeshift_constraints)
+        #else:
+        self.instance_constraints = tuple(list(self.instance_constraints) + timeshift_constraints)
         
         
     def _precalc_timshift_input_derivatives(self):
@@ -1442,7 +1442,7 @@ class ConstraintCollocator(object):
                     idx_offset = self.timeshift_traj_offsets[self._to_general_time(traj)]
                     time_idx += idx_offset
                     
-                    jac = jac.row_join(sm.Matrix([unshifted_input_sym[traj.name][time_idx,0]/self.node_time_interval]))
+                    jac = jac.row_join(sm.Matrix([unshifted_input_sym[traj.name][time_idx,0]]))
                         
             #calculate jacobian entries w.r.t unknown input trajectories.
             #traj_jac = sm.Matrix([con]).jacobian(traj_partials)

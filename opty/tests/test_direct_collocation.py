@@ -1586,14 +1586,14 @@ class TestConstraintCollocatorTimeshiftConstraints():
 
         self.state_values = np.array([[1.0, 2.0, 3.0, 4.0],
                                       [5.0, 6.0, 7.0, 8.0]])
-        self.specified_values = np.array([2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
+        self.specified_values = np.array([2.0, 3.0, 4.0, 3.0, 2.0, 1.0, 1.0, 2.0])
         self.constant_values = np.array([1.0, 2.0, 3.0])
         self.interval_value = 0.01
         self.free = np.array([1.0, 2.0, 3.0, 4.0,  # x
                               5.0, 6.0, 7.0, 8.0,  # v
-                              2.0, 2.0, 2.0, 2.0,  # f(t-tau)
+                              2.0, 2.0, 2.0, 2.0,  # f_shift
                               3.0, # k
-                              0.0]) #tau
+                              0.01]) #tau
 
         self.eom = sym.Matrix([x(t).diff() - v(t),
                                m * v(t).diff() + c * v(t) + k * x(t) - f(t-tau)])
@@ -1626,11 +1626,32 @@ class TestConstraintCollocatorTimeshiftConstraints():
         self.timeshift_inputs = {f_shift(t): (f(t - tau), tau)}
         self.timeshift_traj_offsets = {f(t): 2}
         
+        fv = self.specified_values
+        dt = 2*self.interval_value
+        self.expected_timeshift_traj_derivative_map_midpoint = {f(t): \
+            [(fv[1]-fv[0])/dt, (fv[2]-fv[0])/dt, (fv[3]-fv[1])/dt, (fv[4]-fv[2])/dt, 
+             (fv[5]-fv[3])/dt, (fv[6]-fv[4])/dt, (fv[7]-fv[5])/dt, (fv[7]-fv[6])/dt,]}
+        dt = self.interval_value
+        self.expected_timeshift_traj_derivative_map_bweuler = {f(t): \
+            [(fv[0]-fv[0])/dt, (fv[1]-fv[0])/dt, (fv[2]-fv[1])/dt, (fv[3]-fv[2])/dt, 
+             (fv[4]-fv[3])/dt, (fv[5]-fv[4])/dt, (fv[6]-fv[5])/dt, (fv[7]-fv[6])/dt,]}
         
     def test_substitute_timeshift_trajectories(self):
         assert self.collocator.eom == self.eom_subs
         assert self.collocator.timeshift_traj_substitutes == self.timeshift_inputs
         assert self.collocator.timeshift_traj_offsets == self.timeshift_traj_offsets
+        
+    def test_precalc_timshift_input_derivatives(self):
+        
+        self.collocator.integration_method = 'midpoint'
+        self.collocator._precalc_timshift_input_derivatives()
+        for k,v in self.collocator.timeshift_traj_derivative_map.items():
+            np.testing.assert_allclose(v, self.expected_timeshift_traj_derivative_map_midpoint[k])
+            
+        self.collocator.integration_method = 'backward euler'
+        self.collocator._precalc_timshift_input_derivatives()
+        for k,v in self.collocator.timeshift_traj_derivative_map.items():
+            np.testing.assert_allclose(v, self.expected_timeshift_traj_derivative_map_bweuler[k])
         
     def test_init(self):
 
@@ -1727,7 +1748,7 @@ class TestConstraintCollocatorTimeshiftConstraints():
         # be put in the correct order too.
 
         result = self.collocator._multi_arg_con_func(self.state_values,
-                                                     self.specified_values[2:-2],
+                                                     self.specified_values[1:-3],
                                                      constant_values,
                                                      self.interval_value)
 
@@ -1741,7 +1762,7 @@ class TestConstraintCollocatorTimeshiftConstraints():
 
             xi, vi = self.state_values[:, i]
             xp, vp = self.state_values[:, i - 1]
-            fi = self.specified_values[i]
+            fi = self.specified_values[i+1]
 
             expected_dynamic[i - 1] = m * (vi - vp) / h + c * vi + k * xi - fi
             expected_kinematic[i - 1] = (xi - xp) / h - vi
@@ -1764,7 +1785,7 @@ class TestConstraintCollocatorTimeshiftConstraints():
         # be put in the correct order too.
 
         result = self.collocator._multi_arg_con_func(self.state_values,
-                                                     self.specified_values[2:-2],
+                                                     self.specified_values[1:-3],
                                                      constant_values,
                                                      self.interval_value)
 
@@ -1778,8 +1799,8 @@ class TestConstraintCollocatorTimeshiftConstraints():
 
             xi, vi = self.state_values[:, i]
             xn, vn = self.state_values[:, i + 1]
-            fi = self.specified_values[i:i + 1][0]
-            fn = self.specified_values[i + 1:i + 2][0]
+            fi = self.specified_values[i + 1:i + 1 + 1][0]
+            fn = self.specified_values[i + 1 + 1:i + 2 + 1][0]
 
             expected_kinematic[i] = (xn - xi) / h - (vi + vn) / 2
             expected_dynamic[i] = (m * (vn - vi) / h + c * (vn + vi) / 2 + k
@@ -1795,40 +1816,52 @@ class TestConstraintCollocatorTimeshiftConstraints():
         self.collocator.integration_method = 'backward euler'
         jacobian = self.collocator.generate_jacobian_function()
 
-        jac_vals = jacobian(self.free)
+        for tau_test in [-0.01, 0, 0.01]:
+            free = self.free
+            free[-1] = tau_test
+            jac_vals = jacobian(free)
+    
+            row_idxs, col_idxs = self.collocator.jacobian_indices()
+    
+            jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+    
+            # jacobian of eom_vector wrt vi, xi, xp, vp, k
+            #    [     vi,  xi,   vp,   xp,  k]
+            # x: [     -1, 1/h,    0, -1/h,  0]
+            # v: [c + m/h,   k, -m/h,    0, xi]
+    
+            x = self.state_values[0]
+            m, c, k = self.constant_values
+            h = self.interval_value
+            c_tau = np.array(list(self.expected_timeshift_traj_derivative_map_bweuler.values())[0])
+            c_tau = c_tau[2-int(tau_test/self.interval_value):-2-int(tau_test/self.interval_value)]
+    
+            expected_jacobian = np.array(
+                #     x1,     x2,     x3,    x4,     v1,        v2,         v3,        v4,    f1, f2, f3, f4,    k, tau
+                [[-1 / h,  1 / h,      0,     0,      0,        -1,          0,         0,    0,   0,  0,  0,    0,     0],     #eom-node 0
+                 [     0, -1 / h,  1 / h,     0,      0,         0,         -1,         0,    0,   0,  0,  0,    0,     0],     #eom-node 1
+                 [     0,      0, -1 / h, 1 / h,      0,         0,          0,        -1,    0,   0,  0,  0,    0,     0],     #eom-node 2
+                 [     0,      k,      0,     0, -m / h, c + m / h,          0,         0,    0,  -1,  0,  0, x[1],     0],     #eom-node 3
+                 [     0,      0,      k,     0,      0,    -m / h,  c + m / h,         0,    0,   0, -1,  0, x[2],     0],     #eom-node 4
+                 [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h,    0,   0,  0, -1, x[3],     0],     #eom-node 5
+                 [     1,      0,      0,     0,      0,         0,          0,         0,    0,   0,  0,  0,    0,     0],     #c0: x[0] = 0
+                 [     0,      0,      0,     0,      1,         0,          0,         0,    0,   0,  0,  0,    0,     0],     #c1: v[0] = 5
+                 [     0,      0,      0,     0,      0,         0,          0,         0,    1,   0,  0,  0,    0, c_tau[0]],     #c_tshift_0
+                 [     0,      0,      0,     0,      0,         0,          0,         0,    0,   1,  0,  0,    0, c_tau[1]],     #c_tshift_1
+                 [     0,      0,      0,     0,      0,         0,          0,         0,    0,   0,  1,  0,    0, c_tau[2]],     #c_tshift_2
+                 [     0,      0,      0,     0,      0,         0,          0,         0,    0,   0,  0,  1,    0, c_tau[3]]],    #c_tshift_3
+                dtype=float)
+    
+            np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+     
+        
+    def test_lambdify_instance_constraints(self):
 
-        row_idxs, col_idxs = self.collocator.jacobian_indices()
+        f = self.collocator._instance_constraints_func()
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
+        extra_constraints = f(self.free)
 
-        row_idxs, col_idxs = self.collocator.jacobian_indices()
+        expected = np.array([0.0, 0.0, -1.0, -2.0, -1.0, 0.0])
 
-        jacobian_matrix = sparse.coo_matrix((jac_vals, (row_idxs, col_idxs)))
-
-        # jacobian of eom_vector wrt vi, xi, xp, vp, k
-        #    [     vi,  xi,   vp,   xp,  k]
-        # x: [     -1, 1/h,    0, -1/h,  0]
-        # v: [c + m/h,   k, -m/h,    0, xi]
-
-        x = self.state_values[0]
-        m, c, k = self.constant_values
-        h = self.interval_value
-        c_tau = 0
-
-        expected_jacobian = np.array(
-            #     x1,     x2,     x3,    x4,     v1,        v2,         v3,        v4,    f1, f2, f3, f4,    k, tau
-            [[-1 / h,  1 / h,      0,     0,      0,        -1,          0,         0,    0,   0,  0,  0,    0,     0],     #eom-node 0
-             [     0, -1 / h,  1 / h,     0,      0,         0,         -1,         0,    0,   0,  0,  0,    0,     0],     #eom-node 1
-             [     0,      0, -1 / h, 1 / h,      0,         0,          0,        -1,    0,   0,  0,  0,    0,     0],     #eom-node 2
-             [     0,      k,      0,     0, -m / h, c + m / h,          0,         0,    0,  -1,  0,  0, x[1],     0],     #eom-node 3
-             [     0,      0,      k,     0,      0,    -m / h,  c + m / h,         0,    0,   0, -1,  0, x[2],     0],     #eom-node 4
-             [     0,      0,      0,     k,      0,         0,      -m /h, c + m / h,    0,   0,  0, -1, x[3],     0],     #eom-node 5
-             [     1,      0,      0,     0,      0,         0,          0,         0,    0,   0,  0,  0,    0,     0],     #c0: x[0] = 0
-             [     0,      0,      0,     0,      1,         0,          0,         0,    0,   0,  0,  0,    0,     0],     #c1: v[0] = 5
-             [     0,      0,      0,     0,      0,         0,          0,         0,    1,   0,  0,  0,    0, c_tau],     #c_tshift_0
-             [     0,      0,      0,     0,      0,         0,          0,         0,    0,   1,  0,  0,    0, c_tau],     #c_tshift_1
-             [     0,      0,      0,     0,      0,         0,          0,         0,    0,   0,  1,  0,    0, c_tau],     #c_tshift_2
-             [     0,      0,      0,     0,      0,         0,          0,         0,    0,   0,  0,  1,    0, c_tau]],    #c_tshift_3
-            dtype=float)
-
-        np.testing.assert_allclose(jacobian_matrix.todense(), expected_jacobian)
+        np.testing.assert_allclose(extra_constraints, expected)
+        

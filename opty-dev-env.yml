@@ -2,6 +2,7 @@ name: opty-dev
 channels:
   - conda-forge
 dependencies:
+  - python <= 3.12
   - coverage
   - cyipopt >=1.1.0
   - cython >=0.29.19
