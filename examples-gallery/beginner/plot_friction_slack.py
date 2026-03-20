@@ -77,7 +77,7 @@ def obj_grad(free):
 # using node numbers 0 to N - 1
 # %%
 # Start with defining the fixed duration and number of nodes.
-N = 100
+N = 80
 
 t0, tm, tf = 0*h, (N//2)*h, (N - 1)*h
 instance_constraints = (
@@ -157,7 +157,11 @@ prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the optimal state and input trajectories.
-prob.plot_trajectories(solution)
+axes = prob.plot_trajectories(solution)
+for ax in axes:
+    lines = ax.get_lines()
+    for line in lines:
+        line.set_marker('o')
 
 # %%
 # Plot the friction force.
