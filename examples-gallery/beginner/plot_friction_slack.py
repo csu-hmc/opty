@@ -109,6 +109,7 @@ prob = Problem(obj, obj_grad, eom, state_symbols, N, h,
                bounds=bounds, eom_bounds=eom_bounds,
                backend='numpy')
 
+prob.add_option('tol', 1e-06)
 prob.add_option('max_iter', 4000)
 
 # %%
@@ -163,7 +164,7 @@ prob.plot_trajectories(solution)
 xs, rs, _, _ = prob.parse_free(solution)
 ts = prob.time_vector(solution)
 fig, ax = plt.subplots()
-ax.plot(ts, -rs[1] + rs[2])
+ax.plot(ts, -rs[1] + rs[2], marker='o')
 ax.set_ylabel(r'$F_f$ [N]')
 ax.set_xlabel('Time [s]')
 
