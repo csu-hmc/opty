@@ -582,7 +582,8 @@ class Problem(cyipopt.Problem):
         self.obj_value.append(args[2])
 
     @_optional_plt_dep
-    def plot_trajectories(self, vector, axes=None, show_bounds=False):
+    def plot_trajectories(self, vector, axes=None, show_bounds=False,
+                          skip_first=False):
         """Returns the axes for two plots. The first plot displays the state
         trajectories versus time and the second plot displays the input
         trajectories versus time.
@@ -665,7 +666,10 @@ class Problem(cyipopt.Problem):
                                      figsize=(6.4, 0.8*num_axes))
 
         for ax, traj, symbol in zip(axes, trajectories, traj_syms):
-            ax.plot(time, traj)
+            if skip_first:
+                ax.plot(time[1:], traj[1:])
+            else:
+                ax.plot(time, traj)
             ax.set_ylabel(sm.latex(symbol, mode='inline'))
 
             if self.bounds is not None and show_bounds:
