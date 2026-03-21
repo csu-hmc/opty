@@ -22,6 +22,54 @@ from opty.utils import MathJaxRepr
 import matplotlib.pyplot as plt
 
 # %%
+# In general, the Coulomb friction force is a piecewise function (ignoring the
+# state at :math:`v=0`):
+#
+# .. math::
+#
+#    F_f = \begin{cases*}
+#            \mu m g & if  $v < 0$  \\
+#            -\mu m g & if  $v > 0$  \\
+#          \end{cases*}
+#
+# If :math:`F_f = F_f^+ - F_f^-` where there are two positive components of
+# friction. Then the sum of the two positive valued fricton components must
+# always be greater or equal than the Coulomb magnitude:
+#
+# .. math::
+#
+#    \mu m g \geq F_f^+ + F_f^-
+#
+# The slack variable :math:`\psi` is introduced and constrained to enforce it
+# to be greater than :math:`|v|`, so :math:`\psi` is always positive:
+#
+# .. math::
+#
+#    \psi \geq -v \\
+#    \psi \geq  v
+#
+# Using :math:`\psi`, these two constraints then ensures that :math:`F_f^+` is
+# zero if :math:`v > 0` and :math:`F_f^-` is zero if :math:`v < 0`:
+#
+# .. math::
+#
+#    F_f^+ \psi = -F_f^+ v \\
+#    F_f^- \psi = F_f^- v
+#
+# Again using :math:`\psi`, the following constraint ensures that :math:`\mu mg
+# = Ffn` if  :math:`v > 0` and :math:`\mu m g = Ffp` and if :math:`v < 0`:
+#
+# .. math::
+#
+#    \mu m g \psi = (F_f^+ + F_f^-)\psi
+#
+#
+# TODO : This linear complimentarity constraint would enforce Ff always being
+# opposite of v:
+#
+# -F_f*v >= 0
+
+# %%
 # Symbolic equations of motion.
 m, mu, g, t, h = sm.symbols('m, mu, g, t, h', real=True)
 x, v, psi, Ffp, Ffn, F = sm.symbols('x, v, psi, Ffp, Ffn, F', cls=sm.Function)
@@ -48,6 +96,7 @@ eom = sm.Matrix([
 ])
 sm.pprint(eom)
 MathJaxRepr(eom)
+
 
 # %%
 # Specify the known system parameters.
@@ -77,7 +126,7 @@ def obj_grad(free):
 # using node numbers 0 to N - 1
 # %%
 # Start with defining the fixed duration and number of nodes.
-N = 80
+N = 40
 
 t0, tm, tf = 0*h, (N//2)*h, (N - 1)*h
 instance_constraints = (
@@ -90,8 +139,12 @@ instance_constraints = (
 )
 
 bounds = {
+    x(t): (0.0, 10.0),
     F(t): (-400.0, 400.0),
+    Ffn(t): (0.0, np.inf),
+    Ffp(t): (0.0, np.inf),
     h: (0.0, 0.2),
+    psi(t): (0.0, np.inf),
 }
 
 eom_bounds = {
@@ -109,7 +162,6 @@ prob = Problem(obj, obj_grad, eom, state_symbols, N, h,
                bounds=bounds, eom_bounds=eom_bounds,
                backend='numpy')
 
-prob.add_option('tol', 1e-06)
 prob.add_option('max_iter', 4000)
 
 # %%
@@ -126,16 +178,16 @@ initial_guess[2*N - half:2*N] = -10.0  # v
 initial_guess[2*N:3*N - half] = 10.0  # F
 initial_guess[3*N - half:3*N] = -10.0  # F
 
-initial_guess[3*N:4*N - half] = 1.0  # Ffn
+initial_guess[3*N:4*N - half] = 5.0  # Ffn
 initial_guess[4*N - half:4*N] = 0.0  # Ffn
 
 initial_guess[4*N:5*N - half] = 0.0  # Ffp
-initial_guess[5*N - half:5*N] = 1.0  # Ffp
+initial_guess[5*N - half:5*N] = 5.0  # Ffp
 
 initial_guess[5*N:6*N - half] = 10.0  # psi
 initial_guess[6*N - half:6*N] = 10.0  # psi
 
-initial_guess[-1] = 0.005
+initial_guess[-1] = 0.05
 
 # %%
 # Plot the initial guess.
@@ -157,9 +209,10 @@ prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the optimal state and input trajectories.
-axes = prob.plot_trajectories(solution)
+axes = prob.plot_trajectories(solution, skip_first=True)
 for ax in axes:
     lines = ax.get_lines()
+    ax.axvline(N//2*solution[-1], color='black')
     for line in lines:
         line.set_marker('o')
 
