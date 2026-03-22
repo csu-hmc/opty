@@ -3,9 +3,9 @@ Coulomb Friction with Slack Variables
 =====================================
 
 A block of mass :math:`m` is being pushed with force :math:`F(t)` along on a
-surface. Coulomb friction acts between the block and the surface. Find a
-minimal time solution to push the block 10 meters and then back to the original
-position.
+horizontal surface. Coulomb friction acts between the block and the surface.
+Find a minimal time solution to push the block 10 meters from being stationary
+and then back to the original stationary position.
 
 Objectives
 ----------
@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 # .. math::
 #
 #    F_f = \begin{cases}
-#            \mu m g & \textrm{if }  v < 0  \\
+#            \phantom{-}\mu m g & \textrm{if }  v < 0  \\
 #            -\mu m g & \textrm{if }  v > 0  \\
 #          \end{cases}
 #
@@ -164,6 +164,14 @@ instance_constraints = (
     v(tm) - 0.0,
     x(tf) + 0.0,
     v(tf) - 0.0,
+    # It is indeterminant what the friction force shoudl be at v = 0, so we
+    # just force it to be zero.
+    Ffp(t0),
+    Ffn(t0),
+    Ffp(tm),
+    Ffn(tm),
+    Ffp(tf),
+    Ffn(tf),
 )
 
 bounds = {
@@ -190,7 +198,7 @@ prob = Problem(obj, obj_grad, eom, state_symbols, N, h,
                bounds=bounds, eom_bounds=eom_bounds,
                backend='numpy')
 
-prob.add_option('max_iter', 4000)
+prob.add_option('max_iter', 10000)
 
 # %%
 # Use a zero as an initial guess.
@@ -203,8 +211,8 @@ initial_guess[1*N - half:1*N] = np.linspace(10.0, 0.0, num=half)  # x
 initial_guess[1*N:2*N - half] = 10.0  # v
 initial_guess[2*N - half:2*N] = -10.0  # v
 
-initial_guess[2*N:3*N - half] = 10.0  # F
-initial_guess[3*N - half:3*N] = -10.0  # F
+initial_guess[2*N:3*N - half] = 100.0  # F
+initial_guess[3*N - half:3*N] = -100.0  # F
 
 initial_guess[3*N:4*N - half] = 5.0  # Ffn
 initial_guess[4*N - half:4*N] = 0.0  # Ffn
@@ -219,7 +227,7 @@ initial_guess[-1] = 0.05
 
 # %%
 # Plot the initial guess.
-prob.plot_trajectories(initial_guess)
+_ = prob.plot_trajectories(initial_guess)
 
 # %%
 # Find the optimal solution.
@@ -229,11 +237,11 @@ print(info['obj_val'])
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
-prob.plot_objective_value()
+_ = prob.plot_objective_value()
 
 # %%
 # Plot the constraint violations.
-prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the optimal state and input trajectories.
