@@ -27,14 +27,14 @@ import matplotlib.pyplot as plt
 #
 # .. math::
 #
-#    F_f = \begin{cases*}
-#            \mu m g & if  $v < 0$  \\
-#            -\mu m g & if  $v > 0$  \\
-#          \end{cases*}
+#    F_f = \begin{cases}
+#            \mu m g & \textrm{if }  v < 0  \\
+#            -\mu m g & \textrm{if }  v > 0  \\
+#          \end{cases}
 #
 # If :math:`F_f = F_f^+ - F_f^-` where there are two positive components of
 # friction. Then the sum of the two positive valued fricton components must
-# always be greater or equal than the Coulomb magnitude:
+# always be less than or equal than the Coulomb magnitude (both could be zero):
 #
 # .. math::
 #
@@ -48,8 +48,16 @@ import matplotlib.pyplot as plt
 #    \psi \geq -v \\
 #    \psi \geq  v
 #
-# Using :math:`\psi`, these two constraints then ensures that :math:`F_f^+` is
-# zero if :math:`v > 0` and :math:`F_f^-` is zero if :math:`v < 0`:
+# This should do the same thing as the above two (looks like the Fischer-B for
+# a single variable):
+#
+# .. math::
+#
+#    \psi \geq \sqrt{v^2}
+#
+# Using :math:`\psi`, the following two constraints then ensures that
+# :math:`F_f^+` is zero if :math:`v > 0` and :math:`F_f^-` is zero if :math:`v
+# < 0`:
 #
 # .. math::
 #
@@ -57,17 +65,36 @@ import matplotlib.pyplot as plt
 #    F_f^- \psi = F_f^- v
 #
 # Again using :math:`\psi`, the following constraint ensures that :math:`\mu mg
-# = Ffn` if  :math:`v > 0` and :math:`\mu m g = Ffp` and if :math:`v < 0`:
+# = F_f^-` if  :math:`v > 0` and :math:`\mu m g = F_f^+` and if :math:`v < 0`:
 #
 # .. math::
 #
 #    \mu m g \psi = (F_f^+ + F_f^-)\psi
 #
+# TODO : One issue seems to be that Ff can be anything at v = 0.
+#
+# Some possible alternative equations:
 #
 # TODO : This linear complimentarity constraint would enforce Ff always being
 # opposite of v:
 #
-# -F_f*v >= 0
+# .. math::
+#
+#    -F_f v >= 0
+#
+# This linear complimentarity constraint ensures that only one component of
+# friction can be greater than zero at a time:
+#
+# .. math::
+#
+#    F_f^+  F_f^- = 0
+#
+# Fischer-Burmeister equation for this:
+#
+# .. math::
+#
+#    \sqrt{{}^+F_f^2 + {}^-F_f^2} - {}^+F_f  - {}^-F_f = 0
+#
 
 # %%
 # Symbolic equations of motion.
@@ -94,7 +121,8 @@ eom = sm.Matrix([
     # Ffn*psi = Ffn*v -> Ffn is zero if v < 0
     Ffn(t)*(psi(t) - v(t)),
 ])
-sm.pprint(eom)
+
+
 MathJaxRepr(eom)
 
 
@@ -139,12 +167,12 @@ instance_constraints = (
 )
 
 bounds = {
-    x(t): (0.0, 10.0),
     F(t): (-400.0, 400.0),
     Ffn(t): (0.0, np.inf),
     Ffp(t): (0.0, np.inf),
     h: (0.0, 0.2),
     psi(t): (0.0, np.inf),
+    x(t): (0.0, 10.0),
 }
 
 eom_bounds = {
