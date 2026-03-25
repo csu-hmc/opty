@@ -100,11 +100,12 @@ import matplotlib.pyplot as plt
 # Symbolic equations of motion.
 m, mu, g, t, h = sm.symbols('m, mu, g, t, h', real=True)
 x, v, psi, Ffp, Ffn, F = sm.symbols('x, v, psi, Ffp, Ffn, F', cls=sm.Function)
+alpha, beta, gamma = sm.symbols('alpha, beta, gamma', cls=sm.Function)
+epsilon = sm.symbols('epsilon', real=True)
 
 state_symbols = (x(t), v(t))
-constant_symbols = (m, mu, g)
-specified_symbols = (F(t), Ffn(t), Ffp(t), psi(t))
 
+# original formulation
 eom = sm.Matrix([
     # equations of motion with positive and negative friction force
     x(t).diff(t) - v(t),
@@ -122,6 +123,17 @@ eom = sm.Matrix([
     Ffn(t)*(psi(t) - v(t)),
 ])
 
+# Posa et al. 2013 formulation
+eom = sm.Matrix([
+    x(t).diff(t) - v(t),
+    m*v(t).diff(t) - Ffp(t) + Ffn(t) - F(t),
+    gamma(t) - mu*m*g + Ffp(t) + Ffn(t),
+    alpha(t) - psi(t) - v(t),
+    beta(t) - psi(t) + v(t),
+    Ffp(t)*alpha(t) - epsilon,
+    Ffn(t)*beta(t) - epsilon,
+    gamma(t)*psi(t) - epsilon,
+])
 
 MathJaxRepr(eom)
 
@@ -132,6 +144,7 @@ par_map = {
     m: 1.0,
     mu: 0.6,
     g: 9.81,
+    epsilon: 0.0,
 }
 
 
@@ -166,12 +179,12 @@ instance_constraints = (
     v(tf) - 0.0,
     # It is indeterminant what the friction force shoudl be at v = 0, so we
     # just force it to be zero.
-    Ffp(t0),
-    Ffn(t0),
-    Ffp(tm),
-    Ffn(tm),
-    Ffp(tf),
-    Ffn(tf),
+    #Ffp(t0),
+    #Ffn(t0),
+    #Ffp(tm),
+    #Ffn(tm),
+    #Ffp(tf),
+    #Ffn(tf),
 )
 
 bounds = {
@@ -180,14 +193,25 @@ bounds = {
     Ffp(t): (0.0, np.inf),
     h: (0.0, 0.2),
     psi(t): (0.0, np.inf),
+    alpha(t): (0.0, np.inf),
+    beta(t): (0.0, np.inf),
+    gamma(t): (0.0, np.inf),
     v(t): (-100.0, 100.0),
     x(t): (0.0, 10.0),
 }
 
+# original formulation
 eom_bounds = {
     2: (0.0, np.inf),
     3: (0.0, np.inf),
     4: (0.0, np.inf),
+}
+
+# Posa et al. 2013 formulation
+eom_bounds = {
+    5: (-np.inf, 0.00),
+    6: (-np.inf, 0.00),
+    7: (-np.inf, 0.00),
 }
 
 # %%
