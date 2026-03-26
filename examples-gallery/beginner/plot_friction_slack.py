@@ -22,19 +22,34 @@ from opty.utils import MathJaxRepr
 import matplotlib.pyplot as plt
 
 # %%
-# In general, the Coulomb friction force is a piecewise function (ignoring the
-# state at :math:`v=0`):
+#
+# The equations of motion of this system are:
+#
+# .. math::
+#
+#    \phantom{m}\dot{x} = v \\
+#    m\dot{v} = F_f + F
+#
+# Coulomb friction force is a piecewise function defined as:
 #
 # .. math::
 #
 #    F_f = \begin{cases}
-#            \phantom{-}\mu m g & \textrm{if }  v < 0  \\
-#            -\mu m g & \textrm{if }  v > 0  \\
+#            \phantom{-}\mu_k m g & \textrm{if }  v < 0  \\
+#            \left[-\mu_s m g, \mu_s m g \right] \\
+#            -\mu_k m g & \textrm{if }  v > 0  \\
 #          \end{cases}
 #
-# If :math:`F_f = F_f^+ - F_f^-` where there are two positive components of
-# friction. Then the sum of the two positive valued fricton components must
-# always be less than or equal than the Coulomb magnitude (both could be zero):
+# This is a discontinous nonlinear force. It is possible to convert
+# discontinous dynamics such as this into a set of linear complemntarity
+# constraints for the non-linear programming formulation that are continuous
+# and differentiable. This requires more equations of motion and extra
+# trajectories, but such a formulation is often better conditioned.
+#
+# If :math:`F_f = F_f^+ - F_f^-` it breaks the friction into two positive
+# components of force. Then the sum of the two positive valued fricton
+# components must always be less than or equal than the Coulomb magnitude (both
+# could be zero):
 #
 # .. math::
 #
@@ -47,13 +62,6 @@ import matplotlib.pyplot as plt
 #
 #    \psi \geq -v \\
 #    \psi \geq  v
-#
-# This should do the same thing as the above two (looks like the Fischer-B for
-# a single variable):
-#
-# .. math::
-#
-#    \psi \geq \sqrt{v^2}
 #
 # Using :math:`\psi`, the following two constraints then ensures that
 # :math:`F_f^+` is zero if :math:`v > 0` and :math:`F_f^-` is zero if :math:`v
@@ -71,30 +79,26 @@ import matplotlib.pyplot as plt
 #
 #    \mu m g \psi = (F_f^+ + F_f^-)\psi
 #
-# TODO : One issue seems to be that Ff can be anything at v = 0.
-#
-# Some possible alternative equations:
-#
-# TODO : This linear complimentarity constraint would enforce Ff always being
-# opposite of v:
-#
-# .. math::
-#
-#    -F_f v >= 0
-#
-# This linear complimentarity constraint ensures that only one component of
-# friction can be greater than zero at a time:
+# [Posa2013]_ demonstrates that these contraints can be better conditioned if
+# extra slack variables are introduced for each linear complimentarity
+# constraint and the associated equality constraints are turned into inequality
+# contraints. We have three linear complimentarity constraints, so three more
+# slack variables are introduced and defined as:
 #
 # .. math::
 #
-#    F_f^+  F_f^- = 0
+#    \alpha = \psi + v \geq 0 \\
+#    \beta = \psi - v \geq 0 \\
+#    \gamma = \mu mg - F_f^+ - F_f^- \geq 0
 #
-# Fischer-Burmeister equation for this:
+# The equality constraints are then rewritten in terms of the new slack
+# variables and as inequality constraints.
 #
 # .. math::
 #
-#    \sqrt{{}^+F_f^2 + {}^-F_f^2} - {}^+F_f  - {}^-F_f = 0
-#
+#    \alpha F_f^+ \leq 0 \\
+#    \beta F_f^- \leq 0 \\
+#    \gamma \psi \leq 0
 
 # %%
 # Symbolic equations of motion.
@@ -103,40 +107,17 @@ x, v, psi, Ffp, Ffn, F = sm.symbols('x, v, psi, Ffp, Ffn, F', cls=sm.Function)
 alpha, beta, gamma = sm.symbols('alpha, beta, gamma', cls=sm.Function)
 epsilon = sm.symbols('epsilon', real=True)
 
-state_symbols = (x(t), v(t))
-
-# original formulation
-eom = sm.Matrix([
-    # equations of motion with positive and negative friction force
-    x(t).diff(t) - v(t),
-    m*v(t).diff(t) - Ffp(t) + Ffn(t) - F(t),
-    # following two lines ensure: psi >= abs(v)
-    psi(t) + v(t),  # >= 0
-    psi(t) - v(t),  # >= 0
-    # mu*m*g >= Ffp + Ffn
-    mu*m*g - Ffp(t) - Ffn(t),  # >= 0
-    # mu*m*g*psi = (Ffp + Ffn)*psi -> mu*m*g = Ffn v > 0 & mu*m*g = Ffp if v < 0
-    (mu*m*g - Ffp(t) - Ffn(t))*psi(t),
-    # Ffp*psi = -Ffp*v -> Ffp is zero if v > 0
-    Ffp(t)*(psi(t) + v(t)),
-    # Ffn*psi = Ffn*v -> Ffn is zero if v < 0
-    Ffn(t)*(psi(t) - v(t)),
-])
-
-# Posa et al. 2013 formulation
 eom = sm.Matrix([
     x(t).diff(t) - v(t),
     m*v(t).diff(t) - Ffp(t) + Ffn(t) - F(t),
-    gamma(t) - mu*m*g + Ffp(t) + Ffn(t),
     alpha(t) - psi(t) - v(t),
     beta(t) - psi(t) + v(t),
-    Ffp(t)*alpha(t) - epsilon,
-    Ffn(t)*beta(t) - epsilon,
-    gamma(t)*psi(t) - epsilon,
+    gamma(t) - mu*m*g + Ffp(t) + Ffn(t),
+    Ffp(t)*alpha(t) - epsilon,  # <= 0 [5]
+    Ffn(t)*beta(t) - epsilon,  # <= 0 [6]
+    gamma(t)*psi(t) - epsilon,  # <= 0 [7]
 ])
-
 MathJaxRepr(eom)
-
 
 # %%
 # Specify the known system parameters.
@@ -164,9 +145,8 @@ def obj_grad(free):
 
 # %%
 # Specify the symbolic instance constraints, i.e. initial and end conditions
-# using node numbers 0 to N - 1
-# %%
-# Start with defining the fixed duration and number of nodes.
+# using node numbers 0 to N - . Start with defining the fixed duration and
+# number of nodes.
 N = 40
 
 t0, tm, tf = 0*h, (N//2)*h, (N - 1)*h
@@ -185,29 +165,25 @@ instance_constraints = (
     #Ffn(tm),
     #Ffp(tf),
     #Ffn(tf),
+    #alpha(t0),
+    #beta(t0),
+    #gamma(t0) - par_map[mu]*par_map[m]*par_map[g],
+    #psi(t0),
 )
 
 bounds = {
-    F(t): (-400.0, 400.0),
-    Ffn(t): (0.0, np.inf),
-    Ffp(t): (0.0, np.inf),
     h: (0.0, 0.2),
-    psi(t): (0.0, np.inf),
+    x(t): (0.0, 10.0),
+    v(t): (-100.0, 100.0),
+    F(t): (-400.0, 400.0),
+    Ffp(t): (0.0, np.inf),
+    Ffn(t): (0.0, np.inf),
     alpha(t): (0.0, np.inf),
     beta(t): (0.0, np.inf),
     gamma(t): (0.0, np.inf),
-    v(t): (-100.0, 100.0),
-    x(t): (0.0, 10.0),
+    psi(t): (0.0, np.inf),
 }
 
-# original formulation
-eom_bounds = {
-    2: (0.0, np.inf),
-    3: (0.0, np.inf),
-    4: (0.0, np.inf),
-}
-
-# Posa et al. 2013 formulation
 eom_bounds = {
     5: (-np.inf, 0.00),
     6: (-np.inf, 0.00),
@@ -216,6 +192,7 @@ eom_bounds = {
 
 # %%
 # Create an optimization problem.
+state_symbols = (x(t), v(t))
 prob = Problem(obj, obj_grad, eom, state_symbols, N, h,
                known_parameter_map=par_map,
                instance_constraints=instance_constraints,
@@ -259,6 +236,7 @@ _ = prob.plot_trajectories(initial_guess)
 solution, info = prob.solve(initial_guess)
 print(info['status_msg'])
 print(info['obj_val'])
+print('Time to slide the block: {:1.2f} s'.format(solution[-1]*(N - 1)))
 
 # %%
 # Plot the objective function as a function of optimizer iteration.
@@ -270,7 +248,7 @@ _ = prob.plot_constraint_violations(solution)
 
 # %%
 # Plot the optimal state and input trajectories.
-axes = prob.plot_trajectories(solution, skip_first=True)
+axes = prob.plot_trajectories(solution)
 for ax in axes:
     lines = ax.get_lines()
     ax.axvline(N//2*solution[-1], color='black')
@@ -279,11 +257,14 @@ for ax in axes:
 
 # %%
 # Plot the friction force.
-xs, rs, _, _ = prob.parse_free(solution)
-ts = prob.time_vector(solution)
+t_vals = prob.time_vector(solution)
+Ffp_vals = prob.extract_values(solution, Ffp(t))
+Ffn_vals = prob.extract_values(solution, Ffn(t))
 fig, ax = plt.subplots()
-ax.plot(ts, -rs[1] + rs[2], marker='o')
+ax.plot(t_vals, Ffp_vals - Ffn_vals, marker='o')
+ax.axvline(N//2*solution[-1], color='black')
 ax.set_ylabel(r'$F_f$ [N]')
 ax.set_xlabel('Time [s]')
+ax.grid()
 
 plt.show()
