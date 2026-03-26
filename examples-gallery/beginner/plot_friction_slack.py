@@ -1,6 +1,6 @@
 """
-Coulomb Friction with Slack Variables
-=====================================
+Coulomb Friction with Linear Complimentarity Constraints
+========================================================
 
 A block of mass :math:`m` is being pushed with force :math:`F(t)` along on a
 horizontal surface. Coulomb friction acts between the block and the surface.
@@ -27,8 +27,8 @@ import matplotlib.pyplot as plt
 #
 # .. math::
 #
-#    \phantom{m}\dot{x} = v \\
-#    m\dot{v} = F_f + F
+#    \phantom{m}\dot{x} & = v \\
+#    m\dot{v} & = F_f + F
 #
 # Coulomb friction force is a piecewise function defined as:
 #
@@ -36,7 +36,7 @@ import matplotlib.pyplot as plt
 #
 #    F_f = \begin{cases}
 #            \phantom{-}\mu_k m g & \textrm{if }  v < 0  \\
-#            \left[-\mu_s m g, \mu_s m g \right] \\
+#            \left[-\mu_s m g, \mu_s m g \right] & \textrm{if } v = 0 \\
 #            -\mu_k m g & \textrm{if }  v > 0  \\
 #          \end{cases}
 #
@@ -87,18 +87,18 @@ import matplotlib.pyplot as plt
 #
 # .. math::
 #
-#    \alpha = \psi + v \geq 0 \\
-#    \beta = \psi - v \geq 0 \\
-#    \gamma = \mu mg - F_f^+ - F_f^- \geq 0
+#    \alpha & = \psi + v \geq 0 \\
+#    \beta & = \psi - v \geq 0 \\
+#    \gamma & = \mu mg - F_f^+ - F_f^- \geq 0
 #
 # The equality constraints are then rewritten in terms of the new slack
 # variables and as inequality constraints.
 #
 # .. math::
 #
-#    \alpha F_f^+ \leq 0 \\
-#    \beta F_f^- \leq 0 \\
-#    \gamma \psi \leq 0
+#    \alpha F_f^+ \leq 0 \textrm{ or } \epsilon\\
+#    \beta F_f^- \leq 0  \textrm{ or } \epsilon\\
+#    \gamma \psi \leq 0 \textrm{ or } \epsilon
 
 # %%
 # Symbolic equations of motion.
@@ -120,12 +120,11 @@ eom = sm.Matrix([
 MathJaxRepr(eom)
 
 # %%
-# Specify the known system parameters.
-par_map = {
-    m: 1.0,
-    mu: 0.6,
-    g: 9.81,
-    epsilon: 0.0,
+# Set the last three equations to be inequality constraints.
+eom_bounds = {
+    5: (-np.inf, 0.00),
+    6: (-np.inf, 0.00),
+    7: (-np.inf, 0.00),
 }
 
 
@@ -171,6 +170,7 @@ instance_constraints = (
     #psi(t0),
 )
 
+# %%
 bounds = {
     h: (0.0, 0.2),
     x(t): (0.0, 10.0),
@@ -184,22 +184,31 @@ bounds = {
     psi(t): (0.0, np.inf),
 }
 
-eom_bounds = {
-    5: (-np.inf, 0.00),
-    6: (-np.inf, 0.00),
-    7: (-np.inf, 0.00),
+# %%
+# Specify the known system parameters.
+par_map = {
+    m: 1.0,
+    mu: 0.6,
+    g: 9.81,
+    epsilon: 0.0,
 }
 
 # %%
 # Create an optimization problem.
-state_symbols = (x(t), v(t))
-prob = Problem(obj, obj_grad, eom, state_symbols, N, h,
-               known_parameter_map=par_map,
-               instance_constraints=instance_constraints,
-               time_symbol=t,
-               bounds=bounds, eom_bounds=eom_bounds,
-               backend='numpy')
-
+prob = Problem(
+    obj,
+    obj_grad,
+    eom,
+    (x(t), v(t)),
+    N,
+    h,
+    known_parameter_map=par_map,
+    instance_constraints=instance_constraints,
+    time_symbol=t,
+    bounds=bounds,
+    eom_bounds=eom_bounds,
+    backend='numpy',
+)
 prob.add_option('max_iter', 10000)
 
 # %%
@@ -235,7 +244,7 @@ _ = prob.plot_trajectories(initial_guess)
 # Find the optimal solution.
 solution, info = prob.solve(initial_guess)
 print(info['status_msg'])
-print(info['obj_val'])
+print('Minimal time step: {:1.3f}'.format(info['obj_val']))
 print('Time to slide the block: {:1.2f} s'.format(solution[-1]*(N - 1)))
 
 # %%
