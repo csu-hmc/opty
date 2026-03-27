@@ -210,7 +210,7 @@ prob = Problem(
 )
 
 # %%
-# Use a zero as an initial guess.
+# Provide an initial guess that has similarity to the expected solution.
 half = N//2
 initial_guess = np.zeros(prob.num_free)
 
