@@ -33,22 +33,22 @@ Coulomb friction force is a piecewise function defined as:
            -\mu_k m g & \textrm{if }  v > 0  \\
          \end{cases}
 
-This is a discontinuous nonlinear force. It is possible to convert discontinuous
-dynamics such as this into a set of `linear complementarity`_ constraints for
-the non-linear programming formulation that are continuous and differentiable.
-This requires more equations of motion and extra trajectories, but such a
-formulation is often better conditioned.
+This is a discontinuous nonlinear force. It is possible to convert
+discontinuous dynamics such as this into a set of `linear complementarity`_
+constraints for the non-linear programming formulation that are continuous and
+differentiable.  This requires more equations of motion and extra trajectories,
+but such a formulation is often better conditioned.
 
 .. _linear complementarity: https://en.wikipedia.org/wiki/Linear_complementarity_problem
 
-If :math:`F_f = F_f^+ - F_f^-` it breaks the friction into two positive
-components of force. Then the sum of the two positive valued friction components
-must always be less than or equal than the Coulomb magnitude (both could be
-zero):
+If :math:`F_f = F_{fp} - F_{fn}` it breaks the friction into two positive
+components of force. Then the sum of the two positive valued friction
+components must always be less than or equal than the Coulomb magnitude (both
+could be zero):
 
 .. math::
 
-   \mu m g \geq F_f^+ + F_f^-
+   \mu m g \geq F_{fp} + F_{fn}
 
 The slack variable :math:`\psi` is introduced and constrained to enforce it to
 be greater than :math:`|v|`, so :math:`\psi` is always positive:
@@ -59,20 +59,20 @@ be greater than :math:`|v|`, so :math:`\psi` is always positive:
    \psi \geq  v
 
 Using :math:`\psi`, the following two constraints then ensures that
-:math:`F_f^+` is zero if :math:`v > 0` and :math:`F_f^-` is zero if :math:`v <
+:math:`F_{fp}` is zero if :math:`v > 0` and :math:`F_{fn}` is zero if :math:`v <
 0`:
 
 .. math::
 
-   F_f^+ \psi = -F_f^+ v \\
-   F_f^- \psi = F_f^- v
+   F_{fp} \psi = -F_{fp} v \\
+   F_{fn} \psi = F_{fn} v
 
 Again using :math:`\psi`, the following constraint ensures that :math:`\mu mg =
-F_f^-` if  :math:`v > 0` and :math:`\mu m g = F_f^+` and if :math:`v < 0`:
+F_{fn}` if  :math:`v > 0` and :math:`\mu m g = F_{fp}` and if :math:`v < 0`:
 
 .. math::
 
-   \mu m g \psi = (F_f^+ + F_f^-)\psi
+   \mu m g \psi = (F_{fp} + F_{fn})\psi
 
 [Posa2013]_ demonstrates that these constraints can be better conditioned if
 extra slack variables are introduced for each linear complimentarity constraint
@@ -84,15 +84,15 @@ are introduced and defined as:
 
    \alpha & = \psi + v \geq 0 \\
    \beta & = \psi - v \geq 0 \\
-   \gamma & = \mu mg - F_f^+ - F_f^- \geq 0
+   \gamma & = \mu mg - F_{fp} - F_{fn} \geq 0
 
 The equality constraints are then rewritten in terms of the new slack variables
 and as inequality constraints.
 
 .. math::
 
-   \alpha F_f^+ \leq 0 \textrm{ or } \epsilon\\
-   \beta F_f^- \leq 0  \textrm{ or } \epsilon\\
+   \alpha F_{fp} \leq 0 \textrm{ or } \epsilon\\
+   \beta F_{fn} \leq 0  \textrm{ or } \epsilon\\
    \gamma \psi \leq 0 \textrm{ or } \epsilon
 
 :math:`\epsilon` can be used to relax the inequality constraint and reduced
@@ -111,7 +111,8 @@ import matplotlib.pyplot as plt
 m, mu, g, t, h = sm.symbols('m, mu, g, t, h', real=True)
 epsilon = sm.symbols('epsilon', real=True)
 
-x, v, psi, Ffp, Ffn, F = sm.symbols('x, v, psi, Ffp, Ffn, F', cls=sm.Function)
+x, v, F = sm.symbols('x, v, F', cls=sm.Function)
+psi, Ffp, Ffn = sm.symbols('psi, F_{fp}, F_{fn}', cls=sm.Function)
 alpha, beta, gamma = sm.symbols('alpha, beta, gamma', cls=sm.Function)
 
 # %%
@@ -268,11 +269,17 @@ for ax in axes:
 t_vals = prob.time_vector(solution)
 Ffp_vals = prob.extract_values(solution, Ffp(t))
 Ffn_vals = prob.extract_values(solution, Ffn(t))
+v_vals = prob.extract_values(solution, v(t))
 fig, ax = plt.subplots()
 ax.plot(t_vals[1:], Ffp_vals[1:] - Ffn_vals[1:], marker='o')
 ax.axvline(N//2*solution[-1], color='black')
-ax.set_ylabel(r'$F_f$ [N]')
+ax.set_ylim((-7.0, 7.0))
+ax.set_ylabel(r'$F_f$ [N]', color='C0')
 ax.set_xlabel('Time [s]')
+ax_r = ax.twinx()
+ax_r.plot(t_vals, v_vals, marker='o', color='C1')
+ax_r.set_ylabel(r'$v$ [m/s]', color='C1')
+ax_r.set_ylim((-70.0, 70.0))
 ax.grid()
 
 plt.show()
