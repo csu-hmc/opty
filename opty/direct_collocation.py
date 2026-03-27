@@ -582,8 +582,7 @@ class Problem(cyipopt.Problem):
         self.obj_value.append(args[2])
 
     @_optional_plt_dep
-    def plot_trajectories(self, vector, axes=None, show_bounds=False,
-                          show_all=False):
+    def plot_trajectories(self, vector, axes=None, show_bounds=False):
         """Returns the axes for two plots. The first plot displays the state
         trajectories versus time and the second plot displays the input
         trajectories versus time.
@@ -666,11 +665,7 @@ class Problem(cyipopt.Problem):
                                      figsize=(6.4, 0.8*num_axes))
 
         for ax, traj, symbol in zip(axes, trajectories, traj_syms):
-            if show_all or self.collocator.integration_method == 'midpoint':
-                ax.plot(time, traj)
-            else:
-                if self.collocator.integration_method == 'backward euler':
-                    ax.plot(time[1:], traj[1:])
+            ax.plot(time, traj)
             ax.set_ylabel(sm.latex(symbol, mode='inline'))
 
             if self.bounds is not None and show_bounds:

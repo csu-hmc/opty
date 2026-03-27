@@ -275,3 +275,5 @@ ax.set_xlabel('Time [s]')
 ax.grid()
 
 plt.show()
+
+# sphinx_gallery_thumbnail_number = 4
