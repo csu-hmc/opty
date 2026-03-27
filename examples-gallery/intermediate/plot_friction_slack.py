@@ -6,7 +6,7 @@ Objectives
 ----------
 
 - Demonstrate how linear complimentarity constraints and associated slack
-  variables manage discontinuties in the dynamics.
+  variables manage discontinuities in the dynamics.
 
 Introduction
 ------------
@@ -33,7 +33,7 @@ Coulomb friction force is a piecewise function defined as:
            -\mu_k m g & \textrm{if }  v > 0  \\
          \end{cases}
 
-This is a discontinous nonlinear force. It is possible to convert discontinous
+This is a discontinuous nonlinear force. It is possible to convert discontinuous
 dynamics such as this into a set of `linear complementarity`_ constraints for
 the non-linear programming formulation that are continuous and differentiable.
 This requires more equations of motion and extra trajectories, but such a
@@ -42,7 +42,7 @@ formulation is often better conditioned.
 .. _linear complementarity: https://en.wikipedia.org/wiki/Linear_complementarity_problem
 
 If :math:`F_f = F_f^+ - F_f^-` it breaks the friction into two positive
-components of force. Then the sum of the two positive valued fricton components
+components of force. Then the sum of the two positive valued friction components
 must always be less than or equal than the Coulomb magnitude (both could be
 zero):
 
@@ -74,9 +74,9 @@ F_f^-` if  :math:`v > 0` and :math:`\mu m g = F_f^+` and if :math:`v < 0`:
 
    \mu m g \psi = (F_f^+ + F_f^-)\psi
 
-[Posa2013]_ demonstrates that these contraints can be better conditioned if
+[Posa2013]_ demonstrates that these constraints can be better conditioned if
 extra slack variables are introduced for each linear complimentarity constraint
-and the associated equality constraints are turned into inequality contraints.
+and the associated equality constraints are turned into inequality constraints.
 We have three linear complimentarity constraints, so three more slack variables
 are introduced and defined as:
 
@@ -95,7 +95,7 @@ and as inequality constraints.
    \beta F_f^- \leq 0  \textrm{ or } \epsilon\\
    \gamma \psi \leq 0 \textrm{ or } \epsilon
 
-:math:`\epsilon` can be used to relax the iequality constraint and reduced
+:math:`\epsilon` can be used to relax the inequality constraint and reduced
 during iterative solutions, but it is not needed for this simple problem.
 
 """
@@ -168,7 +168,7 @@ instance_constraints = (
 )
 
 # %%
-# Bound all of the slack variables to be nonnegative and provide reasonable
+# Bound all of the slack variables to be non-negative and provide reasonable
 # bounds for the other variables.
 bounds = {
     h: (0.0, 0.2),
@@ -263,7 +263,8 @@ for ax in axes:
     ax.axvline(N//2*solution[-1], color='black')
 
 # %%
-# Plot the friction force.
+# Plot the friction force (skips the first node because it is not dynamically
+# constrained due to backward Euler method).
 t_vals = prob.time_vector(solution)
 Ffp_vals = prob.extract_values(solution, Ffp(t))
 Ffn_vals = prob.extract_values(solution, Ffn(t))
