@@ -255,12 +255,18 @@ _ = prob.plot_objective_value()
 _ = prob.plot_constraint_violations(solution)
 
 # %%
-# Plot the optimal state and input trajectories.
+# Plot the optimal state and input trajectories (skips the first node because
+# it is not dynamically constrained due to backward Euler method).
 axes = prob.plot_trajectories(solution)
 for ax in axes:
     lines = ax.get_lines()
     for line in lines:
         line.set_marker('o')
+        x, y = line.get_data()
+        x[0], y[0] = np.nan, np.nan
+        line.set_data(x, y)
+    ax.relim()
+    ax.autoscale_view(tight=True)
     ax.axvline(N//2*solution[-1], color='black')
 
 # %%
@@ -270,6 +276,7 @@ t_vals = prob.time_vector(solution)
 Ffp_vals = prob.extract_values(solution, Ffp(t))
 Ffn_vals = prob.extract_values(solution, Ffn(t))
 v_vals = prob.extract_values(solution, v(t))
+
 fig, ax = plt.subplots()
 ax.plot(t_vals[1:], Ffp_vals[1:] - Ffn_vals[1:], marker='o')
 ax.axvline(N//2*solution[-1], color='black')
