@@ -34,10 +34,12 @@ Coulomb friction force is a piecewise function defined as:
          \end{cases}
 
 This is a discontinous nonlinear force. It is possible to convert discontinous
-dynamics such as this into a set of linear complementarity constraints for the
-non-linear programming formulation that are continuous and differentiable. This
-requires more equations of motion and extra trajectories, but such a
+dynamics such as this into a set of `linear complementarity`_ constraints for
+the non-linear programming formulation that are continuous and differentiable.
+This requires more equations of motion and extra trajectories, but such a
 formulation is often better conditioned.
+
+.. _linear complementarity: https://en.wikipedia.org/wiki/Linear_complementarity_problem
 
 If :math:`F_f = F_f^+ - F_f^-` it breaks the friction into two positive
 components of force. Then the sum of the two positive valued fricton components
@@ -255,10 +257,10 @@ _ = prob.plot_constraint_violations(solution)
 # Plot the optimal state and input trajectories.
 axes = prob.plot_trajectories(solution)
 for ax in axes:
-    ax.axvline(N//2*solution[-1], color='black')
     lines = ax.get_lines()
     for line in lines:
         line.set_marker('o')
+    ax.axvline(N//2*solution[-1], color='black')
 
 # %%
 # Plot the friction force.
