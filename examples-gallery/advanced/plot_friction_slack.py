@@ -291,4 +291,4 @@ ax.grid()
 
 plt.show()
 
-# sphinx_gallery_thumbnail_number = 4
+# sphinx_gallery_thumbnail_number = 5
