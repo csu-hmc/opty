@@ -45,7 +45,7 @@ average speed over half a period.
 Import all necessary modules, functions, and classes:
 """
 import os
-from pkg_resources import parse_version
+from packaging.version import parse as parse_version
 from opty import Problem
 from opty.utils import f_minus_ma
 from pygait2d import derive, simulate

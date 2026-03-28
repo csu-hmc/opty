@@ -24,3 +24,7 @@ References
    and John McPhee.  "Parameter Identification in Dynamic Systems Using the
    Homotopy Optimization Approach". Multibody System Dynamics 26, no. 4 (2011):
    411-24.
+.. [Posa2013] Posa, M., Cantu, C., & Tedrake, R. (2013). A direct method for
+   trajectory optimization of rigid bodies through contact. The International
+   Journal of Robotics Research, 33(1), 69–81.
+   https://doi.org/10.1177/0278364913506757
