@@ -54,6 +54,9 @@ Symposium on Computer Simulation in Biomechanics, Uppsala, Sweden, July 25,
 Publications About or That Use Opty
 ===================================
 
+#. Konrad, C. M., Happee, R., Moore, J. K., & Dabiri, A. (2025). Stochastic
+   Control Behavior of the Balancing Rider for Cycling Safety in Traffic
+   Simulation. Engineering Archive. https://doi.org/10.31224/6107
 #. Stahlecker, Peter, "PST Notebooks," 2025.
    https://www.pydy.org/pst-notebooks/
 #. Sorgedrager, Simon, "Riding a Bicycle Without Hands: How To Do It and the
