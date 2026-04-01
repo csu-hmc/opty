@@ -349,7 +349,7 @@ class Problem(cyipopt.Problem):
         if self.bounds is not None:
             # check for reversed bounds
             for key in self.bounds.keys():
-                if self.bounds[key][0] > self.bounds[key][1]:
+                if np.any(self.bounds[key][0] > self.bounds[key][1]):
                     errors2.append(key)
 
         errors = errors1 + errors2
@@ -1191,6 +1191,12 @@ class Problem(cyipopt.Problem):
         - All else is set to zero.
 
         """
+        if self.bounds is not None:
+            for k, v in self.bounds.items():
+                if isinstance(v[0], np.ndarray) or isinstance(v[1], np.ndarray):
+                    msg = 'This method only works with scalar bounds.'
+                    raise ValueError(msg)
+
         hilfs = sm.symbols('hilfs')
         if self.collocator.instance_constraints is None:
             instance_matrix = sm.Matrix([])
