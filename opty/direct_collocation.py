@@ -684,10 +684,12 @@ class Problem(cyipopt.Problem):
 
             if self.bounds is not None and show_bounds:
                 if symbol in self.bounds.keys():
-                    ax.axhline(self.bounds[symbol][0], color='C1', lw=1.0,
-                               linestyle='--')
-                    ax.axhline(self.bounds[symbol][1], color='C1', lw=1.0,
-                               linestyle='--')
+                    ax.plot(time, self.extract_values(self.lower_bound,
+                                                      symbol), color='C1',
+                            lw=1.0, linestyle='--')
+                    ax.plot(time, self.extract_values(self.upper_bound,
+                                                      symbol), color='C1',
+                            lw=1.0, linestyle='--')
         ax.set_xlabel('Time')
         axes[0].set_title('State Trajectories')
         if (self.collocator.num_unknown_input_trajectories +
