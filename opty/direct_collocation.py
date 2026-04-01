@@ -160,9 +160,11 @@ class Problem(cyipopt.Problem):
         bounds : dictionary, optional
             This dictionary should contain a mapping from any of the symbolic
             states, unknown trajectories, unknown parameters, or unknown time
-            interval to a 2-tuple of floats, the first being the lower bound
-            and the second the upper bound for that free variable, e.g.
-            ``{x(t): (-1.0, 5.0)}``.
+            interval to a 2-tuple of floats. If setting states or unknown
+            trajectories, an ndarray of shape(N,) can be supplied instead of a
+            float. The first entry of the 2-tuple is the lower bound and the
+            second the upper bound for that free variable, e.g. ``{x(t): (-1.0,
+            5.0)}`` or ``{x(t): (-1.0, np.ones(N))}``.
         eom_bounds : dictionary, optional
             Optional lower and upper bounds for the equations of motion,
             default is ``(0.0, 0.0)`` for each equation making them equality
@@ -430,14 +432,26 @@ class Problem(cyipopt.Problem):
                     i = state_syms.index(var)
                     start = i * N
                     stop = start + N
-                    lb[start:stop] = bounds[0] * np.ones(N)
-                    ub[start:stop] = bounds[1] * np.ones(N)
+                    if np.isscalar(bounds[0]):
+                        lb[start:stop] = bounds[0] * np.ones(N)
+                    else:
+                        lb[start:stop] = bounds[0]
+                    if np.isscalar(bounds[1]):
+                        ub[start:stop] = bounds[1] * np.ones(N)
+                    else:
+                        ub[start:stop] = bounds[1]
                 elif var in unk_traj:
                     i = unk_traj.index(var)
                     start = num_state_nodes + i * N
                     stop = start + N
-                    lb[start:stop] = bounds[0] * np.ones(N)
-                    ub[start:stop] = bounds[1] * np.ones(N)
+                    if np.isscalar(bounds[0]):
+                        lb[start:stop] = bounds[0] * np.ones(N)
+                    else:
+                        lb[start:stop] = bounds[0]
+                    if np.isscalar(bounds[1]):
+                        ub[start:stop] = bounds[1] * np.ones(N)
+                    else:
+                        ub[start:stop] = bounds[1]
                 elif var in unk_par:
                     i = unk_par.index(var)
                     idx = num_non_par_nodes + i

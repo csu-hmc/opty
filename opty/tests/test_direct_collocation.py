@@ -530,6 +530,36 @@ def test_pendulum():
     expected_upp_con_bounds[50:100] = 10.0
     np.testing.assert_allclose(prob._upp_con_bounds, expected_upp_con_bounds)
 
+    # now test bounds set to arrays and scalars
+    theta_bounds = (-np.ones(num_nodes), 3.0*np.ones(num_nodes))
+    torque_low = -np.ones(num_nodes)
+    torque_low[0:20] = 3.0*torque_low[0:20]
+    torque_bounds = (torque_low, 2.0)
+
+    prob = Problem(
+        obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        bounds={
+            theta(t): theta_bounds,
+            T(t): torque_bounds,
+        },
+        backend='numpy',
+    )
+
+    np.testing.assert_allclose(prob.lower_bound,
+                               np.hstack((theta_bounds[0],
+                                          -10e19*np.ones(num_nodes),
+                                          torque_low
+                                          )))
+
+    np.testing.assert_allclose(prob.upper_bound,
+                               np.hstack((theta_bounds[1],
+                                          10e19*np.ones(num_nodes),
+                                          2.0*np.ones(num_nodes),
+                                          )))
+
 
 def TestProblem():
 
