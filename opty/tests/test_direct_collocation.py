@@ -561,6 +561,15 @@ def test_pendulum(plot=False):
                                           )))
 
     init = prob.create_linear_initial_guess()
+
+    np.testing.assert_allclose(
+        init,
+        np.hstack((
+            np.linspace(0.0, target_angle, num=num_nodes),
+            np.zeros(num_nodes),
+            0.5*(torque_low + 2.0),
+        ))
+    )
     if plot:
         prob.plot_trajectories(init)
         import matplotlib.pyplot as plt

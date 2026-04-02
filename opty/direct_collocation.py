@@ -1357,8 +1357,8 @@ class Problem(cyipopt.Problem):
                     elif np.any(self.bounds[symb][1] >= self.INF):
                         wert = self.bounds[symb][0]
                     else:
-                        wert = (self.bounds[symb][0] +
-                                self.bounds[symb][1])/2.0
+                        wert = 0.5*(self.bounds[symb][0] +
+                                    self.bounds[symb][1])
                     initial_guess[start_idx + idx*num_nodes:start_idx+(idx+1)*
                                   num_nodes] = wert
 
@@ -1371,9 +1371,9 @@ class Problem(cyipopt.Problem):
             for symb in self.collocator.unknown_parameters:
                 idx = self.collocator.unknown_parameters.index(symb)
                 if symb in self.bounds.keys():
-                    if np.any(self.bounds[symb][0] <= -self.INF):
+                    if self.bounds[symb][0] <= -self.INF:
                         wert = self.bounds[symb][1]
-                    elif np.any(self.bounds[symb][1] >= self.INF):
+                    elif self.bounds[symb][1] >= self.INF:
                         wert = self.bounds[symb][0]
                     else:
                         wert = 0.5*(self.bounds[symb][0] +
@@ -1383,20 +1383,15 @@ class Problem(cyipopt.Problem):
         # set the value of the variable time interval.
         if isinstance(self.collocator.node_time_interval, sm.Symbol):
             if self.bounds is not None:
-                if self.collocator.node_time_interval in self.bounds.keys():
-                    if (self.bounds[self.collocator.node_time_interval][0] ==
-                            -np.inf):
-                        wert = self.bounds[
-                            self.collocator.node_time_interval][1]
-                    elif (self.bounds[self.collocator.node_time_interval][1] ==
-                            np.inf):
-                        wert = self.bounds[self.collocator.
-                                           node_time_interval][0]
+                symb = self.collocator.node_time_interval
+                if symb in self.bounds.keys():
+                    lb, ub = self.bounds[symb][0], self.bounds[symb][1]
+                    if lb <= -self.INF:
+                        wert = ub
+                    elif ub >= self.INF:
+                        wert = lb
                     else:
-                        wert = 0.5*(self.bounds[self.collocator.
-                                                node_time_interval][0] +
-                                    self.bounds[self.collocator.
-                                                node_time_interval][1])
+                        wert = 0.5*(lb + ub)
                     initial_guess[-1] = wert
 
             if self.bounds is None:
