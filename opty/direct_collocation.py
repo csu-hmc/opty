@@ -160,9 +160,11 @@ class Problem(cyipopt.Problem):
         bounds : dictionary, optional
             This dictionary should contain a mapping from any of the symbolic
             states, unknown trajectories, unknown parameters, or unknown time
-            interval to a 2-tuple of floats, the first being the lower bound
-            and the second the upper bound for that free variable, e.g.
-            ``{x(t): (-1.0, 5.0)}``.
+            interval to a 2-tuple of floats. If setting states or unknown
+            trajectories, an ndarray of shape(N,) can be supplied instead of a
+            float. The first entry of the 2-tuple is the lower bound and the
+            second the upper bound for that free variable, e.g. ``{x(t): (-1.0,
+            5.0)}`` or ``{x(t): (-1.0, np.ones(N))}``.
         eom_bounds : dictionary, optional
             Optional lower and upper bounds for the equations of motion,
             default is ``(0.0, 0.0)`` for each equation making them equality
@@ -347,7 +349,7 @@ class Problem(cyipopt.Problem):
         if self.bounds is not None:
             # check for reversed bounds
             for key in self.bounds.keys():
-                if self.bounds[key][0] > self.bounds[key][1]:
+                if np.any(self.bounds[key][0] > self.bounds[key][1]):
                     errors2.append(key)
 
         errors = errors1 + errors2
@@ -430,14 +432,26 @@ class Problem(cyipopt.Problem):
                     i = state_syms.index(var)
                     start = i * N
                     stop = start + N
-                    lb[start:stop] = bounds[0] * np.ones(N)
-                    ub[start:stop] = bounds[1] * np.ones(N)
+                    if np.isscalar(bounds[0]):
+                        lb[start:stop] = bounds[0] * np.ones(N)
+                    else:
+                        lb[start:stop] = bounds[0]
+                    if np.isscalar(bounds[1]):
+                        ub[start:stop] = bounds[1] * np.ones(N)
+                    else:
+                        ub[start:stop] = bounds[1]
                 elif var in unk_traj:
                     i = unk_traj.index(var)
                     start = num_state_nodes + i * N
                     stop = start + N
-                    lb[start:stop] = bounds[0] * np.ones(N)
-                    ub[start:stop] = bounds[1] * np.ones(N)
+                    if np.isscalar(bounds[0]):
+                        lb[start:stop] = bounds[0] * np.ones(N)
+                    else:
+                        lb[start:stop] = bounds[0]
+                    if np.isscalar(bounds[1]):
+                        ub[start:stop] = bounds[1] * np.ones(N)
+                    else:
+                        ub[start:stop] = bounds[1]
                 elif var in unk_par:
                     i = unk_par.index(var)
                     idx = num_non_par_nodes + i
@@ -670,10 +684,12 @@ class Problem(cyipopt.Problem):
 
             if self.bounds is not None and show_bounds:
                 if symbol in self.bounds.keys():
-                    ax.axhline(self.bounds[symbol][0], color='C1', lw=1.0,
-                               linestyle='--')
-                    ax.axhline(self.bounds[symbol][1], color='C1', lw=1.0,
-                               linestyle='--')
+                    ax.plot(time, self.extract_values(self.lower_bound,
+                                                      symbol), color='C1',
+                            lw=1.0, linestyle='--')
+                    ax.plot(time, self.extract_values(self.upper_bound,
+                                                      symbol), color='C1',
+                            lw=1.0, linestyle='--')
         ax.set_xlabel('Time')
         axes[0].set_title('State Trajectories')
         if (self.collocator.num_unknown_input_trajectories +
@@ -1336,9 +1352,9 @@ class Problem(cyipopt.Problem):
             for symb in self.collocator.unknown_input_trajectories:
                 idx = self.collocator.unknown_input_trajectories.index(symb)
                 if symb in self.bounds.keys():
-                    if self.bounds[symb][0] == -np.inf:
+                    if np.any(self.bounds[symb][0] <= -self.INF):
                         wert = self.bounds[symb][1]
-                    elif self.bounds[symb][1] == np.inf:
+                    elif np.any(self.bounds[symb][1] >= self.INF):
                         wert = self.bounds[symb][0]
                     else:
                         wert = 0.5*(self.bounds[symb][0] +
@@ -1355,9 +1371,9 @@ class Problem(cyipopt.Problem):
             for symb in self.collocator.unknown_parameters:
                 idx = self.collocator.unknown_parameters.index(symb)
                 if symb in self.bounds.keys():
-                    if self.bounds[symb][0] == -np.inf:
+                    if self.bounds[symb][0] <= -self.INF:
                         wert = self.bounds[symb][1]
-                    elif self.bounds[symb][1] == np.inf:
+                    elif self.bounds[symb][1] >= self.INF:
                         wert = self.bounds[symb][0]
                     else:
                         wert = 0.5*(self.bounds[symb][0] +
@@ -1367,20 +1383,15 @@ class Problem(cyipopt.Problem):
         # set the value of the variable time interval.
         if isinstance(self.collocator.node_time_interval, sm.Symbol):
             if self.bounds is not None:
-                if self.collocator.node_time_interval in self.bounds.keys():
-                    if (self.bounds[self.collocator.node_time_interval][0] ==
-                            -np.inf):
-                        wert = self.bounds[
-                            self.collocator.node_time_interval][1]
-                    elif (self.bounds[self.collocator.node_time_interval][1] ==
-                            np.inf):
-                        wert = self.bounds[self.collocator.
-                                           node_time_interval][0]
+                symb = self.collocator.node_time_interval
+                if symb in self.bounds.keys():
+                    lb, ub = self.bounds[symb][0], self.bounds[symb][1]
+                    if lb <= -self.INF:
+                        wert = ub
+                    elif ub >= self.INF:
+                        wert = lb
                     else:
-                        wert = 0.5*(self.bounds[self.collocator.
-                                                node_time_interval][0] +
-                                    self.bounds[self.collocator.
-                                                node_time_interval][1])
+                        wert = 0.5*(lb + ub)
                     initial_guess[-1] = wert
 
             if self.bounds is None:

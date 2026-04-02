@@ -468,7 +468,7 @@ def test_extra_algebraic(plot=False):
         plt.show()
 
 
-def test_pendulum():
+def test_pendulum(plot=False):
 
     target_angle = np.pi
     duration = 10.0
@@ -529,6 +529,53 @@ def test_pendulum():
     expected_upp_con_bounds[:50] = 20.0
     expected_upp_con_bounds[50:100] = 10.0
     np.testing.assert_allclose(prob._upp_con_bounds, expected_upp_con_bounds)
+
+    # now test bounds set to arrays and scalars
+    theta_bounds = (-np.ones(num_nodes), 4.0*np.ones(num_nodes))
+    torque_low = -np.ones(num_nodes)
+    torque_low[0:20] = 3.0*torque_low[0:20]
+    torque_bounds = (torque_low, 2.0)
+
+    prob = Problem(
+        obj, obj_grad, eom, state_symbols, num_nodes, interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        bounds={
+            theta(t): theta_bounds,
+            T(t): torque_bounds,
+        },
+        backend='numpy',
+    )
+
+    np.testing.assert_allclose(prob.lower_bound,
+                               np.hstack((theta_bounds[0],
+                                          -10e19*np.ones(num_nodes),
+                                          torque_low
+                                          )))
+
+    np.testing.assert_allclose(prob.upper_bound,
+                               np.hstack((theta_bounds[1],
+                                          10e19*np.ones(num_nodes),
+                                          2.0*np.ones(num_nodes),
+                                          )))
+
+    init = prob.create_linear_initial_guess()
+
+    np.testing.assert_allclose(
+        init,
+        np.hstack((
+            np.linspace(0.0, target_angle, num=num_nodes),
+            np.zeros(num_nodes),
+            0.5*(torque_low + 2.0),
+        ))
+    )
+    if plot:
+        prob.plot_trajectories(init)
+        import matplotlib.pyplot as plt
+        plt.show()
+
+    prob.check_bounds_conflict(init)
 
 
 def TestProblem():
