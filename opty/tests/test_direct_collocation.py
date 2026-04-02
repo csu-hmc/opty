@@ -468,7 +468,7 @@ def test_extra_algebraic(plot=False):
         plt.show()
 
 
-def test_pendulum():
+def test_pendulum(plot=False):
 
     target_angle = np.pi
     duration = 10.0
@@ -531,7 +531,7 @@ def test_pendulum():
     np.testing.assert_allclose(prob._upp_con_bounds, expected_upp_con_bounds)
 
     # now test bounds set to arrays and scalars
-    theta_bounds = (-np.ones(num_nodes), 3.0*np.ones(num_nodes))
+    theta_bounds = (-np.ones(num_nodes), 4.0*np.ones(num_nodes))
     torque_low = -np.ones(num_nodes)
     torque_low[0:20] = 3.0*torque_low[0:20]
     torque_bounds = (torque_low, 2.0)
@@ -559,6 +559,14 @@ def test_pendulum():
                                           10e19*np.ones(num_nodes),
                                           2.0*np.ones(num_nodes),
                                           )))
+
+    init = prob.create_linear_initial_guess()
+    if plot:
+        prob.plot_trajectories(init)
+        import matplotlib.pyplot as plt
+        plt.show()
+
+    prob.check_bounds_conflict(init)
 
 
 def TestProblem():

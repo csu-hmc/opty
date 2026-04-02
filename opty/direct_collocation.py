@@ -1191,12 +1191,6 @@ class Problem(cyipopt.Problem):
         - All else is set to zero.
 
         """
-        if self.bounds is not None:
-            for k, v in self.bounds.items():
-                if isinstance(v[0], np.ndarray) or isinstance(v[1], np.ndarray):
-                    msg = 'This method only works with scalar bounds.'
-                    raise ValueError(msg)
-
         hilfs = sm.symbols('hilfs')
         if self.collocator.instance_constraints is None:
             instance_matrix = sm.Matrix([])
@@ -1358,13 +1352,13 @@ class Problem(cyipopt.Problem):
             for symb in self.collocator.unknown_input_trajectories:
                 idx = self.collocator.unknown_input_trajectories.index(symb)
                 if symb in self.bounds.keys():
-                    if self.bounds[symb][0] == -np.inf:
+                    if np.any(self.bounds[symb][0] <= -self.INF):
                         wert = self.bounds[symb][1]
-                    elif self.bounds[symb][1] == np.inf:
+                    elif np.any(self.bounds[symb][1] >= self.INF):
                         wert = self.bounds[symb][0]
                     else:
-                        wert = 0.5*(self.bounds[symb][0] +
-                                    self.bounds[symb][1])
+                        wert = (self.bounds[symb][0] +
+                                self.bounds[symb][1])/2.0
                     initial_guess[start_idx + idx*num_nodes:start_idx+(idx+1)*
                                   num_nodes] = wert
 
@@ -1377,9 +1371,9 @@ class Problem(cyipopt.Problem):
             for symb in self.collocator.unknown_parameters:
                 idx = self.collocator.unknown_parameters.index(symb)
                 if symb in self.bounds.keys():
-                    if self.bounds[symb][0] == -np.inf:
+                    if np.any(self.bounds[symb][0] <= -self.INF):
                         wert = self.bounds[symb][1]
-                    elif self.bounds[symb][1] == np.inf:
+                    elif np.any(self.bounds[symb][1] >= self.INF):
                         wert = self.bounds[symb][0]
                     else:
                         wert = 0.5*(self.bounds[symb][0] +
