@@ -338,63 +338,34 @@ class Problem(cyipopt.Problem):
             a ValueError is raised.
 
         """
-        errors1 = []
-        errors2 = []
+        eom_rev_errors = []
+        var_rev_errors = []
         if self.eom_bounds is not None:
             # check for reversed bounds
             for key in self.eom_bounds.keys():
                 if self.eom_bounds[key][0] > self.eom_bounds[key][1]:
-                    errors1.append(key)
-
-        if self.bounds is not None:
-            # check for reversed bounds
-            for key in self.bounds.keys():
-                if np.any(self.bounds[key][0] > self.bounds[key][1]):
-                    errors2.append(key)
-
-        errors = errors1 + errors2
-        if len(errors) > 0:
-                msg = (f'The lower bound(s) for {errors} is (are) greater than'
-                       f' the upper bound(s).')
-                raise ValueError(msg)
+                    eom_rev_errors.append(key)
 
         if self.bounds is not None:
             violating_variables = []
+            for sym, (low, high) in self.bounds.items():
+                # check for reversed bounds
+                if np.any(low > high):
+                    var_rev_errors.append(sym)
+                vals = self.extract_values(free, sym)
+                if np.any(vals < low) or np.any(vals > high):
+                    violating_variables.append(sym)
 
-            if self.collocator._variable_duration:
-                local_ts = self.collocator.time_interval_symbol
-                if local_ts in self.bounds.keys():
-                    if (free[-1] < self.bounds[local_ts][0]
-                        or free[-1] > self.bounds[local_ts][1]):
-                        violating_variables.append(local_ts)
-
-            symbole = (self.collocator.state_symbols +
-                       self.collocator.unknown_input_trajectories)
-            for symb in symbole:
-                if symb in self.bounds.keys():
-                    idx = symbole.index(symb)
-                    feld = free[idx*self.collocator.num_collocation_nodes:
-                                (idx+1)*self.collocator.num_collocation_nodes]
-                    if (np.any(feld < self.bounds[symb][0])
-                        or np.any(feld > self.bounds[symb][1])):
-                        violating_variables.append(symb)
-
-            # check that initial guesses for unknown parameters are within
-            startidx = len(symbole) * self.collocator.num_collocation_nodes
-            for symb in self.collocator.unknown_parameters:
-                if symb in self.bounds.keys():
-                    idx = self.collocator.unknown_parameters.index(symb)
-                    if (free[startidx+idx] < self.bounds[symb][0]
-                        or free[startidx+idx] > self.bounds[symb][1]):
-                        violating_variables.append(symb)
-
-            if len(violating_variables) > 0:
-                msg = (f'The initial guesses for {violating_variables} are in '
-                       f'conflict with their bounds.')
+            if violating_variables:
+                msg = (f'The initial guesses for {violating_variables} '
+                       'are in conflict with their bounds.')
                 raise ValueError(msg)
 
-        else:
-            pass
+        errors = eom_rev_errors + var_rev_errors
+        if len(errors) > 0:
+            msg = (f'The lower bound(s) for {errors} is (are) '
+                   'greater than the upper bound(s).')
+            raise ValueError(msg)
 
     def _generate_constraint_bound_arrays(self):
 
