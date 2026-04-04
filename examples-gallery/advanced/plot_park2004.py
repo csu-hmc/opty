@@ -61,7 +61,8 @@ MathJaxRepr(sm.simplify(eom))
 A, B, C, D = h.closed_loop_state_space()
 ss = ctrl.StateSpace(A, B, C, D)
 ineq = ss.get_asymptotic_stability_conditions()
-eom = eom.col_join(sm.Matrix(ineq))
+constraints = [expr.lhs for expr in ineq]  # all should be > zero
+eom = eom.col_join(sm.Matrix(constraints))
 
 # %%
 # Simulate Measurement Data
