@@ -59,20 +59,9 @@ MathJaxRepr(sm.simplify(eom))
 # ---------------------------------
 #
 A, B, C, D = h.closed_loop_state_space()
-d1, d2, d3, d4, d5, d6, d7, d8 = sm.symbols('d1, d2, d3, d4, d5, d6, d7, d8',
-                                            real=True)
-A_ = sm.Matrix([[0, 0, 1, 0],
-                [0, 0, 0, 1],
-                [d1, d2, d3, d4],
-                [d5, d6, d7, d8]])
-B_ = sm.ones(4, 2)
-C_ = sm.eye(4)
-D_ = sm.zeros(*B_.shape)
-ss = ctrl.StateSpace(A_, B_, C_, D_)
+ss = ctrl.StateSpace(A, B, C, D)
 ineq = ss.get_asymptotic_stability_conditions()
-constraints = [expr.lhs.subs(dict(zip(A_[8:], A[8:])))
-               for expr in ineq]  # all should be > zero
-eom = eom.col_join(sm.Matrix(constraints))
+eom = eom.col_join(sm.Matrix(ineq))
 
 # %%
 # Simulate Measurement Data
