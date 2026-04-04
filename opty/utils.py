@@ -6,7 +6,7 @@ import shutil
 import tempfile
 import subprocess
 import importlib
-from functools import wraps
+from functools import wraps, partial
 import warnings
 from distutils.ccompiler import new_compiler
 from distutils.errors import CompileError
@@ -372,7 +372,8 @@ def create_objective_function(objective, state_symbols,
         return sm.lambdify(
             (states, inputs, params), expr,
             modules=[{int_placeholder.name: integration_function}, "numpy"],
-            cse=True)
+            cse=partial(sm.cse, order='none', list=False),
+            docstring_limit=0)
 
     def parse_expr(expr, in_integral=False):
         if not expr.args:
@@ -616,7 +617,10 @@ def lambdify_matrix(args, expr):
             - ``argn`` : ndarray shape(n,) or float
 
     """
-    eval_single_mat = sm.lambdify(args, expr, modules='numpy', cse=True)
+    eval_single_mat = sm.lambdify(args, expr, modules='numpy',
+                                  cse=partial(sm.cse, order='none',
+                                              list=False),
+                                  docstring_limit=0)
 
     # TODO : this is terribly computationally costly but there is not a clean
     # way to do this using appropriate broadcasting via lambdify. See:
