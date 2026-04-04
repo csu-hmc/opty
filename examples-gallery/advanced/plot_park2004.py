@@ -60,7 +60,7 @@ MathJaxRepr(sm.simplify(eom))
 #
 A, B, C, D = h.closed_loop_state_space()
 ss = ctrl.StateSpace(A, B, C, D)
-ineq = ss.get_asymptotic_stability_conditions()
+ineq = ss.get_asymptotic_stability_conditions(fast=True)
 constraints = [expr.lhs for expr in ineq]  # all should be > zero
 eom = eom.col_join(sm.Matrix(constraints))
 
@@ -161,12 +161,7 @@ prob = Problem(
     bounds=bounds,
     time_symbol=h.time,
     integration_method='midpoint',
-    eom_bounds={
-        4: (0.0, np.inf),
-        5: (0.0, np.inf),
-        6: (0.0, np.inf),
-        7: (0.0, np.inf),
-    }
+    eom_bounds={4 + i: (0.0, np.inf) for i in range(len(constraints))}
 )
 
 # %%
