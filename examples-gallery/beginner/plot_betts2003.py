@@ -2,7 +2,15 @@
 Parameter Identification: Betts & Huffman 2003
 ==============================================
 
-This is the problem presented in section 7 of [Betts2003]_.
+This is the single parameter identification problem presented in section 7 of
+[Betts2003]_.
+
+Objectives
+----------
+
+- Show how to execute a parameter identification.
+- Show how to handle time being explicit in the equations of motion using a
+  known trajectory set to time.
 
 """
 
@@ -11,12 +19,12 @@ import sympy as sym
 import matplotlib.pyplot as plt
 from opty import Problem
 
-duration = 1.0
+duration = 1.0  # seconds
 num_nodes = 100
 interval = duration / (num_nodes - 1)
 
 # %%
-# Symbolic equations of motion
+# Define the variables.
 mu, p, t = sym.symbols('mu, p, t')
 y1, y2, T = sym.symbols('y1, y2, T', cls=sym.Function)
 
@@ -24,29 +32,30 @@ state_symbols = (y1(t), y2(t))
 constant_symbols = (mu, p)
 
 # %%
-# I had to use a little "trick" here because time was explicit in the eoms,
-# i.e. setting T(t) to a function of time and then pass in time as a known
-# trajectory in the problem.
-eom = sym.Matrix([y1(t).diff(t) - y2(t),
-                  y2(t).diff(t) - mu**2 * y1(t) + (mu**2 + p**2) *
-                  sym.sin(p * T(t))])
+# Define the symbolic equations of motion
+#
+# Use a trick here because time was explicit in the eoms. Set T(t) to a
+# function of time and then pass in time as a known trajectory in the problem.
+eom = sym.Matrix([
+    y1(t).diff(t) - y2(t),
+    y2(t).diff(t) - mu**2 * y1(t) + (mu**2 + p**2) * sym.sin(p * T(t)),
+])
 
 # %%
 # Specify the known system parameters.
-par_map = {}
-par_map[mu] = 60.0
+par_map = {mu: 60.0}
 
 # %%
-# Generate data
-time = np.linspace(0.0, 1.0, num_nodes)
+# Generate data representing measurements of the system's motion.
+time = np.linspace(0.0, 1.0, num=num_nodes)
 y1_m = np.sin(np.pi * time) + np.random.normal(scale=0.05, size=len(time))
 y2_m = np.pi * np.cos(np.pi * time) + np.random.normal(scale=0.05,
                                                        size=len(time))
 
 
 # %%
-# Specify the objective function and it's gradient. I'm only fitting to y1,
-# but they may have fit to both states in the paper.
+# Specify the objective function and its gradient to minimize the sum of the
+# squares of ``y1``.
 def obj(free):
     return interval * np.sum((y1_m - free[:num_nodes])**2)
 
@@ -58,8 +67,7 @@ def obj_grad(free):
 
 
 # %%
-# Specify the symbolic instance constraints, i.e. initial and end
-# conditions.
+# Specify the symbolic instance constraints, i.e. initial and end conditions.
 instance_constraints = (y1(0.0), y2(0.0) - np.pi)
 
 # %%
@@ -94,7 +102,7 @@ print(identified_msg)
 print(divider)
 
 # %%
-# Plot results
+# Plot results.
 fig_y1, axes_y1 = plt.subplots(3, 1, layout='constrained')
 
 legend = ['measured', 'initial guess', 'direct collocation solution']
@@ -111,10 +119,8 @@ axes_y1[1].plot(prob.con(initial_guess)[:num_nodes - 1])
 axes_y1[2].set_title('Solution Constraint Violations')
 axes_y1[2].plot(prob.con(solution)[:num_nodes - 1])
 
-plt.tight_layout()
-
 # %%
-fig_y2, axes_y2 = plt.subplots(3, 1)
+fig_y2, axes_y2 = plt.subplots(3, 1, layout='constrained')
 
 axes_y2[0].plot(time, y2_m, '.k',
                 time, initial_guess[num_nodes:-1], '.b',

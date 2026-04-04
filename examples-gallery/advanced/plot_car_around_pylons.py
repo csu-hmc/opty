@@ -3,11 +3,11 @@ r"""
 Car around Pylons
 =================
 
-Objective
----------
-- Show a way to circumvent the current inability of *opty* to handle  instance
-  constraints at times that are not specified in advance but selected optimally
-  by *opty* itself.
+Objectives
+----------
+- Show how to use inequality constrains for equations of motion
+- Show how to come close to intermediate points on a solution path at times
+  specified by opty.
 
 Introduction
 ------------
@@ -27,17 +27,14 @@ Method to Achieve the Objective
 
 Make the car to come 'close' to two points, but without specifying the time
 when it should be there. *opty* should find the best time for the car to be
-there. Presently intermediate points must be specified as
-:math:`t_\textrm{intermediate} = \textrm{integer} \cdot
-\textrm{interval}_\textrm{value}`, with :math:`0 < \textrm{integer} <
-\textrm{num}_\textrm{nodes}` fixed, so:
+there.
 
 - Set the two points as :math:`(x_{b_1}, y_{b_1})` and :math:`(x_{b_2},
   y_{b_2})` and an allowable 'radius' called *epsilon* around these points.
-- Create a differentiable function :math:`\textrm{hump}(x, a, b, g_r)` such
-  that it is one for :math:`a \leq x \leq b` and zero otherwise. :math:`g_r >
-  0` is a parameter that determines how 'sharp' the transition is, the larger
-  the sharper.
+- Create a differentiable function :math:`\textrm{hump}(x, a, b,
+  \textrm{steepness})` such that it is one for :math:`a \leq x \leq b` and zero
+  otherwise. :math:`\textrm{steepness} > 0` is a parameter that determines how
+  'sharp' the transition is, the larger the sharper.
 - In order to know at the end of the run whether the car came close to the
   points during its course, integrate the hump function over time. These are
   the variables :math:`\textrm{punkt}_1, \textrm{punkt}_2` with
@@ -45,8 +42,8 @@ there. Presently intermediate points must be specified as
   car came close to the point, = 0 otherwise. Same for
   :math:`\textrm{punkt}_2`.
 - The exact values of :math:`\textrm{punkt}_1, \textrm{punkt}_2` are not known
-  and should simple be positive 'enough', include two additional state
-  variables :math:`\textrm{dist}_1, \textrm{dist}_2` and specified variables
+  and should simply be positive 'enough', include two additional input
+  trajectories :math:`\textrm{dist}_1, \textrm{dist}_2` and specified variables
   :math:`h_1, h_2`.
 - By setting :math:`\textrm{dist}_1 = \textrm{punkt}_1 \cdot h_1` and
   :math:`\textrm{dist}_2 = \textrm{punkt}_2 \cdot h_2` and bounding
@@ -63,21 +60,17 @@ there. Presently intermediate points must be specified as
 - :math:`u_0` : angular velocity of the body of the car
 - :math:`q_f` : angle of the front axis relative to the body
 - :math:`u_f` : angular velocity of the front axis relative to the body
-- :math:`acc_f` : acceleration of the front of the car
-- :math:`acc_b` : acceleration of the back of the car
-- :math:`\textrm{forward}` : variable to ensure the car can only move forward
 - :math:`\textrm{punkt}_1, \textrm{punkt}_2` : variables to ensure the car
   comes close to the points
-- :math:`\textrm{punkt}_{\textrm{dt}_1}, \textrm{punkt}_{\textrm{dt}_2}` : time
-  derivatives of the above
-- :math:`\textrm{dist}_1, \textrm{dist}_2` : variables to ensure the car comes
-  close to the points
 
 **Specifieds**
 
 - :math:`T_f` : torque at the front axis, that is steering torque
 - :math:`F_b` : force at the rear axis, that is driving force
 - :math:`h_1, h_2` : variables to ensure the car comes close to the points
+- :math:`\textrm{dist}_1, \textrm{dist}_2` : variables to ensure the car comes
+  close to the points
+
 
 **Known Parameters**
 
@@ -166,7 +159,7 @@ bodies = [body0, bodyb, bodyf]
 forces = [(Pb, Fb * Ab.y), (Af, Tf * N.z), (Dmc, -reibung * Dmc.vel(N))]
 
 kd = sm.Matrix([ux - x.diff(t), uy - y.diff(t), u0 - q0.diff(t),
-                me.dot(rot1- rot, N.z)])
+                me.dot(rot1 - rot, N.z)])
 speed_constr = sm.Matrix([vel1, vel2])
 
 q_ind = [x, y, q0, qf]
@@ -190,36 +183,36 @@ eom = eom.col_join(speed_constr)
 # %%
 # Constraints so the car approaches the points :math:`(x_{b_1}, y_{b_1})`, and
 # :math:`(x_{b_2}, y_{b_2})` at whatever times opty chooses, explanation above.
-# Also here it is enforced that it can only move forward in that the state
-# variable *forward* is bound to be positive. If gr is large, say, gr = 75 the
-# optimazation will not work it may become too 'non-differentiable' for *opty*.
-def hump(x, a, b, gr):
+# Also here it is enforced that it can only move forward.
+# If ``steepness`` is large optimazation will not work it may become too
+# 'non-differentiable'.
+steepness = sm.symbols('steepness')
+
+
+def hump(x, a, b, steepness):
     # approx one for x in [a, b]
     # approx zero otherwise
-    # the higher gr the closer the approximation
-    return 1.0 - (1/(1 + sm.exp(gr*(x - a))) + 1/(1 + sm.exp(-gr*(x - b))))
+    # the higher steepness the closer the approximation
+    res = 1.0 - (1 / (1 + sm.exp(steepness*(x - a)))
+                 + 1 / (1 + sm.exp(-steepness * (x - b))))
+    return res
 
 
-forward = me.dynamicsymbols('forward')
-punkt1, punktdt1 = me.dynamicsymbols('punkt1 punktdt1')
-punkt2, punktdt2 = me.dynamicsymbols('punkt2 punktdt2')
+punkt1, punkt2 = me.dynamicsymbols('punkt1 punkt2')
 dist1, dist2 = me.dynamicsymbols('dist1 dist2')
 h1, h2 = me.dynamicsymbols('h1 h2')
 
-xb1, yb1, xb2, yb2= sm.symbols('xb yb xb2 yb2')
+xb1, yb1, xb2, yb2 = sm.symbols('xb yb xb2 yb2')
 epsilon = sm.symbols('epsilon')
 
 treffer1 = (hump(x, xb1-epsilon, xb1+epsilon, 5)*hump(y, yb1-epsilon,
-                                                      yb1+epsilon, 5))
+                                                      yb1+epsilon, steepness))
 treffer2 = (hump(x, xb2-epsilon, xb2+epsilon, 5)*hump(y, yb2-epsilon,
-                                                      yb2+epsilon, 5))
+                                                      yb2+epsilon, steepness))
 
 eom_add = sm.Matrix([
-    -forward + Pb.vel(N).dot(Ab.y),
-    -punkt1.diff(t) + punktdt1,
-    -punktdt1 + treffer1,
-    -punkt2.diff(t) + punktdt2,
-    -punktdt2 + treffer2,
+    -punkt1.diff(t) + treffer1,
+    -punkt2.diff(t) + treffer2,
     -dist1 + punkt1 * h1,
     -dist2 + punkt2 * h2,
 ])
@@ -228,11 +221,12 @@ eom = eom.col_join(eom_add)
 
 # %%
 # Acceleration constraints, so the car does not slide off the road.
-acc_f, acc_b = me.dynamicsymbols('acc_f acc_b')
+# Constraint so the care only moves forward.
 
-accel_front = Pf.acc(N).magnitude()
-accel_back = Pb.acc(N).magnitude()
-beschleunigung = sm.Matrix([-acc_f + accel_front, -acc_b + accel_back])
+forward = Pb.vel(N).dot(Ab.y)
+accel_front = Pf.acc(N).dot(A0.x)
+accel_back = Pb.acc(N).dot(A0.x)
+beschleunigung = sm.Matrix([forward, accel_front, accel_back])
 
 eom = eom.col_join(beschleunigung)
 
@@ -243,10 +237,10 @@ print(f'eom too large to print out. Its shape is {eom.shape} and it has '
 # Set up the Optimization Problem and Solve It
 # --------------------------------------------
 h = sm.symbols('h')
-state_symbols = ([x, y, q0, qf, ux, uy, u0, uf] + [acc_f, acc_b, forward] +
-                 [punkt1, punktdt1, punkt2, punktdt2] + [dist1, dist2])
+state_symbols = ([x, y, q0, qf, ux, uy, u0, uf] +
+                 [punkt1, punkt2])
 constant_symbols = (l, m0, mb, mf, iZZ0, iZZb, iZZf, reibung)
-specified_symbols = (Fb, Tf, h1, h2)
+specified_symbols = (Fb, Tf, h1, h2, dist1, dist2)
 
 num_nodes = 401
 t0 = 0.0
@@ -269,6 +263,7 @@ par_map[yb1] = 15.0
 par_map[xb2] = -5.0
 par_map[yb2] = 10.0
 par_map[epsilon] = 0.5
+par_map[steepness] = 5.0
 
 
 # %%
@@ -295,9 +290,7 @@ instance_constraints = (
     u0.func(t0),
     uf.func(t0),
     punkt1.func(t0),
-    punktdt1.func(t0),
     punkt2.func(t0),
-    punktdt2.func(t0),
     dist1.func(t0),
     dist2.func(t0),
     x.func(tf),
@@ -319,11 +312,14 @@ bounds = {
     x: (-20, 20),
     y: (-15, 30),
     h: (0.0, 0.5),
-    acc_f: (-grenze1, grenze1),
-    acc_b: (-grenze1, grenze1),
-    forward: (-1.e-5, np.inf),
     h1: (1.0, 5.0),
     h2: (1.0, 5.0),
+}
+
+eom_bounds = {
+    12: (0.0, np.inf),
+    13: (-grenze1, grenze1),
+    14: (-grenze1, grenze1),
 }
 
 prob = Problem(
@@ -336,37 +332,52 @@ prob = Problem(
     known_parameter_map=par_map,
     instance_constraints=instance_constraints,
     bounds=bounds,
+    eom_bounds=eom_bounds,
+    time_symbol=t,
+    backend='numpy',
 )
 
 # %%
 # For the initial guess the result of some previous run is used to expedite
-# execution, if available
+# execution, if available.
 fname = f'car_around_pylons_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
+    # A result is available.
     solution = np.loadtxt(fname)
 else:
-    prob.add_option('max_iter', 3000)
-    initial_guess= np.random.randn(prob.num_free)
+    # No result is available, calculate a solution.
+    np.random.seed(123)
+    prob.add_option('max_iter', 6000)
+    initial_guess = np.random.randn(prob.num_free)
+    section = int(num_nodes/3)
+    x1 = np.linspace(0.0, par_map[xb1], section)
+    y1 = np.linspace(0.0, par_map[yb1], section)
+    x2 = np.linspace(par_map[xb1], par_map[xb2], section)
+    y2 = np.linspace(par_map[yb1], par_map[yb2], section)
+    x3 = np.linspace(par_map[xb2], 0.0, section)
+    y3 = np.linspace(par_map[yb2], 0.0, section)
+    xges = np.concatenate((x1, x2, x3))
+    yges = np.concatenate((y1, y2, y3))
+    initial_guess[0:3*section] = xges
+    initial_guess[3*section:6*section] = yges
     for i in range(5):
+        print(f'{i+1} - th iteration')
         solution, info = prob.solve(initial_guess)
+        initial_guess = solution
+
         print('message from optimizer:', info['status_msg'])
         print('Iterations needed', len(prob.obj_value))
         print(f"objective value {info['obj_val']:.3e} \n")
 
-        initial_guess = solution
-        print(f'{i+1} - th iteration')
-np.savetxt(f'car_around_pylons_{num_nodes}_nodes_solution.csv', solution,
-           fmt='%.2f')
+    _ = prob.plot_objective_value()
 
 # %%
 # Plot the constraint violations.
-
-# %%
-_ = prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution, subplots=False)
 
 # %%
 # Plot generalized coordinates / speeds and forces / torques
-_ = prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution, show_bounds=True)
 
 # %%
 # Animate the Car
@@ -468,8 +479,10 @@ animation = FuncAnimation(fig, update, frames=frames, interval=1000/fps)
 
 # %%
 fig, ax, line1, line2, line3, line4, line5 = init()
-update(7.26)
+update(5.75)
 
 plt.show()
 
 # sphinx_gallery_thumbnail_number = 3
+
+# %%

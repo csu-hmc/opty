@@ -65,7 +65,7 @@ def animate_pendulum(t, states, length, filename=None):
 
     """
     # the number of pendulum bobs
-    numpoints = states.shape[1] / 2
+    numpoints = states.shape[1] // 2
 
     # first set up the figure, the axis, and the plot elements we want to
     # animate

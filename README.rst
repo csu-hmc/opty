@@ -28,7 +28,7 @@ Introduction
 ``opty`` utilizes symbolic descriptions of differential algebraic equations
 expressed with SymPy_ to form the constraints needed to solve optimal control
 and parameter identification problems using the direct collocation method and
-non-linear programming (NLP). In general, if one can express the continuous
+`nonlinear programming`_ (NLP). In general, if one can express the continuous
 first order differential algebraic equations of the system as symbolic
 expressions, ``opty`` will automatically generate a function to efficiently
 evaluate the dynamical constraints and a function that evaluates the sparse
@@ -52,6 +52,7 @@ opty uses its primary dependencies in the following ways:
   solves it using an interior point method.
 
 .. _SymPy: http://www.sympy.org
+.. _nonlinear programming: https://en.wikipedia.org/wiki/Nonlinear_programming
 
 Features
 --------
@@ -66,6 +67,8 @@ Features
 - Easy specification of bounds on free variables.
 - Easily specify additional "instance" constraints.
 - Supports additional equality and inequality path constraints.
+- Variables the in the differential equations can be specified by numerical
+  functions to augment the symbolics.
 - Efficient numerical execution of large equations of motion.
 - Automatic parallel execution using openmp if installed.
 - Built with support of sympy.physics.mechanics and PyDy in mind.
@@ -102,7 +105,7 @@ The required dependencies are as follows:
 - cyipopt >= 1.1.0 [with ipopt >= 3.11 (Linux & OSX), >= 3.13 (Windows)]
 - cython >= 0.29.28 [with a `C compiler`_]
 - numpy >= 1.21.5
-- python 3.9-3.13
+- python 3.10-3.14
 - setuptools >= 59.6.0
 - sympy >= 1.9.1
 
@@ -233,6 +236,18 @@ and open the result with your default web browser, for example::
 
 Alternatively, in the windows explorer open
 ``\path\to\opty\docs\_build\html\index.html``.
+
+Contributing
+============
+
+For bug reports, feature requests, comments, patches use the GitHub issue
+tracker and/or pull request system.
+
+.. raw:: html
+
+   <p>opty is built by (made with <a
+   href="https://contrib.rocks">contrib.rocks</a> :</p>
+   <a href="https://github.com/csu-hmc/opty/graphs/contributors"><img src="https://contrib.rocks/image?repo=csu-hmc/opty"></a>
 
 Acknowledgements
 ================

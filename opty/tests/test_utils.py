@@ -269,8 +269,8 @@ def test_ufuncify_matrix():
 
     a_vals = np.random.random(n)
     b_vals = np.random.random(n)
-    c_vals = np.abs(np.random.random(n))
-    c_val = np.random.random(1)[0]
+    c_vals = np.abs(np.random.random(n)) + 10.0  # > 1.0 to avoid complex
+    c_val = np.random.random(1)[0] + 10.0  # > 1.0 to avoid complex
 
     def eval_matrix_loop_numpy(a_vals, b_vals, c_vals):
         """Since the number of matrix elements are typically much smaller

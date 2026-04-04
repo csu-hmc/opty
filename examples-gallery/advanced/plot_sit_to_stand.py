@@ -42,16 +42,9 @@ duration = (num_nodes - 1)*h
 # hip joint from the seat surface above the ground.
 symbolics = derive.derive_equations_of_motion(seat_force=True)
 
-mass_matrix = symbolics[0]
-forcing_vector = symbolics[1]
-constants = symbolics[3]
-coordinates = symbolics[4]
-speeds = symbolics[5]
-specified = symbolics[6]
-states = coordinates + speeds
-num_states = len(states)
+num_states = len(symbolics.states)
 
-eom = f_minus_ma(mass_matrix, forcing_vector, states)
+eom = symbolics.equations_of_motion
 eom.shape
 
 # %%
@@ -67,9 +60,9 @@ sm.count_ops(eom)
 # - left: hip (e), knee (f), ankle (g)
 #
 # Each joint has a joint torque acting between the adjacent bodies.
-qax, qay, qa, qb, qc, qd, qe, qf, qg = coordinates
-uax, uay, ua, ub, uc, ud, ue, uf, ug = speeds
-Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = specified
+qax, qay, qa, qb, qc, qd, qe, qf, qg = symbolics.coordinates
+uax, uay, ua, ub, uc, ud, ue, uf, ug = symbolics.speeds
+Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = symbolics.specifieds
 
 # %%
 # The model constants describe the geometry, mass, and inertia of the human. We
@@ -81,12 +74,13 @@ Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg = specified
 # - ``fyd``: foot depth
 (g, ma, ia, xa, ya, mb, ib, lb, xb, yb, mc, ic, lc, xc, yc, md, id_, xd, yd,
  hxd, txd, fyd, me, ie, le, xe, ye, mf, if_, lf, xf, yf, mg, ig, xg, yg, hxg,
- txg, fyg, kc, cc, mu, vs) = constants
+ txg, fyg, kc, cc, mu, vs) = symbolics.constants
 
 # %%
 # The constant values are loaded from a file of realistic geometry, mass,
 # inertia, and foot deformation properties of an adult human.
-par_map = simulate.load_constants(constants, 'human-gait-constants.yml')
+par_map = simulate.load_constants(symbolics.constants,
+                                  'human-gait-constants.yml')
 par_map
 
 # %%
@@ -197,7 +191,7 @@ prob = Problem(
     obj,
     obj_grad,
     eom,
-    states,
+    symbolics.states,
     num_nodes,
     h,
     known_parameter_map=par_map,
@@ -263,8 +257,8 @@ times = prob.time_vector(solution=solution)
 
 def animate(fname='animation.gif'):
 
-    ground, origin, segments = symbolics[8], symbolics[9], symbolics[10]
-    trunk, rthigh, rshank, rfoot, lthigh, lshank, lfoot = segments
+    ground, origin = symbolics.inertial_frame, symbolics.origin
+    trunk, rthigh, rshank, rfoot, lthigh, lshank, lfoot = symbolics.segments
 
     fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
 
@@ -294,8 +288,8 @@ def animate(fname='animation.gif'):
     ], color='black')
 
     # seat
-    seat_level = origin.locatenew('seat', (segments[2].length_symbol -
-                                           segments[3].foot_depth)*ground.y)
+    seat_level = origin.locatenew('seat', (rshank.length_symbol -
+                                           rfoot.foot_depth)*ground.y)
 
     scene.add_line([
         seat_level.locatenew('top', -0.2*ground.x + 0.5*ground.y),
@@ -304,7 +298,7 @@ def animate(fname='animation.gif'):
     ], color='black', linewidth=4)
 
     # adds CoM and unit vectors for each body segment
-    for seg in segments:
+    for seg in symbolics.segments:
         scene.add_body(seg.rigid_body)
 
     # show ground reaction force vectors at the heels, toes, and hip, scaled to
@@ -320,7 +314,8 @@ def animate(fname='animation.gif'):
     scene.add_vector(contact_force(lfoot.heel, ground, origin)/600.0,
                      lfoot.heel, color="tab:blue")
 
-    scene.lambdify_system(states + specified + constants)
+    scene.lambdify_system(symbolics.states + symbolics.specifieds +
+                          symbolics.constants)
     sim_data = np.vstack((
         xs,  # q, u shape(2n, N)
         np.zeros((3, len(times))),  # Fax, Fay, Ta (hand of god), shape(3, N)

@@ -2,7 +2,7 @@ r"""
 Compare DAE vs. ODE Formulation
 ===============================
 
-Objectice
+Objective
 ---------
 
 - To compare the results of the DAE and ODE formulations of the same problem.
@@ -10,13 +10,13 @@ Objectice
   the other case :math:`\dfrac{d}{dt}(\textrm{algebraic equation})` is used.
 
 
-Introductiom
+Introduction
 ------------
 
 This is example 10.103 from [Betts2010]_'s test problems. It has four
 differential equations and one algebraic equation. This example compares two
 solutions, the first uses the algebraic equation directly and the second uses
-the derivative of the algebraic equtation, i.e. converts the DAEs to ODEs.
+the derivative of the algebraic equation, i.e. converts the DAEs to ODEs.
 
 As expected, the DAE formulation gives a better result than the ODE
 formulation. The ODE formulation seems to run a bit faster.

@@ -6,11 +6,12 @@ Objectives
 ----------
 
 - Show how ``opty`` works with a single differential equation.
-- Shows how one can improve the accuracy by looking at the solution and changing
-  parameters accordingly. (Here the solution is constant except near the
-  beginning and near the end, so reducing the running time increases the
+- Shows how one can improve the accuracy by looking at the solution and
+  changing parameters accordingly. (Here the solution is constant except near
+  the beginning and near the end, so reducing the running time increases the
   accuracy, without having to resort to more nodes.)
-
+- Uses a temporary directory to cache the compiled binary to avoid recompiling
+  if the differential equations do not change.
 
 Introduction
 ------------
@@ -70,7 +71,7 @@ def solve_optimization(nodes, tf):
     # Create the optimization problem and set any options.
     prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes,
                    interval_value, instance_constraints=instance_constraints,
-                   time_symbol=t)
+                   time_symbol=t, tmp_dir='generated_code')
 
     prob.add_option('nlp_scaling_method', 'gradient-based')
 
