@@ -138,7 +138,8 @@ def _forward_jacobian(expr, wrt):
 
     logger.info('Adding expression nodes to cache...')
     start = timer()
-    replacements, reduced_exprs = sm.cse(expr.args[2], replacement_symbols)
+    replacements, reduced_exprs = sm.cse(expr.args[2], replacement_symbols,
+                                         order='none')
     for replacement_symbol, reduced_subexpr in replacements:
         replaced_subexpr = reduced_subexpr.xreplace(expr_to_replacement_cache)
         replacement_to_reduced_expr_cache[replacement_symbol] = replaced_subexpr
@@ -740,7 +741,8 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     if isinstance(expr, tuple) and len(expr) == 2:
         sub_exprs, simple_mat = expr
     else:
-        sub_exprs, simple_mat = sm.cse(expr, sm.numbered_symbols('z_'))
+        sub_exprs, simple_mat = sm.cse(expr, sm.numbered_symbols('z_'),
+                                       order='none')
 
     sub_expr_code = '\n'.join(['double ' + ccode(sub_expr[1], sub_expr[0])
                                for sub_expr in sub_exprs])
