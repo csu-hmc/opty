@@ -1,10 +1,11 @@
+# %%
 r"""
 Upright a Double Pendulum
 =========================
 
 Objectives
 ----------
-
+- Show how to use variable bounds.
 - Show the use of opty's variable time interval feature to solve a relatively
   simple problem.
 - Show the use of specifieds to enforce terminal constraints on
@@ -14,19 +15,23 @@ Introduction
 ------------
 
 A double pendulum is rotationally attached to a cart which can move along the
-horizontal X axis. The goal is to get the double pendulum to an upright
-position in the shortest time possible, given an upper limit on the absolute
-value of the force that can be applied to the cart. Gravity points in the
-negative Y direction.
-To ensure that it is at rest, not only the speeds, but also its accelerations
-are constrained to be zero at the end of the motion.
-
+horizontal X axis. The goal is to get the double pendulum to an *approximately*
+upright position in the shortest time possible, given an upper limit on the
+absolute value of the force that can be applied to the cart. Gravity points
+in the negative Y direction.
+Also the final speeds and accelerations of the pendulum must be within
+predescribed limits.
 
 Notes
 -----
 
-The upright double pendulum seems to be a very standard example in physics.
-One can find a lot about it in the internet.
+- The upright double pendulum seems to be a very standard example in physics.
+  One can find a lot about it in the internet.
+- The variable bounds may increase the time needed for convergence
+  substantially.
+- It is best to start with the pendulum at rest in the upright position as
+  the initial guess, and use this as initial guess for the more general
+  problem with variable bounds.
 
 
 **Constants**
@@ -117,7 +122,9 @@ eom = kd.col_join(fr + frstar)
 
 # %%
 # add the auxiliary eoms for h1, h2, h3, so
-# :math:`\dfrac{d^2}{dt^2}q_i(\textrm{duration}) = 0` can be enforced.
+# :math:`\dfrac{d^2}{dt^2}q_i(\textrm{duration}) \in \left[a_i(t), b_i(t)
+# \right]`
+# can be enforced  with variable bounds.
 eom = eom.col_join(sm.Matrix([h1 - u1.diff(t), h2 - u2.diff(t),
                    h3 - u3.diff(t)]))
 eom = sm.simplify(eom)
@@ -163,7 +170,7 @@ def obj_grad(free):
 
 
 # %%
-# Set the initial and final states to form the instance constraints.
+# Set the initial states to form the instance constraints.
 
 instance_constraints = (
     q1.func(0.0),
@@ -172,67 +179,187 @@ instance_constraints = (
     u1.func(0.0),
     u2.func(0.0),
     u3.func(0.0),
-    q2.func(duration) - target_angle,
-    q3.func(duration) - target_angle,
-    u1.func(duration),
-    u2.func(duration),
-    u3.func(duration),
-    h1.func(duration),
-    h2.func(duration),
-    h3.func(duration),
 )
 
 # %%
-# Bounding h > 0 helps avoid 'solutions' with h < 0.
+# Set the limits of the variable bounds.
+#
+# Bounding h > 0 helps to avoid meaningless 'solutions' with h < 0.
+delta_q2 = np.deg2rad(10.0)
+delta_q3 = np.deg2rad(15.0)
+delta_u23 = 2.0
+delta_acc23 = 2.0
+
+low_q2 = np.array([-np.pi for i in range(num_nodes - 3)] +
+                  [target_angle - delta_q2] + [target_angle - delta_q2] +
+                  [target_angle - delta_q2])
+hi_q2 = np.array([np.pi for i in range(num_nodes - 3)] +
+                 [target_angle + delta_q2] + [target_angle + delta_q2] +
+                 [target_angle + delta_q2])
+
+low_q3 = np.array([-np.pi for i in range(num_nodes - 3)] +
+                  [target_angle - delta_q3] + [target_angle - delta_q3] +
+                  [target_angle - delta_q3])
+hi_q3 = np.array([np.pi for i in range(num_nodes - 3)] +
+                 [target_angle + delta_q3] + [target_angle + delta_q3] +
+                 [target_angle + delta_q3])
+
+low_u23 = np.array([-np.inf for i in range(num_nodes - 3)] +
+                   [-delta_u23] + [-delta_u23] + [-delta_u23])
+hi_u23 = np.array([np.inf for i in range(num_nodes - 3)] +
+                  [delta_u23] + [delta_u23] + [delta_u23])
+
+low_h23 = np.array([-np.inf for i in range(num_nodes - 3)] +
+                   [-delta_acc23] + [-delta_acc23] + [-delta_acc23])
+hi_h23 = np.array([np.inf for i in range(num_nodes - 3)] +
+                  [delta_acc23] + [delta_acc23] + [delta_acc23])
+
 bounds = {
     F: (-50.0, 50.0),
     q1: (-5.0, 5.0),
+    q2: (low_q2, hi_q2),
+    q3: (low_q3, hi_q3),
+    u2: (low_u23, hi_u23),
+    u3: (low_u23, hi_u23),
+    h2: (low_h23, hi_h23),
+    h3: (low_h23, hi_h23),
     h: (0.0, 1.0),
 }
 
 # %%
 # Create an optimization problem and solve it.
-prob = Problem(
-    obj,
-    obj_grad,
-    eom,
-    state_symbols,
-    num_nodes,
-    interval_value,
-    known_parameter_map=par_map,
-    instance_constraints=instance_constraints,
-    time_symbol=t,
-    bounds=bounds,
-    backend='numpy'
-)
-
-# Initial guess.
-initial_guess = np.zeros(prob.num_free)
-initial_guess[1*num_nodes:2*num_nodes] = np.linspace(-target_angle,
-                                                     target_angle,
-                                                     num=num_nodes)
-initial_guess[2*num_nodes:3*num_nodes] = np.linspace(-target_angle,
-                                                     target_angle,
-                                                     num=num_nodes)
-initial_guess[6*num_nodes:7*num_nodes] = 50.0*np.ones(num_nodes)
-initial_guess[-1] = 0.01
 
 # %%
-# Use stored solution if available, else use initial_guess as given above.
+# Use stored solution as initial guess if available.
 fname = f'double_pendulum_on_a_cart_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
     initial_guess = np.loadtxt(fname)
+    prob = Problem(
+        obj,
+        obj_grad,
+        eom,
+        state_symbols,
+        num_nodes,
+        interval_value,
+        known_parameter_map=par_map,
+        instance_constraints=instance_constraints,
+        time_symbol=t,
+        bounds=bounds,
+        backend='numpy'
+    )
+
+    # Find the optimal solution.
+    prob.add_option('max_iter', 1000)
+    solution, info = prob.solve(initial_guess)
+    print('Message from optimizer:', info['status_msg'])
+    print('Iterations needed', len(prob.obj_value))
+    print(f"Objective value {solution[-1]: .3e}")
+
+else:
+    # Best to start with the final position to be vertically at rest
+    for i in range(2):
+        if i == 0:
+            instance_constraints = (
+                q1.func(0.0),
+                q2.func(0.0) + np.pi/2.0,
+                q3.func(0.0) + np.pi/2.0,
+                u1.func(0.0),
+                u2.func(0.0),
+                u3.func(0.0),
+                q2.func(duration) - target_angle,
+                q3.func(duration) - target_angle,
+                u2.func(duration),
+                u3.func(duration),
+                h2.func(duration),
+                h3.func(duration),
+            )
+
+            bounds = {
+                F: (-50.0, 50.0),
+                q1: (-5.0, 5.0),
+                h: (0.0, 0.05),
+            }
+
+            prob = Problem(
+                obj,
+                obj_grad,
+                eom,
+                state_symbols,
+                num_nodes,
+                interval_value,
+                known_parameter_map=par_map,
+                instance_constraints=instance_constraints,
+                time_symbol=t,
+                bounds=bounds,
+            )
+
+            # Initial guess.
+            initial_guess = np.zeros(prob.num_free)
+            initial_guess[1*num_nodes:2*num_nodes] = np.linspace(-target_angle,
+                                                                 target_angle,
+                                                                 num=num_nodes)
+            initial_guess[2*num_nodes:3*num_nodes] = np.linspace(-target_angle,
+                                                                 target_angle,
+                                                                 num=num_nodes)
+            initial_guess[6*num_nodes:7*num_nodes] = 50.0*np.ones(num_nodes)
+            initial_guess[-1] = 0.01
+
+            # Find the optimal solution.
+            prob.add_option('max_iter', 5000)
+            solution, info = prob.solve(initial_guess)
+            print('Message from optimizer:', info['status_msg'])
+            print('Iterations needed', len(prob.obj_value))
+            print(f"Objective value {solution[-1]: .3e}")
+            initial_guess = solution
+        else:
+            instance_constraints = (
+                q1.func(0.0),
+                q2.func(0.0) + np.pi/2.0,
+                q3.func(0.0) + np.pi/2.0,
+                u1.func(0.0),
+                u2.func(0.0),
+                u3.func(0.0),
+            )
+
+            bounds = {
+                F: (-50.0, 50.0),
+                q1: (-5.0, 5.0),
+                q2: (low_q2, hi_q2),
+                q3: (low_q3, hi_q3),
+                u2: (low_u23, hi_u23),
+                u3: (low_u23, hi_u23),
+                h2: (low_h23, hi_h23),
+                h3: (low_h23, hi_h23),
+                h: (0.0, 1.0),
+            }
+
+            prob = Problem(
+                obj,
+                obj_grad,
+                eom,
+                state_symbols,
+                num_nodes,
+                interval_value,
+                known_parameter_map=par_map,
+                instance_constraints=instance_constraints,
+                time_symbol=t,
+                bounds=bounds,
+            )
+
+            # Find the optimal solution.
+            prob.add_option('max_iter', 5000)
+            solution, info = prob.solve(initial_guess)
+            print('Message from optimizer:', info['status_msg'])
+            print('Iterations needed', len(prob.obj_value))
+            print(f"Objective value {solution[-1]: .3e}")
+            np.savetxt(fname, solution, fmt='%.12e')
 
 # %%
-# Find the optimal solution as no stored solution available.
-solution, info = prob.solve(initial_guess)
-print('Message from optimizer:', info['status_msg'])
-print('Iterations needed', len(prob.obj_value))
-print(f"Objective value {solution[-1]: .3e}")
-
+# Plot the objective value.
+_ = prob.plot_objective_value()
 # %%
 # Plot the accuracy of the solution.
-_ = prob.plot_constraint_violations(solution)
+_ = prob.plot_constraint_violations(solution, subplots=True)
 
 # %%
 # Plot the state trajectories.
@@ -287,6 +414,12 @@ ymax = max(np.max(P1_y), np.max(P2_y), np.max(P3_y))
 
 width, height = par_map[lx]/3., par_map[lx]/3.
 
+# Function for plotting the :math:`q_i` limits.
+
+
+def yy(x_0, y_0, mr, xxr):
+    return y_0 + mr * (xxr - x_0)
+
 
 def animate_pendulum(time, P1_x, P1_y, P2_x, P2_y):
 
@@ -307,6 +440,30 @@ def animate_pendulum(time, P1_x, P1_y, P2_x, P2_y):
                               width=width, height=height, fill=True,
                               color='red', ec='black')
     ax.add_patch(recht)
+
+    # Plot the limits of q2 and q3 at the final time.
+    i = num_nodes - 1
+    x_0 = P1_x[i]
+    mr = np.tan(np.pi / 2.0 - delta_q2)
+    ml = np.tan(np.pi / 2.0 + delta_q2)
+    xxr = np.linspace(x_0, x_0 + 2.0, 100)
+    xxl = np.linspace(x_0 - 2.0, x_0, 100)
+    ax.plot(xxr, yy(x_0, P1_y[i], mr, xxr), color='blue', lw=0.5,
+            linestyle='dashed')
+    ax.plot(xxl, yy(x_0, P1_y[i], ml, xxl), color='blue', lw=0.5,
+            linestyle='dashed')
+
+    x_0 = P2_x[i]
+    y_0 = P2_y[i]
+    mr = np.tan(np.pi / 2.0 - delta_q3)
+    ml = np.tan(np.pi / 2.0 + delta_q3)
+    xxr = np.linspace(x_0, x_0 + 2.0, 100)
+    xxl = np.linspace(x_0 - 2.0, x_0, 100)
+    ax.plot(xxr, yy(x_0, y_0, mr, xxr), color='red', lw=0.5,
+            linestyle='dashed')
+    ax.plot(xxl, yy(x_0, y_0, ml, xxl), color='red', lw=0.5,
+            linestyle='dashed')
+
     return fig, ax, line1, line2, recht
 
 
@@ -315,7 +472,9 @@ times = np.linspace(0.0, duration, num_nodes)
 
 
 def animate(i):
-    message = (f'running time {times[i]: .2f} sec')
+    message = (f"Running time {times[i]: .2f} sec \n"
+               f"The blue dotted lines show the allowed range of $q_2$ \n"
+               f"The red dotted lines show the allowed range of $q_3$")
     ax.set_title(message, fontsize=15)
     recht.set_xy((P1_x[i] - width/2., P1_y[i] - height/2.))
 
@@ -326,7 +485,7 @@ def animate(i):
     wert_x = [P2_x[i], P3_x[i]]
     wert_y = [P2_y[i], P3_y[i]]
     line2.set_data(wert_x, wert_y)
-    return line1, line2,
+    return line1, line2, recht
 
 
 # %%
