@@ -102,17 +102,19 @@ prob = Problem(obj, obj_grad, eom, state_symbols, num_nodes, h,
                backend='numpy')
 
 # %%
-# Use existing solution if available else pick a reasonable initial guess and
-# solve the problem. Use approximately zero as an initial guess to avoid
-# divide-by-zero, and solve the problem.
+# Use existing solution as the initial guess if available else pick a
+# reasonable initial guess and solve the problem. Use approximately zero as an
+# initial guess to avoid divide-by-zero, and solve the problem.
 fname = f'pendulum_swing_up_variable_duration_{num_nodes}_nodes_solution.csv'
 if os.path.exists(fname):
-    solution = np.loadtxt(fname)
+    initial_guess = np.loadtxt(fname)
 else:
     initial_guess = np.full(prob.num_free, 1e-10)
-    solution, info = prob.solve(initial_guess)
-    print(info['status_msg'])
-    print(info['obj_val'])
+
+solution, info = prob.solve(initial_guess)
+
+print(info['status_msg'])
+print(info['obj_val'])
 
 # %%
 # Plot the optimal state and input trajectories.
