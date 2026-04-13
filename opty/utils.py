@@ -136,7 +136,7 @@ def _forward_jacobian(expr, wrt):
     expr_to_replacement_cache = {}
     replacement_to_reduced_expr_cache = {}
 
-    logger.info('Adding expression nodes to cache...')
+    logger.debug('Adding expression nodes to cache...')
     start = timer()
     replacements, reduced_exprs = sm.cse(expr.args[2], replacement_symbols,
                                          order='none')
@@ -150,7 +150,7 @@ def _forward_jacobian(expr, wrt):
         for node in reduced_expr:
             _ = add_to_cache(node)
     finish = timer()
-    logger.info(f'Completed in {finish - start:.2f}s')
+    logger.debug(f'Completed in {finish - start:.2f}s')
 
     reduced_matrix = sm.ImmutableDenseMatrix(reduced_exprs).xreplace(
         expr_to_replacement_cache)
@@ -164,7 +164,7 @@ def _forward_jacobian(expr, wrt):
         absolute_derivative_mapping[wrt_symbol] = sm.ImmutableDenseMatrix(
             [absolute_derivative])
 
-    logger.info('Differentiating expression nodes...')
+    logger.debug('Differentiating expression nodes...')
     start = timer()
     zeros = sm.ImmutableDenseMatrix.zeros(1, len(wrt))
     for symbol, subexpr in replacements:
@@ -182,9 +182,9 @@ def _forward_jacobian(expr, wrt):
     replaced_jacobian = sm.ImmutableDenseMatrix.vstack(*[
         absolute_derivative_mapping[e] for e in reduced_matrix])
     finish = timer()
-    logger.info(f'Completed in {finish - start:.2f}s')
+    logger.debug(f'Completed in {finish - start:.2f}s')
 
-    logger.info('Determining required replacements...')
+    logger.debug('Determining required replacements...')
     start = timer()
     required_replacement_symbols = set()
     stack = [entry for entry in replaced_jacobian if entry.free_symbols]
@@ -199,7 +199,7 @@ def _forward_jacobian(expr, wrt):
                 stack.append(child)
         required_replacement_symbols.add(entry)
     finish = timer()
-    logger.info(f'Completed in {finish - start:.2f}s')
+    logger.debug(f'Completed in {finish - start:.2f}s')
 
     required_replacements_dense = {
         replacement_symbol: replaced_subexpr
@@ -212,7 +212,7 @@ def _forward_jacobian(expr, wrt):
     for replaced_subexpr in required_replacements_dense.values():
         counter.update(sm.ordered(replaced_subexpr.free_symbols))
 
-    logger.info('Substituting required replacements...')
+    logger.debug('Substituting required replacements...')
     required_replacements = {}
     unrequired_replacements = {}
     for replacement_symbol, replaced_subexpr in required_replacements_dense.items():
@@ -222,7 +222,7 @@ def _forward_jacobian(expr, wrt):
         else:
             required_replacements[replacement_symbol] = replaced_subexpr.xreplace(unrequired_replacements)
     finish = timer()
-    logger.info(f'Completed in {finish - start:.2f}s')
+    logger.debug(f'Completed in {finish - start:.2f}s')
 
     return (list(required_replacements.items()),
             [replaced_jacobian.xreplace(unrequired_replacements)])
@@ -819,7 +819,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
 
     workingdir = os.getcwd()
     os.chdir(codedir)
-    logger.info('Changed directory to {}'.format(codedir))
+    logger.debug('Changed directory to {}'.format(codedir))
 
     # NOTE : If there are other files present in the directory (will only occur
     # if a tmp_dir is set) then search through them starting with the most
@@ -828,7 +828,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
     matching_module_num = None
     for prior_num in reversed(range(prior_module_number + 1)):
         old_file_prefix = '{}_{}'.format(file_prefix_base, prior_num)
-        logger.info(f'Checking {old_file_prefix} for cached code.')
+        logger.debug(f'Checking {old_file_prefix} for cached code.')
         try:
             with open(old_file_prefix + '_c.c', 'r') as f:
                 hash_line = f.readline()
@@ -860,7 +860,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
             sys.path.remove(codedir)
             logger.info(f'Skipped compile, {old_file_prefix} module loaded.')
             os.chdir(workingdir)
-            logger.info(f'Changed directory to {workingdir}.')
+            logger.debug(f'Changed directory to {workingdir}.')
             return getattr(cython_module, d['routine_name'] + '_loop')
 
     try:
@@ -887,7 +887,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
         else:
             encoding = None
         try:
-            logger.info('Compiling matrix evaluation.')
+            logger.debug('Compiling matrix evaluation.')
             proc = subprocess.run(cmd, capture_output=True, text=True,
                                   encoding=encoding)
         # On Windows this can raise a UnicodeDecodeError, but only in the
@@ -923,7 +923,7 @@ def ufuncify_matrix(args, expr, const=None, tmp_dir=None, parallel=False,
             # so I don't delete the directory on Windows.
             if sys.platform != "win32":
                 shutil.rmtree(codedir)
-                logger.info('Removed directory {}'.format(codedir))
+                logger.debug('Removed directory {}'.format(codedir))
 
     return getattr(cython_module, d['routine_name'] + '_loop')
 
