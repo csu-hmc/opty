@@ -87,12 +87,10 @@ instance_constraints = (
 # %%
 # Limit the torque using variable bounds.
 third = int(num_nodes/3)
-low_T =  np.array([-3 for _ in range(third)] +
-                  [-1 for _ in range(third)] +
-                  [-3 for _ in range(num_nodes - 2 * third)])
-hi_T = np.array([3 for _ in range(third)] +
-                [1 for _ in range(third)] +
-                [3 for _ in range(num_nodes - 2 * third)])
+low_T = np.full(num_nodes, -3.0)
+low_T[third: 2*third] = -1.0
+hi_T = np.full(num_nodes, 3.0)
+hi_T[third: 2*third] = 1.0
 
 bounds = {T(t): (low_T, hi_T)}
 
