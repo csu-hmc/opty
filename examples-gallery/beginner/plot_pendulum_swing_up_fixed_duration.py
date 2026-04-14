@@ -7,7 +7,7 @@ Objective
 ---------
 
 - Show the use of opty with likely the simplest example possible.
-- Show how to use adjustable bounds.
+- Show how to use variable bounds.
 
 
 Introduction
