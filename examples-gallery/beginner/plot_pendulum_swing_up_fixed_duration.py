@@ -7,6 +7,7 @@ Objective
 ---------
 
 - Show the use of opty with likely the simplest example possible.
+- Show how to use adjustable bounds.
 
 
 Introduction
@@ -84,8 +85,16 @@ instance_constraints = (
 )
 
 # %%
-# Limit the torque to a maximum magnitude.
-bounds = {T(t): (-2.0, 2.0)}
+# Limit the torque using variable bounds.
+third = int(num_nodes/3)
+low_T =  np.array([-3 for _ in range(third)] +
+                  [-1 for _ in range(third)] +
+                  [-3 for _ in range(num_nodes - 2 * third)])
+hi_T = np.array([3 for _ in range(third)] +
+                [1 for _ in range(third)] +
+                [3 for _ in range(num_nodes - 2 * third)])
+
+bounds = {T(t): (low_T, hi_T)}
 
 # %%
 # Create an optimization problem.
@@ -111,7 +120,7 @@ _ = prob.plot_jacobian_sparsity()
 
 # %%
 # Plot the optimal state and input trajectories.
-_ = prob.plot_trajectories(solution)
+_ = prob.plot_trajectories(solution, show_bounds=True)
 
 # %%
 # Plot the constraint violations.
