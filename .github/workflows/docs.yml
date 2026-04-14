@@ -38,6 +38,8 @@ jobs:
           miniforge-version: latest
       - name: Build Docs
         run: |
+          conda remove --force sympy
+          python -m pip install --no-deps git+https://github.com/sympy/sympy.git#egg=sympy
           cd docs
           # fail on any warnings
           make html SPHINXOPTS="-W"
