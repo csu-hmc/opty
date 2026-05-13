@@ -97,6 +97,10 @@ Animations from some of the `examples
      - .. image:: https://opty.readthedocs.io/latest/_images/sphx_glr_plot_park2004_thumb.gif
           :width: 200px
 
+Some more examples may be found here:
+https://pydy.github.io/pst-notebooks
+
+
 Installation
 ============
 
