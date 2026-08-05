@@ -1428,7 +1428,9 @@ class ConstraintCollocator(object):
         node_time_interval : float or Symbol
             The time interval between collocation nodes. If a SymPy symbol is
             provided, the time interval will be treated as a free variable
-            resulting in a variable duration solution.
+            resulting in a variable duration solution. If a symbol is provided,
+            it is advisable to bound it to be non negative e.g.
+            ``{node_time_interval: (0.0, np.inf)}`` in the bounds dictionary.
         known_parameter_map : dictionary, optional
             A dictionary that maps the SymPy symbols representing the known
             constant parameters to floats. Any parameters in the equations of
