@@ -115,9 +115,13 @@ sphinx_gallery_conf = {
     'examples_dirs': os.path.join(REPO_DIR, 'examples-gallery'),
     'gallery_dirs': 'examples',
     'matplotlib_animations': True,
-    'parallel': multiprocessing.cpu_count(),
     'remove_config_comments': True,
 }
+
+if ("READTHEDOCS" in os.environ):
+    sphinx_gallery_conf['parallel'] = 1
+else:
+    sphinx_gallery_conf['parallel'] = multiprocessing.cpu_count()
 
 # NOTE : The subsections are only sorted online due to it preventing caching.
 # See https://github.com/sphinx-doc/sphinx/issues/12300 for more info.

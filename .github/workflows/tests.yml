@@ -73,4 +73,4 @@ jobs:
       # gracefully otherwise.
       - name: Run an openmp example
         run: |
-          python examples/parallel_example.py
+          python examples-gallery/beginner/plot_parallel.py
