@@ -114,12 +114,12 @@ def obj_grad(free):
 
 
 # %%
-# Set up the constraints and bounds, objective function and its gradient for
-# the problem. (b1, b2) is the final point and (0, 0) is the starting point is
-# (0/0).
+# (b1, b2) is the final point and (0, 0) is the starting point.
 b1 = 10.0
 b2 = -6.0
 
+# %%
+# Initial and final constraints for the states.
 instance_constraint = (
     x.func(t0),
     y.func(t0),
@@ -135,7 +135,13 @@ bounds = {
     beta: (-np.pi/2, np.pi),
 }
 
+# %%
+# Only one known parameter, the acceleration due to gravity.
 par_map = {g: 9.81}
+
+
+# %%
+# Set up an instance of Problem.
 
 prob = Problem(
     obj,
@@ -152,13 +158,15 @@ prob = Problem(
 )
 
 # %%
-# Solve the problem.
+# Pick an reasonable initial guess.
 x_guess = np.linspace(0, b1, num_nodes)
 y_guess = np.linspace(0, b2, num_nodes)
 v_guess = np.linspace(0, np.sqrt(-2*par_map[g]*b2), num_nodes)
 beta_guess = beta_guess = np.linspace(np.pi/2, 0.0, num_nodes)
 initial_guess = np.concatenate([x_guess, y_guess, v_guess, beta_guess, [0.01]])
 
+# %%
+# Solve the problem.
 solution, info = prob.solve(initial_guess)
 print(info['status_msg'])
 
@@ -245,7 +253,7 @@ def init_plot():
 
 
 # %%
-# Function to update the plot for each animation frame
+# Function to update the plot for each animation frame.
 fig, ax, punkt, pfeil = init_plot()
 
 
@@ -265,14 +273,14 @@ def update(t):
 # %%
 # Create the animation.
 fig, ax, punkt, pfeil = init_plot()
-animation = FuncAnimation(
+
+# sphinx_gallery_thumbnail_number = 4
+
+ani = FuncAnimation(
     fig,
     update,
     frames=np.arange(t0, (num_nodes + 1)*h_val, 1/fps),
     interval=3000/fps,
 )
 
-# %%
-# A frame from the animation.
-# sphinx_gallery_thumbnail_number = 4
 plt.show()
