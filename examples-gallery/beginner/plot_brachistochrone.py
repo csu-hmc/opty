@@ -1,6 +1,7 @@
+# %%
 r"""
-Brachistochrone
-===============
+Classic Brachistochrone
+=======================
 
 Objective
 ---------
@@ -21,27 +22,30 @@ which is a cycloid.
 Explanation of the Approach Taken
 ---------------------------------
 
-Let the curve be called :math:`b(x)`. If the particle is at :math:`(x(t) ,
-b(x(t))` then it cannot have a speed component normal to the tangent of the
-curve at this point. This fact is used to set up the equations of motion.
+Let the curve to be determined be called :math:`b(x)`.
+If the particle is at :math:`(x(t), b(x(t))` then its speed :math:`\bar{v(t)}`
+must be tangent to the curve. If :math:`\beta(t)` is the angle of the tangent
+of the curve with the horizontal, then the velocity components must satisfy
+:math:`\dot{x} = v(t) \cdot \cos(\beta),
+\quad \dot{y} = v(t) \cdot \sin(\beta)`. The acceleration due to gravity lies
+along the tangent as well: :math:`\dot{v(t)} = g \cdot \sin(\beta)`
 Without loss of generality the starting point is (0, 0).
 
 Notes
 -----
 
-The curve is parameterized by time and a nonholonomic constraint is introduced
-to ensure the motion is always tangent to the curve. The nonholonomic
-constraint is similar to the constraint present in the `Chaplygin Sleigh`_.
-
-.. _Chaplygin Sleigh: https://en.wikipedia.org/wiki/Chaplygin_sleigh
+- Obviously, the mass of the particle does not matter.
+- It is well known that the motion will start vertically downwards.
+  Hence setting up the equations of motion the 'standard way' will lead to a
+  singularity at the initial time, when the optimization is performed by opty.
+  The equations used here avoid this singularity.
 
 **States**
 
 - :math:`x`: x-coordinate of the particle
 - :math:`y`: y-coordinate of the particle, opposite in sign to the
   gravitational force
-- :math:`u_x`: x-component of the velocity of the particle
-- :math:`u_y`: y-component of the velocity of the particle
+- :math:`v`: the speed
 
 **Inputs**
 
@@ -49,7 +53,6 @@ constraint is similar to the constraint present in the `Chaplygin Sleigh`_.
 
 **Known Parameters**
 
-- :math:`m`: mass of the particle
 - :math:`g`: acceleration due to gravity
 - :math:`b_1`: x coordinate of the final point
 - :math:`b_2`: y coordinate of the final point
@@ -59,7 +62,6 @@ constraint is similar to the constraint present in the `Chaplygin Sleigh`_.
 - :math:`h`: time interval
 
 """
-import os
 from opty.utils import MathJaxRepr
 import numpy as np
 import sympy as sm
@@ -74,47 +76,20 @@ from matplotlib.animation import FuncAnimation
 # Equations of Motion
 # -------------------
 #
-# The equations of motion represent a particle :math:`P` of mass :math:`m`
-# moving in a uniform gravitational field. The point moves on a surface that
-# applies a normal force to it and the angle of the surface relative to the
-# horizontal is :math:`\beta(t)`. A nonholonomic constraint to ensure the
-# particle's velocity only has a component tangent to the surface is added to
-# the equations of motion making a set of differential algebraic equations.
-N, A = me.ReferenceFrame('N'), me.ReferenceFrame('A')
-O, P = sm.symbols('O P', cls=me.Point)
-O.set_vel(N, 0)
 t = me.dynamicsymbols._t
 
-m, g = sm.symbols('m g')
-x, y, ux, uy = me.dynamicsymbols('x y u_x u_y')
+g = sm.symbols('g')
+x, y, v = me.dynamicsymbols('x y v')
 beta = me.dynamicsymbols('beta')
 
-state_symbols = (x, y, ux, uy)
+state_symbols = (x, y, v)
 
-A.orient_axis(N, beta, N.z)
 
-P.set_pos(O, x*N.x + y*N.y)
-P.set_vel(N, ux*N.x + uy*N.y)
-
-speed_constr = sm.Matrix([P.vel(N).dot(A.y)])
-
-kd = sm.Matrix([ux - x.diff(t), uy - y.diff(t)])
-
-bodies = [me.Particle('body', P, m)]
-forces = [(P, -m*g*N.y)]
-
-kane = me.KanesMethod(
-    N,
-    q_ind=[x, y],
-    u_ind=[ux],
-    u_dependent=[uy],
-    kd_eqs=kd,
-    velocity_constraints=speed_constr,
-)
-fr, frstar = kane.kanes_equations(bodies, loads=forces)
-
-eom = kd.col_join(fr + frstar)
-eom = eom.col_join(speed_constr)
+eom = sm.Matrix([
+    x.diff(t) - v * sm.cos(beta),
+    y.diff(t) - v * sm.sin(-beta),
+    v.diff(t) - g * sm.sin(beta)
+])
 MathJaxRepr(eom)
 
 # %%
@@ -148,18 +123,19 @@ b2 = -6.0
 instance_constraint = (
     x.func(t0),
     y.func(t0),
-    ux.func(t0),
-    uy.func(t0),
+    v.func(t0),
     x.func(tf) - b1,
     y.func(tf) - b2,
 )
 
+# %%
+# Bounding h to be positive avoids non-physical solutions.
 bounds = {
     h: (0.0, 1.0),
-    beta: (-np.pi/2 + 1.e-5, 0.0),
+    beta: (-np.pi/2, np.pi),
 }
 
-par_map = {m: 1.0, g: 9.81}
+par_map = {g: 9.81}
 
 prob = Problem(
     obj,
@@ -172,22 +148,23 @@ prob = Problem(
     known_parameter_map=par_map,
     instance_constraints=instance_constraint,
     bounds=bounds,
+    backend='numpy'
 )
 
 # %%
-# Solve the problem. Use the given solution if available, else pick a
-# reasonable initial guess and solve the problem. This problem takes a large
-# number of iterations to reach the optimal solution.
-fname = f'brachistochrone_{num_nodes}_nodes_solution.csv'
-if os.path.exists(fname):
-    solution = np.loadtxt(fname)
-else:
-    initial_guess = np.random.randn(prob.num_free)*0.1
-    prob.add_option('max_iter', 15000)
-    solution, info = prob.solve(initial_guess)
-    print(info['status_msg'])
+# Solve the problem.
+x_guess = np.linspace(0, b1, num_nodes)
+y_guess = np.linspace(0, b2, num_nodes)
+v_guess = np.linspace(0, np.sqrt(-2*par_map[g]*b2), num_nodes)
+beta_guess = beta_guess = np.linspace(np.pi/2, 0.0, num_nodes)
+initial_guess = np.concatenate([x_guess, y_guess, v_guess, beta_guess, [0.01]])
 
-    _ = prob.plot_objective_value()
+solution, info = prob.solve(initial_guess)
+print(info['status_msg'])
+
+# %%
+# Plot the objective value over iterations.
+_ = prob.plot_objective_value()
 
 # %%
 # State and input trajectories:
@@ -200,12 +177,14 @@ _ = prob.plot_constraint_violations(solution)
 # %%
 # Animate the Solution
 # --------------------
-fps = 35
+fps = 20
 
 
 # %%
 # Calculate the Brachistochrone from (0, 0) to (b1, b2). It is very sensitive
 # to the initial guess.
+
+
 def func(x0):
     """Gives the Brachistochrome equation for the starting point at (0, 0) and
     the final point at (b1, b2)"""
@@ -232,8 +211,10 @@ xmax = b1 + 1.0
 ymin = b2 - 1.0
 ymax = 1.0
 
-arrow_head = me.Point('arrow_head')
-arrow_head.set_pos(P, ux*N.x + uy*N.y)
+N = me.ReferenceFrame('N')
+O, arrow_head, P = sm.symbols('O arrow_head P', cls=me.Point)
+P.set_pos(O, x*N.x + y*N.y)
+arrow_head.set_pos(P, v*sm.cos(beta)*N.x + v*sm.sin(-beta)*N.y)
 
 coordinates = P.pos_from(O).to_matrix(N)
 coordinates = coordinates.row_join(arrow_head.pos_from(O).to_matrix(N))
