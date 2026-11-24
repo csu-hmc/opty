@@ -136,7 +136,7 @@ bounds = {
 }
 
 # %%
-# Only one known parameter, the acceleration due to gravity.
+# Only one known parameter, the gravity.
 par_map = {g: 9.81}
 
 
