@@ -254,7 +254,6 @@ def init_plot():
 
 # %%
 # Function to update the plot for each animation frame.
-fig, ax, punkt, pfeil = init_plot()
 
 
 def update(t):
