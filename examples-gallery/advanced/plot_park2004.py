@@ -39,6 +39,7 @@ from symmeplot.matplotlib import Scene3D
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sm
+import sympy.physics.control as ctrl
 
 from model_park2004 import PlanarStandingHumanOnMovingPlatform
 
@@ -53,6 +54,15 @@ h = PlanarStandingHumanOnMovingPlatform(unscaled_gain=0.5)
 h.derive()
 eom = h.first_order_implicit()
 MathJaxRepr(sm.simplify(eom))
+
+# %% Generate Stability Constraints
+# ---------------------------------
+#
+A, B, C, D = h.closed_loop_state_space()
+ss = ctrl.StateSpace(A, B, C, D)
+ineq = ss.get_asymptotic_stability_conditions(fast=True)
+constraints = [expr.lhs for expr in ineq]  # all should be > zero
+eom = eom.col_join(sm.Matrix(constraints))
 
 # %%
 # Simulate Measurement Data
@@ -151,6 +161,7 @@ prob = Problem(
     bounds=bounds,
     time_symbol=h.time,
     integration_method='midpoint',
+    eom_bounds={4 + i: (0.0, np.inf) for i in range(len(constraints))}
 )
 
 # %%
